@@ -15,10 +15,10 @@ BBLAYERS ?= " \
   ##OEROOT##/meta-phosphor \
   ##OEROOT##/meta-aspeed \
   ##OEROOT##/meta-x86 \
-  ##OEROOT##/openbmc-meta-intel \
+  ##OEROOT##/meta-openbmc-mods \
   ##OEROOT##/meta-intel \
-  ##OEROOT##/openbmc-meta-intel/meta-common \
-  ##OEROOT##/openbmc-meta-intel/meta-common-small \
-  ##OEROOT##/openbmc-meta-intel/meta-wolfpass \
+  ##OEROOT##/meta-openbmc-mods/meta-common \
+  ##OEROOT##/meta-openbmc-mods/meta-common-small \
+  ##OEROOT##/meta-openbmc-mods/meta-wolfpass \
   ##OEROOT##/meta-security \
   "
