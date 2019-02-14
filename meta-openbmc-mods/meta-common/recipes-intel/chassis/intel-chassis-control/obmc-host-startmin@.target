@@ -1,0 +1,6 @@
+[Unit]
+Description=Start Host%i Minimum
+Wants={SYSTEMD_DEFAULT_TARGET}
+After={SYSTEMD_DEFAULT_TARGET}
+Wants=mapper-wait@-xyz-openbmc_project-Chassis-Control-Chassis%i.service
+After=mapper-wait@-xyz-openbmc_project-Chassis-Control-Chassis%i.service

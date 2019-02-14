@@ -1,0 +1,1425 @@
+From 58c3299017c5e6022fb2a2a74b662b2a4c0306f5 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 20 Nov 2018 10:14:47 -0800
+Subject: [PATCH] net/ncsi: backport ncsi patches
+
+net/ncsi: Allow enabling multiple packages & channels
+
+This series extends the NCSI driver to configure multiple packages
+and/or channels simultaneously. Since the RFC series this includes a few
+extra changes to fix areas in the driver that either made this harder or
+were roadblocks due to deviations from the NCSI specification.
+
+Patches 1 & 2 fix two issues where the driver made assumptions about the
+capabilities of the NCSI topology.
+Patches 3 & 4 change some internal semantics slightly to make multi-mode
+easier.
+Patch 5 introduces a cleaner way of reconfiguring the NCSI configuration
+and keeping track of channel states.
+Patch 6 implements the main multi-package/multi-channel configuration,
+configured via the Netlink interface.
+
+Readers who have an interesting NCSI setup - especially multi-package
+with HWA - please test! I think I've covered all permutations but I
+don't have infinite hardware to test on.
+
+net/ncsi: Don't enable all channels when HWA available
+
+NCSI hardware arbitration allows multiple packages to be enabled at once
+and share the same wiring. If the NCSI driver recognises that HWA is
+available it unconditionally enables all packages and channels; but that
+is a configuration decision rather than something required by HWA.
+Additionally the current implementation will not failover on link events
+which can cause connectivity to be lost unless the interface is manually
+bounced.
+
+Retain basic HWA support but remove the separate configuration path to
+enable all channels, leaving this to be handled by a later
+implementation.
+
+net/ncsi: Probe single packages to avoid conflict
+
+Currently the NCSI driver sends a select-package command to all possible
+packages simultaneously to discover what packages are available. However
+at this stage in the probe process the driver does not know if
+hardware arbitration is available: if it isn't then this process could
+cause collisions on the RMII bus when packages try to respond.
+
+Update the probe loop to probe each package one by one, and once
+complete check if HWA is universally supported.
+
+net/ncsi: Don't deselect package in suspend if active
+
+When a package is deselected all channels of that package cease
+communication. If there are other channels active on the package of the
+suspended channel this will disable them as well, so only send a
+deselect-package command if no other channels are active.
+
+net/ncsi: Don't mark configured channels inactive
+
+The concepts of a channel being 'active' and it having link are slightly
+muddled in the NCSI driver. Tweak this slightly so that
+NCSI_CHANNEL_ACTIVE represents a channel that has been configured and
+enabled, and NCSI_CHANNEL_INACTIVE represents a de-configured channel.
+This distinction is important because a channel can be 'active' but have
+its link down; in this case the channel may still need to be configured
+so that it may receive AEN link-state-change packets.
+
+net/ncsi: Reset channel state in ncsi_start_dev()
+
+When the NCSI driver is stopped with ncsi_stop_dev() the channel
+monitors are stopped and the state set to "inactive". However the
+channels are still configured and active from the perspective of the
+network controller. We should suspend each active channel but in the
+context of ncsi_stop_dev() the transmit queue has been or is about to be
+stopped so we won't have time to do so.
+
+Instead when ncsi_start_dev() is called if the NCSI topology has already
+been probed then call ncsi_reset_dev() to suspend any channels that were
+previously active. This resets the network controller to a known state,
+provides an up to date view of channel link state, and makes sure that
+mode flags such as NCSI_MODE_TX_ENABLE are properly reset.
+
+In addition to ncsi_start_dev() use ncsi_reset_dev() in ncsi-netlink.c
+to update the channel configuration more cleanly.
+
+net/ncsi: Configure multi-package, multi-channel modes with failover
+
+This patch extends the ncsi-netlink interface with two new commands and
+three new attributes to configure multiple packages and/or channels at
+once, and configure specific failover modes.
+
+NCSI_CMD_SET_PACKAGE mask and NCSI_CMD_SET_CHANNEL_MASK set a whitelist
+of packages or channels allowed to be configured with the
+NCSI_ATTR_PACKAGE_MASK and NCSI_ATTR_CHANNEL_MASK attributes
+respectively. If one of these whitelists is set only packages or
+channels matching the whitelist are considered for the channel queue in
+ncsi_choose_active_channel().
+
+These commands may also use the NCSI_ATTR_MULTI_FLAG to signal that
+multiple packages or channels may be configured simultaneously. NCSI
+hardware arbitration (HWA) must be available in order to enable
+multi-package mode. Multi-channel mode is always available.
+
+If the NCSI_ATTR_CHANNEL_ID attribute is present in the
+NCSI_CMD_SET_CHANNEL_MASK command the it sets the preferred channel as
+with the NCSI_CMD_SET_INTERFACE command. The combination of preferred
+channel and channel whitelist defines a primary channel and the allowed
+failover channels.
+If the NCSI_ATTR_MULTI_FLAG attribute is also present then the preferred
+channel is configured for Tx/Rx and the other channels are enabled only
+for Rx.
+
+Signed-off-by: Samuel Mendoza-Jonas <sam@mendozajonas.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ include/uapi/linux/ncsi.h |  15 ++
+ net/ncsi/internal.h       |  19 +-
+ net/ncsi/ncsi-aen.c       |  75 +++++--
+ net/ncsi/ncsi-manage.c    | 522 ++++++++++++++++++++++++++++++++--------------
+ net/ncsi/ncsi-netlink.c   | 233 ++++++++++++++++++---
+ net/ncsi/ncsi-rsp.c       |   2 +-
+ 6 files changed, 660 insertions(+), 206 deletions(-)
+
+diff --git a/include/uapi/linux/ncsi.h b/include/uapi/linux/ncsi.h
+index 0a26a5576645..a3f87c54fdb3 100644
+--- a/include/uapi/linux/ncsi.h
++++ b/include/uapi/linux/ncsi.h
+@@ -26,6 +26,12 @@
+  * @NCSI_CMD_SEND_CMD: send NC-SI command to network card.
+  *	Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID
+  *	and NCSI_ATTR_CHANNEL_ID.
++ * @NCSI_CMD_SET_PACKAGE_MASK: set a whitelist of allowed packages.
++ *	Requires NCSI_ATTR_IFINDEX and NCSI_ATTR_PACKAGE_MASK.
++ * @NCSI_CMD_SET_CHANNEL_MASK: set a whitelist of allowed channels.
++ *	Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID, and
++ *	NCSI_ATTR_CHANNEL_MASK. If NCSI_ATTR_CHANNEL_ID is present it sets
++ *	the primary channel.
+  * @NCSI_CMD_MAX: highest command number
+  */
+ enum ncsi_nl_commands {
+@@ -34,6 +40,8 @@ enum ncsi_nl_commands {
+ 	NCSI_CMD_SET_INTERFACE,
+ 	NCSI_CMD_CLEAR_INTERFACE,
+ 	NCSI_CMD_SEND_CMD,
++	NCSI_CMD_SET_PACKAGE_MASK,
++	NCSI_CMD_SET_CHANNEL_MASK,
+ 
+ 	__NCSI_CMD_AFTER_LAST,
+ 	NCSI_CMD_MAX = __NCSI_CMD_AFTER_LAST - 1
+@@ -48,6 +56,10 @@ enum ncsi_nl_commands {
+  * @NCSI_ATTR_PACKAGE_ID: package ID
+  * @NCSI_ATTR_CHANNEL_ID: channel ID
+  * @NCSI_ATTR_DATA: command payload
++ * @NCSI_ATTR_MULTI_FLAG: flag to signal that multi-mode should be enabled with
++ *	NCSI_CMD_SET_PACKAGE_MASK or NCSI_CMD_SET_CHANNEL_MASK.
++ * @NCSI_ATTR_PACKAGE_MASK: 32-bit mask of allowed packages.
++ * @NCSI_ATTR_CHANNEL_MASK: 32-bit mask of allowed channels.
+  * @NCSI_ATTR_MAX: highest attribute number
+  */
+ enum ncsi_nl_attrs {
+@@ -57,6 +69,9 @@ enum ncsi_nl_attrs {
+ 	NCSI_ATTR_PACKAGE_ID,
+ 	NCSI_ATTR_CHANNEL_ID,
+ 	NCSI_ATTR_DATA,
++	NCSI_ATTR_MULTI_FLAG,
++	NCSI_ATTR_PACKAGE_MASK,
++	NCSI_ATTR_CHANNEL_MASK,
+ 
+ 	__NCSI_ATTR_AFTER_LAST,
+ 	NCSI_ATTR_MAX = __NCSI_ATTR_AFTER_LAST - 1
+diff --git a/net/ncsi/internal.h b/net/ncsi/internal.h
+index 1dae77c54009..9e3642b802c4 100644
+--- a/net/ncsi/internal.h
++++ b/net/ncsi/internal.h
+@@ -222,6 +222,10 @@ struct ncsi_package {
+ 	unsigned int         channel_num; /* Number of channels     */
+ 	struct list_head     channels;    /* List of chanels        */
+ 	struct list_head     node;        /* Form list of packages  */
++
++	bool                 multi_channel; /* Enable multiple channels  */
++	u32                  channel_whitelist; /* Channels to configure */
++	struct ncsi_channel  *preferred_channel; /* Primary channel      */
+ };
+ 
+ struct ncsi_request {
+@@ -287,16 +291,16 @@ struct ncsi_dev_priv {
+ #define NCSI_DEV_PROBED		1            /* Finalized NCSI topology    */
+ #define NCSI_DEV_HWA		2            /* Enabled HW arbitration     */
+ #define NCSI_DEV_RESHUFFLE	4
++#define NCSI_DEV_RESET		8            /* Reset state of NC          */
+ 	unsigned int        gma_flag;        /* OEM GMA flag               */
+ 	spinlock_t          lock;            /* Protect the NCSI device    */
+ #if IS_ENABLED(CONFIG_IPV6)
+ 	unsigned int        inet6_addr_num;  /* Number of IPv6 addresses   */
+ #endif
++	unsigned int        package_probe_id;/* Current ID during probe    */
+ 	unsigned int        package_num;     /* Number of packages         */
+ 	struct list_head    packages;        /* List of packages           */
+ 	struct ncsi_channel *hot_channel;    /* Channel was ever active    */
+-	struct ncsi_package *force_package;  /* Force a specific package   */
+-	struct ncsi_channel *force_channel;  /* Force a specific channel   */
+ 	struct ncsi_request requests[256];   /* Request table              */
+ 	unsigned int        request_id;      /* Last used request ID       */
+ #define NCSI_REQ_START_IDX	1
+@@ -309,6 +313,9 @@ struct ncsi_dev_priv {
+ 	struct list_head    node;            /* Form NCSI device list      */
+ #define NCSI_MAX_VLAN_VIDS	15
+ 	struct list_head    vlan_vids;       /* List of active VLAN IDs */
++
++	bool                multi_package;   /* Enable multiple packages   */
++	u32                 package_whitelist; /* Packages to configure    */
+ };
+ 
+ struct ncsi_cmd_arg {
+@@ -341,6 +348,7 @@ extern spinlock_t ncsi_dev_lock;
+ 	list_for_each_entry_rcu(nc, &np->channels, node)
+ 
+ /* Resources */
++int ncsi_reset_dev(struct ncsi_dev *nd);
+ void ncsi_start_channel_monitor(struct ncsi_channel *nc);
+ void ncsi_stop_channel_monitor(struct ncsi_channel *nc);
+ struct ncsi_channel *ncsi_find_channel(struct ncsi_package *np,
+@@ -361,6 +369,13 @@ struct ncsi_request *ncsi_alloc_request(struct ncsi_dev_priv *ndp,
+ void ncsi_free_request(struct ncsi_request *nr);
+ struct ncsi_dev *ncsi_find_dev(struct net_device *dev);
+ int ncsi_process_next_channel(struct ncsi_dev_priv *ndp);
++bool ncsi_channel_has_link(struct ncsi_channel *channel);
++bool ncsi_channel_is_last(struct ncsi_dev_priv *ndp,
++			  struct ncsi_channel *channel);
++int ncsi_update_tx_channel(struct ncsi_dev_priv *ndp,
++			   struct ncsi_package *np,
++			   struct ncsi_channel *disable,
++			   struct ncsi_channel *enable);
+ 
+ /* Packet handlers */
+ u32 ncsi_calculate_checksum(unsigned char *data, int len);
+diff --git a/net/ncsi/ncsi-aen.c b/net/ncsi/ncsi-aen.c
+index 25e483e8278b..26d67e27551f 100644
+--- a/net/ncsi/ncsi-aen.c
++++ b/net/ncsi/ncsi-aen.c
+@@ -50,13 +50,15 @@ static int ncsi_validate_aen_pkt(struct ncsi_aen_pkt_hdr *h,
+ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
+ 				struct ncsi_aen_pkt_hdr *h)
+ {
+-	struct ncsi_aen_lsc_pkt *lsc;
+-	struct ncsi_channel *nc;
++	struct ncsi_channel *nc, *tmp;
+ 	struct ncsi_channel_mode *ncm;
+-	bool chained;
+-	int state;
+ 	unsigned long old_data, data;
++	struct ncsi_aen_lsc_pkt *lsc;
++	struct ncsi_package *np;
++	bool had_link, has_link;
+ 	unsigned long flags;
++	bool chained;
++	int state;
+ 
+ 	/* Find the NCSI channel */
+ 	ncsi_find_package_and_channel(ndp, h->common.channel, NULL, &nc);
+@@ -73,6 +75,9 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
+ 	ncm->data[2] = data;
+ 	ncm->data[4] = ntohl(lsc->oem_status);
+ 
++	had_link = !!(old_data & 0x1);
++	has_link = !!(data & 0x1);
++
+ 	netdev_dbg(ndp->ndev.dev, "NCSI: LSC AEN - channel %u state %s\n",
+ 		   nc->id, data & 0x1 ? "up" : "down");
+ 
+@@ -80,22 +85,60 @@ static int ncsi_aen_handler_lsc(struct ncsi_dev_priv *ndp,
+ 	state = nc->state;
+ 	spin_unlock_irqrestore(&nc->lock, flags);
+ 
+-	if (!((old_data ^ data) & 0x1) || chained)
+-		return 0;
+-	if (!(state == NCSI_CHANNEL_INACTIVE && (data & 0x1)) &&
+-	    !(state == NCSI_CHANNEL_ACTIVE && !(data & 0x1)))
++	if (state == NCSI_CHANNEL_INACTIVE)
++		netdev_warn(ndp->ndev.dev,
++			    "NCSI: Inactive channel %u received AEN!\n",
++			    nc->id);
++
++	if ((had_link == has_link) || chained)
+ 		return 0;
+ 
+-	if (!(ndp->flags & NCSI_DEV_HWA) &&
+-	    state == NCSI_CHANNEL_ACTIVE)
+-		ndp->flags |= NCSI_DEV_RESHUFFLE;
++	if (!ndp->multi_package && !nc->package->multi_channel) {
++		if (had_link) {
++			ndp->flags |= NCSI_DEV_RESHUFFLE;
++			ncsi_stop_channel_monitor(nc);
++			spin_lock_irqsave(&ndp->lock, flags);
++			list_add_tail_rcu(&nc->link, &ndp->channel_queue);
++			spin_unlock_irqrestore(&ndp->lock, flags);
++			return ncsi_process_next_channel(ndp);
++		}
++		/* Configured channel came up */
++		return 0;
++	}
+ 
+-	ncsi_stop_channel_monitor(nc);
+-	spin_lock_irqsave(&ndp->lock, flags);
+-	list_add_tail_rcu(&nc->link, &ndp->channel_queue);
+-	spin_unlock_irqrestore(&ndp->lock, flags);
++	if (had_link) {
++		ncm = &nc->modes[NCSI_MODE_TX_ENABLE];
++		if (ncsi_channel_is_last(ndp, nc)) {
++			/* No channels left, reconfigure */
++			return ncsi_reset_dev(&ndp->ndev);
++		} else if (ncm->enable) {
++			/* Need to failover Tx channel */
++			ncsi_update_tx_channel(ndp, nc->package, nc, NULL);
++		}
++	} else if (has_link && nc->package->preferred_channel == nc) {
++		/* Return Tx to preferred channel */
++		ncsi_update_tx_channel(ndp, nc->package, NULL, nc);
++	} else if (has_link) {
++		NCSI_FOR_EACH_PACKAGE(ndp, np) {
++			NCSI_FOR_EACH_CHANNEL(np, tmp) {
++				/* Enable Tx on this channel if the current Tx
++				 * channel is down.
++				 */
++				ncm = &tmp->modes[NCSI_MODE_TX_ENABLE];
++				if (ncm->enable &&
++				    !ncsi_channel_has_link(tmp)) {
++					ncsi_update_tx_channel(ndp, nc->package,
++							       tmp, nc);
++					break;
++				}
++			}
++		}
++	}
+ 
+-	return ncsi_process_next_channel(ndp);
++	/* Leave configured channels active in a multi-channel scenario so
++	 * AEN events are still received.
++	 */
++	return 0;
+ }
+ 
+ static int ncsi_aen_handler_cr(struct ncsi_dev_priv *ndp,
+diff --git a/net/ncsi/ncsi-manage.c b/net/ncsi/ncsi-manage.c
+index bfc43b28c7a6..92e59f07f9a7 100644
+--- a/net/ncsi/ncsi-manage.c
++++ b/net/ncsi/ncsi-manage.c
+@@ -28,6 +28,29 @@
+ LIST_HEAD(ncsi_dev_list);
+ DEFINE_SPINLOCK(ncsi_dev_lock);
+ 
++bool ncsi_channel_has_link(struct ncsi_channel *channel)
++{
++	return !!(channel->modes[NCSI_MODE_LINK].data[2] & 0x1);
++}
++
++bool ncsi_channel_is_last(struct ncsi_dev_priv *ndp,
++			  struct ncsi_channel *channel)
++{
++	struct ncsi_package *np;
++	struct ncsi_channel *nc;
++
++	NCSI_FOR_EACH_PACKAGE(ndp, np)
++		NCSI_FOR_EACH_CHANNEL(np, nc) {
++			if (nc == channel)
++				continue;
++			if (nc->state == NCSI_CHANNEL_ACTIVE &&
++			    ncsi_channel_has_link(nc))
++				return false;
++		}
++
++	return true;
++}
++
+ static void ncsi_report_link(struct ncsi_dev_priv *ndp, bool force_down)
+ {
+ 	struct ncsi_dev *nd = &ndp->ndev;
+@@ -52,7 +75,7 @@ static void ncsi_report_link(struct ncsi_dev_priv *ndp, bool force_down)
+ 				continue;
+ 			}
+ 
+-			if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1) {
++			if (ncsi_channel_has_link(nc)) {
+ 				spin_unlock_irqrestore(&nc->lock, flags);
+ 				nd->link_up = 1;
+ 				goto report;
+@@ -113,10 +136,8 @@ static void ncsi_channel_monitor(struct timer_list *t)
+ 	default:
+ 		netdev_err(ndp->ndev.dev, "NCSI Channel %d timed out!\n",
+ 			   nc->id);
+-		if (!(ndp->flags & NCSI_DEV_HWA)) {
+-			ncsi_report_link(ndp, true);
+-			ndp->flags |= NCSI_DEV_RESHUFFLE;
+-		}
++		ncsi_report_link(ndp, true);
++		ndp->flags |= NCSI_DEV_RESHUFFLE;
+ 
+ 		ncsi_stop_channel_monitor(nc);
+ 
+@@ -269,6 +290,7 @@ struct ncsi_package *ncsi_add_package(struct ncsi_dev_priv *ndp,
+ 	np->ndp = ndp;
+ 	spin_lock_init(&np->lock);
+ 	INIT_LIST_HEAD(&np->channels);
++	np->channel_whitelist = UINT_MAX;
+ 
+ 	spin_lock_irqsave(&ndp->lock, flags);
+ 	tmp = ncsi_find_package(ndp, id);
+@@ -442,12 +464,14 @@ static void ncsi_request_timeout(struct timer_list *t)
+ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
+ {
+ 	struct ncsi_dev *nd = &ndp->ndev;
+-	struct ncsi_package *np = ndp->active_package;
+-	struct ncsi_channel *nc = ndp->active_channel;
++	struct ncsi_package *np;
++	struct ncsi_channel *nc, *tmp;
+ 	struct ncsi_cmd_arg nca;
+ 	unsigned long flags;
+ 	int ret;
+ 
++	np = ndp->active_package;
++	nc = ndp->active_channel;
+ 	nca.ndp = ndp;
+ 	nca.req_flags = NCSI_REQ_FLAG_EVENT_DRIVEN;
+ 	switch (nd->state) {
+@@ -523,6 +547,15 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
+ 		if (ret)
+ 			goto error;
+ 
++		NCSI_FOR_EACH_CHANNEL(np, tmp) {
++			/* If there is another channel active on this package
++			 * do not deselect the package.
++			 */
++			if (tmp != nc && tmp->state == NCSI_CHANNEL_ACTIVE) {
++				nd->state = ncsi_dev_state_suspend_done;
++				break;
++			}
++		}
+ 		break;
+ 	case ncsi_dev_state_suspend_deselect:
+ 		ndp->pending_req_num = 1;
+@@ -541,8 +574,10 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
+ 		spin_lock_irqsave(&nc->lock, flags);
+ 		nc->state = NCSI_CHANNEL_INACTIVE;
+ 		spin_unlock_irqrestore(&nc->lock, flags);
+-		ncsi_process_next_channel(ndp);
+-
++		if (ndp->flags & NCSI_DEV_RESET)
++			ncsi_reset_dev(nd);
++		else
++			ncsi_process_next_channel(ndp);
+ 		break;
+ 	default:
+ 		netdev_warn(nd->dev, "Wrong NCSI state 0x%x in suspend\n",
+@@ -717,13 +752,144 @@ static int ncsi_gma_handler(struct ncsi_cmd_arg *nca, unsigned int mf_id)
+ 
+ #endif /* CONFIG_NCSI_OEM_CMD_GET_MAC */
+ 
++/* Determine if a given channel from the channel_queue should be used for Tx */
++static bool ncsi_channel_is_tx(struct ncsi_dev_priv *ndp,
++			       struct ncsi_channel *nc)
++{
++	struct ncsi_channel_mode *ncm;
++	struct ncsi_channel *channel;
++	struct ncsi_package *np;
++
++	/* Check if any other channel has Tx enabled; a channel may have already
++	 * been configured and removed from the channel queue.
++	 */
++	NCSI_FOR_EACH_PACKAGE(ndp, np) {
++		if (!ndp->multi_package && np != nc->package)
++			continue;
++		NCSI_FOR_EACH_CHANNEL(np, channel) {
++			ncm = &channel->modes[NCSI_MODE_TX_ENABLE];
++			if (ncm->enable)
++				return false;
++		}
++	}
++
++	/* This channel is the preferred channel and has link */
++	list_for_each_entry_rcu(channel, &ndp->channel_queue, link) {
++		np = channel->package;
++		if (np->preferred_channel &&
++		    ncsi_channel_has_link(np->preferred_channel)) {
++			return np->preferred_channel == nc;
++		}
++	}
++
++	/* This channel has link */
++	if (ncsi_channel_has_link(nc))
++		return true;
++
++	list_for_each_entry_rcu(channel, &ndp->channel_queue, link)
++		if (ncsi_channel_has_link(channel))
++			return false;
++
++	/* No other channel has link; default to this one */
++	return true;
++}
++
++/* Change the active Tx channel in a multi-channel setup */
++int ncsi_update_tx_channel(struct ncsi_dev_priv *ndp,
++			   struct ncsi_package *package,
++			   struct ncsi_channel *disable,
++			   struct ncsi_channel *enable)
++{
++	struct ncsi_cmd_arg nca;
++	struct ncsi_channel *nc;
++	struct ncsi_package *np;
++	int ret = 0;
++
++	if (!package->multi_channel && !ndp->multi_package)
++		netdev_warn(ndp->ndev.dev,
++			    "NCSI: Trying to update Tx channel in single-channel mode\n");
++	nca.ndp = ndp;
++	nca.req_flags = 0;
++
++	/* Find current channel with Tx enabled */
++	NCSI_FOR_EACH_PACKAGE(ndp, np) {
++		if (disable)
++			break;
++		if (!ndp->multi_package && np != package)
++			continue;
++
++		NCSI_FOR_EACH_CHANNEL(np, nc)
++			if (nc->modes[NCSI_MODE_TX_ENABLE].enable) {
++				disable = nc;
++				break;
++			}
++	}
++
++	/* Find a suitable channel for Tx */
++	NCSI_FOR_EACH_PACKAGE(ndp, np) {
++		if (enable)
++			break;
++		if (!ndp->multi_package && np != package)
++			continue;
++		if (!(ndp->package_whitelist & (0x1 << np->id)))
++			continue;
++
++		if (np->preferred_channel &&
++		    ncsi_channel_has_link(np->preferred_channel)) {
++			enable = np->preferred_channel;
++			break;
++		}
++
++		NCSI_FOR_EACH_CHANNEL(np, nc) {
++			if (!(np->channel_whitelist & 0x1 << nc->id))
++				continue;
++			if (nc->state != NCSI_CHANNEL_ACTIVE)
++				continue;
++			if (ncsi_channel_has_link(nc)) {
++				enable = nc;
++				break;
++			}
++		}
++	}
++
++	if (disable == enable)
++		return -1;
++
++	if (!enable)
++		return -1;
++
++	if (disable) {
++		nca.channel = disable->id;
++		nca.package = disable->package->id;
++		nca.type = NCSI_PKT_CMD_DCNT;
++		ret = ncsi_xmit_cmd(&nca);
++		if (ret)
++			netdev_err(ndp->ndev.dev,
++				   "Error %d sending DCNT\n",
++				   ret);
++	}
++
++	netdev_info(ndp->ndev.dev, "NCSI: channel %u enables Tx\n", enable->id);
++
++	nca.channel = enable->id;
++	nca.package = enable->package->id;
++	nca.type = NCSI_PKT_CMD_ECNT;
++	ret = ncsi_xmit_cmd(&nca);
++	if (ret)
++		netdev_err(ndp->ndev.dev,
++			   "Error %d sending ECNT\n",
++			   ret);
++
++	return ret;
++}
++
+ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
+ {
+-	struct ncsi_dev *nd = &ndp->ndev;
+-	struct net_device *dev = nd->dev;
+ 	struct ncsi_package *np = ndp->active_package;
+ 	struct ncsi_channel *nc = ndp->active_channel;
+ 	struct ncsi_channel *hot_nc = NULL;
++	struct ncsi_dev *nd = &ndp->ndev;
++	struct net_device *dev = nd->dev;
+ 	struct ncsi_cmd_arg nca;
+ 	unsigned char index;
+ 	unsigned long flags;
+@@ -845,20 +1011,29 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
+ 		} else if (nd->state == ncsi_dev_state_config_ebf) {
+ 			nca.type = NCSI_PKT_CMD_EBF;
+ 			nca.dwords[0] = nc->caps[NCSI_CAP_BC].cap;
+-			nd->state = ncsi_dev_state_config_ecnt;
++			if (ncsi_channel_is_tx(ndp, nc))
++				nd->state = ncsi_dev_state_config_ecnt;
++			else
++				nd->state = ncsi_dev_state_config_ec;
+ #if IS_ENABLED(CONFIG_IPV6)
+ 			if (ndp->inet6_addr_num > 0 &&
+ 			    (nc->caps[NCSI_CAP_GENERIC].cap &
+ 			     NCSI_CAP_GENERIC_MC))
+ 				nd->state = ncsi_dev_state_config_egmf;
+-			else
+-				nd->state = ncsi_dev_state_config_ecnt;
+ 		} else if (nd->state == ncsi_dev_state_config_egmf) {
+ 			nca.type = NCSI_PKT_CMD_EGMF;
+ 			nca.dwords[0] = nc->caps[NCSI_CAP_MC].cap;
+-			nd->state = ncsi_dev_state_config_ecnt;
++			if (ncsi_channel_is_tx(ndp, nc))
++				nd->state = ncsi_dev_state_config_ecnt;
++			else
++				nd->state = ncsi_dev_state_config_ec;
+ #endif /* CONFIG_IPV6 */
+ 		} else if (nd->state == ncsi_dev_state_config_ecnt) {
++			if (np->preferred_channel &&
++			    nc != np->preferred_channel)
++				netdev_info(ndp->ndev.dev,
++					    "NCSI: Tx failed over to channel %u\n",
++					    nc->id);
+ 			nca.type = NCSI_PKT_CMD_ECNT;
+ 			nd->state = ncsi_dev_state_config_ec;
+ 		} else if (nd->state == ncsi_dev_state_config_ec) {
+@@ -889,6 +1064,16 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
+ 		netdev_dbg(ndp->ndev.dev, "NCSI: channel %u config done\n",
+ 			   nc->id);
+ 		spin_lock_irqsave(&nc->lock, flags);
++		nc->state = NCSI_CHANNEL_ACTIVE;
++
++		if (ndp->flags & NCSI_DEV_RESET) {
++			/* A reset event happened during config, start it now */
++			nc->reconfigure_needed = false;
++			spin_unlock_irqrestore(&nc->lock, flags);
++			ncsi_reset_dev(nd);
++			break;
++		}
++
+ 		if (nc->reconfigure_needed) {
+ 			/* This channel's configuration has been updated
+ 			 * part-way during the config state - start the
+@@ -909,10 +1094,8 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
+ 
+ 		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1) {
+ 			hot_nc = nc;
+-			nc->state = NCSI_CHANNEL_ACTIVE;
+ 		} else {
+ 			hot_nc = NULL;
+-			nc->state = NCSI_CHANNEL_INACTIVE;
+ 			netdev_dbg(ndp->ndev.dev,
+ 				   "NCSI: channel %u link down after config\n",
+ 				   nc->id);
+@@ -940,43 +1123,35 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
+ 
+ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
+ {
+-	struct ncsi_package *np, *force_package;
+-	struct ncsi_channel *nc, *found, *hot_nc, *force_channel;
++	struct ncsi_channel *nc, *found, *hot_nc;
+ 	struct ncsi_channel_mode *ncm;
+-	unsigned long flags;
++	unsigned long flags, cflags;
++	struct ncsi_package *np;
++	bool with_link;
+ 
+ 	spin_lock_irqsave(&ndp->lock, flags);
+ 	hot_nc = ndp->hot_channel;
+-	force_channel = ndp->force_channel;
+-	force_package = ndp->force_package;
+ 	spin_unlock_irqrestore(&ndp->lock, flags);
+ 
+-	/* Force a specific channel whether or not it has link if we have been
+-	 * configured to do so
+-	 */
+-	if (force_package && force_channel) {
+-		found = force_channel;
+-		ncm = &found->modes[NCSI_MODE_LINK];
+-		if (!(ncm->data[2] & 0x1))
+-			netdev_info(ndp->ndev.dev,
+-				    "NCSI: Channel %u forced, but it is link down\n",
+-				    found->id);
+-		goto out;
+-	}
+-
+-	/* The search is done once an inactive channel with up
+-	 * link is found.
++	/* By default the search is done once an inactive channel with up
++	 * link is found, unless a preferred channel is set.
++	 * If multi_package or multi_channel are configured all channels in the
++	 * whitelist are added to the channel queue.
+ 	 */
+ 	found = NULL;
++	with_link = false;
+ 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
+-		if (ndp->force_package && np != ndp->force_package)
++		if (!(ndp->package_whitelist & (0x1 << np->id)))
+ 			continue;
+ 		NCSI_FOR_EACH_CHANNEL(np, nc) {
+-			spin_lock_irqsave(&nc->lock, flags);
++			if (!(np->channel_whitelist & (0x1 << nc->id)))
++				continue;
++
++			spin_lock_irqsave(&nc->lock, cflags);
+ 
+ 			if (!list_empty(&nc->link) ||
+ 			    nc->state != NCSI_CHANNEL_INACTIVE) {
+-				spin_unlock_irqrestore(&nc->lock, flags);
++				spin_unlock_irqrestore(&nc->lock, cflags);
+ 				continue;
+ 			}
+ 
+@@ -988,32 +1163,49 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
+ 
+ 			ncm = &nc->modes[NCSI_MODE_LINK];
+ 			if (ncm->data[2] & 0x1) {
+-				spin_unlock_irqrestore(&nc->lock, flags);
+ 				found = nc;
+-				goto out;
++				with_link = true;
+ 			}
+ 
+-			spin_unlock_irqrestore(&nc->lock, flags);
++			/* If multi_channel is enabled configure all valid
++			 * channels whether or not they currently have link
++			 * so they will have AENs enabled.
++			 */
++			if (with_link || np->multi_channel) {
++				spin_lock_irqsave(&ndp->lock, flags);
++				list_add_tail_rcu(&nc->link,
++						  &ndp->channel_queue);
++				spin_unlock_irqrestore(&ndp->lock, flags);
++
++				netdev_dbg(ndp->ndev.dev,
++					   "NCSI: Channel %u added to queue (link %s)\n",
++					   nc->id,
++					   ncm->data[2] & 0x1 ? "up" : "down");
++			}
++
++			spin_unlock_irqrestore(&nc->lock, cflags);
++
++			if (with_link && !np->multi_channel)
++				break;
+ 		}
++		if (with_link && !ndp->multi_package)
++			break;
+ 	}
+ 
+-	if (!found) {
++	if (list_empty(&ndp->channel_queue) && found) {
++		netdev_info(ndp->ndev.dev,
++			    "NCSI: No channel with link found, configuring channel %u\n",
++			    found->id);
++		spin_lock_irqsave(&ndp->lock, flags);
++		list_add_tail_rcu(&found->link, &ndp->channel_queue);
++		spin_unlock_irqrestore(&ndp->lock, flags);
++	} else if (!found) {
+ 		netdev_warn(ndp->ndev.dev,
+-			    "NCSI: No channel found with link\n");
++			    "NCSI: No channel found to configure!\n");
+ 		ncsi_report_link(ndp, true);
+ 		return -ENODEV;
+ 	}
+ 
+-	ncm = &found->modes[NCSI_MODE_LINK];
+-	netdev_dbg(ndp->ndev.dev,
+-		   "NCSI: Channel %u added to queue (link %s)\n",
+-		   found->id, ncm->data[2] & 0x1 ? "up" : "down");
+-
+-out:
+-	spin_lock_irqsave(&ndp->lock, flags);
+-	list_add_tail_rcu(&found->link, &ndp->channel_queue);
+-	spin_unlock_irqrestore(&ndp->lock, flags);
+-
+ 	return ncsi_process_next_channel(ndp);
+ }
+ 
+@@ -1050,35 +1242,6 @@ static bool ncsi_check_hwa(struct ncsi_dev_priv *ndp)
+ 	return false;
+ }
+ 
+-static int ncsi_enable_hwa(struct ncsi_dev_priv *ndp)
+-{
+-	struct ncsi_package *np;
+-	struct ncsi_channel *nc;
+-	unsigned long flags;
+-
+-	/* Move all available channels to processing queue */
+-	spin_lock_irqsave(&ndp->lock, flags);
+-	NCSI_FOR_EACH_PACKAGE(ndp, np) {
+-		NCSI_FOR_EACH_CHANNEL(np, nc) {
+-			WARN_ON_ONCE(nc->state != NCSI_CHANNEL_INACTIVE ||
+-				     !list_empty(&nc->link));
+-			ncsi_stop_channel_monitor(nc);
+-			list_add_tail_rcu(&nc->link, &ndp->channel_queue);
+-		}
+-	}
+-	spin_unlock_irqrestore(&ndp->lock, flags);
+-
+-	/* We can have no channels in extremely case */
+-	if (list_empty(&ndp->channel_queue)) {
+-		netdev_err(ndp->ndev.dev,
+-			   "NCSI: No available channels for HWA\n");
+-		ncsi_report_link(ndp, false);
+-		return -ENOENT;
+-	}
+-
+-	return ncsi_process_next_channel(ndp);
+-}
+-
+ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
+ {
+ 	struct ncsi_dev *nd = &ndp->ndev;
+@@ -1110,70 +1273,28 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
+ 		nd->state = ncsi_dev_state_probe_package;
+ 		break;
+ 	case ncsi_dev_state_probe_package:
+-		ndp->pending_req_num = 16;
++		ndp->pending_req_num = 1;
+ 
+-		/* Select all possible packages */
+ 		nca.type = NCSI_PKT_CMD_SP;
+ 		nca.bytes[0] = 1;
++		nca.package = ndp->package_probe_id;
+ 		nca.channel = NCSI_RESERVED_CHANNEL;
+-		for (index = 0; index < 8; index++) {
+-			nca.package = index;
+-			ret = ncsi_xmit_cmd(&nca);
+-			if (ret)
+-				goto error;
+-		}
+-
+-		/* Disable all possible packages */
+-		nca.type = NCSI_PKT_CMD_DP;
+-		for (index = 0; index < 8; index++) {
+-			nca.package = index;
+-			ret = ncsi_xmit_cmd(&nca);
+-			if (ret)
+-				goto error;
+-		}
+-
++		ret = ncsi_xmit_cmd(&nca);
++		if (ret)
++			goto error;
+ 		nd->state = ncsi_dev_state_probe_channel;
+ 		break;
+ 	case ncsi_dev_state_probe_channel:
+-		if (!ndp->active_package)
+-			ndp->active_package = list_first_or_null_rcu(
+-				&ndp->packages, struct ncsi_package, node);
+-		else if (list_is_last(&ndp->active_package->node,
+-				      &ndp->packages))
+-			ndp->active_package = NULL;
+-		else
+-			ndp->active_package = list_next_entry(
+-				ndp->active_package, node);
+-
+-		/* All available packages and channels are enumerated. The
+-		 * enumeration happens for once when the NCSI interface is
+-		 * started. So we need continue to start the interface after
+-		 * the enumeration.
+-		 *
+-		 * We have to choose an active channel before configuring it.
+-		 * Note that we possibly don't have active channel in extreme
+-		 * situation.
+-		 */
++		ndp->active_package = ncsi_find_package(ndp,
++							ndp->package_probe_id);
+ 		if (!ndp->active_package) {
+-			ndp->flags |= NCSI_DEV_PROBED;
+-			if (ncsi_check_hwa(ndp))
+-				ncsi_enable_hwa(ndp);
+-			else
+-				ncsi_choose_active_channel(ndp);
+-			return;
++			/* No response */
++			nd->state = ncsi_dev_state_probe_dp;
++			schedule_work(&ndp->work);
++			break;
+ 		}
+-
+-		/* Select the active package */
+-		ndp->pending_req_num = 1;
+-		nca.type = NCSI_PKT_CMD_SP;
+-		nca.bytes[0] = 1;
+-		nca.package = ndp->active_package->id;
+-		nca.channel = NCSI_RESERVED_CHANNEL;
+-		ret = ncsi_xmit_cmd(&nca);
+-		if (ret)
+-			goto error;
+-
+ 		nd->state = ncsi_dev_state_probe_cis;
++		schedule_work(&ndp->work);
+ 		break;
+ 	case ncsi_dev_state_probe_cis:
+ 		ndp->pending_req_num = NCSI_RESERVED_CHANNEL;
+@@ -1222,22 +1343,35 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
+ 	case ncsi_dev_state_probe_dp:
+ 		ndp->pending_req_num = 1;
+ 
+-		/* Deselect the active package */
++		/* Deselect the current package */
+ 		nca.type = NCSI_PKT_CMD_DP;
+-		nca.package = ndp->active_package->id;
++		nca.package = ndp->package_probe_id;
+ 		nca.channel = NCSI_RESERVED_CHANNEL;
+ 		ret = ncsi_xmit_cmd(&nca);
+ 		if (ret)
+ 			goto error;
+ 
+-		/* Scan channels in next package */
+-		nd->state = ncsi_dev_state_probe_channel;
++		/* Probe next package */
++		ndp->package_probe_id++;
++		if (ndp->package_probe_id >= 8) {
++			/* Probe finished */
++			ndp->flags |= NCSI_DEV_PROBED;
++			break;
++		}
++		nd->state = ncsi_dev_state_probe_package;
++		ndp->active_package = NULL;
+ 		break;
+ 	default:
+ 		netdev_warn(nd->dev, "Wrong NCSI state 0x%0x in enumeration\n",
+ 			    nd->state);
+ 	}
+ 
++	if (ndp->flags & NCSI_DEV_PROBED) {
++		/* Check if all packages have HWA support */
++		ncsi_check_hwa(ndp);
++		ncsi_choose_active_channel(ndp);
++	}
++
+ 	return;
+ error:
+ 	netdev_err(ndp->ndev.dev,
+@@ -1556,6 +1690,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
+ 	INIT_LIST_HEAD(&ndp->channel_queue);
+ 	INIT_LIST_HEAD(&ndp->vlan_vids);
+ 	INIT_WORK(&ndp->work, ncsi_dev_work);
++	ndp->package_whitelist = UINT_MAX;
+ 
+ 	/* Initialize private NCSI device */
+ 	spin_lock_init(&ndp->lock);
+@@ -1592,26 +1727,19 @@ EXPORT_SYMBOL_GPL(ncsi_register_dev);
+ int ncsi_start_dev(struct ncsi_dev *nd)
+ {
+ 	struct ncsi_dev_priv *ndp = TO_NCSI_DEV_PRIV(nd);
+-	int ret;
+ 
+ 	if (nd->state != ncsi_dev_state_registered &&
+ 	    nd->state != ncsi_dev_state_functional)
+ 		return -ENOTTY;
+ 
+ 	if (!(ndp->flags & NCSI_DEV_PROBED)) {
++		ndp->package_probe_id = 0;
+ 		nd->state = ncsi_dev_state_probe;
+ 		schedule_work(&ndp->work);
+ 		return 0;
+ 	}
+ 
+-	if (ndp->flags & NCSI_DEV_HWA) {
+-		netdev_info(ndp->ndev.dev, "NCSI: Enabling HWA mode\n");
+-		ret = ncsi_enable_hwa(ndp);
+-	} else {
+-		ret = ncsi_choose_active_channel(ndp);
+-	}
+-
+-	return ret;
++	return ncsi_reset_dev(nd);
+ }
+ EXPORT_SYMBOL_GPL(ncsi_start_dev);
+ 
+@@ -1624,7 +1752,10 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
+ 	int old_state;
+ 	unsigned long flags;
+ 
+-	/* Stop the channel monitor and reset channel's state */
++	/* Stop the channel monitor on any active channels. Don't reset the
++	 * channel state so we know which were active when ncsi_start_dev()
++	 * is next called.
++	 */
+ 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
+ 		NCSI_FOR_EACH_CHANNEL(np, nc) {
+ 			ncsi_stop_channel_monitor(nc);
+@@ -1632,7 +1763,6 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
+ 			spin_lock_irqsave(&nc->lock, flags);
+ 			chained = !list_empty(&nc->link);
+ 			old_state = nc->state;
+-			nc->state = NCSI_CHANNEL_INACTIVE;
+ 			spin_unlock_irqrestore(&nc->lock, flags);
+ 
+ 			WARN_ON_ONCE(chained ||
+@@ -1645,6 +1775,92 @@ void ncsi_stop_dev(struct ncsi_dev *nd)
+ }
+ EXPORT_SYMBOL_GPL(ncsi_stop_dev);
+ 
++int ncsi_reset_dev(struct ncsi_dev *nd)
++{
++	struct ncsi_dev_priv *ndp = TO_NCSI_DEV_PRIV(nd);
++	struct ncsi_channel *nc, *active, *tmp;
++	struct ncsi_package *np;
++	unsigned long flags;
++
++	spin_lock_irqsave(&ndp->lock, flags);
++
++	if (!(ndp->flags & NCSI_DEV_RESET)) {
++		/* Haven't been called yet, check states */
++		switch (nd->state & ncsi_dev_state_major) {
++		case ncsi_dev_state_registered:
++		case ncsi_dev_state_probe:
++			/* Not even probed yet - do nothing */
++			spin_unlock_irqrestore(&ndp->lock, flags);
++			return 0;
++		case ncsi_dev_state_suspend:
++		case ncsi_dev_state_config:
++			/* Wait for the channel to finish its suspend/config
++			 * operation; once it finishes it will check for
++			 * NCSI_DEV_RESET and reset the state.
++			 */
++			ndp->flags |= NCSI_DEV_RESET;
++			spin_unlock_irqrestore(&ndp->lock, flags);
++			return 0;
++		}
++	} else {
++		switch (nd->state) {
++		case ncsi_dev_state_suspend_done:
++		case ncsi_dev_state_config_done:
++		case ncsi_dev_state_functional:
++			/* Ok */
++			break;
++		default:
++			/* Current reset operation happening */
++			spin_unlock_irqrestore(&ndp->lock, flags);
++			return 0;
++		}
++	}
++
++	if (!list_empty(&ndp->channel_queue)) {
++		/* Clear any channel queue we may have interrupted */
++		list_for_each_entry_safe(nc, tmp, &ndp->channel_queue, link)
++			list_del_init(&nc->link);
++	}
++	spin_unlock_irqrestore(&ndp->lock, flags);
++
++	active = NULL;
++	NCSI_FOR_EACH_PACKAGE(ndp, np) {
++		NCSI_FOR_EACH_CHANNEL(np, nc) {
++			spin_lock_irqsave(&nc->lock, flags);
++
++			if (nc->state == NCSI_CHANNEL_ACTIVE) {
++				active = nc;
++				nc->state = NCSI_CHANNEL_INVISIBLE;
++				spin_unlock_irqrestore(&nc->lock, flags);
++				ncsi_stop_channel_monitor(nc);
++				break;
++			}
++
++			spin_unlock_irqrestore(&nc->lock, flags);
++		}
++		if (active)
++			break;
++	}
++
++	if (!active) {
++		/* Done */
++		spin_lock_irqsave(&ndp->lock, flags);
++		ndp->flags &= ~NCSI_DEV_RESET;
++		spin_unlock_irqrestore(&ndp->lock, flags);
++		return ncsi_choose_active_channel(ndp);
++	}
++
++	spin_lock_irqsave(&ndp->lock, flags);
++	ndp->flags |= NCSI_DEV_RESET;
++	ndp->active_channel = active;
++	ndp->active_package = active->package;
++	spin_unlock_irqrestore(&ndp->lock, flags);
++
++	nd->state = ncsi_dev_state_suspend;
++	schedule_work(&ndp->work);
++	return 0;
++}
++
+ void ncsi_unregister_dev(struct ncsi_dev *nd)
+ {
+ 	struct ncsi_dev_priv *ndp = TO_NCSI_DEV_PRIV(nd);
+diff --git a/net/ncsi/ncsi-netlink.c b/net/ncsi/ncsi-netlink.c
+index 33314381b4f5..5d782445d2fc 100644
+--- a/net/ncsi/ncsi-netlink.c
++++ b/net/ncsi/ncsi-netlink.c
+@@ -30,6 +30,9 @@ static const struct nla_policy ncsi_genl_policy[NCSI_ATTR_MAX + 1] = {
+ 	[NCSI_ATTR_PACKAGE_ID] =	{ .type = NLA_U32 },
+ 	[NCSI_ATTR_CHANNEL_ID] =	{ .type = NLA_U32 },
+ 	[NCSI_ATTR_DATA] =		{ .type = NLA_BINARY, .len = 2048 },
++	[NCSI_ATTR_MULTI_FLAG] =	{ .type = NLA_FLAG },
++	[NCSI_ATTR_PACKAGE_MASK] =	{ .type = NLA_U32 },
++	[NCSI_ATTR_CHANNEL_MASK] =	{ .type = NLA_U32 },
+ };
+ 
+ static struct ncsi_dev_priv *ndp_from_ifindex(struct net *net, u32 ifindex)
+@@ -69,7 +72,7 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
+ 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_LINK_STATE, m->data[2]);
+ 	if (nc->state == NCSI_CHANNEL_ACTIVE)
+ 		nla_put_flag(skb, NCSI_CHANNEL_ATTR_ACTIVE);
+-	if (ndp->force_channel == nc)
++	if (nc == nc->package->preferred_channel)
+ 		nla_put_flag(skb, NCSI_CHANNEL_ATTR_FORCED);
+ 
+ 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MAJOR, nc->version.version);
+@@ -114,7 +117,7 @@ static int ncsi_write_package_info(struct sk_buff *skb,
+ 		if (!pnest)
+ 			return -ENOMEM;
+ 		nla_put_u32(skb, NCSI_PKG_ATTR_ID, np->id);
+-		if (ndp->force_package == np)
++		if ((0x1 << np->id) == ndp->package_whitelist)
+ 			nla_put_flag(skb, NCSI_PKG_ATTR_FORCED);
+ 		cnest = nla_nest_start(skb, NCSI_PKG_ATTR_CHANNEL_LIST);
+ 		if (!cnest) {
+@@ -290,49 +293,58 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
+ 	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
+ 	package = NULL;
+ 
+-	spin_lock_irqsave(&ndp->lock, flags);
+-
+ 	NCSI_FOR_EACH_PACKAGE(ndp, np)
+ 		if (np->id == package_id)
+ 			package = np;
+ 	if (!package) {
+ 		/* The user has set a package that does not exist */
+-		spin_unlock_irqrestore(&ndp->lock, flags);
+ 		return -ERANGE;
+ 	}
+ 
+ 	channel = NULL;
+-	if (!info->attrs[NCSI_ATTR_CHANNEL_ID]) {
+-		/* Allow any channel */
+-		channel_id = NCSI_RESERVED_CHANNEL;
+-	} else {
++	if (info->attrs[NCSI_ATTR_CHANNEL_ID]) {
+ 		channel_id = nla_get_u32(info->attrs[NCSI_ATTR_CHANNEL_ID]);
+ 		NCSI_FOR_EACH_CHANNEL(package, nc)
+-			if (nc->id == channel_id)
++			if (nc->id == channel_id) {
+ 				channel = nc;
++				break;
++			}
++		if (!channel) {
++			netdev_info(ndp->ndev.dev,
++				    "NCSI: Channel %u does not exist!\n",
++				    channel_id);
++			return -ERANGE;
++		}
+ 	}
+ 
+-	if (channel_id != NCSI_RESERVED_CHANNEL && !channel) {
+-		/* The user has set a channel that does not exist on this
+-		 * package
+-		 */
+-		spin_unlock_irqrestore(&ndp->lock, flags);
+-		netdev_info(ndp->ndev.dev, "NCSI: Channel %u does not exist!\n",
+-			    channel_id);
+-		return -ERANGE;
+-	}
+-
+-	ndp->force_package = package;
+-	ndp->force_channel = channel;
++	spin_lock_irqsave(&ndp->lock, flags);
++	ndp->package_whitelist = 0x1 << package->id;
++	ndp->multi_package = false;
+ 	spin_unlock_irqrestore(&ndp->lock, flags);
+ 
+-	netdev_info(ndp->ndev.dev, "Set package 0x%x, channel 0x%x%s as preferred\n",
+-		    package_id, channel_id,
+-		    channel_id == NCSI_RESERVED_CHANNEL ? " (any)" : "");
++	spin_lock_irqsave(&package->lock, flags);
++	package->multi_channel = false;
++	if (channel) {
++		package->channel_whitelist = 0x1 << channel->id;
++		package->preferred_channel = channel;
++	} else {
++		/* Allow any channel */
++		package->channel_whitelist = UINT_MAX;
++		package->preferred_channel = NULL;
++	}
++	spin_unlock_irqrestore(&package->lock, flags);
++
++	if (channel)
++		netdev_info(ndp->ndev.dev,
++			    "Set package 0x%x, channel 0x%x as preferred\n",
++			    package_id, channel_id);
++	else
++		netdev_info(ndp->ndev.dev, "Set package 0x%x as preferred\n",
++			    package_id);
+ 
+-	/* Bounce the NCSI channel to set changes */
+-	ncsi_stop_dev(&ndp->ndev);
+-	ncsi_start_dev(&ndp->ndev);
++	/* Update channel configuration */
++	if (!(ndp->flags & NCSI_DEV_RESET))
++		ncsi_reset_dev(&ndp->ndev);
+ 
+ 	return 0;
+ }
+@@ -340,6 +352,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
+ static int ncsi_clear_interface_nl(struct sk_buff *msg, struct genl_info *info)
+ {
+ 	struct ncsi_dev_priv *ndp;
++	struct ncsi_package *np;
+ 	unsigned long flags;
+ 
+ 	if (!info || !info->attrs)
+@@ -353,16 +366,24 @@ static int ncsi_clear_interface_nl(struct sk_buff *msg, struct genl_info *info)
+ 	if (!ndp)
+ 		return -ENODEV;
+ 
+-	/* Clear any override */
++	/* Reset any whitelists and disable multi mode */
+ 	spin_lock_irqsave(&ndp->lock, flags);
+-	ndp->force_package = NULL;
+-	ndp->force_channel = NULL;
++	ndp->package_whitelist = UINT_MAX;
++	ndp->multi_package = false;
+ 	spin_unlock_irqrestore(&ndp->lock, flags);
++
++	NCSI_FOR_EACH_PACKAGE(ndp, np) {
++		spin_lock_irqsave(&np->lock, flags);
++		np->multi_channel = false;
++		np->channel_whitelist = UINT_MAX;
++		np->preferred_channel = NULL;
++		spin_unlock_irqrestore(&np->lock, flags);
++	}
+ 	netdev_info(ndp->ndev.dev, "NCSI: Cleared preferred package/channel\n");
+ 
+-	/* Bounce the NCSI channel to set changes */
+-	ncsi_stop_dev(&ndp->ndev);
+-	ncsi_start_dev(&ndp->ndev);
++	/* Update channel configuration */
++	if (!(ndp->flags & NCSI_DEV_RESET))
++		ncsi_reset_dev(&ndp->ndev);
+ 
+ 	return 0;
+ }
+@@ -563,6 +584,138 @@ int ncsi_send_netlink_err(struct net_device *dev,
+ 	return nlmsg_unicast(net->genl_sock, skb, snd_portid);
+ }
+ 
++static int ncsi_set_package_mask_nl(struct sk_buff *msg,
++				    struct genl_info *info)
++{
++	struct ncsi_dev_priv *ndp;
++	unsigned long flags;
++	int rc;
++
++	if (!info || !info->attrs)
++		return -EINVAL;
++
++	if (!info->attrs[NCSI_ATTR_IFINDEX])
++		return -EINVAL;
++
++	if (!info->attrs[NCSI_ATTR_PACKAGE_MASK])
++		return -EINVAL;
++
++	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
++			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
++	if (!ndp)
++		return -ENODEV;
++
++	spin_lock_irqsave(&ndp->lock, flags);
++	if (nla_get_flag(info->attrs[NCSI_ATTR_MULTI_FLAG])) {
++		if (ndp->flags & NCSI_DEV_HWA) {
++			ndp->multi_package = true;
++			rc = 0;
++		} else {
++			netdev_err(ndp->ndev.dev,
++				   "NCSI: Can't use multiple packages without HWA\n");
++			rc = -EPERM;
++		}
++	} else {
++		ndp->multi_package = false;
++		rc = 0;
++	}
++
++	if (!rc)
++		ndp->package_whitelist =
++			nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_MASK]);
++	spin_unlock_irqrestore(&ndp->lock, flags);
++
++	if (!rc) {
++		/* Update channel configuration */
++		if (!(ndp->flags & NCSI_DEV_RESET))
++			ncsi_reset_dev(&ndp->ndev);
++	}
++
++	return rc;
++}
++
++static int ncsi_set_channel_mask_nl(struct sk_buff *msg,
++				    struct genl_info *info)
++{
++	struct ncsi_package *np, *package;
++	struct ncsi_channel *nc, *channel;
++	u32 package_id, channel_id;
++	struct ncsi_dev_priv *ndp;
++	unsigned long flags;
++
++	if (!info || !info->attrs)
++		return -EINVAL;
++
++	if (!info->attrs[NCSI_ATTR_IFINDEX])
++		return -EINVAL;
++
++	if (!info->attrs[NCSI_ATTR_PACKAGE_ID])
++		return -EINVAL;
++
++	if (!info->attrs[NCSI_ATTR_CHANNEL_MASK])
++		return -EINVAL;
++
++	ndp = ndp_from_ifindex(get_net(sock_net(msg->sk)),
++			       nla_get_u32(info->attrs[NCSI_ATTR_IFINDEX]));
++	if (!ndp)
++		return -ENODEV;
++
++	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
++	package = NULL;
++	NCSI_FOR_EACH_PACKAGE(ndp, np)
++		if (np->id == package_id) {
++			package = np;
++			break;
++		}
++	if (!package)
++		return -ERANGE;
++
++	spin_lock_irqsave(&package->lock, flags);
++
++	channel = NULL;
++	if (info->attrs[NCSI_ATTR_CHANNEL_ID]) {
++		channel_id = nla_get_u32(info->attrs[NCSI_ATTR_CHANNEL_ID]);
++		NCSI_FOR_EACH_CHANNEL(np, nc)
++			if (nc->id == channel_id) {
++				channel = nc;
++				break;
++			}
++		if (!channel) {
++			spin_unlock_irqrestore(&package->lock, flags);
++			return -ERANGE;
++		}
++		netdev_dbg(ndp->ndev.dev,
++			   "NCSI: Channel %u set as preferred channel\n",
++			   channel->id);
++	}
++
++	package->channel_whitelist =
++		nla_get_u32(info->attrs[NCSI_ATTR_CHANNEL_MASK]);
++	if (package->channel_whitelist == 0)
++		netdev_dbg(ndp->ndev.dev,
++			   "NCSI: Package %u set to all channels disabled\n",
++			   package->id);
++
++	package->preferred_channel = channel;
++
++	if (nla_get_flag(info->attrs[NCSI_ATTR_MULTI_FLAG])) {
++		package->multi_channel = true;
++		netdev_info(ndp->ndev.dev,
++			    "NCSI: Multi-channel enabled on package %u\n",
++			    package_id);
++	} else {
++		package->multi_channel = false;
++	}
++
++	spin_unlock_irqrestore(&package->lock, flags);
++
++	/* Update channel configuration */
++	if (!(ndp->flags & NCSI_DEV_RESET))
++		ncsi_reset_dev(&ndp->ndev);
++
++	return 0;
++}
++
+ static const struct genl_ops ncsi_ops[] = {
+ 	{
+ 		.cmd = NCSI_CMD_PKG_INFO,
+@@ -589,6 +742,18 @@ static const struct genl_ops ncsi_ops[] = {
+ 		.doit = ncsi_send_cmd_nl,
+ 		.flags = GENL_ADMIN_PERM,
+ 	},
++	{
++		.cmd = NCSI_CMD_SET_PACKAGE_MASK,
++		.policy = ncsi_genl_policy,
++		.doit = ncsi_set_package_mask_nl,
++		.flags = GENL_ADMIN_PERM,
++	},
++	{
++		.cmd = NCSI_CMD_SET_CHANNEL_MASK,
++		.policy = ncsi_genl_policy,
++		.doit = ncsi_set_channel_mask_nl,
++		.flags = GENL_ADMIN_PERM,
++	},
+ };
+ 
+ static struct genl_family ncsi_genl_family __ro_after_init = {
+diff --git a/net/ncsi/ncsi-rsp.c b/net/ncsi/ncsi-rsp.c
+index 77e07ba3f493..de7737a27889 100644
+--- a/net/ncsi/ncsi-rsp.c
++++ b/net/ncsi/ncsi-rsp.c
+@@ -256,7 +256,7 @@ static int ncsi_rsp_handler_dcnt(struct ncsi_request *nr)
+ 	if (!ncm->enable)
+ 		return 0;
+ 
+-	ncm->enable = 1;
++	ncm->enable = 0;
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

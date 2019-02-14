@@ -1,0 +1,15 @@
+[Unit]
+Description=Non-volatile overlay
+
+Before=sysinit.target systemd-sysctl.service systemd-modules-load.service swap.target systemd-tmpfiles-setup.service
+DefaultDependencies=no
+Conflicts=shutdown.target
+ConditionFileNotEmpty={bindir}/nv-overlay.sh
+
+[Service]
+Type=oneshot
+ExecStart={bindir}/nv-overlay.sh
+
+[Install]
+RequiredBy=paths.target
+

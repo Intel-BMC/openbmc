@@ -1,0 +1,80 @@
+From 9ed3fd11047f8c360b7d808946939ef280813811 Mon Sep 17 00:00:00 2001
+From: Cheng C Yang <cheng.c.yang@linux.intel.com>
+Date: Wed, 23 Jan 2019 17:02:40 +0800
+Subject: [PATCH] Fix keep looping issue when entering OS
+
+Sometimes when entering OS, OS will keep continuously sending ipmi command
+"READ EVENT MESSAGE BUFFER" to BMC. This issue is caused by incorrect KCS
+status. If restart the host immediately while OS is still running, SMS_ATN
+will be set, after that KCS come into an incorrect status, and then KCS
+communction between BMC and OS crash. To make KCS go back to correct status
+and fix the issue, clear SMS_ATN after every time power cycle happen.
+
+Unit Test:
+    After entered OS, force reset system, after enter OS again, OS can start
+normally without keep sending READ EVENT MESSAGE BUFFER command.
+    After power on system, enter EFI SHELL, check cmdtool.efi can work
+correctly through KCS channel.
+---
+ host-cmd-manager.cpp | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/host-cmd-manager.cpp b/host-cmd-manager.cpp
+index 0a61e63..6e50684 100644
+--- a/host-cmd-manager.cpp
++++ b/host-cmd-manager.cpp
+@@ -26,6 +26,8 @@ constexpr auto MAPPER_INTERFACE = "xyz.openbmc_project.ObjectMapper";
+ constexpr auto HOST_STATE_PATH = "/xyz/openbmc_project/state/host0";
+ constexpr auto HOST_STATE_INTERFACE = "xyz.openbmc_project.State.Host";
+ constexpr auto HOST_TRANS_PROP = "RequestedHostTransition";
++constexpr const char* IPMI_PATH = "/org/openbmc/HostIpmi/1";
++constexpr const char* IPMI_INTERFACE = "org.openbmc.HostIpmi";
+ 
+ // For throwing exceptions
+ using namespace phosphor::logging;
+@@ -107,6 +109,20 @@ void Manager::clearQueue()
+         // `false` indicating Failure
+         std::get<CallBack>(command)(ipmiCmdData, false);
+     }
++
++    auto host = ::ipmi::getService(this->bus, IPMI_INTERFACE, IPMI_PATH);
++    auto method = this->bus.new_method_call(host.c_str(), IPMI_PATH,
++                                            IPMI_INTERFACE, "clearAttention");
++
++    try
++    {
++        auto reply = this->bus.call(method);
++    }
++    catch (sdbusplus::exception_t&)
++    {
++        log<level::ERR>("Error in clearing SMS attention");
++        elog<InternalFailure>();
++    }
+ }
+ 
+ // Called for alerting the host
+@@ -116,9 +132,6 @@ void Manager::checkQueueAndAlertHost()
+     {
+         log<level::DEBUG>("Asserting SMS Attention");
+ 
+-        std::string IPMI_PATH("/org/openbmc/HostIpmi/1");
+-        std::string IPMI_INTERFACE("org.openbmc.HostIpmi");
+-
+         auto host = ::ipmi::getService(this->bus, IPMI_INTERFACE, IPMI_PATH);
+ 
+         // Start the timer for this transaction
+@@ -132,9 +145,8 @@ void Manager::checkQueueAndAlertHost()
+             return;
+         }
+ 
+-        auto method =
+-            this->bus.new_method_call(host.c_str(), IPMI_PATH.c_str(),
+-                                      IPMI_INTERFACE.c_str(), "setAttention");
++        auto method = this->bus.new_method_call(host.c_str(), IPMI_PATH,
++                                                IPMI_INTERFACE, "setAttention");
+         auto reply = this->bus.call(method);
+ 
+         if (reply.is_method_error())
+-- 
+2.16.2
+

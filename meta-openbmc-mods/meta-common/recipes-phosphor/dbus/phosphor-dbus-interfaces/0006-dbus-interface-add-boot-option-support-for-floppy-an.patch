@@ -1,0 +1,77 @@
+From 643772fc7f6021fbfba3b14de0c86501ae3e7f3a Mon Sep 17 00:00:00 2001
+From: "Jia, Chunhui" <chunhui.jia@intel.com>
+Date: Fri, 13 Jul 2018 15:22:05 +0800
+Subject: [PATCH] [dbus interface]add boot option support for floppy and USB
+
+Current implementations use ExternalMedia type to specify both CD/DVD/USB
+/Floppy. But in IPMI spec, they are different. CD/DVD type is 0x5 and
+USB/Floppy type is 0xF.
+
+This causes a bug that we can not force BIOS boots into USB/Floppy.
+
+Test:
+$ ipmitool -H 10.239.56.91 -P 0penBmc -I lanplus raw
+   0x0 0x8 0x5 0x80 0x14 0x00 0x00 0x00
+$ ipmitool -H 10.239.56.91 -P 0penBmc -I lanplus chassis bootparam get 5
+Boot parameter version: 1
+Boot parameter 5 is valid/unlocked
+Boot parameter data: 8014000000
+ Boot Flags :
+   - Boot Flag Valid
+   - Options apply to only next boot
+   - BIOS PC Compatible (legacy) boot
+   - Boot Device Selector : Force Boot from CD/DVD
+   - Console Redirection control : System Default
+   - BIOS verbosity : Console redirection occurs per BIOS
+                      configuration setting (default)
+   - BIOS Mux Control Override :
+             BIOS uses recommended setting of the mux at the end of POST
+
+$ipmitool -H 10.239.56.91 -P 0penBmc -I lanplus raw
+    0x0 0x8 0x5 0x80 0x3c 0x00 0x00 0x00
+$ipmitool -H 10.239.56.91 -P 0penBmc -I lanplus chassis bootparam get 5
+Boot parameter version: 1
+Boot parameter 5 is valid/unlocked
+Boot parameter data: 803c000000
+ Boot Flags :
+   - Boot Flag Valid
+   - Options apply to only next boot
+   - BIOS PC Compatible (legacy) boot
+   - Boot Device Selector : Force Boot from Floppy/primary removable media
+   - Console Redirection control : System Default
+   - BIOS verbosity :
+     Console redirection occurs per BIOS configuration setting (default)
+
+   - BIOS Mux Control Override :
+     BIOS uses recommended setting of the mux at the end of POST
+
+Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
+---
+ xyz/openbmc_project/Control/Boot/Source.interface.yaml | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/xyz/openbmc_project/Control/Boot/Source.interface.yaml b/xyz/openbmc_project/Control/Boot/Source.interface.yaml
+index ea811bd..8e5916f 100644
+--- a/xyz/openbmc_project/Control/Boot/Source.interface.yaml
++++ b/xyz/openbmc_project/Control/Boot/Source.interface.yaml
+@@ -15,12 +15,15 @@ enumerations:
+         - name: Disk
+           description: >
+             Boot from the local hard disk.
+-        - name: ExternalMedia
++        - name: DVD
+           description: >
+-            Boot from CD/DVD/USB, etc.
++            Boot from CD/DVD.
+         - name: Network
+           description: >
+             Boot from a remote source over a network.
+         - name: Default
+           description: >
+             Boot from an implementation defined source.
++        - name: Removable
++          description: >
++            Boot from floppy/primary removable media(USB).
+-- 
+2.16.2
+

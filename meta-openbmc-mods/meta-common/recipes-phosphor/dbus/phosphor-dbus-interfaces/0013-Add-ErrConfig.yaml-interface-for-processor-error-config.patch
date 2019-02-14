@@ -1,0 +1,86 @@
+From 7260c24b201759f3a5168eebfee215072c13e641 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Thu, 30 Aug 2018 16:22:43 +0800
+Subject: [PATCH] Add ErrConfig.yaml interface for processor error
+ configuration.
+
+Which provide 3 properties:
+    ResetCfg
+        type: byte
+        description: >
+            Reset Configuration
+            [0]:   CATERR Reset Enabled
+                0b: Disabled
+                1b: Enabled
+            [1]:   ERR2 Reset Enabled
+                0b: Disabled
+                1b: Enabled
+            [7:2]: Reserved
+    ResetErrorOccurrenceCounts
+        type: byte
+        description: >
+            Reset Error Occurrence Counts
+            [0]: Reset CPU Error Counts
+                 0b: Keep CPU Error Counts
+                 1b: Reset all CPU Error Counts to zero
+             [7:1]: Reserved
+    CATERRStatus
+        type: array[byte]
+        description: >
+            For all CPUs including the non-legacy socket CPU
+            CPU CATERR (Core Error) occurrence
+            [5:0]: Error Occurrence Count
+            [7:6]: CPU Status
+                00b: Disabled
+                01b: Enabled
+                11b: Not Present
+
+Change-Id: Ibc5a7a5e15c998e56c04e23b1043d99243a91171
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ .../Processor/ErrConfig.interface.yaml        | 33 +++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+ create mode 100644 xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
+
+diff --git a/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml b/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
+new file mode 100644
+index 0000000..2304263
+--- /dev/null
++++ b/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
+@@ -0,0 +1,33 @@
++description: >
++    This defines processor error configuration.
++properties:
++    - name: ResetCfg
++      type: byte
++      description: >
++          Reset Configuration
++              [0]:   CATERR Reset Enabled
++                      0b: Disabled
++                      1b: Enabled
++              [1]:   ERR2 Reset Enabled
++                          0b: Disabled
++                          1b: Enabled
++              [7:2]: Reserved
++
++    - name: ResetErrorOccurrenceCounts
++      type: byte
++      description: >
++          Reset Error Occurrence Counts
++              [0]: Reset CPU Error Counts
++                      0b: Keep CPU Error Counts
++                      1b: Reset all CPU Error Counts to zero
++              [7:1]: Reserved
++    - name: CATERRStatus
++      type: array[byte]
++      description: >
++          For all CPUs including the non-legacy socket CPU
++          CPU CATERR (Core Error) occurrence
++              [5:0]: Error Occurrence Count
++              [7:6]: CPU Status
++                      00b: Disabled
++                      01b: Enabled
++                      11b: Not Present
+-- 
+2.17.0
+

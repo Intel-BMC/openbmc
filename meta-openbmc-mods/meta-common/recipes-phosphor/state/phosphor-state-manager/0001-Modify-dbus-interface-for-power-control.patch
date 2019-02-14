@@ -1,0 +1,38 @@
+From d34a2a5f6ca0564275ed0e2664624525cad64585 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Fri, 13 Jul 2018 09:08:52 +0800
+Subject: [PATCH] Modify dbus interface for power control
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Switch power control service namespace from “org” to “xyz”,
+to compatible with new intel-chassis services
+
+Change-Id: I1bf5e218f72eb9fd4fb6f203c35479818d12b1fa
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ chassis_state_manager.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/chassis_state_manager.cpp b/chassis_state_manager.cpp
+index 03dd176..05e2440 100644
+--- a/chassis_state_manager.cpp
++++ b/chassis_state_manager.cpp
+@@ -63,10 +63,11 @@ void Chassis::determineInitialState()
+ {
+     sdbusplus::message::variant<int> pgood = -1;
+     auto method = this->bus.new_method_call(
+-        "org.openbmc.control.Power", "/org/openbmc/control/power0",
++        "xyz.openbmc_project.Chassis.Control.Power",
++        "/xyz/openbmc_project/Chassis/Control/Power0",
+         "org.freedesktop.DBus.Properties", "Get");
+ 
+-    method.append("org.openbmc.control.Power", "pgood");
++    method.append("xyz.openbmc_project.Chassis.Control.Power", "pgood");
+     try
+     {
+         auto reply = this->bus.call(method);
+-- 
+2.7.4
+

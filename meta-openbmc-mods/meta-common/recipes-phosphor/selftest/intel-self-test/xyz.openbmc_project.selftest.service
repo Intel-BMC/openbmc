@@ -1,0 +1,10 @@
+[Unit]
+Description= BMC Self-Test
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/env selftest
+SyslogIdentifier=selftest
+
+[Install]
+WantedBy=multi-user.target

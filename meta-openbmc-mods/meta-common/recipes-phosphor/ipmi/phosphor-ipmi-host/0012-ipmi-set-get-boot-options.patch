@@ -1,0 +1,64 @@
+From 7b5c6a54c049a447b1fd3a42f9d63322dcee4dc7 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Sun, 16 Sep 2018 19:45:10 +0800
+Subject: [PATCH] [ipmi] set/get boot options
+
+1. fix issue for handling unsupported paramter
+2. add support for floppy/USB boot
+
+Change-Id: I2b888c1ad67fec7924dd5825f78622cd216a55f4
+Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ chassishandler.cpp | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index 666addb..77af2dc 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -1244,7 +1244,8 @@ constexpr auto ipmiDefault = 0;
+ std::map<IpmiValue, Source::Sources> sourceIpmiToDbus = {
+     {0x01, Source::Sources::Network},
+     {0x02, Source::Sources::Disk},
+-    {0x05, Source::Sources::ExternalMedia},
++    {0x05, Source::Sources::DVD},
++    {0x0f, Source::Sources::Removable},
+     {ipmiDefault, Source::Sources::Default}};
+ 
+ std::map<IpmiValue, Mode::Modes> modeIpmiToDbus = {
+@@ -1255,7 +1256,8 @@ std::map<IpmiValue, Mode::Modes> modeIpmiToDbus = {
+ std::map<Source::Sources, IpmiValue> sourceDbusToIpmi = {
+     {Source::Sources::Network, 0x01},
+     {Source::Sources::Disk, 0x02},
+-    {Source::Sources::ExternalMedia, 0x05},
++    {Source::Sources::DVD, 0x05},
++    {Source::Sources::Removable, 0x0f},
+     {Source::Sources::Default, ipmiDefault}};
+ 
+ std::map<Mode::Modes, IpmiValue> modeDbusToIpmi = {
+@@ -1533,7 +1535,7 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                     setBootMode(Mode::Modes::Regular);
+                 }
+             }
+-            if (modeIpmiToDbus.end() != modeItr)
++            else if (modeIpmiToDbus.end() != modeItr)
+             {
+                 rc = setBootMode(modeItr->second);
+                 if (rc != IPMI_CC_OK)
+@@ -1550,6 +1552,12 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                     setBootSource(Source::Sources::Default);
+                 }
+             }
++            else
++            {
++                // if boot option is not in support list, return error
++                *data_len = 0;
++                return IPMI_CC_INVALID_FIELD_REQUEST;
++            }
+         }
+         catch (InternalFailure& e)
+         {
+-- 
+2.7.4
+

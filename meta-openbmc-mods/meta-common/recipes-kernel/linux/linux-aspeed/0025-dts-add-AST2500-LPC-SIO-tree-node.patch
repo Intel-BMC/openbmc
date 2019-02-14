@@ -1,0 +1,32 @@
+From ba357b37e1041b6fe0e5012cf09571381207aa9b Mon Sep 17 00:00:00 2001
+From: Haiyue Wang <haiyue.wang@linux.intel.com>
+Date: Sat, 24 Feb 2018 11:23:46 +0800
+Subject: [PATCH] dts: add AST2500 LPC SIO tree node
+
+Add the AST2500 LPC SIO tree node.
+
+Signed-off-by: Haiyue Wang <haiyue.wang@linux.intel.com>
+---
+ arch/arm/boot/dts/aspeed-g5.dtsi | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index baf230034480..f7e812d36641 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -464,6 +464,12 @@
+ 						compatible = "aspeed,bmc-misc";
+ 					};
+ 
++					lpc_sio: lpc-sio@100 {
++						compatible = "aspeed,ast2500-lpc-sio";
++						reg = <0x100 0x20>;
++						status = "disabled";
++					};
++
+ 					mbox: mbox@180 {
+ 						compatible = "aspeed,ast2500-mbox";
+ 						reg = <0x180 0x5c>;
+-- 
+2.7.4
+

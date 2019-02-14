@@ -1,0 +1,14 @@
+[Unit]
+Description=Power%i warm reset
+Wants=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+After=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+Conflicts=obmc-chassis-poweroff@%i.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "busctl call `mapper get-service /xyz/openbmc_project/Chassis/Control/Power%i` \
+          /xyz/openbmc_project/Chassis/Control/Power%i xyz.openbmc_project.Chassis.Control.Power setPowerState i 2"
+SyslogIdentifier=intel-power-warm-reset
+
+[Install]
+WantedBy=obmc-host-warm-reset@%i.target

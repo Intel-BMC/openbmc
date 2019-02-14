@@ -1,0 +1,32 @@
+From 49debd0955b672d591f35e74119b288bd6df2992 Mon Sep 17 00:00:00 2001
+From: "Jia, Chunhui" <chunhui.jia@intel.com>
+Date: Tue, 24 Jul 2018 11:40:49 +0800
+Subject: [PATCH] [ipmi] set BIOS id
+
+change#2
+add new dbus interface for BIOS attributes
+
+Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
+---
+ xyz/openbmc_project/Inventory/Item/Bios.interface.yaml | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+ create mode 100644 xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
+
+diff --git a/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml b/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
+new file mode 100644
+index 0000000..d7a6b95
+--- /dev/null
++++ b/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
+@@ -0,0 +1,9 @@
++description: >
++    Implement to provide BIOS attributes.
++properties:
++    - name: BiosId
++      type: string
++      description: >
++          BIOS ID (version) string
++
++# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+-- 
+2.16.2
+

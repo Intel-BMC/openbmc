@@ -1,0 +1,37 @@
+From 9e99aa4f72f4420e03ec2e4a29816eae43c5e748 Mon Sep 17 00:00:00 2001
+From: "Jia, Chunhui" <chunhui.jia@intel.com>
+Date: Tue, 29 May 2018 16:16:06 +0800
+Subject: [PATCH] [settings] initialize data file with default setting
+
+Current code trys to load settings from file at startup. When file
+does not exist, it will just use default setting. However, it will
+still load default on next reboot because no one create files.
+
+This change creates file as well when daemon loads default so next
+time daemon could load/save from file.
+
+Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
+---
+ settings_manager.mako.hpp | 3 +++
+ 1 file changed, 3 insertions(+)
+ mode change 100644 => 100755 settings_manager.mako.hpp
+
+diff --git a/settings_manager.mako.hpp b/settings_manager.mako.hpp
+old mode 100644
+new mode 100755
+index 09a5a1f..cd592a0
+--- a/settings_manager.mako.hpp
++++ b/settings_manager.mako.hpp
+@@ -323,6 +323,9 @@ class Manager
+                 else
+                 {
+                     initSetting${index}();
++                    std::ofstream ostr(path.c_str(), std::ios::out);
++                    cereal::JSONOutputArchive oarchive(ostr);
++                    oarchive(*std::get<${index}>(settings)); //create file with default
+                 }
+             }
+             catch (cereal::Exception& e)
+-- 
+2.16.2
+

@@ -1,0 +1,125 @@
+From 074f1c74fde88aac3a10059e4928919782cd40d6 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Mon, 4 Jun 2018 13:45:42 -0700
+Subject: [PATCH] New flash map for Intel
+ ===================================================================
+
+---
+ .../boot/dts/openbmc-flash-layout-intel-128MB.dtsi | 58 ++++++++++++++++++++++
+ .../boot/dts/openbmc-flash-layout-intel-64MB.dtsi  | 39 +++++++++++++++
+ 2 files changed, 97 insertions(+)
+ create mode 100644 arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
+ create mode 100644 arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
+
+diff --git a/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi b/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
+new file mode 100644
+index 0000000..23426ac
+--- /dev/null
++++ b/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
+@@ -0,0 +1,58 @@
++// SPDX-License-Identifier: GPL-2.0+
++// 128MB flash layout: PFR (active + tmp1/tmp2 + extra)
++//                     image with common RW partition
++
++partitions {
++	compatible = "fixed-partitions";
++	#address-cells = <1>;
++	#size-cells = <1>;
++
++	u-boot@0 {
++		reg = <0x0 0x80000>;
++		label = "u-boot";
++	};
++
++	fit-image-a@80000 {
++		reg = <0x80000 0x1b80000>;
++		label = "image-a";
++	};
++
++	sofs@1c00000 {
++		reg = <0x1c00000 0x200000>;
++		label = "sofs";
++	};
++
++	rwfs@1e00000 {
++		reg = <0x1e00000 0x600000>;
++		label = "rwfs";
++	};
++
++	u-boot-env@2400000 {
++		reg = <0x2400000 0x20000>;
++		label = "u-boot-env";
++	};
++
++	/*
++	pfr-resvd@1260000 {
++		reg = <0x2460000 0x20000>;
++		label = "pfr-resvd";
++	};
++	*/
++
++	rc1@2480000 {
++		reg = <0x2480000 0x1b80000>;
++		label = "rc1";
++	};
++
++	rc2@4000000 {
++		reg = <0x4000000 0x1b80000>;
++		label = "rc2";
++	};
++
++	bios-staging@6000000 {
++		reg = <0x6000000 0x2000000>;
++		label = "bios-staging";
++	};
++};
++
++
+diff --git a/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi b/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
+new file mode 100644
+index 0000000..6ae8e57
+--- /dev/null
++++ b/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
+@@ -0,0 +1,39 @@
++// SPDX-License-Identifier: GPL-2.0+
++// 64MB flash layout: redundant image with common RW partition
++
++partitions {
++	compatible = "fixed-partitions";
++	#address-cells = <1>;
++	#size-cells = <1>;
++
++	u-boot@0 {
++		reg = <0x0 0x80000>;
++		label = "u-boot";
++	};
++
++	fit-image-a@80000 {
++		reg = <0x80000 0x1b80000>;
++		label = "image-a";
++	};
++
++	sofs@1c00000 {
++		reg = <0x1c00000 0x200000>;
++		label = "sofs";
++	};
++
++	rwfs@1e00000 {
++		reg = <0x1e00000 0x600000>;
++		label = "rwfs";
++	};
++
++	u-boot-env@2400000 {
++		reg = <0x2400000 0x20000>;
++		label = "u-boot-env";
++	};
++
++	fit-image-b@2480000 {
++		reg = <0x2480000 0x1b80000>;
++		label = "image-b";
++	};
++};
++
+-- 
+2.7.4
+

@@ -1,0 +1,13 @@
+[Unit]
+Description=Broadcast post host stop signal to dbus
+Wants=mapper-wait@-xyz-openbmc_project-state-host%i.service
+After=mapper-wait@-xyz-openbmc_project-state-host%i.service
+
+[Service]
+Restart=no
+Type=oneshot
+ExecStart=/bin/sh -c "dbus-send --system --type=signal /xyz/openbmc_project/state/host0 xyz.openbmc_project.State.Host.PostHostStop"
+SyslogIdentifier=posthoststopsignal
+
+[Install]
+WantedBy=obmc-host-stopped@%i.target

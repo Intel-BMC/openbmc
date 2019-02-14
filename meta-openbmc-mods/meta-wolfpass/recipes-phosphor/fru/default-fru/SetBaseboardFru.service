@@ -1,0 +1,9 @@
+[Unit]
+Description=Reads GPIO and Loads the FRU
+
+[Service]
+ExecStart=/usr/bin/checkFru.sh
+Type=oneshot
+
+[Install]
+WantedBy=basic.target

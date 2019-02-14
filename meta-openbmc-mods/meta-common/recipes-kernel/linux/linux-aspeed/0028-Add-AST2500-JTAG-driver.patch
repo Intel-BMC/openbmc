@@ -1,0 +1,1138 @@
+From 43470f186979483ba6c1e6374c7ea3a129622862 Mon Sep 17 00:00:00 2001
+From: "Hunt, Bryan" <bryan.hunt@intel.com>
+Date: Fri, 30 Mar 2018 10:48:01 -0700
+Subject: [PATCH] Add AST2500d JTAG driver
+
+Adding aspeed jtag driver
+
+Signed-off-by: Hunt, Bryan <bryan.hunt@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g5.dtsi |   9 +
+ drivers/Kconfig                  |   1 +
+ drivers/Makefile                 |   1 +
+ drivers/jtag/Kconfig             |  13 +
+ drivers/jtag/Makefile            |   1 +
+ drivers/jtag/jtag_aspeed.c       | 963 +++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/jtag_drv.h    |  73 +++
+ 7 files changed, 1061 insertions(+)
+ create mode 100644 drivers/jtag/Kconfig
+ create mode 100644 drivers/jtag/Makefile
+ create mode 100644 drivers/jtag/jtag_aspeed.c
+ create mode 100644 include/uapi/linux/jtag_drv.h
+
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index a7bbc2adecc9..b63003c2c0c7 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -366,6 +366,15 @@
+ 				pinctrl-0 = <&pinctrl_espi_default>;
+ 			};
+ 
++			jtag: jtag@1e6e4000 {
++				compatible = "aspeed,ast2500-jtag";
++				reg = <0x1e6e2004 0x4 0x1e6e4000 0x1c>;
++				clocks = <&syscon ASPEED_CLK_APB>;
++				resets = <&syscon ASPEED_RESET_JTAG_MASTER>;
++				interrupts = <43>;
++				status = "disabled";
++			};
++
+ 			lpc: lpc@1e789000 {
+ 				compatible = "aspeed,ast2500-lpc", "simple-mfd";
+ 				reg = <0x1e789000 0x1000>;
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index c633db2b41fb..2778a5c33ca5 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -221,4 +221,5 @@ source "drivers/slimbus/Kconfig"
+ 
+ source "drivers/peci/Kconfig"
+ 
++source "drivers/jtag/Kconfig"
+ endmenu
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 63c9b425e6e1..714067945fd2 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -187,3 +187,4 @@ obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
+ obj-$(CONFIG_SIOX)		+= siox/
+ obj-$(CONFIG_GNSS)		+= gnss/
+ obj-$(CONFIG_PECI)		+= peci/
++obj-$(CONFIG_JTAG_ASPEED)	+= jtag/
+diff --git a/drivers/jtag/Kconfig b/drivers/jtag/Kconfig
+new file mode 100644
+index 000000000000..2e5d0a5bea90
+--- /dev/null
++++ b/drivers/jtag/Kconfig
+@@ -0,0 +1,13 @@
++menuconfig JTAG_ASPEED
++	tristate "ASPEED SoC JTAG controller support"
++	depends on HAS_IOMEM
++	depends on ARCH_ASPEED || COMPILE_TEST
++	help
++	  This provides a support for ASPEED JTAG device, equipped on
++	  ASPEED SoC 24xx and 25xx families. Drivers allows programming
++	  of hardware devices, connected to SoC through the JTAG interface.
++
++	  If you want this support, you should say Y here.
++
++	  To compile this driver as a module, choose M here: the module will
++	  be called jtag_aspeed.
+diff --git a/drivers/jtag/Makefile b/drivers/jtag/Makefile
+new file mode 100644
+index 000000000000..db9b660e9f90
+--- /dev/null
++++ b/drivers/jtag/Makefile
+@@ -0,0 +1 @@
++obj-$(CONFIG_JTAG_ASPEED)	+= jtag_aspeed.o
+diff --git a/drivers/jtag/jtag_aspeed.c b/drivers/jtag/jtag_aspeed.c
+new file mode 100644
+index 000000000000..42e2a131873c
+--- /dev/null
++++ b/drivers/jtag/jtag_aspeed.c
+@@ -0,0 +1,963 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (C) 2012-2017 ASPEED Technology Inc.
++// Copyright (c) 2018 Intel Corporation
++
++#include <linux/bitfield.h>
++#include <linux/delay.h>
++#include <linux/fs.h>
++#include <linux/interrupt.h>
++#include <linux/io.h>
++#include <linux/jtag_drv.h>
++#include <linux/miscdevice.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/platform_device.h>
++#include <linux/slab.h>
++#include <linux/uaccess.h>
++
++#define SCU_RESET_JTAG     BIT(22)
++
++#define AST_JTAG_DATA		0x00
++#define AST_JTAG_INST		0x04
++#define AST_JTAG_CTRL		0x08
++#define AST_JTAG_ISR		0x0C
++#define AST_JTAG_SW		0x10
++#define AST_JTAG_TCK		0x14
++#define AST_JTAG_IDLE		0x18
++
++/* AST_JTAG_CTRL - 0x08 : Engine Control */
++#define JTAG_ENG_EN		BIT(31)
++#define JTAG_ENG_OUT_EN		BIT(30)
++#define JTAG_ENGINE_EN		(JTAG_ENG_EN | JTAG_ENG_OUT_EN)
++#define JTAG_FORCE_TMS		BIT(29)
++
++#define JTAG_IR_UPDATE		BIT(26)  /* AST2500 only */
++#define JTAG_INST_LEN_MASK	GENMASK(25, 20)
++#define JTAG_LAST_INST		BIT(17)
++#define JTAG_INST_EN		BIT(16)
++#define JTAG_DATA_LEN_MASK	GENMASK(9, 4)
++
++#define JTAG_DR_UPDATE		BIT(10)  /* AST2500 only */
++#define JTAG_LAST_DATA		BIT(1)
++#define JTAG_DATA_EN		BIT(0)
++
++/* AST_JTAG_ISR - 0x0C : Interrupt status and enable */
++#define JTAG_INST_PAUSE		BIT(19)
++#define JTAG_INST_COMPLETE	BIT(18)
++#define JTAG_DATA_PAUSE		BIT(17)
++#define JTAG_DATA_COMPLETE	BIT(16)
++
++#define JTAG_INST_PAUSE_EN	BIT(3)
++#define JTAG_INST_COMPLETE_EN	BIT(2)
++#define JTAG_DATA_PAUSE_EN	BIT(1)
++#define JTAG_DATA_COMPLETE_EN	BIT(0)
++
++/* AST_JTAG_SW - 0x10 : Software Mode and Status */
++#define JTAG_SW_MODE_EN		BIT(19)
++#define JTAG_SW_MODE_TCK	BIT(18)
++#define JTAG_SW_MODE_TMS	BIT(17)
++#define JTAG_SW_MODE_TDIO	BIT(16)
++
++/* AST_JTAG_TCK - 0x14 : TCK Control */
++#define JTAG_TCK_DIVISOR_MASK	GENMASK(10, 0)
++
++/* #define USE_INTERRUPTS */
++#define AST_JTAG_NAME		"jtag"
++
++static DEFINE_SPINLOCK(jtag_state_lock);
++
++struct ast_jtag_info {
++	void __iomem		*reg_base;
++	void __iomem		*reg_base_scu;
++	int			irq;
++	u32			flag;
++	wait_queue_head_t	jtag_wq;
++	bool			is_open;
++	struct device		*dev;
++	struct miscdevice	miscdev;
++};
++
++/*
++ * This structure represents a TMS cycle, as expressed in a set of bits and a
++ * count of bits (note: there are no start->end state transitions that require
++ * more than 1 byte of TMS cycles)
++ */
++struct tms_cycle {
++	unsigned char		tmsbits;
++	unsigned char		count;
++};
++
++/*
++ * These are the string representations of the TAP states corresponding to the
++ * enums literals in JtagStateEncode
++ */
++static const char * const c_statestr[] = {"TLR", "RTI", "SelDR", "CapDR",
++					  "ShfDR", "Ex1DR", "PauDR", "Ex2DR",
++					  "UpdDR", "SelIR", "CapIR", "ShfIR",
++					  "Ex1IR", "PauIR", "Ex2IR", "UpdIR"};
++
++/*
++ * This is the complete set TMS cycles for going from any TAP state to any
++ * other TAP state, following a “shortest path” rule.
++ */
++static const struct tms_cycle _tms_cycle_lookup[][16] = {
++/*          TLR        RTI        SelDR      CapDR      SDR        Ex1DR      PDR        Ex2DR      UpdDR      SelIR      CapIR      SIR        Ex1IR      PIR        Ex2IR      UpdIR*/
++/* TLR  */{ {0x00, 0}, {0x00, 1}, {0x02, 2}, {0x02, 3}, {0x02, 4}, {0x0a, 4}, {0x0a, 5}, {0x2a, 6}, {0x1a, 5}, {0x06, 3}, {0x06, 4}, {0x06, 5}, {0x16, 5}, {0x16, 6}, {0x56, 7}, {0x36, 6} },
++/* RTI  */{ {0x07, 3}, {0x00, 0}, {0x01, 1}, {0x01, 2}, {0x01, 3}, {0x05, 3}, {0x05, 4}, {0x15, 5}, {0x0d, 4}, {0x03, 2}, {0x03, 3}, {0x03, 4}, {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x1b, 5} },
++/* SelDR*/{ {0x03, 2}, {0x03, 3}, {0x00, 0}, {0x00, 1}, {0x00, 2}, {0x02, 2}, {0x02, 3}, {0x0a, 4}, {0x06, 3}, {0x01, 1}, {0x01, 2}, {0x01, 3}, {0x05, 3}, {0x05, 4}, {0x15, 5}, {0x0d, 4} },
++/* CapDR*/{ {0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x00, 0}, {0x00, 1}, {0x01, 1}, {0x01, 2}, {0x05, 3}, {0x03, 2}, {0x0f, 4}, {0x0f, 5}, {0x0f, 6}, {0x2f, 6}, {0x2f, 7}, {0xaf, 8}, {0x6f, 7} },
++/* SDR  */{ {0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x00, 0}, {0x01, 1}, {0x01, 2}, {0x05, 3}, {0x03, 2}, {0x0f, 4}, {0x0f, 5}, {0x0f, 6}, {0x2f, 6}, {0x2f, 7}, {0xaf, 8}, {0x6f, 7} },
++/* Ex1DR*/{ {0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x02, 3}, {0x00, 0}, {0x00, 1}, {0x02, 2}, {0x01, 1}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5}, {0x17, 6}, {0x57, 7}, {0x37, 6} },
++/* PDR  */{ {0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x01, 2}, {0x05, 3}, {0x00, 0}, {0x01, 1}, {0x03, 2}, {0x0f, 4}, {0x0f, 5}, {0x0f, 6}, {0x2f, 6}, {0x2f, 7}, {0xaf, 8}, {0x6f, 7} },
++/* Ex2DR*/{ {0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x00, 1}, {0x02, 2}, {0x02, 3}, {0x00, 0}, {0x01, 1}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5}, {0x17, 6}, {0x57, 7}, {0x37, 6} },
++/* UpdDR*/{ {0x07, 3}, {0x00, 1}, {0x01, 1}, {0x01, 2}, {0x01, 3}, {0x05, 3}, {0x05, 4}, {0x15, 5}, {0x00, 0}, {0x03, 2}, {0x03, 3}, {0x03, 4}, {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x1b, 5} },
++/* SelIR*/{ {0x01, 1}, {0x01, 2}, {0x05, 3}, {0x05, 4}, {0x05, 5}, {0x15, 5}, {0x15, 6}, {0x55, 7}, {0x35, 6}, {0x00, 0}, {0x00, 1}, {0x00, 2}, {0x02, 2}, {0x02, 3}, {0x0a, 4}, {0x06, 3} },
++/* CapIR*/{ {0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5}, {0x17, 6}, {0x57, 7}, {0x37, 6}, {0x0f, 4}, {0x00, 0}, {0x00, 1}, {0x01, 1}, {0x01, 2}, {0x05, 3}, {0x03, 2} },
++/* SIR  */{ {0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5}, {0x17, 6}, {0x57, 7}, {0x37, 6}, {0x0f, 4}, {0x0f, 5}, {0x00, 0}, {0x01, 1}, {0x01, 2}, {0x05, 3}, {0x03, 2} },
++/* Ex1IR*/{ {0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x03, 4}, {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x1b, 5}, {0x07, 3}, {0x07, 4}, {0x02, 3}, {0x00, 0}, {0x00, 1}, {0x02, 2}, {0x01, 1} },
++/* PIR  */{ {0x1f, 5}, {0x03, 3}, {0x07, 3}, {0x07, 4}, {0x07, 5}, {0x17, 5}, {0x17, 6}, {0x57, 7}, {0x37, 6}, {0x0f, 4}, {0x0f, 5}, {0x01, 2}, {0x05, 3}, {0x00, 0}, {0x01, 1}, {0x03, 2} },
++/* Ex2IR*/{ {0x0f, 4}, {0x01, 2}, {0x03, 2}, {0x03, 3}, {0x03, 4}, {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x1b, 5}, {0x07, 3}, {0x07, 4}, {0x00, 1}, {0x02, 2}, {0x02, 3}, {0x00, 0}, {0x01, 1} },
++/* UpdIR*/{ {0x07, 3}, {0x00, 1}, {0x01, 1}, {0x01, 2}, {0x01, 3}, {0x05, 3}, {0x05, 4}, {0x15, 5}, {0x0d, 4}, {0x03, 2}, {0x03, 3}, {0x03, 4}, {0x0b, 4}, {0x0b, 5}, {0x2b, 6}, {0x00, 0} },
++};
++
++static const char * const regnames[] = {
++	[AST_JTAG_DATA] = "AST_JTAG_DATA",
++	[AST_JTAG_INST] = "AST_JTAG_INST",
++	[AST_JTAG_CTRL] = "AST_JTAG_CTRL",
++	[AST_JTAG_ISR]  = "AST_JTAG_ISR",
++	[AST_JTAG_SW]   = "AST_JTAG_SW",
++	[AST_JTAG_TCK]  = "AST_JTAG_TCK",
++	[AST_JTAG_IDLE] = "AST_JTAG_IDLE",
++};
++
++static inline u32 ast_jtag_read(struct ast_jtag_info *ast_jtag, u32 reg)
++{
++	u32 val = readl(ast_jtag->reg_base + reg);
++
++	dev_dbg(ast_jtag->dev, "read:%s val = 0x%08x\n", regnames[reg], val);
++	return val;
++}
++
++static inline void ast_jtag_write(struct ast_jtag_info *ast_jtag, u32 val,
++				  u32 reg)
++{
++	dev_dbg(ast_jtag->dev, "write:%s val = 0x%08x\n", regnames[reg], val);
++	writel(val, ast_jtag->reg_base + reg);
++}
++
++static void ast_jtag_set_tck(struct ast_jtag_info *ast_jtag,
++			     enum xfer_mode mode, uint tck)
++{
++	u32 read_value;
++
++	if (tck == 0)
++		tck = 1;
++	else if (tck > JTAG_TCK_DIVISOR_MASK)
++		tck = JTAG_TCK_DIVISOR_MASK;
++	read_value = ast_jtag_read(ast_jtag, AST_JTAG_TCK);
++	ast_jtag_write(ast_jtag,
++		       ((read_value & ~JTAG_TCK_DIVISOR_MASK) | tck),
++		       AST_JTAG_TCK);
++}
++
++static void ast_jtag_get_tck(struct ast_jtag_info *ast_jtag,
++			     enum xfer_mode mode, uint *tck)
++{
++	*tck = FIELD_GET(JTAG_TCK_DIVISOR_MASK,
++			 ast_jtag_read(ast_jtag, AST_JTAG_TCK));
++}
++
++/*
++ * Used only in SW mode to walk the JTAG state machine.
++ */
++static u8 tck_cycle(struct ast_jtag_info *ast_jtag, u8 TMS, u8 TDI,
++		    bool do_read)
++{
++	u8 result = 0;
++	u32 regwriteval = JTAG_SW_MODE_EN | (TMS * JTAG_SW_MODE_TMS)
++			  | (TDI * JTAG_SW_MODE_TDIO);
++
++	/* TCK = 0 */
++	ast_jtag_write(ast_jtag, regwriteval, AST_JTAG_SW);
++
++	ast_jtag_read(ast_jtag, AST_JTAG_SW);
++
++	/* TCK = 1 */
++	ast_jtag_write(ast_jtag, JTAG_SW_MODE_TCK | regwriteval, AST_JTAG_SW);
++
++	if (do_read) {
++		result = (ast_jtag_read(ast_jtag, AST_JTAG_SW)
++			& JTAG_SW_MODE_TDIO) ? 1 : 0;
++	}
++	return result;
++}
++
++#define WAIT_ITERATIONS 75
++
++static int ast_jtag_wait_instr_pause_complete(struct ast_jtag_info *ast_jtag)
++{
++	int res = 0;
++#ifdef USE_INTERRUPTS
++	res = wait_event_interruptible(ast_jtag->jtag_wq,
++				       (ast_jtag->flag == JTAG_INST_PAUSE));
++	ast_jtag->flag = 0;
++#else
++	u32 status = 0;
++	u32 iterations = 0;
++
++	while ((status & JTAG_INST_PAUSE) == 0) {
++		status = ast_jtag_read(ast_jtag, AST_JTAG_ISR);
++		dev_dbg(ast_jtag->dev, "%s  = 0x%08x\n", __func__, status);
++		iterations++;
++		if (iterations > WAIT_ITERATIONS) {
++			dev_err(ast_jtag->dev,
++				"ast_jtag driver timed out waiting for instruction pause complete\n");
++			res = -EFAULT;
++			break;
++		}
++		if ((status & JTAG_DATA_COMPLETE) == 0) {
++			if (iterations % 25 == 0)
++				usleep_range(1, 5);
++			else
++				udelay(1);
++		}
++	}
++	ast_jtag_write(ast_jtag, JTAG_INST_PAUSE | (status & 0xf),
++		       AST_JTAG_ISR);
++#endif
++	return res;
++}
++
++static int ast_jtag_wait_instr_complete(struct ast_jtag_info *ast_jtag)
++{
++	int res = 0;
++#ifdef USE_INTERRUPTS
++	res = wait_event_interruptible(ast_jtag->jtag_wq,
++				       (ast_jtag->flag == JTAG_INST_COMPLETE));
++	ast_jtag->flag = 0;
++#else
++	u32 status = 0;
++	u32 iterations = 0;
++
++	while ((status & JTAG_INST_COMPLETE) == 0) {
++		status = ast_jtag_read(ast_jtag, AST_JTAG_ISR);
++		dev_dbg(ast_jtag->dev, "%s  = 0x%08x\n", __func__, status);
++		iterations++;
++		if (iterations > WAIT_ITERATIONS) {
++			dev_err(ast_jtag->dev,
++				"ast_jtag driver timed out waiting for instruction complete\n");
++			res = -EFAULT;
++			break;
++		}
++		if ((status & JTAG_DATA_COMPLETE) == 0) {
++			if (iterations % 25 == 0)
++				usleep_range(1, 5);
++			else
++				udelay(1);
++		}
++	}
++	ast_jtag_write(ast_jtag, JTAG_INST_COMPLETE | (status & 0xf),
++		       AST_JTAG_ISR);
++#endif
++	return res;
++}
++
++static int ast_jtag_wait_data_pause_complete(struct ast_jtag_info *ast_jtag)
++{
++	int res = 0;
++#ifdef USE_INTERRUPTS
++	res = wait_event_interruptible(ast_jtag->jtag_wq,
++				       (ast_jtag->flag == JTAG_DATA_PAUSE));
++	ast_jtag->flag = 0;
++#else
++	u32 status = 0;
++	u32 iterations = 0;
++
++	while ((status & JTAG_DATA_PAUSE) == 0) {
++		status = ast_jtag_read(ast_jtag, AST_JTAG_ISR);
++		dev_dbg(ast_jtag->dev, "%s  = 0x%08x\n", __func__, status);
++		iterations++;
++		if (iterations > WAIT_ITERATIONS) {
++			dev_err(ast_jtag->dev,
++				"ast_jtag driver timed out waiting for data pause complete\n");
++			res = -EFAULT;
++			break;
++		}
++		if ((status & JTAG_DATA_COMPLETE) == 0) {
++			if (iterations % 25 == 0)
++				usleep_range(1, 5);
++			else
++				udelay(1);
++		}
++	}
++	ast_jtag_write(ast_jtag, JTAG_DATA_PAUSE | (status & 0xf),
++		       AST_JTAG_ISR);
++#endif
++	return res;
++}
++
++static int ast_jtag_wait_data_complete(struct ast_jtag_info *ast_jtag)
++{
++	int res = 0;
++#ifdef USE_INTERRUPTS
++	res = wait_event_interruptible(ast_jtag->jtag_wq,
++				       (ast_jtag->flag == JTAG_DATA_COMPLETE));
++	ast_jtag->flag = 0;
++#else
++	u32 status = 0;
++	u32 iterations = 0;
++
++	while ((status & JTAG_DATA_COMPLETE) == 0) {
++		status = ast_jtag_read(ast_jtag, AST_JTAG_ISR);
++		dev_dbg(ast_jtag->dev, "%s  = 0x%08x\n", __func__, status);
++		iterations++;
++		if (iterations > WAIT_ITERATIONS) {
++			dev_err(ast_jtag->dev,
++				"ast_jtag driver timed out waiting for data complete\n");
++			res = -EFAULT;
++			break;
++		}
++		if ((status & JTAG_DATA_COMPLETE) == 0) {
++			if (iterations % 25 == 0)
++				usleep_range(1, 5);
++			else
++				udelay(1);
++		}
++	}
++	ast_jtag_write(ast_jtag,
++		       JTAG_DATA_COMPLETE | (status & 0xf),
++		       AST_JTAG_ISR);
++#endif
++	return res;
++}
++
++static void ast_jtag_bitbang(struct ast_jtag_info *ast_jtag,
++			     struct tck_bitbang *bit_bang)
++{
++	bit_bang->tdo = tck_cycle(ast_jtag, bit_bang->tms, bit_bang->tdi, true);
++}
++
++static void reset_tap(struct ast_jtag_info *ast_jtag, enum xfer_mode mode)
++{
++	unsigned char i;
++
++	if (mode == SW_MODE) {
++		for (i = 0; i < 9; i++)
++			tck_cycle(ast_jtag, 1, 0, false);
++	} else {
++		ast_jtag_write(ast_jtag, 0, AST_JTAG_SW);
++		mdelay(1);
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_FORCE_TMS,
++			       AST_JTAG_CTRL);
++		mdelay(1);
++		ast_jtag_write(ast_jtag,
++			       JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO,
++			       AST_JTAG_SW);
++	}
++}
++
++static int ast_jtag_set_tapstate(struct ast_jtag_info *ast_jtag,
++				 enum xfer_mode mode, uint from, uint to)
++{
++	unsigned char num_cycles;
++	unsigned char cycle;
++	unsigned char tms_bits;
++
++	/*
++	 * Ensure that the requested and current tap states are within
++	 * 0 to 15.
++	 */
++	if (from >= ARRAY_SIZE(_tms_cycle_lookup[0]) ||  /* Column */
++		to >= ARRAY_SIZE(_tms_cycle_lookup)) {  /* row */
++		return -1;
++	}
++
++	dev_dbg(ast_jtag->dev, "Set TAP state: %s\n", c_statestr[to]);
++
++	if (mode == SW_MODE) {
++		ast_jtag_write(ast_jtag,
++			       JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO,
++			       AST_JTAG_SW);
++
++		if (to == jtag_tlr) {
++			reset_tap(ast_jtag, mode);
++		} else {
++			tms_bits = _tms_cycle_lookup[from][to].tmsbits;
++			num_cycles = _tms_cycle_lookup[from][to].count;
++
++			if (num_cycles == 0)
++				return 0;
++
++			for (cycle = 0; cycle < num_cycles; cycle++) {
++				tck_cycle(ast_jtag, (tms_bits & 1), 0, false);
++				tms_bits >>= 1;
++			}
++		}
++	} else if (to == jtag_tlr) {
++		reset_tap(ast_jtag, mode);
++	}
++	return 0;
++}
++
++static void software_readwrite_scan(struct ast_jtag_info *ast_jtag,
++				    struct scan_xfer *scan_xfer)
++{
++	uint bit_index = 0;
++	bool is_IR = (scan_xfer->tap_state == jtag_shf_ir);
++	uint exit_tap_state = is_IR ? jtag_ex1_ir : jtag_ex1_dr;
++	unsigned char *tdi = scan_xfer->tdi;
++	unsigned char *tdo = scan_xfer->tdo;
++
++	dev_dbg(ast_jtag->dev, "SW JTAG SHIFT %s, length = %d\n",
++		is_IR ? "IR" : "DR", scan_xfer->length);
++
++	ast_jtag_write(ast_jtag,
++		       JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO,
++		       AST_JTAG_SW);
++
++	while (bit_index < scan_xfer->length) {
++		int bit_offset = (bit_index % 8);
++		int this_input_bit = 0;
++		int tms_high_or_low;
++		int this_output_bit;
++
++		if (bit_index / 8 < scan_xfer->tdi_bytes) {
++			/*
++			 * If we are on a byte boundary, increment the byte
++			 * pointers. Don't increment on 0, pointer is already
++			 * on the first byte.
++			 */
++			if (bit_index % 8 == 0 && bit_index != 0)
++				tdi++;
++			this_input_bit = (*tdi >> bit_offset) & 1;
++		}
++		/* If this is the last bit, leave TMS high */
++		tms_high_or_low = (bit_index == scan_xfer->length - 1) &&
++				(scan_xfer->end_tap_state != jtag_shf_dr) &&
++				(scan_xfer->end_tap_state != jtag_shf_ir);
++		this_output_bit = tck_cycle(ast_jtag, tms_high_or_low,
++					    this_input_bit, !!tdo);
++		/*
++		 * If it was the last bit in the scan and the end_tap_state is
++		 * something other than shiftDR or shiftIR then go to Exit1.
++		 * IMPORTANT Note: if the end_tap_state is ShiftIR/DR and
++		 * the next call to this function is a shiftDR/IR then the
++		 * driver will not change state!
++		 */
++		if (tms_high_or_low)
++			scan_xfer->tap_state = exit_tap_state;
++		if (tdo && bit_index / 8 < scan_xfer->tdo_bytes) {
++			if (bit_index % 8 == 0) {
++				if (bit_index != 0)
++					tdo++;
++				*tdo = 0;
++			}
++			*tdo |= this_output_bit << bit_offset;
++		}
++		bit_index++;
++	}
++	ast_jtag_set_tapstate(ast_jtag, scan_xfer->mode, scan_xfer->tap_state,
++			      scan_xfer->end_tap_state);
++}
++
++static int fire_ir_command(struct ast_jtag_info *ast_jtag, bool last,
++			   u32 length)
++{
++	int res;
++
++	if (last) {
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_LAST_INST
++			| FIELD_PREP(JTAG_INST_LEN_MASK, length),
++			       AST_JTAG_CTRL);
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_LAST_INST
++			| FIELD_PREP(JTAG_INST_LEN_MASK, length)
++			| JTAG_INST_EN,
++			       AST_JTAG_CTRL);
++		res = ast_jtag_wait_instr_complete(ast_jtag);
++	} else {
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_IR_UPDATE
++			| FIELD_PREP(JTAG_INST_LEN_MASK, length),
++			       AST_JTAG_CTRL);
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_IR_UPDATE
++			| FIELD_PREP(JTAG_INST_LEN_MASK, length)
++			| JTAG_INST_EN,
++			       AST_JTAG_CTRL);
++		res = ast_jtag_wait_instr_pause_complete(ast_jtag);
++	}
++	return res;
++}
++
++static int fire_dr_command(struct ast_jtag_info *ast_jtag, bool last,
++			   u32 length)
++{
++	int res;
++
++	if (last) {
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_LAST_DATA
++			| FIELD_PREP(JTAG_DATA_LEN_MASK, length),
++			       AST_JTAG_CTRL);
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_LAST_DATA
++			| FIELD_PREP(JTAG_DATA_LEN_MASK, length)
++			| JTAG_DATA_EN,
++			       AST_JTAG_CTRL);
++		res = ast_jtag_wait_data_complete(ast_jtag);
++	} else {
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_DR_UPDATE
++			| FIELD_PREP(JTAG_DATA_LEN_MASK, length),
++			       AST_JTAG_CTRL);
++		ast_jtag_write(ast_jtag, JTAG_ENGINE_EN | JTAG_DR_UPDATE
++			| FIELD_PREP(JTAG_DATA_LEN_MASK, length)
++			| JTAG_DATA_EN,
++			       AST_JTAG_CTRL);
++		res = ast_jtag_wait_data_pause_complete(ast_jtag);
++	}
++	return res;
++}
++
++static int hardware_readwrite_scan(struct ast_jtag_info *ast_jtag,
++				   struct scan_xfer *scan_xfer)
++{
++	int res = 0;
++	u32 bits_received = 0;
++	u32 bits_to_send = 0;
++	u32 chunk_len = 0;
++	bool is_IR = (scan_xfer->tap_state == jtag_shf_ir);
++	bool is_last = false;
++	u32 length = scan_xfer->length;
++	u32 *tdi = (u32 *)scan_xfer->tdi;
++	u32 *tdo = (u32 *)scan_xfer->tdo;
++	u32 remaining_bytes;
++	int scan_end = 0;
++	u32 ast_reg = is_IR ? AST_JTAG_INST : AST_JTAG_DATA;
++
++	dev_dbg(ast_jtag->dev, "HW JTAG SHIFT %s, length = %d\n",
++		is_IR ? "IR" : "DR", length);
++
++	ast_jtag_write(ast_jtag, 0, AST_JTAG_SW);
++	if (scan_xfer->end_tap_state == jtag_pau_dr ||
++	    scan_xfer->end_tap_state == jtag_pau_ir ||
++	    scan_xfer->end_tap_state == jtag_shf_dr ||
++	    scan_xfer->end_tap_state == jtag_shf_ir) {
++		scan_end = 0;
++	} else {
++		scan_end = 1;
++	}
++
++	while (length > 0) {
++		chunk_len = (length > 32) ? 32 : length;
++
++		if (length <= 32 && scan_end == 1)
++			is_last = true;
++
++		dev_dbg(ast_jtag->dev, "HW SHIFT, length=%d, scan_end=%d, chunk_len=%d, is_last=%d\n",
++			length, scan_end, chunk_len, is_last);
++
++		remaining_bytes = (scan_xfer->length - length) / 8;
++		if (tdi && remaining_bytes < scan_xfer->tdi_bytes) {
++			bits_to_send = *tdi++;
++			ast_jtag_write(ast_jtag, bits_to_send, ast_reg);
++		} else {
++			bits_to_send = 0;
++			ast_jtag_write(ast_jtag, 0, ast_reg);
++		}
++
++		dev_dbg(ast_jtag->dev, "HW SHIFT, len=%d chunk_len=%d is_last=%x bits_to_send=%x\n",
++			length, chunk_len, is_last, bits_to_send);
++
++		if (is_IR)
++			res = fire_ir_command(ast_jtag, is_last, chunk_len);
++		else
++			res = fire_dr_command(ast_jtag, is_last, chunk_len);
++		if (res != 0)
++			break;
++
++		if (tdo) {
++			bits_received = ast_jtag_read(ast_jtag, ast_reg);
++			bits_received >>= (32 - chunk_len);
++			*tdo++ = bits_received;
++		}
++		dev_dbg(ast_jtag->dev,
++			"HW SHIFT, len=%d chunk_len=%d is_last=%x bits_received=%x\n",
++			length, chunk_len, is_last,
++			bits_received);
++		length -= chunk_len;
++	}
++	return res;
++}
++
++static int ast_jtag_readwrite_scan(struct ast_jtag_info *ast_jtag,
++				   struct scan_xfer *scan_xfer)
++{
++	int res = 0;
++
++	if (scan_xfer->tap_state != jtag_shf_dr &&
++	    scan_xfer->tap_state != jtag_shf_ir) {
++		if (scan_xfer->tap_state < ARRAY_SIZE(c_statestr))
++			dev_err(ast_jtag->dev,
++				"readwrite_scan bad current tap state = %s\n",
++				c_statestr[scan_xfer->tap_state]);
++		else
++			dev_err(ast_jtag->dev,
++				"readwrite_scan bad current tap state = %u\n",
++				scan_xfer->tap_state);
++		return -EFAULT;
++	}
++
++	if (scan_xfer->length == 0) {
++		dev_err(ast_jtag->dev, "readwrite_scan bad length 0\n");
++		return -EFAULT;
++	}
++
++	if (!scan_xfer->tdi && scan_xfer->tdi_bytes != 0) {
++		dev_err(ast_jtag->dev,
++			"readwrite_scan null tdi with non-zero length %u!\n",
++			scan_xfer->tdi_bytes);
++		return -EFAULT;
++	}
++
++	if (!scan_xfer->tdo && scan_xfer->tdo_bytes != 0) {
++		dev_err(ast_jtag->dev,
++			"readwrite_scan null tdo with non-zero length %u!\n",
++			scan_xfer->tdo_bytes);
++		return -EFAULT;
++	}
++
++	if (!scan_xfer->tdi && !scan_xfer->tdo) {
++		dev_err(ast_jtag->dev, "readwrite_scan null tdo and tdi!\n");
++		return -EFAULT;
++	}
++
++	if (scan_xfer->mode == SW_MODE)
++		software_readwrite_scan(ast_jtag, scan_xfer);
++	else
++		res = hardware_readwrite_scan(ast_jtag, scan_xfer);
++	return res;
++}
++
++#ifdef USE_INTERRUPTS
++static irqreturn_t ast_jtag_interrupt(int this_irq, void *dev_id)
++{
++	u32 status;
++	struct ast_jtag_info *ast_jtag = dev_id;
++
++	status = ast_jtag_read(ast_jtag, AST_JTAG_ISR);
++
++	if (status & JTAG_INST_PAUSE) {
++		ast_jtag_write(ast_jtag,
++			       JTAG_INST_PAUSE | (status & 0xf),
++			       AST_JTAG_ISR);
++		ast_jtag->flag = JTAG_INST_PAUSE;
++	}
++
++	if (status & JTAG_INST_COMPLETE) {
++		ast_jtag_write(ast_jtag,
++			       JTAG_INST_COMPLETE | (status & 0xf),
++			       AST_JTAG_ISR);
++		ast_jtag->flag = JTAG_INST_COMPLETE;
++	}
++
++	if (status & JTAG_DATA_PAUSE) {
++		ast_jtag_write(ast_jtag,
++			       JTAG_DATA_PAUSE | (status & 0xf), AST_JTAG_ISR);
++		ast_jtag->flag = JTAG_DATA_PAUSE;
++	}
++
++	if (status & JTAG_DATA_COMPLETE) {
++		ast_jtag_write(ast_jtag,
++			       JTAG_DATA_COMPLETE | (status & 0xf),
++			       AST_JTAG_ISR);
++		ast_jtag->flag = JTAG_DATA_COMPLETE;
++	}
++
++	if (ast_jtag->flag) {
++		wake_up_interruptible(&ast_jtag->jtag_wq);
++		return IRQ_HANDLED;
++	} else {
++		return IRQ_NONE;
++	}
++}
++#endif
++
++static inline void ast_jtag_slave(struct ast_jtag_info *ast_jtag)
++{
++	u32 currReg = readl((void *)(ast_jtag->reg_base_scu));
++
++	writel(currReg | SCU_RESET_JTAG, (void *)ast_jtag->reg_base_scu);
++}
++
++static inline void ast_jtag_master(struct ast_jtag_info *ast_jtag)
++{
++	u32 currReg = readl((void *)(ast_jtag->reg_base_scu));
++
++	writel(currReg & ~SCU_RESET_JTAG, (void *)ast_jtag->reg_base_scu);
++	ast_jtag_write(ast_jtag, JTAG_ENGINE_EN, AST_JTAG_CTRL);
++	ast_jtag_write(ast_jtag, JTAG_SW_MODE_EN | JTAG_SW_MODE_TDIO,
++		       AST_JTAG_SW);
++	ast_jtag_write(ast_jtag, JTAG_INST_PAUSE | JTAG_INST_COMPLETE |
++		       JTAG_DATA_PAUSE | JTAG_DATA_COMPLETE |
++		       JTAG_INST_PAUSE_EN | JTAG_INST_COMPLETE_EN |
++		       JTAG_DATA_PAUSE_EN | JTAG_DATA_COMPLETE_EN,
++		       AST_JTAG_ISR);  /* Enable Interrupt */
++}
++
++static long jtag_ioctl(struct file *file, uint cmd, ulong arg)
++{
++	int ret = 0;
++	struct ast_jtag_info *ast_jtag = file->private_data;
++	void __user *argp = (void __user *)arg;
++	struct tck_bitbang bitbang;
++	struct scan_xfer xfer;
++	struct set_tck_param set_tck_param;
++	struct get_tck_param get_tck_param;
++	struct tap_state_param tap_state_param;
++	unsigned char *kern_tdi = NULL;
++	unsigned char *kern_tdo = NULL;
++	unsigned char *user_tdi;
++	unsigned char *user_tdo;
++
++	switch (cmd) {
++	case AST_JTAG_SET_TCK:
++		if (copy_from_user(&set_tck_param, argp,
++				   sizeof(struct set_tck_param))) {
++			ret = -EFAULT;
++		} else {
++			ast_jtag_set_tck(ast_jtag,
++					 set_tck_param.mode,
++					 set_tck_param.tck);
++		}
++		break;
++	case AST_JTAG_GET_TCK:
++		if (copy_from_user(&get_tck_param, argp,
++				   sizeof(struct get_tck_param)))
++			ret = -EFAULT;
++		else
++			ast_jtag_get_tck(ast_jtag,
++					 get_tck_param.mode,
++					 &get_tck_param.tck);
++		if (copy_to_user(argp, &get_tck_param,
++				 sizeof(struct get_tck_param)))
++			ret = -EFAULT;
++		break;
++	case AST_JTAG_BITBANG:
++		if (copy_from_user(&bitbang, argp,
++				   sizeof(struct tck_bitbang))) {
++			ret = -EFAULT;
++		} else {
++			if (bitbang.tms > 1 || bitbang.tdi > 1)
++				ret = -EFAULT;
++			else
++				ast_jtag_bitbang(ast_jtag, &bitbang);
++		}
++		if (copy_to_user(argp, &bitbang, sizeof(struct tck_bitbang)))
++			ret = -EFAULT;
++		break;
++	case AST_JTAG_SET_TAPSTATE:
++		if (copy_from_user(&tap_state_param, argp,
++				   sizeof(struct tap_state_param)))
++			ret = -EFAULT;
++		else
++			ast_jtag_set_tapstate(ast_jtag, tap_state_param.mode,
++					      tap_state_param.from_state,
++					      tap_state_param.to_state);
++		break;
++	case AST_JTAG_READWRITESCAN:
++		if (copy_from_user(&xfer, argp,
++				   sizeof(struct scan_xfer))) {
++			ret = -EFAULT;
++		} else {
++			if (xfer.tdi) {
++				user_tdi = xfer.tdi;
++				kern_tdi = memdup_user(user_tdi,
++						       xfer.tdi_bytes);
++				if (IS_ERR(kern_tdi))
++					ret = -EFAULT;
++				else
++					xfer.tdi = kern_tdi;
++			}
++
++			if (ret == 0 && xfer.tdo) {
++				user_tdo = xfer.tdo;
++				kern_tdo = memdup_user(user_tdo,
++						       xfer.tdo_bytes);
++				if (IS_ERR(kern_tdo))
++					ret = -EFAULT;
++				else
++					xfer.tdo = kern_tdo;
++			}
++
++			if (ret == 0)
++				ret = ast_jtag_readwrite_scan(ast_jtag, &xfer);
++
++			kfree(kern_tdi);
++			if (kern_tdo) {
++				if (ret == 0) {
++					if (copy_to_user(user_tdo,
++							 xfer.tdo,
++							 xfer.tdo_bytes))
++						ret = -EFAULT;
++				}
++				kfree(kern_tdo);
++			}
++		}
++		break;
++	default:
++		return -ENOTTY;
++	}
++
++	return ret;
++}
++
++static int jtag_open(struct inode *inode, struct file *file)
++{
++	struct ast_jtag_info *ast_jtag = container_of(file->private_data,
++						      struct ast_jtag_info,
++						      miscdev);
++
++	spin_lock(&jtag_state_lock);
++	if (ast_jtag->is_open) {
++		spin_unlock(&jtag_state_lock);
++		return -EBUSY;
++	}
++
++	ast_jtag->is_open = true;
++	file->private_data = ast_jtag;
++	ast_jtag_master(ast_jtag);
++	spin_unlock(&jtag_state_lock);
++
++	return 0;
++}
++
++static int jtag_release(struct inode *inode, struct file *file)
++{
++	struct ast_jtag_info *ast_jtag = file->private_data;
++
++	spin_lock(&jtag_state_lock);
++	ast_jtag_slave(ast_jtag);
++	ast_jtag->is_open = false;
++
++	spin_unlock(&jtag_state_lock);
++
++	return 0;
++}
++
++static const struct file_operations ast_jtag_fops = {
++	.owner			= THIS_MODULE,
++	.unlocked_ioctl		= jtag_ioctl,
++	.open			= jtag_open,
++	.release		= jtag_release,
++};
++
++static int ast_jtag_probe(struct platform_device *pdev)
++{
++	struct resource *scu_res;
++	struct resource *jtag_res;
++	int ret = 0;
++	struct ast_jtag_info *ast_jtag;
++
++	dev_dbg(&pdev->dev, "%s started\n", __func__);
++
++	scu_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!scu_res) {
++		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM for SCU\n");
++		ret = -ENOENT;
++		goto out;
++	}
++
++	jtag_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
++	if (!jtag_res) {
++		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM for JTAG\n");
++		ret = -ENOENT;
++		goto out;
++	}
++
++	ast_jtag = devm_kzalloc(&pdev->dev, sizeof(*ast_jtag), GFP_KERNEL);
++	if (!ast_jtag)
++		return -ENOMEM;
++
++	ast_jtag->reg_base_scu = devm_ioremap_resource(&pdev->dev, scu_res);
++	if (!ast_jtag->reg_base_scu) {
++		ret = -EIO;
++		goto out;
++	}
++
++	ast_jtag->reg_base = devm_ioremap_resource(&pdev->dev, jtag_res);
++	if (!ast_jtag->reg_base) {
++		ret = -EIO;
++		goto out;
++	}
++
++	ast_jtag->dev = &pdev->dev;
++
++#ifdef USE_INTERRUPTS
++	ast_jtag->irq = platform_get_irq(pdev, 0);
++	if (ast_jtag->irq < 0) {
++		dev_err(&pdev->dev, "no irq specified.\n");
++		ret = -ENOENT;
++		goto out;
++	}
++
++	ret = devm_request_irq(&pdev->dev, ast_jtag->irq, ast_jtag_interrupt,
++			       IRQF_SHARED, "ast-jtag", ast_jtag);
++	if (ret) {
++		dev_err(ast_jtag->dev, "JTAG Unable to get IRQ.\n");
++		goto out;
++	}
++#endif
++
++	ast_jtag->flag = 0;
++	init_waitqueue_head(&ast_jtag->jtag_wq);
++
++	ast_jtag->miscdev.minor = MISC_DYNAMIC_MINOR,
++	ast_jtag->miscdev.name = AST_JTAG_NAME,
++	ast_jtag->miscdev.fops = &ast_jtag_fops,
++	ast_jtag->miscdev.parent = &pdev->dev;
++	ret = misc_register(&ast_jtag->miscdev);
++	if (ret) {
++		dev_err(ast_jtag->dev, "Unable to register misc device.\n");
++		goto out;
++	}
++
++	platform_set_drvdata(pdev, ast_jtag);
++
++	ast_jtag_slave(ast_jtag);
++
++	dev_dbg(&pdev->dev, "%s completed\n", __func__);
++	return 0;
++
++out:
++	dev_warn(&pdev->dev, "ast_jtag: driver init failed (ret=%d).\n", ret);
++	return ret;
++}
++
++static int ast_jtag_remove(struct platform_device *pdev)
++{
++	dev_dbg(&pdev->dev, "%s\n", __func__);
++
++	platform_set_drvdata(pdev, NULL);
++
++	dev_dbg(&pdev->dev, "JTAG driver removed successfully.\n");
++
++	return 0;
++}
++
++static const struct of_device_id ast_jtag_of_match[] = {
++	{ .compatible = "aspeed,ast2400-jtag", },
++	{ .compatible = "aspeed,ast2500-jtag", },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, ast_jtag_of_match);
++
++static struct platform_driver ast_jtag_driver = {
++	.probe = ast_jtag_probe,
++	.remove = ast_jtag_remove,
++	.driver = {
++		.name = AST_JTAG_NAME,
++		.of_match_table = of_match_ptr(ast_jtag_of_match),
++	},
++};
++module_platform_driver(ast_jtag_driver);
++
++MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
++MODULE_AUTHOR("Bryan Hunt <bryan.hunt@intel.com>");
++MODULE_DESCRIPTION("ASPEED JTAG driver");
++MODULE_LICENSE("GPL v2");
+diff --git a/include/uapi/linux/jtag_drv.h b/include/uapi/linux/jtag_drv.h
+new file mode 100644
+index 000000000000..4df638f8fa43
+--- /dev/null
++++ b/include/uapi/linux/jtag_drv.h
+@@ -0,0 +1,73 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/* Copyright (C) 2012-2017 ASPEED Technology Inc. */
++/* Copyright (c) 2018 Intel Corporation */
++
++#ifndef __JTAG_DRV_H__
++#define __JTAG_DRV_H__
++
++enum xfer_mode {
++	HW_MODE = 0,
++	SW_MODE
++} xfer_mode;
++
++struct tck_bitbang {
++	__u8	tms;
++	__u8	tdi;
++	__u8	tdo;
++} __attribute__((__packed__));
++
++struct scan_xfer {
++	__u8	mode;
++	__u32	tap_state;
++	__u32	length;
++	__u8	*tdi;
++	__u32	tdi_bytes;
++	__u8	*tdo;
++	__u32	tdo_bytes;
++	__u32	end_tap_state;
++} __attribute__((__packed__));
++
++struct set_tck_param {
++	__u8	mode;
++	__u32	tck;
++} __attribute__((__packed__));
++
++struct get_tck_param {
++	__u8	mode;
++	__u32	tck;
++} __attribute__((__packed__));
++
++struct tap_state_param {
++	__u8	mode;
++	__u32	from_state;
++	__u32	to_state;
++} __attribute__((__packed__));
++
++enum jtag_states {
++	jtag_tlr,
++	jtag_rti,
++	jtag_sel_dr,
++	jtag_cap_dr,
++	jtag_shf_dr,
++	jtag_ex1_dr,
++	jtag_pau_dr,
++	jtag_ex2_dr,
++	jtag_upd_dr,
++	jtag_sel_ir,
++	jtag_cap_ir,
++	jtag_shf_ir,
++	jtag_ex1_ir,
++	jtag_pau_ir,
++	jtag_ex2_ir,
++	jtag_upd_ir
++} jtag_states;
++
++#define JTAGIOC_BASE 'T'
++
++#define AST_JTAG_SET_TCK _IOW(JTAGIOC_BASE, 3, struct set_tck_param)
++#define AST_JTAG_GET_TCK _IOR(JTAGIOC_BASE, 4, struct get_tck_param)
++#define AST_JTAG_BITBANG _IOWR(JTAGIOC_BASE, 5, struct tck_bitbang)
++#define AST_JTAG_SET_TAPSTATE _IOW(JTAGIOC_BASE, 6, struct tap_state_param)
++#define AST_JTAG_READWRITESCAN _IOWR(JTAGIOC_BASE, 7, struct scan_xfer)
++
++#endif
+-- 
+2.7.4
+

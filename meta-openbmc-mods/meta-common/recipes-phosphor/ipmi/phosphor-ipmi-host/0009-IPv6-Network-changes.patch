@@ -1,0 +1,909 @@
+From cd4bc9e4291771f638f66efa205bf8fbec518546 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Mon, 4 Feb 2019 10:30:12 -0800
+Subject: [PATCH] IPv6 Network changes
+
+Allow IPv6 IPMI set/get commands
+
+Signed-off-by: David Cobbley <david.j.cobbley@linux.intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
+Change-Id: If5528d3b7294c5f8c17db5919439235d0fad0446
+---
+ transporthandler.cpp | 667 ++++++++++++++++++++++++++++++++++++++++++-
+ transporthandler.hpp |  68 +++++
+ types.hpp            |   9 +
+ utils.hpp            |   1 +
+ 4 files changed, 744 insertions(+), 1 deletion(-)
+
+Index: phosphor-host-ipmid.clean/transporthandler.cpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/transporthandler.cpp
++++ phosphor-host-ipmid.clean/transporthandler.cpp
+@@ -41,6 +41,12 @@ extern std::unique_ptr<phosphor::Timer>
+ 
+ const int SIZE_MAC = 18; // xx:xx:xx:xx:xx:xx
+ constexpr auto ipv4Protocol = "xyz.openbmc_project.Network.IP.Protocol.IPv4";
++constexpr auto ipv6Protocol = "xyz.openbmc_project.Network.IP.Protocol.IPv6";
++
++static const std::array<std::string, 3> ipAddressEnablesType = {
++    "xyz.openbmc_project.Network.EthernetInterface.IPAllowed.IPv4Only",
++    "xyz.openbmc_project.Network.EthernetInterface.IPAllowed.IPv6Only",
++    "xyz.openbmc_project.Network.EthernetInterface.IPAllowed.IPv4AndIPv6"};
+ 
+ std::map<int, std::unique_ptr<struct ChannelConfig_t>> channelConfig;
+ 
+@@ -400,7 +406,6 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+                                   ipmi_context_t context)
+ {
+     ipmi_ret_t rc = IPMI_CC_OK;
+-    *data_len = 0;
+ 
+     using namespace std::chrono_literals;
+ 
+@@ -414,6 +419,9 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+     auto reqptr = reinterpret_cast<const set_lan_t*>(request);
+     sdbusplus::bus::bus bus(ipmid_get_sd_bus_connection());
+ 
++    size_t reqLen = *data_len;
++    *data_len = 0;
++
+     // channel number is the lower nibble
+     int channel = reqptr->channel & CHANNEL_MASK;
+     auto ethdevice = ipmi::network::ChanneltoEthernet(channel);
+@@ -437,6 +445,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+ 
+         case LanParam::IPSRC:
+         {
++            if (reqLen != LAN_PARAM_IPSRC_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
+             uint8_t ipsrc{};
+             std::memcpy(&ipsrc, reqptr->data, ipmi::network::IPSRC_SIZE_BYTE);
+             channelConf->ipsrc = static_cast<ipmi::network::IPOrigin>(ipsrc);
+@@ -445,6 +458,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+ 
+         case LanParam::MAC:
+         {
++            if (reqLen != LAN_PARAM_MAC_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
+             char mac[SIZE_MAC];
+ 
+             std::snprintf(mac, SIZE_MAC, ipmi::network::MAC_ADDRESS_FORMAT,
+@@ -465,6 +483,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+ 
+         case LanParam::SUBNET:
+         {
++            if (reqLen != LAN_PARAM_SUBNET_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
+             std::snprintf(netmask, INET_ADDRSTRLEN,
+                           ipmi::network::IP_ADDRESS_FORMAT, reqptr->data[0],
+                           reqptr->data[1], reqptr->data[2], reqptr->data[3]);
+@@ -474,6 +497,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+ 
+         case LanParam::GATEWAY:
+         {
++            if (reqLen != LAN_PARAM_GATEWAY_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
+             std::snprintf(gateway, INET_ADDRSTRLEN,
+                           ipmi::network::IP_ADDRESS_FORMAT, reqptr->data[0],
+                           reqptr->data[1], reqptr->data[2], reqptr->data[3]);
+@@ -483,6 +511,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+ 
+         case LanParam::VLAN:
+         {
++            if (reqLen != LAN_PARAM_VLAN_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
+             uint16_t vlan{};
+             std::memcpy(&vlan, reqptr->data, ipmi::network::VLAN_SIZE_BYTE);
+             // We are not storing the enable bit
+@@ -495,6 +528,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+ 
+         case LanParam::INPROGRESS:
+         {
++            if (reqLen != LAN_PARAM_INPROGRESS_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
+             if (reqptr->data[0] == SET_COMPLETE)
+             {
+                 channelConf->lan_set_in_progress = SET_COMPLETE;
+@@ -523,6 +561,122 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+         }
+         break;
+ 
++        case LanParam::IPV6_AND_IPV4_ENABLES:
++        {
++            if (reqLen != LAN_PARAM_IPV6_AND_IPV4_ENABLES_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            channelConf->ipv6AddressingEnables = reqptr->data[0];
++            break;
++        }
++
++        case LanParam::IPV6_STATIC_ADDRESSES:
++        {
++            if (reqLen != LAN_PARAM_IPV6_STATIC_ADDRESSES_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            channelConf->ipv6AddressSource =
++                reqptr->data[1] & 0x81; // Looking at bit 0 and bit 7
++            char tmpIPV6[INET6_ADDRSTRLEN];
++            inet_ntop(AF_INET6, &reqptr->data[2], tmpIPV6, INET6_ADDRSTRLEN);
++            channelConf->ipv6Addr.assign(tmpIPV6);
++            channelConf->ipv6Prefix = reqptr->data[19];
++            break;
++        }
++
++        case LanParam::IPV6_ROUTER_ADDRESS_CONF_CTRL:
++        {
++            if (reqLen != LAN_PARAM_IPV6_ROUTER_ADDRESS_CONF_CTRL_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            channelConf->ipv6RouterAddressConfigControl = reqptr->data[0];
++            break;
++        }
++
++        case LanParam::IPV6_STATIC_ROUTER_1_IP_ADDR:
++        {
++            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_1_IP_ADDR_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            char tmpIPV6[INET6_ADDRSTRLEN];
++            inet_ntop(AF_INET6, reinterpret_cast<const void*>(reqptr->data),
++                      tmpIPV6, INET6_ADDRSTRLEN);
++            channelConf->ipv6GatewayAddr.assign(tmpIPV6);
++            break;
++        }
++
++        case LanParam::IPV6_STATIC_ROUTER_1_PREFIX_LEN:
++        {
++            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_LEN_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            channelConf->ipv6GatewayPrefixLength = reqptr->data[0];
++            break;
++        }
++
++        case LanParam::IPV6_STATIC_ROUTER_1_PREFIX_VAL:
++        {
++            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_VAL_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            char tmpIPV6[INET6_ADDRSTRLEN];
++            inet_ntop(AF_INET6, reinterpret_cast<const void*>(reqptr->data),
++                      tmpIPV6, INET6_ADDRSTRLEN);
++            channelConf->ipv6GatewayPrefixValue.assign(tmpIPV6);
++            break;
++        }
++
++        case LanParam::IPV6_STATIC_ROUTER_2_IP_ADDR:
++        {
++            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_2_IP_ADDR_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            char tmpIPV6[INET6_ADDRSTRLEN];
++            inet_ntop(AF_INET6, reinterpret_cast<const void*>(reqptr->data),
++                      tmpIPV6, INET6_ADDRSTRLEN);
++            channelConf->ipv6BackupGatewayAddr.assign(tmpIPV6);
++            break;
++        }
++
++        case LanParam::IPV6_STATIC_ROUTER_2_PREFIX_LEN:
++        {
++            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_LEN_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            channelConf->ipv6BackupGatewayPrefixLength = reqptr->data[0];
++            break;
++        }
++
++        case LanParam::IPV6_STATIC_ROUTER_2_PREFIX_VAL:
++        {
++            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_VAL_SIZE)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++
++            char tmpIPV6[INET6_ADDRSTRLEN];
++            inet_ntop(AF_INET6, reinterpret_cast<const void*>(reqptr->data),
++                      tmpIPV6, INET6_ADDRSTRLEN);
++            channelConf->ipv6BackupGatewayPrefixValue.assign(tmpIPV6);
++            break;
++        }
++
+         default:
+         {
+             rc = IPMI_CC_PARM_NOT_SUPPORTED;
+@@ -549,6 +703,7 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_n
+     ipmi_ret_t rc = IPMI_CC_OK;
+     *data_len = 0;
+     const uint8_t current_revision = 0x11; // Current rev per IPMI Spec 2.0
++    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+ 
+     get_lan_t* reqptr = (get_lan_t*)request;
+     // channel number is the lower nibble
+@@ -687,6 +842,489 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_n
+                         static_cast<uint8_t>(cipherList.size());
+             break;
+         }
++        case LanParam::IPV6_AND_IPV4_SUPPORTED:
++        {
++            uint8_t addressSupport =
++                0x1; // Allow both IPv4 & IPv6 simultaneously
++            std::array<uint8_t, 2> buf = {current_revision, addressSupport};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_AND_IPV4_ENABLES:
++        {
++            // If DHCP, check if you have an ipv6 and ipv4 address. If static
++            // return not supported
++
++            // 00h check if conf DHCP == ipv4 or off
++            // 01h check if conf DHCP == ipv6
++            // 02h check if DHCP == true
++
++            auto ethIP = ethdevice + "/" + ipmi::network::IPV6_TYPE;
++            std::string networkInterfacePath;
++            uint8_t ipVAddressEnables = 0;
++
++            if (channelConf->lan_set_in_progress == SET_COMPLETE)
++            {
++                try
++                {
++                    ipmi::ObjectTree ancestorMap;
++                    // if the system has an ip object,then
++                    // get the IP object.
++                    auto ipObject =
++                        ipmi::getDbusObject(bus, ipmi::network::IP_INTERFACE,
++                                            ipmi::network::ROOT, ethIP);
++                    // Get the parent interface of the IP object.
++                    try
++                    {
++                        ipmi::InterfaceList interfaces;
++                        interfaces.emplace_back(
++                            ipmi::network::ETHERNET_INTERFACE);
++
++                        ancestorMap = ipmi::getAllAncestors(
++                            bus, ipObject.first, std::move(interfaces));
++                    }
++                    catch (InternalFailure& e)
++                    {
++                        // if unable to get the parent interface
++                        // then commit the error and return.
++                        log<level::ERR>(
++                            "Unable to get the parent interface",
++                            entry("PATH=%s", ipObject.first.c_str()),
++                            entry("INTERFACE=%s",
++                                  ipmi::network::ETHERNET_INTERFACE));
++                        return IPMI_CC_UNSPECIFIED_ERROR;
++                    }
++                    // for an ip object there would be single parent
++                    // interface.
++                    networkInterfacePath = ancestorMap.begin()->first;
++                }
++                catch (InternalFailure& e)
++                {
++                    // if there is no ip configured on the system,then
++                    // get the network interface object.
++                    auto networkInterfaceObject = ipmi::getDbusObject(
++                        bus, ipmi::network::ETHERNET_INTERFACE,
++                        ipmi::network::ROOT, ethdevice);
++
++                    networkInterfacePath = networkInterfaceObject.first;
++                }
++
++                std::string ipEnables =
++                    sdbusplus::message::variant_ns::get<std::string>(
++                        ipmi::getDbusProperty(bus, ipmi::network::SERVICE,
++                                              networkInterfacePath,
++                                              ipmi::network::ETHERNET_INTERFACE,
++                                              "IPAddressEnables"));
++
++                // check if on off ipv4 ipv6, etc.
++                bool found = false;
++                for (uint8_t ii = 0; ii < ipAddressEnablesType.size(); ii++)
++                {
++                    if (ipEnables == ipAddressEnablesType[ii])
++                    {
++                        ipVAddressEnables = ii;
++                        found = true;
++                        break;
++                    }
++                }
++                if (!found)
++                {
++                    return IPMI_CC_PARM_NOT_SUPPORTED;
++                }
++            }
++            else
++            {
++                ipVAddressEnables = channelConf->ipv6AddressingEnables;
++            }
++
++            std::array<uint8_t, 2> buf = {current_revision, ipVAddressEnables};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATUS:
++        {
++            // Number of IPV6 addresses that are supported
++            constexpr std::array<uint8_t, 3> statusData = {1, 1, 3};
++
++            std::array<uint8_t, 4> buf = {current_revision, statusData[0],
++                                          statusData[1], statusData[2]};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATIC_ADDRESSES:
++        {
++            // Only return set selector 0
++            uint8_t ipv6SetSelector = 0;
++            std::string ipaddress;
++            auto ethIP = ethdevice + "/" + ipmi::network::IPV6_TYPE;
++            uint8_t ipv6AddressSource = 0;
++            uint8_t prefixLength = 0;
++            uint8_t status = 0;
++            if (channelConf->lan_set_in_progress == SET_COMPLETE)
++            {
++                try
++                {
++                    auto ipObjectInfo =
++                        ipmi::getIPObject(bus, ipmi::network::IP_INTERFACE,
++                                          ipmi::network::ROOT, ethIP);
++
++                    auto properties = ipmi::getAllDbusProperties(
++                        bus, ipObjectInfo.second, ipObjectInfo.first,
++                        ipmi::network::IP_INTERFACE);
++
++                    std::string origin =
++                        sdbusplus::message::variant_ns::get<std::string>(
++                            properties["Origin"]);
++                    if (sdbusplus::message::variant_ns::get<std::string>(
++                            properties["Origin"]) ==
++                        "xyz.openbmc_project.Network.IP.AddressOrigin.Static")
++                    {
++                        ipaddress =
++                            sdbusplus::message::variant_ns::get<std::string>(
++                                properties["Address"]);
++                        ipv6AddressSource = 0x81; // Looking at bit 0 and bit 7
++                        prefixLength =
++                            sdbusplus::message::variant_ns::get<uint8_t>(
++                                properties["PrefixLength"]);
++                        status = 0;
++                    }
++                }
++                // ignore the exception, as it is a valid condition that
++                // the system is not configured with any IP.
++                catch (InternalFailure& e)
++                {
++                    // nothing to do.
++                }
++            }
++            else if (channelConf->lan_set_in_progress == SET_IN_PROGRESS)
++            {
++                ipv6AddressSource = channelConf->ipv6AddressSource;
++                ipaddress = channelConf->ipv6Addr.c_str();
++                prefixLength = channelConf->ipv6Prefix;
++                status = 1;
++            }
++
++            std::array<uint8_t, ipmi::network::IPV6_ADDRESS_STATUS_SIZE> buf = {
++                current_revision, ipv6SetSelector, ipv6AddressSource};
++            inet_pton(AF_INET6, ipaddress.c_str(),
++                      reinterpret_cast<void*>(&buf[3]));
++            buf[20] = prefixLength;
++            buf[21] = status;
++
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_DHCPV6_STATIC_DUID_STORAGE_LENGTH:
++        {
++            // DHCP unique identified
++            // Only 1 read-only 16-byte Block needed
++            uint8_t duidLength = 1;
++            std::array<uint8_t, 2> buf = {current_revision, duidLength};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_DHCPV6_STATIC_DUIDS:
++        {
++            std::string macAddress;
++            if (channelConf->lan_set_in_progress == SET_COMPLETE)
++            {
++                auto macObjectInfo =
++                    ipmi::getDbusObject(bus, ipmi::network::MAC_INTERFACE,
++                                        ipmi::network::ROOT, ethdevice);
++
++                auto variant = ipmi::getDbusProperty(
++                    bus, macObjectInfo.second, macObjectInfo.first,
++                    ipmi::network::MAC_INTERFACE, "MACAddress");
++
++                macAddress =
++                    sdbusplus::message::variant_ns::get<std::string>(variant);
++            }
++            else if (channelConf->lan_set_in_progress == SET_IN_PROGRESS)
++            {
++                macAddress = channelConf->macAddress;
++            }
++
++            std::array<uint8_t,
++                       ipmi::network::IPV6_DUID_SIZE + sizeof(current_revision)>
++                buf;
++            buf = {current_revision,
++                   reqptr->parameter_set,
++                   reqptr->parameter_block,
++                   DUID_LEN,
++                   0, // Filler byte
++                   DUID_LL_TYPE,
++                   0, // Filler byte
++                   DUIC_ETH_HW_TYPE};
++            sscanf(macAddress.c_str(), ipmi::network::MAC_ADDRESS_FORMAT,
++                   (&buf[8]), (&buf[9]), (&buf[10]), (&buf[11]), (&buf[12]),
++                   (&buf[13]));
++
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_DYNAMIC_ADDRESSES:
++        {
++            std::string ipaddress;
++            uint8_t ipv6AddressSource = 0;
++            uint8_t prefixLength = 0;
++            uint8_t status = 0;
++            auto ethIP = ethdevice + "/" + ipmi::network::IPV6_TYPE;
++
++            if (channelConf->lan_set_in_progress == SET_COMPLETE)
++            {
++                try
++                {
++                    auto ipObjectInfo =
++                        ipmi::getIPObject(bus, ipmi::network::IP_INTERFACE,
++                                          ipmi::network::ROOT, ethIP);
++
++                    auto properties = ipmi::getAllDbusProperties(
++                        bus, ipObjectInfo.second, ipObjectInfo.first,
++                        ipmi::network::IP_INTERFACE);
++
++                    if (sdbusplus::message::variant_ns::get<std::string>(
++                            properties["Origin"]) ==
++                        "xyz.openbmc_project.Network.IP.AddressOrigin.DHCP")
++                    {
++                        ipaddress =
++                            sdbusplus::message::variant_ns::get<std::string>(
++                                properties["Address"]);
++                        ipv6AddressSource = 0x81; // Looking at bit 0 and bit 7
++                        prefixLength =
++                            sdbusplus::message::variant_ns::get<uint8_t>(
++                                properties["PrefixLength"]);
++                        status = 0;
++                    }
++                    else
++                    {
++                        status = 1;
++                    }
++                }
++                // ignore the exception, as it is a valid condition that
++                // the system is not configured with any IP.
++                catch (InternalFailure& e)
++                {
++                    // nothing to do.
++                }
++            }
++            else if (channelConf->lan_set_in_progress == SET_IN_PROGRESS)
++            {
++                ipaddress = channelConf->ipv6Addr;
++                ipv6AddressSource = channelConf->ipv6AddressSource;
++                prefixLength = channelConf->ipv6Prefix;
++                status = channelConf->ipv6AddressStatus;
++            }
++
++            uint8_t ipv6SetSelector = 0;
++            std::array<uint8_t, 22> buf = {current_revision, ipv6SetSelector,
++                                           ipv6AddressSource};
++            inet_pton(AF_INET6, ipaddress.c_str(),
++                      reinterpret_cast<void*>(&buf[3]));
++            buf[20] = prefixLength;
++            buf[21] = status;
++
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_DHCPV6_DYNAMIC_DUID_STOR_LEN:
++        {
++            uint8_t duidLength = 0;
++            // Only 1 read-only 16-byte Block needed
++            duidLength = 1;
++
++            std::array<uint8_t, 2> buf = {current_revision, duidLength};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_DHCPV6_DYNAMIC_DUIDS:
++        {
++            std::string macAddress;
++            if (channelConf->lan_set_in_progress == SET_COMPLETE)
++            {
++                auto macObjectInfo =
++                    ipmi::getDbusObject(bus, ipmi::network::MAC_INTERFACE,
++                                        ipmi::network::ROOT, ethdevice);
++
++                auto variant = ipmi::getDbusProperty(
++                    bus, macObjectInfo.second, macObjectInfo.first,
++                    ipmi::network::MAC_INTERFACE, "MACAddress");
++
++                macAddress =
++                    sdbusplus::message::variant_ns::get<std::string>(variant);
++            }
++            else if (channelConf->lan_set_in_progress == SET_IN_PROGRESS)
++            {
++                macAddress = channelConf->macAddress;
++            }
++
++            std::array<uint8_t,
++                       ipmi::network::IPV6_DUID_SIZE + sizeof(current_revision)>
++                buf;
++            buf = {current_revision,
++                   reqptr->parameter_set,
++                   reqptr->parameter_block,
++                   DUID_LEN,
++                   0, // Filler byte
++                   DUID_LL_TYPE,
++                   0, // Filler byte
++                   DUIC_ETH_HW_TYPE};
++
++            sscanf(macAddress.c_str(), ipmi::network::MAC_ADDRESS_FORMAT,
++                   (&buf[8]), (&buf[9]), (&buf[10]), (&buf[11]), (&buf[12]),
++                   (&buf[13]));
++
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_ROUTER_ADDRESS_CONF_CTRL:
++        {
++            // Determine if automated router discovery occurs when static
++            // addresses are used for the bmc
++
++            auto ethIP = ethdevice + "/" + ipmi::network::IPV6_TYPE;
++            std::string networkInterfacePath;
++            uint8_t dynamicRA;
++            if (channelConf->lan_set_in_progress == SET_COMPLETE)
++            {
++
++                try
++                {
++                    ipmi::ObjectTree ancestorMap;
++                    // if the system is having ip object,then
++                    // get the IP object.
++                    auto ipObject =
++                        ipmi::getDbusObject(bus, ipmi::network::IP_INTERFACE,
++                                            ipmi::network::ROOT, ethIP);
++
++                    // Get the parent interface of the IP object.
++                    try
++                    {
++                        ipmi::InterfaceList interfaces;
++                        interfaces.emplace_back(
++                            ipmi::network::ETHERNET_INTERFACE);
++
++                        ancestorMap = ipmi::getAllAncestors(
++                            bus, ipObject.first, std::move(interfaces));
++                    }
++                    catch (InternalFailure& e)
++                    {
++                        // if unable to get the parent interface
++                        // then commit the error and return.
++                        log<level::ERR>(
++                            "Unable to get the parent interface",
++                            entry("PATH=%s", ipObject.first.c_str()),
++                            entry("INTERFACE=%s",
++                                  ipmi::network::ETHERNET_INTERFACE));
++                        return IPMI_CC_UNSPECIFIED_ERROR;
++                    }
++                    // for an ip object there would be single parent
++                    // interface.
++                    networkInterfacePath = ancestorMap.begin()->first;
++                }
++                catch (InternalFailure& e)
++                {
++                    // if there is no ip configured on the system,then
++                    // get the network interface object.
++                    auto networkInterfaceObject = ipmi::getDbusObject(
++                        bus, ipmi::network::ETHERNET_INTERFACE,
++                        ipmi::network::ROOT, ethdevice);
++
++                    networkInterfacePath = networkInterfaceObject.first;
++                }
++
++                auto variant = ipmi::getDbusProperty(
++                    bus, ipmi::network::SERVICE, networkInterfacePath,
++                    ipmi::network::ETHERNET_INTERFACE, "IPv6AcceptRA");
++                dynamicRA = sdbusplus::message::variant_ns::get<bool>(variant);
++            }
++            else
++            {
++                dynamicRA = channelConf->ipv6RouterAddressConfigControl;
++            }
++
++            std::array<uint8_t, 2> buf = {current_revision, dynamicRA};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATIC_ROUTER_1_IP_ADDR:
++        {
++            std::array<uint8_t, ipmi::network::IPV6_ADDRESS_SIZE_BYTE +
++                                    sizeof(current_revision)>
++                buf = {current_revision};
++            inet_pton(AF_INET6, channelConf->ipv6GatewayAddr.c_str(),
++                      reinterpret_cast<void*>(&buf[1]));
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATIC_ROUTER_1_PREFIX_LEN:
++        {
++            std::array<uint8_t, 2> buf = {current_revision,
++                                          channelConf->ipv6GatewayPrefixLength};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATIC_ROUTER_1_PREFIX_VAL:
++        {
++            constexpr uint8_t setSelector = 0;
++            std::array<uint8_t, sizeof(setSelector) +
++                                    ipmi::network::IPV6_ADDRESS_SIZE_BYTE +
++                                    sizeof(current_revision)>
++                buf = {current_revision, setSelector};
++
++            inet_pton(AF_INET6, channelConf->ipv6GatewayPrefixValue.c_str(),
++                      reinterpret_cast<void*>(&buf[2]));
++
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATIC_ROUTER_2_IP_ADDR:
++        {
++            std::array<uint8_t, ipmi::network::IPV6_ADDRESS_SIZE_BYTE +
++                                    sizeof(current_revision)>
++                buf = {current_revision};
++            inet_pton(AF_INET6, channelConf->ipv6BackupGatewayAddr.c_str(),
++                      reinterpret_cast<void*>(&buf[1]));
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATIC_ROUTER_2_PREFIX_LEN:
++        {
++            std::array<uint8_t, 2> buf = {
++                current_revision, channelConf->ipv6BackupGatewayPrefixLength};
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
++        case LanParam::IPV6_STATIC_ROUTER_2_PREFIX_VAL:
++        {
++
++            constexpr uint8_t setSelector = 0;
++            std::array<uint8_t, sizeof(setSelector) +
++                                    ipmi::network::IPV6_ADDRESS_SIZE_BYTE +
++                                    sizeof(current_revision)>
++                buf = {current_revision, setSelector};
++            inet_pton(AF_INET6,
++                      channelConf->ipv6BackupGatewayPrefixValue.c_str(),
++                      reinterpret_cast<void*>(&buf[2]));
++
++            std::copy(buf.begin(), buf.end(), static_cast<uint8_t*>(response));
++            *data_len = buf.size();
++            break;
++        }
+         default:
+             log<level::ERR>("Unsupported parameter",
+                             entry("PARAMETER=0x%x", reqptr->parameter));
+@@ -932,6 +1570,16 @@ void applyChanges(int channel)
+                                         ipaddress, prefix);
+             }
+ 
++            if (!channelConf->ipv6Addr.empty() &&
++                channelConf->ipv6AddressSource ==
++                    0x80) // Check if IPv6 static addresses are enabled
++            {
++                ipmi::network::createIP(bus, ipmi::network::SERVICE,
++                                        networkInterfacePath, ipv6Protocol,
++                                        channelConf->ipv6Addr,
++                                        channelConf->ipv6Prefix);
++            }
++
+             if (!gateway.empty())
+             {
+                 ipmi::setDbusProperty(bus, systemObject.second,
+@@ -939,7 +1587,24 @@ void applyChanges(int channel)
+                                       ipmi::network::SYSTEMCONFIG_INTERFACE,
+                                       "DefaultGateway", std::string(gateway));
+             }
++            else if (!channelConf->ipv6GatewayAddr.empty())
++            {
++                ipmi::setDbusProperty(
++                    bus, systemObject.second, systemObject.first,
++                    ipmi::network::SYSTEMCONFIG_INTERFACE, "DefaultGateway",
++                    std::string(channelConf->ipv6GatewayAddr));
++            }
+         }
++        // set IPAddress Enables
++        ipmi::setDbusProperty(
++            bus, ipmi::network::SERVICE, networkInterfaceObject.first,
++            ipmi::network::ETHERNET_INTERFACE, "IPAddressEnables",
++            ipAddressEnablesType[channelConf->ipv6AddressingEnables]);
++
++        ipmi::setDbusProperty(
++            bus, ipmi::network::SERVICE, networkInterfaceObject.first,
++            ipmi::network::ETHERNET_INTERFACE, "IPv6AcceptRA",
++            (bool)channelConf->ipv6RouterAddressConfigControl);
+     }
+     catch (InternalFailure& e)
+     {
+Index: phosphor-host-ipmid.clean/transporthandler.hpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/transporthandler.hpp
++++ phosphor-host-ipmid.clean/transporthandler.hpp
+@@ -80,6 +80,28 @@ enum class LanParam : uint8_t
+     IPV6_NEIGHBOR_TIMING_CONFIGURATION = 80,
+ };
+ 
++// Data length of parameters
++constexpr size_t LAN_PARAM_INPROGRESS_SIZE = 3;
++constexpr size_t LAN_PARAM_IP_SIZE = 6;
++constexpr size_t LAN_PARAM_IPSRC_SIZE = 3;
++constexpr size_t LAN_PARAM_MAC_SIZE = 8;
++constexpr size_t LAN_PARAM_SUBNET_SIZE = 6;
++constexpr size_t LAN_PARAM_GATEWAY_SIZE = 6;
++constexpr size_t LAN_PARAM_VLAN_SIZE = 4;
++constexpr size_t LAN_PARAM_IPV6_AND_IPV4_ENABLES_SIZE = 3;
++constexpr size_t LAN_PARAM_IPV6_STATIC_ADDRESSES_SIZE = 23;
++constexpr size_t LAN_PARAM_IPV6_ROUTER_ADDRESS_CONF_CTRL_SIZE = 3;
++constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_1_IP_ADDR_SIZE = 18;
++constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_LEN_SIZE = 3;
++constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_VAL_SIZE = 19;
++constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_2_IP_ADDR_SIZE = 18;
++constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_LEN_SIZE = 3;
++constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_VAL_SIZE = 19;
++
++constexpr uint8_t DUID_LEN = 10;
++constexpr uint8_t DUID_LL_TYPE = 3;
++constexpr uint8_t DUIC_ETH_HW_TYPE = 1;
++
+ constexpr uint8_t SET_COMPLETE = 0;
+ constexpr uint8_t SET_IN_PROGRESS = 1;
+ constexpr uint8_t SET_COMMIT_WRITE = 2;         // Optional
+@@ -102,6 +124,20 @@ struct ChannelConfig_t
+     uint8_t lan_set_in_progress = SET_COMPLETE;
+     bool flush = false;
+ 
++    // IPV6 parameters
++    uint8_t ipv6AddressSource = 0x0;
++    uint8_t ipv6AddressingEnables = 0x2;
++    std::string ipv6Addr;
++    uint8_t ipv6Prefix = 32;
++    uint8_t ipv6AddressStatus = 0x0;
++    uint8_t ipv6RouterAddressConfigControl = 0x0;
++    std::string ipv6GatewayAddr;
++    std::string ipv6BackupGatewayAddr;
++    uint8_t ipv6GatewayPrefixLength;
++    std::string ipv6GatewayPrefixValue;
++    uint8_t ipv6BackupGatewayPrefixLength = 0x0;
++    std::string ipv6BackupGatewayPrefixValue;
++
+     void clear()
+     {
+         ipaddr.clear();
+@@ -112,6 +148,20 @@ struct ChannelConfig_t
+         ipsrc = ipmi::network::IPOrigin::UNSPECIFIED;
+         lan_set_in_progress = SET_COMPLETE;
+         flush = false;
++
++        // IPv6
++        ipv6Addr.clear();
++        ipv6GatewayAddr.clear();
++        ipv6BackupGatewayAddr.clear();
++        ipv6AddressingEnables = 0x2;
++        ipv6AddressSource = 0x0;
++        ipv6Prefix = 32;
++        ipv6AddressStatus = 0x0;
++        ipv6RouterAddressConfigControl = 0x0;
++        ipv6GatewayPrefixLength = 0x0;
++        ipv6GatewayPrefixValue.clear();
++        ipv6BackupGatewayPrefixLength = 0x0;
++        ipv6BackupGatewayPrefixValue.clear();
+     }
+ };
+ 
+Index: phosphor-host-ipmid.clean/types.hpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/types.hpp
++++ phosphor-host-ipmid.clean/types.hpp
+@@ -209,6 +209,7 @@ constexpr auto ADDR_TYPE_FORMAT = "%hhx"
+ 
+ constexpr auto IPV4_ADDRESS_SIZE_BYTE = 4;
+ constexpr auto IPV6_ADDRESS_SIZE_BYTE = 16;
++constexpr auto IPV6_ADDRESS_STATUS_SIZE = 22;
+ 
+ constexpr auto DEFAULT_MAC_ADDRESS = "00:00:00:00:00:00";
+ constexpr auto DEFAULT_ADDRESS = "0.0.0.0";
+@@ -220,6 +221,7 @@ constexpr auto BITS_32 = 32;
+ constexpr auto MASK_32_BIT = 0xFFFFFFFF;
+ constexpr auto VLAN_ID_MASK = 0x00000FFF;
+ constexpr auto VLAN_ENABLE_MASK = 0x8000;
++constexpr auto IPV6_DUID_SIZE = 18;
+ 
+ enum class IPOrigin : uint8_t
+ {
+@@ -228,5 +230,12 @@ enum class IPOrigin : uint8_t
+     DHCP = 2,
+ };
+ 
++enum class AddressingEnables : uint8_t
++{
++    IPv4Only = 0,
++    IPv6Only = 1,
++    IPv4AndIPv6 = 2,
++};
++
+ } // namespace network
+ } // namespace ipmi
+Index: phosphor-host-ipmid.clean/utils.hpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/utils.hpp
++++ phosphor-host-ipmid.clean/utils.hpp
+@@ -246,6 +246,7 @@ namespace network
+ constexpr auto ROOT = "/xyz/openbmc_project/network";
+ constexpr auto SERVICE = "xyz.openbmc_project.Network";
+ constexpr auto IP_TYPE = "ipv4";
++constexpr auto IPV6_TYPE = "ipv6";
+ constexpr auto IPV4_PREFIX = "169.254";
+ constexpr auto IPV6_PREFIX = "fe80";
+ constexpr auto IP_INTERFACE = "xyz.openbmc_project.Network.IP";

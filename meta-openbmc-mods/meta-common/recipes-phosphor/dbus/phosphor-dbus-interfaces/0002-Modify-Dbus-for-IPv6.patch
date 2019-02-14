@@ -1,0 +1,55 @@
+From 066ecddebc29a87b05f8c66491eec19bb27d1d33 Mon Sep 17 00:00:00 2001
+From: David Cobbley <david.j.cobbley@linux.intel.com>
+Date: Wed, 6 Jun 2018 10:11:58 -0700
+Subject: [PATCH 3/3] Modify Dbus for IPv6.
+
+Add additional interfaces for IPv6 use.
+---
+ .../Network/EthernetInterface.interface.yaml           | 18 ++++++++++++++++++
+ xyz/openbmc_project/Network/IP.interface.yaml          |  4 ++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
+index fc744fc..fd19e27 100644
+--- a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
++++ b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
+@@ -37,3 +37,21 @@ properties:
+           Implementation of this Dbus-interface is required to implement this property.
+           This property supports read/write operation.
+           Configure the NTP servers on the system during write operation.
++    - name: IPv6AcceptRA
++      type: boolean
++      description: >
++          Boolean for accepting router advertisements in IPv6
++    - name: IPAddressEnables
++      type: enum[self.IPAllowed]
++      description: >
++          The type of IP connection is allowed on this channel
++
++enumerations:
++    - name: IPAllowed
++      description: >
++          Determines whether the system allows both IPv6 & IPv4, or disables on
++          or the other
++      values:
++          - name: IPv4AndIPv6
++          - name: IPv4Only
++          - name: IPv6Only
+diff --git a/xyz/openbmc_project/Network/IP.interface.yaml b/xyz/openbmc_project/Network/IP.interface.yaml
+index 565dcd6..2ffb016 100644
+--- a/xyz/openbmc_project/Network/IP.interface.yaml
++++ b/xyz/openbmc_project/Network/IP.interface.yaml
+@@ -22,6 +22,10 @@ properties:
+       type: string
+       description: >
+           This is the IP gateway for this address.
++    - name: BackupGateway
++      type: string
++      description: >
++          This is the IP address of the backup gateway.
+     - name: Type
+       type: enum[self.Protocol]
+       description: >
+-- 
+2.7.4
+

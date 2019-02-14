@@ -1,0 +1,13 @@
+[Unit]
+Description=Intel BMC SMBIOS MDR V1
+
+[Service]
+Restart=always
+RestartSec=5
+StartLimitBurst=10
+ExecStartPre=/bin/mkdir -p /etc/smbios
+ExecStart=/usr/bin/env smbiosapp
+SyslogIdentifier=smbiosapp
+
+[Install]
+WantedBy={SYSTEMD_DEFAULT_TARGET}

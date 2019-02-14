@@ -1,0 +1,49 @@
+{
+  "filters": [
+    {
+      "busId": "0x01",
+      "slaveAddr": "0x4d",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x01",
+      "slaveAddr": "0x57",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x02",
+      "slaveAddr": "0x40",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x02",
+      "slaveAddr": "0x49",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x02",
+      "slaveAddr": "0x51",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x03",
+      "slaveAddr": "0x44",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x03",
+      "slaveAddr": "0x68",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x06",
+      "slaveAddr": "0x40",
+      "command": "0x00"
+    },
+    {
+      "busId": "0x07",
+      "slaveAddr": "0x51",
+      "command": "0x00"
+    }
+  ]
+}

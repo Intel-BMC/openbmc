@@ -1,0 +1,49 @@
+From 4490ee7a9fd054640af7a9da3400f76195dc2880 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Sun, 16 Sep 2018 21:03:58 +0800
+Subject: [PATCH] Catch sdbusplus exceptions in IPMI net
+
+Missing the correct exception was causing issues with setting the IPV4
+address
+
+Change-Id: Ieaaacfcbaec82a0c3b110889817a7ceb9cda8d3c
+Signed-off-by: Dave Cobbley <david.j.cobbley@linux.intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ transporthandler.cpp | 2 +-
+ utils.cpp            | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 6f4ec3f..6cb3feb 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -1559,7 +1559,7 @@ void applyChanges(int channel)
+             ipmi::network::ETHERNET_INTERFACE, "IPv6AcceptRA",
+             (bool)channelConf->ipv6RouterAddressConfigControl);
+     }
+-    catch (InternalFailure& e)
++    catch (sdbusplus::exception::exception& e)
+     {
+         log<level::ERR>(
+             "Failed to set network data", entry("PREFIX=%d", prefix),
+diff --git a/utils.cpp b/utils.cpp
+index 225b1cc..d10b5de 100644
+--- a/utils.cpp
++++ b/utils.cpp
+@@ -358,9 +358,10 @@ void deleteAllDbusObjects(sdbusplus::bus::bus& bus,
+                                            "Delete");
+         }
+     }
+-    catch (InternalFailure& e)
++    catch (sdbusplus::exception::exception& e)
+     {
+-        log<level::INFO>("Unable to delete the objects having",
++        log<level::INFO>("sdbusplus exception - Unable to delete the objects",
++                         entry("ERROR=%s", e.what()),
+                          entry("INTERFACE=%s", interface.c_str()),
+                          entry("SERVICE=%s", serviceRoot.c_str()));
+     }
+-- 
+2.7.4
+

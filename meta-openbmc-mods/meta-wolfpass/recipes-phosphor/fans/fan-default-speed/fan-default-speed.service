@@ -1,0 +1,10 @@
+[Unit]
+Description=Set fans to a default speed
+ConditionFileNotEmpty={bindir}/set_fan_speeds.py
+
+[Service]
+ExecStart={bindir}/set_fan_speeds.py 150
+Type=oneshot
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=OpenBMC ipKVM daemon
+StopWhenUnneeded=false
+
+[Service]
+Restart=always
+ExecStartPre=/usr/bin/create_usbhid.sh
+ExecStart=/usr/bin/env obmc-ikvm -v /dev/video0 -f 10 -k /dev/hidg0 -p /dev/hidg1
+
+[Install]
+WantedBy=multi-user.target

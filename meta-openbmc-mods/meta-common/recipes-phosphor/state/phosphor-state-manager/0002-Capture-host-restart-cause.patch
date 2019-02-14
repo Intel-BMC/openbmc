@@ -1,0 +1,192 @@
+From 8dea573181c4455e144335e14cac9f54ebbf7208 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Tue, 7 Aug 2018 16:43:00 +0800
+Subject: [PATCH] Capture host restart cause
+
+Capture host restart cause on power/reset button pressed.
+Save the restart cause into file system.
+And restort it when BMC boot up.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ configure.ac           |  4 +--
+ host_state_manager.cpp | 16 ++++++++++++
+ host_state_manager.hpp | 56 +++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 71 insertions(+), 5 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 838aaf2..5879e2f 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -54,9 +54,9 @@ AC_ARG_VAR(HOST_RUNNING_FILE, [File to create if host is running])
+ AS_IF([test "x$HOST_RUNNING_FILE" == "x"], [HOST_RUNNING_FILE="/run/openbmc/host@%u-on"])
+ AC_DEFINE_UNQUOTED([HOST_RUNNING_FILE], ["$HOST_RUNNING_FILE"], [File to create if host is running])
+ 
+-AC_ARG_VAR(HOST_STATE_PERSIST_PATH, [Path of file for storing requested host state.])
++AC_ARG_VAR(HOST_STATE_PERSIST_PATH, [Path of file for storing host state.])
+ AS_IF([test "x$HOST_STATE_PERSIST_PATH" == "x"], \
+-    [HOST_STATE_PERSIST_PATH="/var/lib/phosphor-state-manager/requestedHostTransition"])
++    [HOST_STATE_PERSIST_PATH="/var/lib/phosphor-state-manager/hostState"])
+ AC_DEFINE_UNQUOTED([HOST_STATE_PERSIST_PATH], ["$HOST_STATE_PERSIST_PATH"], \
+     [Path of file for storing requested host state.])
+ 
+diff --git a/host_state_manager.cpp b/host_state_manager.cpp
+index ec1f95f..8573d00 100644
+--- a/host_state_manager.cpp
++++ b/host_state_manager.cpp
+@@ -304,6 +304,15 @@ bool Host::deserialize(const fs::path& path)
+     }
+ }
+ 
++void Host::restoreHostRestartCause()
++{
++    if (!deserialize(HOST_STATE_PERSIST_PATH))
++    {
++        // set to default value
++        server::Host::hostRestartCause(server::Host::RestartCause::Unknown);
++    }
++}
++
+ Host::Transition Host::requestedHostTransition(Transition value)
+ {
+     log<level::INFO>("Host State transaction request",
+@@ -349,6 +358,13 @@ Host::HostState Host::currentHostState(HostState value)
+     return server::Host::currentHostState(value);
+ }
+ 
++Host::RestartCause Host::hostRestartCause(RestartCause value)
++{
++    auto retVal = server::Host::hostRestartCause(value);
++    serialize();
++    return retVal;
++}
++
+ } // namespace manager
+ } // namespace state
+ } // namepsace phosphor
+diff --git a/host_state_manager.hpp b/host_state_manager.hpp
+index 2b00777..e74fab7 100644
+--- a/host_state_manager.hpp
++++ b/host_state_manager.hpp
+@@ -32,6 +32,15 @@ using namespace phosphor::logging;
+ namespace sdbusRule = sdbusplus::bus::match::rules;
+ namespace fs = std::experimental::filesystem;
+ 
++const static constexpr char* powerButtonPath =
++    "/xyz/openbmc_project/Chassis/Buttons/Power0";
++const static constexpr char* powerButtonIntf =
++    "xyz.openbmc_project.Chassis.Buttons.Power";
++const static constexpr char* resetButtonPath =
++    "/xyz/openbmc_project/Chassis/Buttons/Reset0";
++const static constexpr char* resetButtonIntf =
++    "xyz.openbmc_project.Chassis.Buttons.Reset";
++
+ /** @class Host
+  *  @brief OpenBMC host state management implementation.
+  *  @details A concrete implementation for xyz.openbmc_project.State.Host
+@@ -59,7 +68,31 @@ class Host : public HostInherit
+                 sdbusRule::interface("org.freedesktop.systemd1.Manager"),
+             std::bind(std::mem_fn(&Host::sysStateChange), this,
+                       std::placeholders::_1)),
+-        settings(bus)
++        settings(bus),
++        powerButtonPressedSignal(
++            bus,
++            sdbusRule::type::signal() + sdbusRule::member("Pressed") +
++                sdbusRule::path(powerButtonPath) +
++                sdbusRule::interface(powerButtonIntf),
++            [this](sdbusplus::message::message &msg) {
++                  phosphor::logging::log<phosphor::logging::level::INFO>(
++                      "powerButtonPressedSignal callback function is called...");
++                  this->hostRestartCause(this->RestartCause::PowerButton);
++                  return;
++                }
++         ),
++         resetButtonPressedSignal(
++            bus,
++            sdbusRule::type::signal() + sdbusRule::member("Pressed") +
++                sdbusRule::path(resetButtonPath) +
++                sdbusRule::interface(resetButtonIntf),
++            [this](sdbusplus::message::message &msg) {
++                  phosphor::logging::log<phosphor::logging::level::INFO>(
++                      "resetButtonPressedSignal callback function is called...");
++                  this->hostRestartCause(this->RestartCause::ResetButton);
++                  return;
++                }
++          )
+     {
+         // Enable systemd signals
+         subscribeToSystemdSignals();
+@@ -69,6 +102,8 @@ class Host : public HostInherit
+ 
+         attemptsLeft(BOOT_COUNT_MAX_ALLOWED);
+ 
++        restoreHostRestartCause(); // restore host restart cause from persisted file
++
+         // We deferred this until we could get our property correct
+         this->emit_object_added();
+     }
+@@ -85,6 +120,9 @@ class Host : public HostInherit
+     /** @brief Set value of CurrentHostState */
+     HostState currentHostState(HostState value) override;
+ 
++    /** @brief Set value of HostRestartCause */
++    RestartCause hostRestartCause(RestartCause value) override;
++
+     /**
+      * @brief Set host reboot count to default
+      *
+@@ -192,7 +230,10 @@ class Host : public HostInherit
+                                       server::Progress::bootProgress()),
+                 convertForMessage(
+                     sdbusplus::xyz::openbmc_project::State::OperatingSystem::
+-                        server::Status::operatingSystemState()));
++                        server::Status::operatingSystemState()),
++                convertForMessage(sdbusplus::xyz::openbmc_project::State::
++                                      server::Host::hostRestartCause())
++                );
+     }
+ 
+     /** @brief Function required by Cereal to perform deserialization.
+@@ -208,7 +249,8 @@ class Host : public HostInherit
+         std::string reqTranState;
+         std::string bootProgress;
+         std::string osState;
+-        archive(reqTranState, bootProgress, osState);
++        std::string restartCause;
++        archive(reqTranState, bootProgress, osState, restartCause);
+         auto reqTran = Host::convertTransitionFromString(reqTranState);
+         // When restoring, set the requested state with persistent value
+         // but don't call the override which would execute it
+@@ -219,6 +261,8 @@ class Host : public HostInherit
+         sdbusplus::xyz::openbmc_project::State::OperatingSystem::server::
+             Status::operatingSystemState(
+                 Host::convertOSStatusFromString(osState));
++        sdbusplus::xyz::openbmc_project::State::server::Host::
++            hostRestartCause(Host::convertRestartCauseFromString(restartCause));
+     }
+ 
+     /** @brief Serialize and persist requested host state
+@@ -239,6 +283,9 @@ class Host : public HostInherit
+      */
+     bool deserialize(const fs::path& path);
+ 
++    /** @brief Used to restore HostRestartCause value from persisted file */
++    void restoreHostRestartCause();
++
+     /** @brief Persistent sdbusplus DBus bus connection. */
+     sdbusplus::bus::bus& bus;
+ 
+@@ -247,6 +294,9 @@ class Host : public HostInherit
+ 
+     // Settings objects of interest
+     settings::Objects settings;
++
++    sdbusplus::bus::match_t powerButtonPressedSignal;
++    sdbusplus::bus::match_t resetButtonPressedSignal;
+ };
+ 
+ } // namespace manager
+-- 
+2.17.0
+
