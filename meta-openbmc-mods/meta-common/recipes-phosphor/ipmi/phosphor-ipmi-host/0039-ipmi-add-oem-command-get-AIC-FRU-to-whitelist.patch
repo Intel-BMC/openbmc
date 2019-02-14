@@ -1,0 +1,25 @@
+From cf466ba2c66a95825ae0014d7c378ad63b050d2f Mon Sep 17 00:00:00 2001
+From: "Jia, Chunhui" <chunhui.jia@intel.com>
+Date: Wed, 15 Aug 2018 14:50:04 +0800
+Subject: [PATCH] [ipmi] add oem command "get AIC FRU" to whitelist
+
+Intel BIOS requires this oem command to get addon card FRU info.
+Add to whitelist to unblock.
+
+Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
+---
+ host-ipmid-whitelist.conf | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
+index db54a49..49746a2 100644
+--- a/host-ipmid-whitelist.conf
++++ b/host-ipmid-whitelist.conf
+@@ -43,3 +43,4 @@
+ 0x30:0x41    //<OEM>:<Set System GUID>
+ 0x30:0x26    //<OEM>:<Set BIOS ID>
+ 0x30:0x27    //<OEM>:<Get Device Info>
++0x30:0x31    //<OEM>:<Get AIC card FRU>
+-- 
+2.16.2
+

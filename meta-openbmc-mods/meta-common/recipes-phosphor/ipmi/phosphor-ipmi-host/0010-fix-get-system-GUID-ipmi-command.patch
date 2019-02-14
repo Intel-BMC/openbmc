@@ -1,0 +1,56 @@
+From 4953a9f2233fd24a28da84443cea6aebecd14fbc Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Mon, 17 Sep 2018 13:20:54 +0800
+Subject: [PATCH] fix "get system GUID" ipmi command
+
+Change-Id: I15c71607c24ad8b3e2c9065a5470002ecb1761bb
+Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ apphandler.cpp            | 7 ++-----
+ host-ipmid-whitelist.conf | 1 +
+ 2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/apphandler.cpp b/apphandler.cpp
+index f2889c5..9149373 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -48,7 +48,7 @@ extern sd_bus* bus;
+
+ constexpr auto bmc_state_interface = "xyz.openbmc_project.State.BMC";
+ constexpr auto bmc_state_property = "CurrentBMCState";
+-constexpr auto bmc_interface = "xyz.openbmc_project.Inventory.Item.Bmc";
++// phosphor-setting-manager is the unique service that holds this interface
+ constexpr auto bmc_guid_interface = "xyz.openbmc_project.Common.UUID";
+ constexpr auto bmc_guid_property = "UUID";
+ constexpr auto bmc_guid_len = 16;
+@@ -546,8 +545,7 @@ ipmi_ret_t ipmi_app_get_sys_guid(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+     {
+         // Get the Inventory object implementing BMC interface
+         ipmi::DbusObjectInfo bmcObject =
+-            ipmi::getDbusObject(bus, bmc_interface);
+-
++            ipmi::getDbusObject(bus, bmc_guid_interface);
+         // Read UUID property value from bmcObject
+         // UUID is in RFC4122 format Ex: 61a39523-78f2-11e5-9862-e6402cfc3223
+         auto variant =
+@@ -591,7 +589,6 @@ ipmi_ret_t ipmi_app_get_sys_guid(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+     catch (const InternalFailure& e)
+     {
+         log<level::ERR>("Failed in reading BMC UUID property",
+-                        entry("INTERFACE=%s", bmc_interface),
+                         entry("PROPERTY_INTERFACE=%s", bmc_guid_interface),
+                         entry("PROPERTY=%s", bmc_guid_property));
+         return IPMI_CC_UNSPECIFIED_ERROR;
+diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
+index 2c37ac9..164edbe 100644
+--- a/host-ipmid-whitelist.conf
++++ b/host-ipmid-whitelist.conf
+@@ -40,3 +40,4 @@
+ 0x2C:0x06    //<Group Extension>:<Get Asset Tag>
+ 0x2C:0x07    //<Group Extension>:<Get Sensor Info>
+ 0x2C:0x10    //<Group Extension>:<Get Temperature Readings>
++0x30:0x41    //<OEM>:<Set System GUID>
+-- 
+2.7.4
+

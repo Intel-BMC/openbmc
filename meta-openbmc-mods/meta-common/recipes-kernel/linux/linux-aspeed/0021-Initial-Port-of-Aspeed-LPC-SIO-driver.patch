@@ -1,0 +1,565 @@
+From 4084484a57d9a81b6581455ff144fc4f9c603075 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@intel.com>
+Date: Mon, 13 Nov 2017 16:29:44 +0800
+Subject: [PATCH] Aspeed LPC SIO driver
+
+Add lpc sio device driver for AST2500/2400
+
+Signed-off-by: Yong Li <yong.b.li@intel.com>
+---
+ .../devicetree/bindings/misc/aspeed-sio.txt        |  14 +
+ drivers/misc/Kconfig                               |   9 +
+ drivers/misc/Makefile                              |   1 +
+ drivers/misc/aspeed-lpc-sio.c                      | 435 +++++++++++++++++++++
+ include/uapi/linux/aspeed-lpc-sio.h                |  44 +++
+ 5 files changed, 503 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/misc/aspeed-sio.txt
+ create mode 100644 drivers/misc/aspeed-lpc-sio.c
+ create mode 100644 include/uapi/linux/aspeed-lpc-sio.h
+
+diff --git a/Documentation/devicetree/bindings/misc/aspeed-sio.txt b/Documentation/devicetree/bindings/misc/aspeed-sio.txt
+new file mode 100644
+index 000000000000..7953cd3367df
+--- /dev/null
++++ b/Documentation/devicetree/bindings/misc/aspeed-sio.txt
+@@ -0,0 +1,14 @@
++* Aspeed LPC SIO driver.
++
++Required properties:
++- compatible: "aspeed,ast2500-lpc-sio"
++	- aspeed,ast2500-lpc-sio: Aspeed AST2500 family
++- reg: Should contain lpc-sio registers location and length
++
++Example:
++lpc_sio: lpc-sio@100 {
++	compatible = "aspeed,ast2500-lpc-sio";
++	reg = <0x100 0x20>;
++	status = "disabled";
++};
++
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index 689d07ea7ded..fe1e2a4072a8 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -493,6 +493,15 @@ config ASPEED_LPC_CTRL
+ 	  ioctl()s, the driver also provides a read/write interface to a BMC ram
+ 	  region where the host LPC read/write region can be buffered.
+ 
++config ASPEED_LPC_SIO
++	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
++	tristate "Aspeed ast2400/2500 HOST LPC SIO support"
++	help
++	  Provides a driver to control the LPC SIO interface
++          on ASPEED platform
++          through
++	  ioctl()s.
++
+ config ASPEED_LPC_SNOOP
+ 	tristate "Aspeed ast2500 HOST LPC snoop support"
+ 	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index e4170f62ab98..a2b85ec21d09 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -56,6 +56,7 @@ obj-$(CONFIG_CXL_BASE)		+= cxl/
+ obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
+ obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
+ obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o
++obj-$(CONFIG_ASPEED_LPC_SIO)   += aspeed-lpc-sio.o
+ obj-$(CONFIG_PCI_ENDPOINT_TEST)	+= pci_endpoint_test.o
+ obj-$(CONFIG_OCXL)		+= ocxl/
+ obj-$(CONFIG_MISC_RTSX)		+= cardreader/
+diff --git a/drivers/misc/aspeed-lpc-sio.c b/drivers/misc/aspeed-lpc-sio.c
+new file mode 100644
+index 000000000000..fd9a83bd66d7
+--- /dev/null
++++ b/drivers/misc/aspeed-lpc-sio.c
+@@ -0,0 +1,435 @@
++/*
++ * Copyright (C) 2012-2020	ASPEED Technology Inc.
++ * Copyright (c) 2017 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ *
++ */
++
++#include <linux/mfd/syscon.h>
++#include <linux/miscdevice.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/of_address.h>
++#include <linux/platform_device.h>
++#include <linux/poll.h>
++#include <linux/regmap.h>
++
++#include <linux/aspeed-lpc-sio.h>
++
++#define SOC_NAME "aspeed"
++#define DEVICE_NAME	"lpc-sio"
++
++#define AST_LPC_SWCR0300			0x0
++#define LPC_PWRGD_STS                   (1 << 30)
++#define LPC_PWRGD_RISING_EVT_STS        (1 << 29)
++#define LPC_PWRGD_FALLING_EVT_STS       (1 << 28)
++#define LPC_PWRBTN_STS                  (1 << 27)
++#define LPC_PWRBTN_RISING_EVT_STS       (1 << 26)
++#define LPC_PWRBTN_FALLING_EVT_STS      (1 << 25)
++#define LPC_S5N_STS                     (1 << 21)
++#define LPC_S5N_RISING_EVT_STS          (1 << 20)
++#define LPC_S5N_FALLING_EVT_STS         (1 << 19)
++#define LPC_S3N_STS                     (1 << 18)
++#define LPC_S3N_RISING_EVT_STS          (1 << 17)
++#define LPC_S3N_FALLING_EVT_STS         (1 << 16)
++#define LPC_PWBTO_RAW_STS               (1 << 15)
++#define LPC_LAST_ONCTL_STS              (1 << 14)
++#define LPC_WAS_PFAIL_STS               (1 << 13)
++#define LPC_POWER_UP_FAIL_STS           (1 << 12) /* Crowbar */
++#define LPC_PWRBTN_OVERRIDE_STS         (1 << 11)
++
++#define AST_LPC_SWCR0704			0x4
++
++#define AST_LPC_SWCR0B08			0x8
++#define LPC_PWREQ_OUTPUT_LEVEL          (1 << 25)
++#define LPC_PWBTO_OUTPUT_LEVEL          (1 << 24)
++#define LPC_ONCTL_STS                   (1 << 15)
++#define LPC_ONCTL_GPIO_LEVEL            (1 << 14)
++#define LPC_ONCTL_EN_GPIO_OUTPUT        (1 << 13)
++#define LPC_ONCTL_EN_GPIO_MODE          (1 << 12)
++
++#define AST_LPC_SWCR0F0C			0xC
++#define AST_LPC_SWCR1310			0x10
++#define AST_LPC_SWCR1714			0x14
++#define AST_LPC_SWCR1B18			0x18
++#define AST_LPC_SWCR1F1C			0x1C
++#define AST_LPC_ACPIE3E0			0x20
++#define AST_LPC_ACPIC1C0			0x24
++#define AST_LPC_ACPIB3B0			0x28
++#define AST_LPC_ACPIB7B4			0x2C
++
++struct aspeed_lpc_sio {
++	struct miscdevice	miscdev;
++	struct regmap		*regmap;
++	struct semaphore lock;
++	unsigned int        reg_base;
++};
++
++static struct aspeed_lpc_sio *file_aspeed_lpc_sio(struct file *file)
++{
++	return container_of(file->private_data, struct aspeed_lpc_sio,
++			miscdev);
++}
++
++static int aspeed_lpc_sio_open(struct inode *inode, struct file *filp)
++{
++	return 0;
++}
++
++#define LPC_SLP3N5N_EVENT_STATUS	(\
++		LPC_S5N_RISING_EVT_STS  |    \
++		LPC_S5N_FALLING_EVT_STS |    \
++		LPC_S3N_RISING_EVT_STS  |    \
++		LPC_S3N_FALLING_EVT_STS)
++/*************************************
++ *  SLPS3n SLPS5n State
++ *  ---------------------------------
++ *   1      1      S12
++ *   0      1      S3I
++ *   x      0      S45
++ *************************************
++ */
++
++static long sio_get_acpi_state(struct aspeed_lpc_sio *lpc_sio,
++				struct sio_ioctl_data *sio_data)
++{
++	u32 reg;
++	u32 val;
++	int rc;
++
++	reg = lpc_sio->reg_base + AST_LPC_SWCR0300;
++	rc = regmap_read(lpc_sio->regmap, reg, &val);
++	if (rc) {
++		dev_err(lpc_sio->miscdev.parent,
++			"regmap_read() failed with %d(reg:0x%x)\n", rc, reg);
++		return rc;
++	}
++
++	/* update the ACPI state event status */
++	if (sio_data->param != 0) {
++		if (val & LPC_SLP3N5N_EVENT_STATUS) {
++			sio_data->param = 1;
++			rc = regmap_write(lpc_sio->regmap, reg,
++				LPC_SLP3N5N_EVENT_STATUS);
++			if (rc) {
++				dev_err(lpc_sio->miscdev.parent,
++					"regmap_write() failed with %d(reg:0x%x)\n",
++					rc, reg);
++				return rc;
++			}
++		} else {
++			sio_data->param = 0;
++		}
++	}
++
++	if ((val & LPC_S3N_STS) && (val & LPC_S5N_STS))
++		sio_data->data = ACPI_STATE_S12;
++	else if ((val & LPC_S3N_STS) == 0 && (val & LPC_S5N_STS))
++		sio_data->data = ACPI_STATE_S3I;
++	else
++		sio_data->data = ACPI_STATE_S45;
++
++	return 0;
++}
++
++#define LPC_PWRGD_EVENT_STATUS  (   \
++		LPC_PWRGD_RISING_EVT_STS  | \
++		LPC_PWRGD_FALLING_EVT_STS)
++
++static long sio_get_pwrgd_status(struct aspeed_lpc_sio *lpc_sio,
++				struct sio_ioctl_data *sio_data)
++{
++	u32 reg;
++	u32 val;
++	int rc;
++
++	reg = lpc_sio->reg_base + AST_LPC_SWCR0300;
++	rc = regmap_read(lpc_sio->regmap, reg, &val);
++	if (rc) {
++		dev_err(lpc_sio->miscdev.parent,
++			"regmap_read() failed with %d(reg:0x%x)\n", rc, reg);
++		return rc;
++	}
++
++	/* update the PWRGD event status */
++	if (sio_data->param != 0) {
++		if (val & LPC_PWRGD_EVENT_STATUS) {
++			sio_data->param = 1;
++			rc = regmap_write(lpc_sio->regmap, reg,
++				LPC_PWRGD_EVENT_STATUS);
++			if (rc) {
++				dev_err(lpc_sio->miscdev.parent,
++					"regmap_write() failed with %d(reg:0x%x)\n",
++					rc, reg);
++				return rc;
++			}
++		} else {
++			sio_data->param = 0;
++		}
++	}
++
++	sio_data->data = (val & LPC_PWRGD_STS) != 0 ? 1 : 0;
++
++	return 0;
++}
++
++static long sio_get_onctl_status(struct aspeed_lpc_sio *lpc_sio,
++				struct sio_ioctl_data *sio_data)
++{
++	u32 reg;
++	u32 val;
++	int rc;
++
++	reg = lpc_sio->reg_base + AST_LPC_SWCR0B08;
++	rc = regmap_read(lpc_sio->regmap, reg, &val);
++	if (rc) {
++		dev_err(lpc_sio->miscdev.parent,
++			"regmap_read() failed with %d(reg:0x%x)\n", rc, reg);
++		return rc;
++	}
++
++	sio_data->data = (val & LPC_ONCTL_STS) != 0 ? 1 : 0;
++
++	return 0;
++}
++
++static long sio_set_onctl_gpio(struct aspeed_lpc_sio *lpc_sio,
++				struct sio_ioctl_data *sio_data)
++{
++	u32 reg;
++	u32 val;
++	int rc;
++
++	reg = lpc_sio->reg_base + AST_LPC_SWCR0B08;
++	rc = regmap_read(lpc_sio->regmap, reg, &val);
++	if (rc) {
++		dev_err(lpc_sio->miscdev.parent,
++			"regmap_read() failed with %d(reg:0x%x)\n", rc, reg);
++		return rc;
++	}
++
++	/* Enable ONCTL GPIO mode */
++	if (sio_data->param != 0) {
++		val |= LPC_ONCTL_EN_GPIO_MODE;
++		val |= LPC_ONCTL_EN_GPIO_OUTPUT;
++
++		if (sio_data->data != 0)
++			val |=  LPC_ONCTL_GPIO_LEVEL;
++		else
++			val &= ~LPC_ONCTL_GPIO_LEVEL;
++
++		rc = regmap_write(lpc_sio->regmap, reg, val);
++		if (rc) {
++			dev_err(lpc_sio->miscdev.parent,
++			"regmap_write() failed with %d(reg:0x%x)\n", rc, reg);
++			return rc;
++		}
++	} else {
++		val &= ~LPC_ONCTL_EN_GPIO_MODE;
++		rc = regmap_write(lpc_sio->regmap, reg, val);
++		if (rc) {
++			dev_err(lpc_sio->miscdev.parent,
++			"regmap_write() failed with %d(reg:0x%x)\n", rc, reg);
++			return rc;
++		}
++	}
++
++	return 0;
++}
++
++static long sio_get_pwrbtn_override(struct aspeed_lpc_sio *lpc_sio,
++				struct sio_ioctl_data *sio_data)
++{
++	u32 reg;
++	u32 val;
++	int rc;
++
++	reg = lpc_sio->reg_base + AST_LPC_SWCR0300;
++	rc = regmap_read(lpc_sio->regmap, reg, &val);
++	if (rc) {
++		dev_err(lpc_sio->miscdev.parent,
++			"regmap_read() failed with %d(reg:0x%x)\n", rc, reg);
++		return rc;
++	}
++
++	/* clear the PWRBTN OVERRIDE status */
++	if (sio_data->param != 0) {
++		if (val & LPC_PWRBTN_OVERRIDE_STS) {
++			rc = regmap_write(lpc_sio->regmap, reg,
++				LPC_PWRBTN_OVERRIDE_STS);
++			if (rc) {
++				dev_err(lpc_sio->miscdev.parent,
++				"regmap_write() failed with %d(reg:0x%x)\n",
++				rc, reg);
++				return rc;
++			}
++		}
++	}
++
++	sio_data->data = (val & LPC_PWRBTN_OVERRIDE_STS) != 0 ? 1 : 0;
++
++	return 0;
++}
++
++static long sio_get_pfail_status(struct aspeed_lpc_sio *lpc_sio,
++				struct sio_ioctl_data *sio_data)
++{
++	u32 reg;
++	u32 val;
++	int rc;
++
++	reg = lpc_sio->reg_base + AST_LPC_SWCR0300;
++	rc = regmap_read(lpc_sio->regmap, reg, &val);
++	if (rc) {
++		dev_err(lpc_sio->miscdev.parent,
++			"regmap_read() failed with %d(reg:0x%x)\n", rc, reg);
++		return rc;
++	}
++
++	/* [ASPEED]: SWCR_03_00[13] (Was_pfail: default 1) is used to identify
++	 * this current booting is from AC loss (not DC loss) if FW cleans this
++	 * bit after booting successfully every time.
++	 **********************************************************************/
++	if (val & LPC_WAS_PFAIL_STS) {
++		rc = regmap_write(lpc_sio->regmap, reg, 0);  /* W0C */
++		if (rc) {
++			dev_err(lpc_sio->miscdev.parent,
++			"regmap_write() failed with %d(reg:0x%x)\n", rc, reg);
++			return rc;
++		}
++		sio_data->data = 1;
++	} else {
++		sio_data->data = 0;
++	}
++
++	return 0;
++}
++
++typedef long (*sio_cmd_fn) (struct aspeed_lpc_sio *sio_dev,
++	struct sio_ioctl_data *sio_data);
++static sio_cmd_fn sio_cmd_handle[SIO_MAX_CMD] = {
++	[SIO_GET_ACPI_STATE]        = sio_get_acpi_state,
++	[SIO_GET_PWRGD_STATUS]      = sio_get_pwrgd_status,
++	[SIO_GET_ONCTL_STATUS]      = sio_get_onctl_status,
++	[SIO_SET_ONCTL_GPIO]        = sio_set_onctl_gpio,
++	[SIO_GET_PWRBTN_OVERRIDE]   = sio_get_pwrbtn_override,
++	[SIO_GET_PFAIL_STATUS]      = sio_get_pfail_status,
++};
++
++static long aspeed_lpc_sio_ioctl(struct file *file, unsigned int cmd,
++		unsigned long param)
++{
++	struct aspeed_lpc_sio *lpc_sio = file_aspeed_lpc_sio(file);
++	long ret;
++	sio_cmd_fn cmd_fn;
++	struct sio_ioctl_data sio_data;
++
++
++	if (copy_from_user(&sio_data, (void __user *)param, sizeof(sio_data)))
++		return -EFAULT;
++
++	if (cmd != SIO_IOC_COMMAND || sio_data.sio_cmd >= SIO_MAX_CMD)
++		return -EINVAL;
++
++	cmd_fn = sio_cmd_handle[sio_data.sio_cmd];
++	if (cmd_fn == NULL)
++		return -EINVAL;
++
++	if (down_interruptible(&lpc_sio->lock) != 0)
++		return -ERESTARTSYS;
++
++	ret = cmd_fn(lpc_sio, &sio_data);
++	if (ret == 0) {
++		if (copy_to_user((void __user *)param, &sio_data,
++			sizeof(sio_data)))
++			ret = -EFAULT;
++	}
++
++	up(&lpc_sio->lock);
++
++	return ret;
++}
++
++static const struct file_operations aspeed_lpc_sio_fops = {
++	.owner		= THIS_MODULE,
++	.open		= aspeed_lpc_sio_open,
++	.unlocked_ioctl	= aspeed_lpc_sio_ioctl,
++};
++
++static int aspeed_lpc_sio_probe(struct platform_device *pdev)
++{
++	struct aspeed_lpc_sio *lpc_sio;
++	struct device *dev;
++	int rc;
++
++	dev = &pdev->dev;
++
++	lpc_sio = devm_kzalloc(dev, sizeof(*lpc_sio), GFP_KERNEL);
++	if (!lpc_sio)
++		return -ENOMEM;
++
++	dev_set_drvdata(&pdev->dev, lpc_sio);
++
++	rc = of_property_read_u32(dev->of_node, "reg", &lpc_sio->reg_base);
++	if (rc) {
++		dev_err(dev, "Couldn't read reg device-tree property\n");
++		return rc;
++	}
++
++	lpc_sio->regmap = syscon_node_to_regmap(
++			pdev->dev.parent->of_node);
++	if (IS_ERR(lpc_sio->regmap)) {
++		dev_err(dev, "Couldn't get regmap\n");
++		return -ENODEV;
++	}
++
++	sema_init(&lpc_sio->lock, 1);
++
++	lpc_sio->miscdev.minor = MISC_DYNAMIC_MINOR;
++	lpc_sio->miscdev.name = DEVICE_NAME;
++	lpc_sio->miscdev.fops = &aspeed_lpc_sio_fops;
++	lpc_sio->miscdev.parent = dev;
++	rc = misc_register(&lpc_sio->miscdev);
++	if (rc)
++		dev_err(dev, "Unable to register device\n");
++	else
++		dev_info(dev, "Loaded at %pap (0x%08x)\n",
++			&lpc_sio->regmap, lpc_sio->reg_base);
++
++	return rc;
++}
++
++static int aspeed_lpc_sio_remove(struct platform_device *pdev)
++{
++	struct aspeed_lpc_sio *lpc_sio = dev_get_drvdata(&pdev->dev);
++
++	misc_deregister(&lpc_sio->miscdev);
++
++	return 0;
++}
++
++static const struct of_device_id aspeed_lpc_sio_match[] = {
++	{ .compatible = "aspeed,ast2500-lpc-sio" },
++	{ },
++};
++
++static struct platform_driver aspeed_lpc_sio_driver = {
++	.driver = {
++		.name		= SOC_NAME "-" DEVICE_NAME,
++		.of_match_table = aspeed_lpc_sio_match,
++	},
++	.probe = aspeed_lpc_sio_probe,
++	.remove = aspeed_lpc_sio_remove,
++};
++
++module_platform_driver(aspeed_lpc_sio_driver);
++
++MODULE_DEVICE_TABLE(of, aspeed_lpc_sio_match);
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
++MODULE_AUTHOR("Yong Li <yong.blli@linux.intel.com>");
++MODULE_DESCRIPTION("ASPEED AST LPC SIO device driver");
+diff --git a/include/uapi/linux/aspeed-lpc-sio.h b/include/uapi/linux/aspeed-lpc-sio.h
+new file mode 100644
+index 000000000000..5dc1efd4a426
+--- /dev/null
++++ b/include/uapi/linux/aspeed-lpc-sio.h
+@@ -0,0 +1,44 @@
++/*
++ * Copyright (C) 2012-2020	ASPEED Technology Inc.
++ * Copyright (c) 2017 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ *
++ */
++
++#ifndef _UAPI_LINUX_ASPEED_LPC_SIO_H
++#define _UAPI_LINUX_ASPEED_LPC_SIO_H
++
++#include <linux/ioctl.h>
++
++enum ACPI_SLP_STATE {
++	ACPI_STATE_S12 = 1,
++	ACPI_STATE_S3I,
++	ACPI_STATE_S45
++};
++
++/* SWC & ACPI for SuperIO IOCTL */
++enum SIO_CMD {
++	SIO_GET_ACPI_STATE = 0,
++	SIO_GET_PWRGD_STATUS,
++	SIO_GET_ONCTL_STATUS,
++	SIO_SET_ONCTL_GPIO,
++	SIO_GET_PWRBTN_OVERRIDE,
++	SIO_GET_PFAIL_STATUS, /* Start from AC Loss */
++
++	SIO_MAX_CMD
++};
++
++struct sio_ioctl_data {
++	unsigned short sio_cmd;
++	unsigned short param;
++	unsigned int   data;
++};
++
++#define SIO_IOC_BASE            'P'
++#define SIO_IOC_COMMAND         _IOWR(SIO_IOC_BASE, 1, struct sio_ioctl_data)
++
++#endif /* _UAPI_LINUX_ASPEED_LPC_SIO_H */
+-- 
+2.7.4
+

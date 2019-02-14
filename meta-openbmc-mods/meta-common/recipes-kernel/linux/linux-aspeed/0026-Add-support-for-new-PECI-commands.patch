@@ -1,0 +1,392 @@
+From e734cd91f288838a491a75e16f3a09d353079139 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@intel.com>
+Date: Wed, 4 Apr 2018 13:52:39 -0700
+Subject: [PATCH] Add support for new PECI commands
+
+Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
+---
+ drivers/peci/peci-core.c        | 200 ++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/peci-ioctl.h | 109 ++++++++++++++++++++++
+ 2 files changed, 309 insertions(+)
+
+diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
+index fac8c72dcda8..62dada99afee 100644
+--- a/drivers/peci/peci-core.c
++++ b/drivers/peci/peci-core.c
+@@ -242,6 +242,9 @@ static int peci_scan_cmd_mask(struct peci_adapter *adapter)
+ 	adapter->cmd_mask |= BIT(PECI_CMD_GET_TEMP);
+ 	adapter->cmd_mask |= BIT(PECI_CMD_GET_DIB);
+ 	adapter->cmd_mask |= BIT(PECI_CMD_PING);
++	adapter->cmd_mask |= BIT(PECI_CMD_RD_END_PT_CFG);
++	adapter->cmd_mask |= BIT(PECI_CMD_CRASHDUMP_DISC);
++	adapter->cmd_mask |= BIT(PECI_CMD_CRASHDUMP_GET_FRAME);
+ 
+ 	return rc;
+ }
+@@ -515,6 +518,197 @@ static int peci_ioctl_wr_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
+ 	return rc;
+ }
+ 
++static int peci_ioctl_rd_end_pt_cfg(struct peci_adapter *adapter, void *vmsg)
++{
++	struct peci_rd_end_pt_cfg_msg *umsg = vmsg;
++	struct peci_xfer_msg msg;
++	u32 address;
++	int rc = 0;
++
++	switch (umsg->msg_type) {
++	case RDENDPTCFG_TYPE_LOCAL_PCI:
++	case RDENDPTCFG_TYPE_PCI:
++		/**
++		 * Per the PECI spec, the read length must be a byte, word,
++		 * or dword
++		 */
++		if (umsg->rx_len != 1 && umsg->rx_len != 2 &&
++		    umsg->rx_len != 4) {
++			dev_dbg(&adapter->dev,
++				"Invalid read length, rx_len: %d\n",
++				umsg->rx_len);
++			return -EINVAL;
++		}
++
++		address = umsg->params.pci_cfg.reg; /* [11:0]  - Register */
++		address |= (u32)umsg->params.pci_cfg.function
++			   << 12; /* [14:12] - Function */
++		address |= (u32)umsg->params.pci_cfg.device
++			   << 15; /* [19:15] - Device   */
++		address |= (u32)umsg->params.pci_cfg.bus
++			   << 20; /* [27:20] - Bus      */
++				  /* [31:28] - Reserved */
++		msg.addr = umsg->addr;
++		msg.tx_len = RDENDPTCFG_PCI_WRITE_LEN;
++		msg.rx_len = RDENDPTCFG_READ_LEN_BASE + umsg->rx_len;
++		msg.tx_buf[0] = RDENDPTCFG_PECI_CMD;
++		msg.tx_buf[1] = 0x00; /* request byte for Host ID | Retry bit */
++		msg.tx_buf[2] = umsg->msg_type;		  /* Message Type */
++		msg.tx_buf[3] = 0x00;			  /* Endpoint ID */
++		msg.tx_buf[4] = 0x00;			  /* Reserved */
++		msg.tx_buf[5] = 0x00;			  /* Reserved */
++		msg.tx_buf[6] = RDENDPTCFG_ADDR_TYPE_PCI; /* Address Type */
++		msg.tx_buf[7] = umsg->params.pci_cfg.seg; /* PCI Segment */
++		msg.tx_buf[8] = (u8)address; /* LSB - PCI Config Address */
++		msg.tx_buf[9] = (u8)(address >> 8);   /* PCI Config Address */
++		msg.tx_buf[10] = (u8)(address >> 16); /* PCI Config Address */
++		msg.tx_buf[11] =
++			(u8)(address >> 24); /* MSB - PCI Config Address */
++		break;
++	case RDENDPTCFG_TYPE_MMIO:
++		/**
++		 * Per the PECI spec, the read length must be a byte, word,
++		 * dword, or qword
++		 */
++		if (umsg->rx_len != 1 && umsg->rx_len != 2 &&
++		    umsg->rx_len != 4 && umsg->rx_len != 8) {
++			dev_dbg(&adapter->dev,
++				"Invalid read length, rx_len: %d\n",
++				umsg->rx_len);
++			return -EINVAL;
++		}
++		/**
++		 * Per the PECI spec, the address type must specify either DWORD
++		 * or QWORD
++		 */
++		if (umsg->params.mmio.addr_type !=
++			       RDENDPTCFG_ADDR_TYPE_MMIO_D &&
++			umsg->params.mmio.addr_type !=
++			       RDENDPTCFG_ADDR_TYPE_MMIO_Q) {
++			dev_dbg(&adapter->dev,
++				"Invalid address type, addr_type: %d\n",
++				umsg->params.mmio.addr_type);
++			return -EINVAL;
++		}
++
++		address = umsg->params.mmio.function; /* [2:0]  - Function */
++		address |= (u32)umsg->params.mmio.device
++			   << 3; /* [7:3] - Device */
++
++		msg.addr = umsg->addr;
++		msg.tx_len = RDENDPTCFG_MMIO_D_WRITE_LEN;
++		msg.rx_len = RDENDPTCFG_READ_LEN_BASE + umsg->rx_len;
++		msg.tx_buf[0] = RDENDPTCFG_PECI_CMD;
++		msg.tx_buf[1] = 0x00; /* request byte for Host ID | Retry bit */
++		msg.tx_buf[2] = umsg->msg_type;		     /* Message Type */
++		msg.tx_buf[3] = 0x00;			     /* Endpoint ID */
++		msg.tx_buf[4] = 0x00;			     /* Reserved */
++		msg.tx_buf[5] = umsg->params.mmio.bar;       /* BAR # */
++		msg.tx_buf[6] = umsg->params.mmio.addr_type; /* Address Type */
++		msg.tx_buf[7] = umsg->params.mmio.seg;       /* PCI Segment */
++		msg.tx_buf[8] = (u8)address;	   /* Function/Device */
++		msg.tx_buf[9] = umsg->params.mmio.bus; /* PCI Bus */
++		msg.tx_buf[10] = (u8)umsg->params.mmio
++					 .offset; /* LSB - Register Offset */
++		msg.tx_buf[11] = (u8)(umsg->params.mmio.offset
++				      >> 8); /* Register Offset */
++		msg.tx_buf[12] = (u8)(umsg->params.mmio.offset
++				      >> 16); /* Register Offset */
++		msg.tx_buf[13] = (u8)(umsg->params.mmio.offset
++				      >> 24); /* MSB - DWORD Register Offset */
++		if (umsg->params.mmio.addr_type
++		    == RDENDPTCFG_ADDR_TYPE_MMIO_Q) {
++			msg.tx_len = RDENDPTCFG_MMIO_Q_WRITE_LEN;
++			msg.tx_buf[14] = (u8)(umsg->params.mmio.offset
++					      >> 32); /* Register Offset */
++			msg.tx_buf[15] = (u8)(umsg->params.mmio.offset
++					      >> 40); /* Register Offset */
++			msg.tx_buf[16] = (u8)(umsg->params.mmio.offset
++					      >> 48); /* Register Offset */
++			msg.tx_buf[17] =
++				(u8)(umsg->params.mmio.offset
++				     >> 56); /* MSB - QWORD Register Offset */
++		}
++		break;
++	}
++
++	rc = peci_xfer_with_retries(adapter, &msg, false);
++	if (!rc)
++		memcpy(umsg->data, &msg.rx_buf[1], umsg->rx_len);
++
++	return rc;
++}
++
++static int peci_ioctl_crashdump_disc(struct peci_adapter *adapter, void *vmsg)
++{
++	struct peci_crashdump_disc_msg *umsg = vmsg;
++	struct peci_xfer_msg msg;
++	int rc = 0;
++
++	/* Per the EDS, the read length must be a byte, word, or qword */
++	if (umsg->rx_len != 1 && umsg->rx_len != 2 && umsg->rx_len != 8) {
++		dev_dbg(&adapter->dev, "Invalid read length, rx_len: %d\n",
++			umsg->rx_len);
++		return -EINVAL;
++	}
++
++	msg.addr = umsg->addr;
++	msg.tx_len = CRASHDUMP_DISC_WRITE_LEN;
++	msg.rx_len = CRASHDUMP_DISC_READ_LEN_BASE + umsg->rx_len;
++	msg.tx_buf[0] = CRASHDUMP_CMD;
++	msg.tx_buf[1] = 0x00;         /* request byte for Host ID | Retry bit */
++				      /* Host ID is 0 for PECI 3.0 */
++	msg.tx_buf[2] = CRASHDUMP_DISC_VERSION;
++	msg.tx_buf[3] = CRASHDUMP_DISC_OPCODE;
++	msg.tx_buf[4] = umsg->subopcode;
++	msg.tx_buf[5] = umsg->param0;
++	msg.tx_buf[6] = (u8)umsg->param1;
++	msg.tx_buf[7] = (u8)(umsg->param1 >> 8);
++	msg.tx_buf[8] = umsg->param2;
++
++	rc = peci_xfer_with_retries(adapter, &msg, false);
++	if (!rc)
++		memcpy(umsg->data, &msg.rx_buf[1], umsg->rx_len);
++
++	return rc;
++}
++
++static int peci_ioctl_crashdump_get_frame(struct peci_adapter *adapter,
++					  void *vmsg)
++{
++	struct peci_crashdump_get_frame_msg *umsg = vmsg;
++	struct peci_xfer_msg msg;
++	int rc = 0;
++
++	/* Per the EDS, the read length must be a qword or dqword */
++	if (umsg->rx_len != 8 && umsg->rx_len != 16) {
++		dev_dbg(&adapter->dev, "Invalid read length, rx_len: %d\n",
++			umsg->rx_len);
++		return -EINVAL;
++	}
++
++	msg.addr = umsg->addr;
++	msg.tx_len = CRASHDUMP_GET_FRAME_WRITE_LEN;
++	msg.rx_len = CRASHDUMP_GET_FRAME_READ_LEN_BASE + umsg->rx_len;
++	msg.tx_buf[0] = CRASHDUMP_CMD;
++	msg.tx_buf[1] = 0x00;         /* request byte for Host ID | Retry bit */
++				      /* Host ID is 0 for PECI 3.0 */
++	msg.tx_buf[2] = CRASHDUMP_GET_FRAME_VERSION;
++	msg.tx_buf[3] = CRASHDUMP_GET_FRAME_OPCODE;
++	msg.tx_buf[4] = (u8)umsg->param0;
++	msg.tx_buf[5] = (u8)(umsg->param0 >> 8);
++	msg.tx_buf[6] = (u8)umsg->param1;
++	msg.tx_buf[7] = (u8)(umsg->param1 >> 8);
++	msg.tx_buf[8] = (u8)umsg->param2;
++	msg.tx_buf[8] = (u8)(umsg->param2 >> 8);
++
++	rc = peci_xfer_with_retries(adapter, &msg, false);
++	if (!rc)
++		memcpy(umsg->data, &msg.rx_buf[1], umsg->rx_len);
++
++	return rc;
++}
++
+ typedef int (*peci_ioctl_fn_type)(struct peci_adapter *, void *);
+ 
+ static const peci_ioctl_fn_type peci_ioctl_fn[PECI_CMD_MAX] = {
+@@ -530,6 +724,9 @@ static const peci_ioctl_fn_type peci_ioctl_fn[PECI_CMD_MAX] = {
+ 	NULL, /* Reserved */
+ 	peci_ioctl_rd_pci_cfg_local,
+ 	peci_ioctl_wr_pci_cfg_local,
++	peci_ioctl_rd_end_pt_cfg,
++	peci_ioctl_crashdump_disc,
++	peci_ioctl_crashdump_get_frame,
+ };
+ 
+ /**
+@@ -592,6 +789,9 @@ static long peci_ioctl(struct file *file, unsigned int iocmd, unsigned long arg)
+ 	case PECI_IOC_RD_PCI_CFG:
+ 	case PECI_IOC_RD_PCI_CFG_LOCAL:
+ 	case PECI_IOC_WR_PCI_CFG_LOCAL:
++	case PECI_IOC_RD_END_PT_CFG:
++	case PECI_IOC_CRASHDUMP_DISC:
++	case PECI_IOC_CRASHDUMP_GET_FRAME:
+ 		cmd = _IOC_NR(iocmd);
+ 		msg_len = _IOC_SIZE(iocmd);
+ 		break;
+diff --git a/include/uapi/linux/peci-ioctl.h b/include/uapi/linux/peci-ioctl.h
+index a6dae71cbff5..5040d1cb4a3d 100644
+--- a/include/uapi/linux/peci-ioctl.h
++++ b/include/uapi/linux/peci-ioctl.h
+@@ -31,6 +31,40 @@
+ #define PKG_ID_MICROCODE_REV        0x0004  /* CPU Microcode Update Revision */
+ #define PKG_ID_MACHINE_CHECK_STATUS 0x0005  /* Machine Check Status */
+ 
++/* RdEndPointCfg Parameters */
++enum rdendptcfg_msg_type {
++	RDENDPTCFG_TYPE_LOCAL_PCI = 0x03,
++	RDENDPTCFG_TYPE_PCI = 0x04,
++	RDENDPTCFG_TYPE_MMIO = 0x05,
++};
++
++enum rdendptcfg_addr_type {
++	RDENDPTCFG_ADDR_TYPE_PCI = 0x04,
++	RDENDPTCFG_ADDR_TYPE_MMIO_D = 0x05,
++	RDENDPTCFG_ADDR_TYPE_MMIO_Q = 0x06,
++};
++
++/* Crashdump Parameters */
++enum crashdump_agent {
++	CRASHDUMP_CORE = 0x00,
++	CRASHDUMP_TOR = 0x01,
++};
++
++enum crashdump_discovery_sub_opcode {
++	CRASHDUMP_ENABLED = 0x00,
++	CRASHDUMP_NUM_AGENTS = 0x01,
++	CRASHDUMP_AGENT_DATA = 0x02,
++};
++
++enum crashdump_agent_data_param {
++	CRASHDUMP_AGENT_ID = 0x00,
++	CRASHDUMP_AGENT_PARAM = 0x01,
++};
++
++enum crashdump_agent_param {
++	CRASHDUMP_PAYLOAD_SIZE = 0x00,
++};
++
+ /* RdPkgConfig Index */
+ #define MBX_INDEX_CPU_ID            0   /* Package Identifier Read */
+ #define MBX_INDEX_VR_DEBUG          1   /* VR Debug */
+@@ -136,6 +170,22 @@
+ #define WRPCICFGLOCAL_READ_LEN       1
+ #define WRPCICFGLOCAL_PECI_CMD       0xe5
+ 
++#define RDENDPTCFG_PCI_WRITE_LEN    0x0C
++#define RDENDPTCFG_MMIO_D_WRITE_LEN 0x0E
++#define RDENDPTCFG_MMIO_Q_WRITE_LEN 0x12
++#define RDENDPTCFG_READ_LEN_BASE    1
++#define RDENDPTCFG_PECI_CMD         0xC1
++
++#define CRASHDUMP_DISC_WRITE_LEN          9
++#define CRASHDUMP_DISC_READ_LEN_BASE      1
++#define CRASHDUMP_DISC_VERSION            1
++#define CRASHDUMP_DISC_OPCODE             1
++#define CRASHDUMP_GET_FRAME_WRITE_LEN     10
++#define CRASHDUMP_GET_FRAME_READ_LEN_BASE 1
++#define CRASHDUMP_GET_FRAME_VERSION       3
++#define CRASHDUMP_GET_FRAME_OPCODE        3
++#define CRASHDUMP_CMD                     0x71
++
+ #define PECI_BUFFER_SIZE 32
+ 
+ /**
+@@ -172,6 +222,9 @@ enum peci_cmd {
+ 	PECI_CMD_WR_PCI_CFG,
+ 	PECI_CMD_RD_PCI_CFG_LOCAL,
+ 	PECI_CMD_WR_PCI_CFG_LOCAL,
++	PECI_CMD_RD_END_PT_CFG,
++	PECI_CMD_CRASHDUMP_DISC,
++	PECI_CMD_CRASHDUMP_GET_FRAME,
+ 	PECI_CMD_MAX
+ };
+ 
+@@ -366,6 +419,50 @@ struct peci_wr_pci_cfg_local_msg {
+ 	__u32 value;
+ } __attribute__((__packed__));
+ 
++struct peci_rd_end_pt_cfg_msg {
++	__u8  addr;
++	__u8  msg_type;
++	union {
++		struct {
++			__u8  seg;
++			__u8  bus;
++			__u8  device;
++			__u8  function;
++			__u16 reg;
++		} pci_cfg;
++		struct {
++			__u8  seg;
++			__u8  bus;
++			__u8  device;
++			__u8  function;
++			__u8  bar;
++			__u8  addr_type;
++			__u64 offset;
++		} mmio;
++	} params;
++	__u8  rx_len;
++	__u8  data[8];
++} __attribute__((__packed__));
++
++struct peci_crashdump_disc_msg {
++	__u8  addr;
++	__u8  subopcode;
++	__u8  param0;
++	__u16 param1;
++	__u8  param2;
++	__u8  rx_len;
++	__u8  data[8];
++} __attribute__((__packed__));
++
++struct peci_crashdump_get_frame_msg {
++	__u8  addr;
++	__u16 param0;
++	__u16 param1;
++	__u16 param2;
++	__u8  rx_len;
++	__u8  data[16];
++} __attribute__((__packed__));
++
+ #define PECI_IOC_BASE  0xb7
+ 
+ #define PECI_IOC_XFER \
+@@ -400,4 +497,16 @@ struct peci_wr_pci_cfg_local_msg {
+ 	_IOWR(PECI_IOC_BASE, PECI_CMD_WR_PCI_CFG_LOCAL, \
+ 	      struct peci_wr_pci_cfg_local_msg)
+ 
++#define PECI_IOC_RD_END_PT_CFG \
++	_IOWR(PECI_IOC_BASE, PECI_CMD_RD_END_PT_CFG, \
++	      struct peci_rd_end_pt_cfg_msg)
++
++#define PECI_IOC_CRASHDUMP_DISC \
++	_IOWR(PECI_IOC_BASE, PECI_CMD_CRASHDUMP_DISC, \
++	      struct peci_crashdump_disc_msg)
++
++#define PECI_IOC_CRASHDUMP_GET_FRAME \
++	_IOWR(PECI_IOC_BASE, PECI_CMD_CRASHDUMP_GET_FRAME, \
++	      struct peci_crashdump_get_frame_msg)
++
+ #endif /* __PECI_IOCTL_H */
+-- 
+2.7.4
+

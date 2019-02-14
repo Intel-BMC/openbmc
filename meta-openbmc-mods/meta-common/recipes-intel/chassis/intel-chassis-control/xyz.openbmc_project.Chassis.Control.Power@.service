@@ -1,0 +1,15 @@
+
+[Unit]
+Description=Intel Power Control%i
+
+[Service]
+Restart=always
+RestartSec=3
+ExecStart=/usr/bin/env power-control
+SyslogIdentifier=power-control
+Type=dbus
+BusName={BUSNAME}
+
+[Install]
+WantedBy={SYSTEMD_DEFAULT_TARGET}
+

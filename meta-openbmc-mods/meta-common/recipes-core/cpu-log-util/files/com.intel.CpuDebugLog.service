@@ -1,0 +1,10 @@
+[Unit]
+Description=Intel BMC CPU Debug Log
+
+[Service]
+Restart=always
+ExecStart={bindir}/cpu_log
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

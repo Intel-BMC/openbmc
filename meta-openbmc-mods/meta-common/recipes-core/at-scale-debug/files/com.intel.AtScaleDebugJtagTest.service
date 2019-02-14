@@ -1,0 +1,12 @@
+[Unit]
+Description=Intel BMC At Scale Debug JTAG test to check if remote debug setting is enabled
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 10
+ExecStart={bindir}/jtag_test
+SyslogIdentifier=jtag_test
+RemainAfterExit=true
+
+[Install]
+WantedBy=obmc-host-start@0.target

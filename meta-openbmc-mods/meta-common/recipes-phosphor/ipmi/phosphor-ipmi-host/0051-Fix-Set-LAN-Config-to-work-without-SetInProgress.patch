@@ -1,0 +1,142 @@
+From cae9e21f88e6f12c80c89402473a17a10258c843 Mon Sep 17 00:00:00 2001
+From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Date: Thu, 17 Jan 2019 21:22:30 +0530
+Subject: [PATCH] Fix: Set LAN Config to work without SetInProgress
+
+Set LAN Configuration parameters in up-stream code works
+with SetInProgress (parameter selector 0), to be marked
+as SET_IN_PROGRESS before fields update, and SET_COMPLETE to
+make the changes effective. This is not mandatory as per
+IPMI Spec, and we must support individual fields update.
+Fix:
+1. After SET_COMPLETE for parameter selector, changes has
+to be applied immediately, and doesn't require to rely on
+network timer, as purpose of this logic itself is to stage
+and commit.
+2. Allow individual parameter changes to take effect based
+on timer. For the time being reduced the timer to 5 sec
+to have quicker turn-around and group things together.
+
+TODO:
+Still need to introduce lock between ChannelConfig variable
+between Timer & Get / Set LAN Configuration command to avoid
+race condition
+
+Unit-Test:
+1. Verified the BIOS Setup page, able to set the IPV4 to static
+IP, afte disabling IPV6, and configuring IPV4 to static, after
+save and reset, the changes of IPV4 static is preserved.
+
+Change-Id: I7c2edad2861b5dba5ad1ca97cc5e39ac02871746
+Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+---
+ transporthandler.cpp | 54 ++++++++++++++++++++++++++++++++++++----------------
+ transporthandler.hpp |  2 ++
+ 2 files changed, 40 insertions(+), 16 deletions(-)
+
+Index: phosphor-host-ipmid.clean/transporthandler.cpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/transporthandler.cpp
++++ phosphor-host-ipmid.clean/transporthandler.cpp
+@@ -399,6 +399,41 @@ struct set_lan_t
+     uint8_t data[8]; // Per IPMI spec, not expecting more than this size
+ } __attribute__((packed));
+ 
++ipmi_ret_t checkAndUpdateNetwork(int channel)
++{
++    auto channelConf = getChannelConfig(channel);
++    using namespace std::chrono_literals;
++    // time to wait before applying the network changes.
++    constexpr auto networkTimeout = 5000000us; // 5 sec
++
++    if (channelConf->lan_set_in_progress == SET_COMPLETE &&
++        ((channelConf->flush == false) ||
++         (channelConf->updateInProgress == true)))
++    {
++        channelConf->flush = true;
++        // used to indicate that network timer update is in progress.
++        channelConf->updateInProgress = true;
++        if (!networkTimer)
++        {
++            log<level::ERR>("Network timer is not instantiated");
++            return IPMI_CC_UNSPECIFIED_ERROR;
++        }
++        // start/restart the timer
++        // TODO: Need to implement locking mechansim between networkTimer &
++        // get/set to avoid race condition.
++        networkTimer->start(networkTimeout);
++    }
++    else if (channelConf->lan_set_in_progress == SET_COMPLETE &&
++             channelConf->flush == true &&
++             channelConf->updateInProgress == false)
++    {
++        // Apply the network changes immediately, if proper SET_IN_PROGRESS,
++        // followed by SET_COMPLETE is issued.
++        applyChanges(channel);
++    }
++    return IPMI_CC_OK;
++}
++
+ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                                   ipmi_request_t request,
+                                   ipmi_response_t response,
+@@ -406,12 +441,6 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+                                   ipmi_context_t context)
+ {
+     ipmi_ret_t rc = IPMI_CC_OK;
+-
+-    using namespace std::chrono_literals;
+-
+-    // time to wait before applying the network changes.
+-    constexpr auto networkTimeout = 10000000us; // 10 sec
+-
+     char ipaddr[INET_ADDRSTRLEN];
+     char netmask[INET_ADDRSTRLEN];
+     char gateway[INET_ADDRSTRLEN];
+@@ -543,15 +572,6 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+                     entry("ADDRESS=%s", channelConf->ipaddr.c_str()),
+                     entry("GATEWAY=%s", channelConf->gateway.c_str()),
+                     entry("VLAN=%d", channelConf->vlanID));
+-
+-                if (!networkTimer)
+-                {
+-                    log<level::ERR>("Network timer is not instantiated");
+-                    return IPMI_CC_UNSPECIFIED_ERROR;
+-                }
+-
+-                // start/restart the timer
+-                networkTimer->start(networkTimeout);
+             }
+             else if (reqptr->data[0] == SET_IN_PROGRESS) // Set In Progress
+             {
+@@ -680,8 +700,10 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+         default:
+         {
+             rc = IPMI_CC_PARM_NOT_SUPPORTED;
++            return rc;
+         }
+     }
++    rc = checkAndUpdateNetwork(channel);
+ 
+     return rc;
+ }
+Index: phosphor-host-ipmid.clean/transporthandler.hpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/transporthandler.hpp
++++ phosphor-host-ipmid.clean/transporthandler.hpp
+@@ -140,6 +140,7 @@ struct ChannelConfig_t
+     // vlan id is in 12 bits and the 16th bit is for enable mask.
+     uint32_t vlanID = ipmi::network::VLAN_ID_MASK;
+     uint8_t lan_set_in_progress = SET_COMPLETE;
++    uint8_t updateInProgress = false;
+     bool flush = false;
+ 
+     // IPV6 parameters
+@@ -165,6 +166,7 @@ struct ChannelConfig_t
+         vlanID = ipmi::network::VLAN_ID_MASK;
+         ipsrc = ipmi::network::IPOrigin::UNSPECIFIED;
+         lan_set_in_progress = SET_COMPLETE;
++        updateInProgress = false;
+         flush = false;
+ 
+         // IPv6

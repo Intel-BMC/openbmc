@@ -1,0 +1,14 @@
+[Unit]
+Description=Start FRB2 Watchdog%i
+Wants=obmc-host-started@%i.target
+After=obmc-host-started@%i.target
+Wants=mapper-wait@-xyz-openbmc_project-watchdog-host%i.service
+After=mapper-wait@-xyz-openbmc_project-watchdog-host%i.service
+Conflicts=obmc-host-stop@%i.target
+ConditionPathExists=!/run/openbmc/host@%i-on
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/env frb2-watchdog
+ExecStopPost=/bin/sh -c "busctl call `mapper get-service /xyz/openbmc_project/watchdog/host%i` /xyz/openbmc_project/watchdog/host%i org.freedesktop.DBus.Properties Set ssv xyz.openbmc_project.State.Watchdog Enabled b false"
+SyslogIdentifier=obmc-enable-host-watchdog

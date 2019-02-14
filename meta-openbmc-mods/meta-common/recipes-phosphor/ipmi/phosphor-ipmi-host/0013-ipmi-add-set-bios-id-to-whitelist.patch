@@ -1,0 +1,25 @@
+From ad7276f3aedb6f5aed315db57406c98f2bf71a09 Mon Sep 17 00:00:00 2001
+From: "Jia, Chunhui" <chunhui.jia@intel.com>
+Date: Tue, 24 Jul 2018 13:21:52 +0800
+Subject: [PATCH] [ipmi] add set bios id to whitelist
+
+Add "SetBIOSId" and "GetDeviceInfo" 2 OEM commands into whitelist
+
+Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
+---
+ host-ipmid-whitelist.conf | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
+index 164edbe..db54a49 100644
+--- a/host-ipmid-whitelist.conf
++++ b/host-ipmid-whitelist.conf
+@@ -41,3 +41,5 @@
+ 0x2C:0x07    //<Group Extension>:<Get Sensor Info>
+ 0x2C:0x10    //<Group Extension>:<Get Temperature Readings>
+ 0x30:0x41    //<OEM>:<Set System GUID>
++0x30:0x26    //<OEM>:<Set BIOS ID>
++0x30:0x27    //<OEM>:<Get Device Info>
+-- 
+2.16.2
+

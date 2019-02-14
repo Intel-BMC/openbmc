@@ -1,0 +1,63 @@
+From 6d0069f4a2b4637c58fd321c9db3034ac9dd17c7 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 12 Sep 2018 15:03:26 +0800
+Subject: [PATCH] Add multiple state signal for host start and stop
+
+Add six host state signals like following:
+    - name: PreHostStart
+      description: >
+        This is the signal to indicate host is at pre start stage.
+    - name: PostHostStart
+      description: >
+        This is the signal to indicate host is at start complete stage.
+    - name: HostStarting
+      description: >
+        This is the signal to indicate host is at starting stage.
+    - name: HostStoping
+      description: >
+        This is the signal to indicate host is at stoping stage.
+    - name: PreHostStop
+      description: >
+        This is the signal to indicate host is at pre stop stage.
+    - name: PostHostStop
+      description: >
+        This is the signal to indicate host is at stop complete stage.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ xyz/openbmc_project/State/Host.interface.yaml | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/xyz/openbmc_project/State/Host.interface.yaml b/xyz/openbmc_project/State/Host.interface.yaml
+index 8531a27..1ceba13 100644
+--- a/xyz/openbmc_project/State/Host.interface.yaml
++++ b/xyz/openbmc_project/State/Host.interface.yaml
+@@ -96,4 +96,23 @@ enumerations:
+         - name: RTCWakeup
+           description: >
+             System start/restart detected and caused by system real time
+-            clock(RTC) wakeup.
+\ No newline at end of file
++            clock(RTC) wakeup.
++signals:
++    - name: PreHostStart
++      description: >
++        This is the signal to indicate host is at pre start stage.
++    - name: PostHostStart
++      description: >
++        This is the signal to indicate host is at start complete stage.
++    - name: HostStarting
++      description: >
++        This is the signal to indicate host is at starting stage.
++    - name: HostStoping
++      description: >
++        This is the signal to indicate host is at stoping stage.
++    - name: PreHostStop
++      description: >
++        This is the signal to indicate host is at pre stop stage.
++    - name: PostHostStop
++      description: >
++        This is the signal to indicate host is at stop complete stage.
+-- 
+2.16.2
+

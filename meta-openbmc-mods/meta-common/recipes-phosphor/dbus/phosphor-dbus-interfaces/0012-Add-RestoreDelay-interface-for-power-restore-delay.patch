@@ -1,0 +1,34 @@
+From eeac4cf4528994aeb213d549daf4c033ac9d3bbc Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Fri, 24 Aug 2018 17:55:35 +0800
+Subject: [PATCH] Add RestoreDelay interface for power restore delay
+
+Which provide one property "PowerRestoreDelay"
+
+Change-Id: I4e6d3e45948b1e288301b4aa52cc08cace4f1bc2
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ .../Control/Power/RestoreDelay.interface.yaml         | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+ create mode 100644 xyz/openbmc_project/Control/Power/RestoreDelay.interface.yaml
+
+diff --git a/xyz/openbmc_project/Control/Power/RestoreDelay.interface.yaml b/xyz/openbmc_project/Control/Power/RestoreDelay.interface.yaml
+new file mode 100644
+index 0000000..55ee80a
+--- /dev/null
++++ b/xyz/openbmc_project/Control/Power/RestoreDelay.interface.yaml
+@@ -0,0 +1,11 @@
++description: >
++    Implement to specify power transition behavior on a BMC reset.
++    The implementation based on restore policy and set a delay time
++    for power restore.
++
++properties:
++    - name: PowerRestoreDelay
++      type: uint16
++      description: >
++          The delay time for power restore.
++          Power Restore Delay is NOT applied on power policy is "Always Off"
+-- 
+2.17.0
+

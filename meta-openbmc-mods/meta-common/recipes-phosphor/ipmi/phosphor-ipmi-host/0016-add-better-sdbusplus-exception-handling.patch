@@ -1,0 +1,153 @@
+From a445f287d4aebca68dc0321e292933311caf59ba Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Sun, 16 Sep 2018 20:14:55 +0800
+Subject: [PATCH] add better sdbusplus exception handling
+
+Now that sdbusplus throws, we need to catch more stuff. To compound the
+problem, even though sdbusplus::exception::exception inherits from
+std::exception, there is a problem that prevents the code from simply
+catching std::exception.
+
+Change-Id: I2a330e542f5d87722a4c04e6d47de2cfb2f7d7c9
+Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+
+---
+ apphandler.cpp | 14 +++++++--
+ ipmid.cpp      | 77 +++++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 66 insertions(+), 25 deletions(-)
+
+diff --git a/apphandler.cpp b/apphandler.cpp
+index 126de33..3cae6d5 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -312,9 +312,19 @@ ipmi_ret_t ipmi_app_get_device_id(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+             auto version = getActiveSoftwareVersionInfo();
+             r = convert_version(version.c_str(), &rev);
+         }
+-        catch (const std::exception& e)
++        catch (sdbusplus::exception::exception& e)
+         {
+-            log<level::ERR>(e.what());
++            log<level::ERR>("sdbusplus::exception",
++                            entry("ERROR=%s", e.what()));
++        }
++        catch (std::exception& e)
++        {
++            log<level::ERR>("unexpected exception",
++                            entry("ERROR=%s", e.what()));
++        }
++        catch (...)
++        {
++            log<level::ERR>("unknown exception");
+         }
+ 
+         if (r >= 0)
+diff --git a/ipmid.cpp b/ipmid.cpp
+index 2d48bfe..8d2fb37 100644
+--- a/ipmid.cpp
++++ b/ipmid.cpp
+@@ -273,6 +273,10 @@ ipmi_ret_t ipmi_netfn_router(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+     }
+     // IPMI command handlers can throw unhandled exceptions, catch those
+     // and return sane error code.
++    catch (sdbusplus::exception::exception& e)
++    {
++        log<level::ERR>("sdbusplus exception", entry("EXCEPTION=%s", e.what()));
++    }
+     catch (const std::exception& e)
+     {
+         log<level::ERR>(e.what(), entry("NET_FUN=0x%X", netfn),
+@@ -281,6 +285,23 @@ ipmi_ret_t ipmi_netfn_router(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+         *data_len = 0;
+         // fall through
+     }
++    catch (...)
++    {
++        std::exception_ptr eptr = std::current_exception();
++        try
++        {
++            std::rethrow_exception(eptr);
++        }
++        catch (std::exception& e)
++        {
++            log<level::ERR>("unexpected uncaught exception",
++                            entry("EXCEPTION=%s", e.what()),
++                            entry("NET_FUN=0x%X", netfn),
++                            entry("CMD=0x%X", cmd));
++            rc = IPMI_CC_UNSPECIFIED_ERROR;
++            *data_len = 0;
++        }
++    }
+     // Now copy the return code that we got from handler and pack it in first
+     // byte.
+     std::memcpy(response, &rc, IPMI_CC_LEN);
+@@ -361,32 +382,42 @@ final:
+ void cache_restricted_mode()
+ {
+     restricted_mode = false;
+-    using namespace sdbusplus::xyz::openbmc_project::Control::Security::server;
+-    using namespace internal;
+-    using namespace internal::cache;
+-    sdbusplus::bus::bus dbus(ipmid_get_sd_bus_connection());
+-    const auto& restrictionModeSetting =
+-        objects->map.at(restrictionModeIntf).front();
+-    auto method = dbus.new_method_call(
+-        objects->service(restrictionModeSetting, restrictionModeIntf).c_str(),
+-        restrictionModeSetting.c_str(), "org.freedesktop.DBus.Properties",
+-        "Get");
+-    method.append(restrictionModeIntf, "RestrictionMode");
+-    auto resp = dbus.call(method);
+-    if (resp.is_method_error())
++    try
+     {
+-        log<level::ERR>("Error in RestrictionMode Get");
+-        // Fail-safe to true.
+-        restricted_mode = true;
+-        return;
++        using namespace sdbusplus::xyz::openbmc_project::Control::Security::
++            server;
++        using namespace internal;
++        using namespace internal::cache;
++        sdbusplus::bus::bus dbus(ipmid_get_sd_bus_connection());
++        const auto& restrictionModeSetting =
++            objects->map.at(restrictionModeIntf).front();
++        auto method = dbus.new_method_call(
++            objects->service(restrictionModeSetting, restrictionModeIntf)
++                .c_str(),
++            restrictionModeSetting.c_str(), "org.freedesktop.DBus.Properties",
++            "Get");
++        method.append(restrictionModeIntf, "RestrictionMode");
++        auto resp = dbus.call(method);
++        if (resp.is_method_error())
++        {
++            log<level::ERR>("Error in RestrictionMode Get");
++            // Fail-safe to true.
++            restricted_mode = true;
++            return;
++        }
++        sdbusplus::message::variant<std::string> result;
++        resp.read(result);
++        auto restrictionMode = RestrictionMode::convertModesFromString(
++            sdbusplus::message::variant_ns::get<std::string>(result));
++        if (RestrictionMode::Modes::Whitelist == restrictionMode)
++        {
++            restricted_mode = true;
++        }
+     }
+-    sdbusplus::message::variant<std::string> result;
+-    resp.read(result);
+-    auto restrictionMode = RestrictionMode::convertModesFromString(
+-        variant_ns::get<std::string>(result));
+-    if (RestrictionMode::Modes::Whitelist == restrictionMode)
++    catch (sdbusplus::exception::exception& e)
+     {
+-        restricted_mode = true;
++        // restrictionModeIntf does not exist; default to not enforcing
++        log<level::ERR>("sdbusplus exception", entry("EXCEPTION=%s", e.what()));
+     }
+ }
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,120 @@
+From a30a09f58b9ebfb267c0b9cce9ae25994ea025ca Mon Sep 17 00:00:00 2001
+From: cyang29 <cheng.c.yang@intel.com>
+Date: Tue, 17 Jul 2018 16:04:58 +0800
+Subject: [PATCH] Add DBUS interface of CPU and Memory's properties Feature
+ Support:   SMBIOS service interface.   CPU DIMM information redfish
+ interface. Base on smbios spec DSP0134_3.0.0
+
+Signed-off-by: cyang29 <cheng.c.yang@intel.com>
+---
+ .../Inventory/Item/Cpu.interface.yaml              | 41 +++++++++++++++++++
+ .../Inventory/Item/Dimm.interface.yaml             | 46 +++++++++++++++++++++-
+ 2 files changed, 86 insertions(+), 1 deletion(-)
+
+diff --git a/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml b/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml
+index ab29cf3..313eada 100644
+--- a/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml
++++ b/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml
+@@ -1,4 +1,45 @@
+ description: >
+     Implement to provide CPU attributes.
++properties:
++    - name: ProcessorSocket
++      type: string
++      description: >
++          Processor Socket on MotherBoard
++    - name: ProcessorType
++      type: string
++      description: >
++          Processor Type of CPU
++    - name: ProcessorFamily
++      type: string
++      description: >
++          Processor Family of CPU
++    - name: ProcessorManufacturer
++      type: string
++      description: >
++          Processor Manufacturer of CPU
++    - name: ProcessorId
++      type: uint32
++      description: >
++          Processor ID of CPU
++    - name: ProcessorVersion
++      type: string
++      description: >
++          Processor Version of CPU
++    - name: ProcessorMaxSpeed
++      type: uint16
++      description: >
++          Max Speed CPU Can Support
++    - name: ProcessorCharacteristics
++      type: string
++      description: >
++          The Characteristics CPU Has
++    - name: ProcessorCoreCount
++      type: uint16
++      description: >
++          The Count of Core in CPU
++    - name: ProcessorThreadCount
++      type: uint16
++      description: >
++          The Count of Thread CPU Can Support
+ 
+ # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+diff --git a/xyz/openbmc_project/Inventory/Item/Dimm.interface.yaml b/xyz/openbmc_project/Inventory/Item/Dimm.interface.yaml
+index d85326d..b750320 100644
+--- a/xyz/openbmc_project/Inventory/Item/Dimm.interface.yaml
++++ b/xyz/openbmc_project/Inventory/Item/Dimm.interface.yaml
+@@ -1,4 +1,48 @@
+ description: >
+     Implement to provide DIMM attributes.
+-
++properties:
++    - name: MemoryDataWidth
++      type: uint16
++      description: >
++          Data width of Memory.
++    - name: MemorySizeInKB
++      type: uint32
++      description: >
++          Memory size of DIMM in Kilobyte.
++    - name: MemoryDeviceLocator
++      type: string
++      description: >
++          Socket on base board where Memory located.
++    - name: MemoryType
++      type: string
++      description: >
++          Type of memory.
++    - name: MemoryTypeDetail
++      type: string
++      description: >
++          Additional detail on Memory.
++    - name: MemorySpeed
++      type: uint16
++      description: >
++          The maximun capable speed of Memory.
++    - name: MemoryManufacturer
++      type: string
++      description: >
++          Manufacturer of memory.
++    - name: MemorySerialNum
++      type: string
++      description: >
++          Memory Serial Number.
++    - name: MemoryPartNum
++      type: string
++      description: >
++          Memory Part Number.
++    - name: MemoryAttributes
++      type: byte
++      description: >
++          Rank attributes of Memory.
++    - name: MemoryConfClockSpeed
++      type: uint16
++      description: >
++          Configured clock speed to Memory.
+ # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+-- 
+2.16.2
+

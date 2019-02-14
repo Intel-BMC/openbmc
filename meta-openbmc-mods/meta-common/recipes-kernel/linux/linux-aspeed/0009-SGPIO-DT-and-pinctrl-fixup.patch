@@ -1,0 +1,240 @@
+From f4b91f5c6723e56e106a609cdbcc8da48c56499e Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Wed, 16 May 2018 10:03:14 -0700
+Subject: [PATCH] SGPIO DT and pinctrl fixup
+
+This commit fixes DT and pinctrl for SGPIO use.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g4.dtsi           | 54 ++++++++++--------------------
+ arch/arm/boot/dts/aspeed-g5.dtsi           |  8 +++++
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c | 48 +++++++++++++-------------
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c |  4 +++
+ 4 files changed, 54 insertions(+), 60 deletions(-)
+
+diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
+index 6af12872ee74..9aed0f696a98 100644
+--- a/arch/arm/boot/dts/aspeed-g4.dtsi
++++ b/arch/arm/boot/dts/aspeed-g4.dtsi
+@@ -201,6 +201,18 @@
+ 				interrupt-controller;
+ 			};
+ 
++			sgpio: sgpio@1e780200 {
++				#gpio-cells = <2>;
++				gpio-controller;
++				compatible = "aspeed,ast2400-sgpio";
++				reg = <0x1e780200 0x0100>;
++				interrupts = <40>;
++				interrupt-controller;
++				pinctrl-names = "default";
++				pinctrl-0 = <&pinctrl_sgpm_default>;
++				status = "disabled";
++			};
++
+ 			timer: timer@1e782000 {
+ 				/* This timer is a Faraday FTTMR010 derivative */
+ 				compatible = "aspeed,ast2400-timer";
+@@ -1150,44 +1162,14 @@
+ 		groups = "SD2";
+ 	};
+ 
+-	pinctrl_sgpmck_default: sgpmck_default {
+-		function = "SGPMCK";
+-		groups = "SGPMCK";
+-	};
+-
+-	pinctrl_sgpmi_default: sgpmi_default {
+-		function = "SGPMI";
+-		groups = "SGPMI";
+-	};
+-
+-	pinctrl_sgpmld_default: sgpmld_default {
+-		function = "SGPMLD";
+-		groups = "SGPMLD";
+-	};
+-
+-	pinctrl_sgpmo_default: sgpmo_default {
+-		function = "SGPMO";
+-		groups = "SGPMO";
+-	};
+-
+-	pinctrl_sgpsck_default: sgpsck_default {
+-		function = "SGPSCK";
+-		groups = "SGPSCK";
+-	};
+-
+-	pinctrl_sgpsi0_default: sgpsi0_default {
+-		function = "SGPSI0";
+-		groups = "SGPSI0";
+-	};
+-
+-	pinctrl_sgpsi1_default: sgpsi1_default {
+-		function = "SGPSI1";
+-		groups = "SGPSI1";
++	pinctrl_sgpm_default: sgpm_default {
++		function = "SGPM";
++		groups = "SGPM";
+ 	};
+ 
+-	pinctrl_sgpsld_default: sgpsld_default {
+-		function = "SGPSLD";
+-		groups = "SGPSLD";
++	pinctrl_sgps_default: sgps_default {
++		function = "SGPS";
++		groups = "SGPS";
+ 	};
+ 
+ 	pinctrl_sioonctrl_default: sioonctrl_default {
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index 01e901031bd4..36d72c91a2ad 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -274,6 +274,9 @@
+ 				reg = <0x1e780200 0x0100>;
+ 				interrupts = <40>;
+ 				interrupt-controller;
++				pinctrl-names = "default";
++				pinctrl-0 = <&pinctrl_sgpm_default>;
++				status = "disabled";
+ 			};
+ 
+ 			timer: timer@1e782000 {
+@@ -1324,6 +1327,11 @@
+ 		groups = "SDA2";
+ 	};
+ 
++	pinctrl_sgpm_default: sgpm_default {
++		function = "SGPM";
++		groups = "SGPM";
++	};
++
+ 	pinctrl_sgps1_default: sgps1_default {
+ 		function = "SGPS1";
+ 		groups = "SGPS1";
+diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
+index 05b153034517..353af05b8602 100644
+--- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
++++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
+@@ -401,16 +401,22 @@ SSSF_PIN_DECL(E16, GPIOF6, TXD4, SIG_DESC_SET(SCU80, 30));
+ SSSF_PIN_DECL(C17, GPIOF7, RXD4, SIG_DESC_SET(SCU80, 31));
+ 
+ #define A14 48
+-SSSF_PIN_DECL(A14, GPIOG0, SGPSCK, SIG_DESC_SET(SCU84, 0));
++SIG_EXPR_LIST_DECL_SINGLE(SGPSCK, SGPS, SIG_DESC_SET(SCU84, 0));
++SS_PIN_DECL(A14, GPIOG0, SGPSCK);
+ 
+ #define E13 49
+-SSSF_PIN_DECL(E13, GPIOG1, SGPSLD, SIG_DESC_SET(SCU84, 1));
++SIG_EXPR_LIST_DECL_SINGLE(SGPSLD, SGPS, SIG_DESC_SET(SCU84, 1));
++SS_PIN_DECL(E13, GPIOG1, SGPSLD);
+ 
+ #define D13 50
+-SSSF_PIN_DECL(D13, GPIOG2, SGPSI0, SIG_DESC_SET(SCU84, 2));
++SIG_EXPR_LIST_DECL_SINGLE(SGPSIO, SGPS, SIG_DESC_SET(SCU84, 2));
++SS_PIN_DECL(D13, GPIOG2, SGPSIO);
+ 
+ #define C13 51
+-SSSF_PIN_DECL(C13, GPIOG3, SGPSI1, SIG_DESC_SET(SCU84, 3));
++SIG_EXPR_LIST_DECL_SINGLE(SGPSI1, SGPS, SIG_DESC_SET(SCU84, 3));
++SS_PIN_DECL(C13, GPIOG3, SGPSI1);
++
++FUNC_GROUP_DECL(SGPS, A14, E13, D13, C13);
+ 
+ #define B13 52
+ SIG_EXPR_LIST_DECL_SINGLE(OSCCLK, OSCCLK, SIG_DESC_SET(SCU2C, 1));
+@@ -576,16 +582,22 @@ FUNC_GROUP_DECL(SPI1PASSTHRU, C22, G18, D19, C20, B22, G19, C18, E20);
+ FUNC_GROUP_DECL(VGABIOS_ROM, B22, G19, C18, E20);
+ 
+ #define J5 72
+-SSSF_PIN_DECL(J5, GPIOJ0, SGPMCK, SIG_DESC_SET(SCU84, 8));
++SIG_EXPR_LIST_DECL_SINGLE(SGPMCK, SGPM, SIG_DESC_SET(SCU84, 8));
++SS_PIN_DECL(J5, GPIOJ0, SGPMCK);
+ 
+ #define J4 73
+-SSSF_PIN_DECL(J4, GPIOJ1, SGPMLD, SIG_DESC_SET(SCU84, 9));
++SIG_EXPR_LIST_DECL_SINGLE(SGPMLD, SGPM, SIG_DESC_SET(SCU84, 9));
++SS_PIN_DECL(J4, GPIOJ1, SGPMLD);
+ 
+ #define K5 74
+-SSSF_PIN_DECL(K5, GPIOJ2, SGPMO, SIG_DESC_SET(SCU84, 10));
++SIG_EXPR_LIST_DECL_SINGLE(SGPMO, SGPM, SIG_DESC_SET(SCU84, 10));
++SS_PIN_DECL(K5, GPIOJ2, SGPMO);
+ 
+ #define J3 75
+-SSSF_PIN_DECL(J3, GPIOJ3, SGPMI, SIG_DESC_SET(SCU84, 11));
++SIG_EXPR_LIST_DECL_SINGLE(SGPMI, SGPM, SIG_DESC_SET(SCU84, 11));
++SS_PIN_DECL(J3, GPIOJ3, SGPMI);
++
++FUNC_GROUP_DECL(SGPM, J5, J4, K5, J3);
+ 
+ #define T4 76
+ SSSF_PIN_DECL(T4, GPIOJ4, VGAHS, SIG_DESC_SET(SCU84, 12));
+@@ -2083,14 +2095,8 @@ static const struct aspeed_pin_group aspeed_g4_groups[] = {
+ 	ASPEED_PINCTRL_GROUP(SALT4),
+ 	ASPEED_PINCTRL_GROUP(SD1),
+ 	ASPEED_PINCTRL_GROUP(SD2),
+-	ASPEED_PINCTRL_GROUP(SGPMCK),
+-	ASPEED_PINCTRL_GROUP(SGPMI),
+-	ASPEED_PINCTRL_GROUP(SGPMLD),
+-	ASPEED_PINCTRL_GROUP(SGPMO),
+-	ASPEED_PINCTRL_GROUP(SGPSCK),
+-	ASPEED_PINCTRL_GROUP(SGPSI0),
+-	ASPEED_PINCTRL_GROUP(SGPSI1),
+-	ASPEED_PINCTRL_GROUP(SGPSLD),
++	ASPEED_PINCTRL_GROUP(SGPM),
++	ASPEED_PINCTRL_GROUP(SGPS),
+ 	ASPEED_PINCTRL_GROUP(SIOONCTRL),
+ 	ASPEED_PINCTRL_GROUP(SIOPBI),
+ 	ASPEED_PINCTRL_GROUP(SIOPBO),
+@@ -2238,14 +2244,8 @@ static const struct aspeed_pin_function aspeed_g4_functions[] = {
+ 	ASPEED_PINCTRL_FUNC(SALT4),
+ 	ASPEED_PINCTRL_FUNC(SD1),
+ 	ASPEED_PINCTRL_FUNC(SD2),
+-	ASPEED_PINCTRL_FUNC(SGPMCK),
+-	ASPEED_PINCTRL_FUNC(SGPMI),
+-	ASPEED_PINCTRL_FUNC(SGPMLD),
+-	ASPEED_PINCTRL_FUNC(SGPMO),
+-	ASPEED_PINCTRL_FUNC(SGPSCK),
+-	ASPEED_PINCTRL_FUNC(SGPSI0),
+-	ASPEED_PINCTRL_FUNC(SGPSI1),
+-	ASPEED_PINCTRL_FUNC(SGPSLD),
++	ASPEED_PINCTRL_FUNC(SGPM),
++	ASPEED_PINCTRL_FUNC(SGPS),
+ 	ASPEED_PINCTRL_FUNC(SIOONCTRL),
+ 	ASPEED_PINCTRL_FUNC(SIOPBI),
+ 	ASPEED_PINCTRL_FUNC(SIOPBO),
+diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+index 187abd7693cf..0c89647f166f 100644
+--- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
++++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+@@ -577,6 +577,8 @@ SS_PIN_DECL(N3, GPIOJ2, SGPMO);
+ SIG_EXPR_LIST_DECL_SINGLE(SGPMI, SGPM, SIG_DESC_SET(SCU84, 11));
+ SS_PIN_DECL(N4, GPIOJ3, SGPMI);
+ 
++FUNC_GROUP_DECL(SGPM, R2, L2, N3, N4);
++
+ #define N5 76
+ SIG_EXPR_LIST_DECL_SINGLE(VGAHS, VGAHS, SIG_DESC_SET(SCU84, 12));
+ SIG_EXPR_LIST_DECL_SINGLE(DASHN5, DASHN5, SIG_DESC_SET(SCU94, 8));
+@@ -2127,6 +2129,7 @@ static const struct aspeed_pin_group aspeed_g5_groups[] = {
+ 	ASPEED_PINCTRL_GROUP(SD2),
+ 	ASPEED_PINCTRL_GROUP(SDA1),
+ 	ASPEED_PINCTRL_GROUP(SDA2),
++	ASPEED_PINCTRL_GROUP(SGPM),
+ 	ASPEED_PINCTRL_GROUP(SGPS1),
+ 	ASPEED_PINCTRL_GROUP(SGPS2),
+ 	ASPEED_PINCTRL_GROUP(SIOONCTRL),
+@@ -2296,6 +2299,7 @@ static const struct aspeed_pin_function aspeed_g5_functions[] = {
+ 	ASPEED_PINCTRL_FUNC(SD2),
+ 	ASPEED_PINCTRL_FUNC(SDA1),
+ 	ASPEED_PINCTRL_FUNC(SDA2),
++	ASPEED_PINCTRL_FUNC(SGPM),
+ 	ASPEED_PINCTRL_FUNC(SGPS1),
+ 	ASPEED_PINCTRL_FUNC(SGPS2),
+ 	ASPEED_PINCTRL_FUNC(SIOONCTRL),
+-- 
+2.7.4
+

@@ -1,0 +1,15 @@
+[Unit]
+Description=Intel Chassis%i Control
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/env chassis-control
+SyslogIdentifier=chassis-control
+Type=dbus
+BusName={BUSNAME}
+Nice=19
+TimeoutStartSec=180s
+
+[Install]
+WantedBy={SYSTEMD_DEFAULT_TARGET}
+

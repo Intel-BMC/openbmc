@@ -1,0 +1,456 @@
+From 15f9ba436815307c1df7ace505e6f6ee04a4762b Mon Sep 17 00:00:00 2001
+From: David Cobbley <david.j.cobbley@linux.intel.com>
+Date: Thu, 8 Mar 2018 12:18:00 -0800
+Subject: [PATCH 1/3] Patch to keep consistent MAC and IP address inbetween
+ power cycles
+
+Currently, your mac will reset upon AC cycle unless you ask systemd use
+a MAC provided in your network configuration file. This will write your
+randomly generate MAC to the config file upond first boot up.
+
+Change-Id: Id47d24c62e459cde101add18be2f46c0b010e7fe
+Signed-off-by: David Cobbley <david.j.cobbley@linux.intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ ethernet_interface.cpp |   4 +-
+ ethernet_interface.hpp | 360 +++++++++++++++++++++--------------------
+ network_config.cpp     |  22 +--
+ 3 files changed, 195 insertions(+), 191 deletions(-)
+
+diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
+index 3fd7835..fd09b7a 100644
+--- a/ethernet_interface.cpp
++++ b/ethernet_interface.cpp
+@@ -200,8 +200,8 @@ InterfaceInfo EthernetInterface::getInterfaceInfo() const
+  *  @return macaddress on success
+  */
+ 
+-std::string
+-    EthernetInterface::getMACAddress(const std::string& interfaceName) const
++std::string EthernetInterface::getMACAddress(
++        const std::string& interfaceName)
+ {
+     ifreq ifr{};
+     char macAddress[mac_address::size]{};
+diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
+index bfe1d54..d62ca34 100644
+--- a/ethernet_interface.hpp
++++ b/ethernet_interface.hpp
+@@ -59,185 +59,187 @@ using VlanInterfaceMap =
+  */
+ class EthernetInterface : public Ifaces
+ {
+-  public:
+-    EthernetInterface() = delete;
+-    EthernetInterface(const EthernetInterface&) = delete;
+-    EthernetInterface& operator=(const EthernetInterface&) = delete;
+-    EthernetInterface(EthernetInterface&&) = delete;
+-    EthernetInterface& operator=(EthernetInterface&&) = delete;
+-    virtual ~EthernetInterface() = default;
+-
+-    /** @brief Constructor to put object onto bus at a dbus path.
+-     *  @param[in] bus - Bus to attach to.
+-     *  @param[in] objPath - Path to attach at.
+-     *  @param[in] dhcpEnabled - is dhcp enabled(true/false).
+-     *  @param[in] parent - parent object.
+-     *  @param[in] emitSignal - true if the object added signal needs to be
+-     *                          send.
+-     */
+-    EthernetInterface(sdbusplus::bus::bus& bus, const std::string& objPath,
+-                      bool dhcpEnabled, Manager& parent,
+-                      bool emitSignal = true);
+-
+-    /** @brief Function to create ipaddress dbus object.
+-     *  @param[in] addressType - Type of ip address.
+-     *  @param[in] ipaddress- IP address.
+-     *  @param[in] prefixLength - Length of prefix.
+-     *  @param[in] gateway - Gateway ip address.
+-     */
+-
+-    void iP(IP::Protocol addressType, std::string ipaddress,
+-            uint8_t prefixLength, std::string gateway) override;
+-
+-    /* @brief delete the dbus object of the given ipaddress.
+-     * @param[in] ipaddress - IP address.
+-     */
+-    void deleteObject(const std::string& ipaddress);
+-
+-    /* @brief delete the vlan dbus object of the given interface.
+-     *        Also deletes the device file and the network file.
+-     * @param[in] interface - VLAN Interface.
+-     */
+-    void deleteVLANObject(const std::string& interface);
+-
+-    /* @brief creates the dbus object(IPaddres) given in the address list.
+-     * @param[in] addrs - address list for which dbus objects needs
+-     *                    to create.
+-     */
+-    void createIPAddressObjects();
+-
+-    /* @brief Gets all the ip addresses.
+-     * @returns the list of ipaddress.
+-     */
+-    const AddressMap& getAddresses() const
+-    {
+-        return addrs;
+-    }
+-
+-    /** Set value of DHCPEnabled */
+-    bool dHCPEnabled(bool value) override;
+-
+-    /** @brief sets the MAC address.
+-     *  @param[in] value - MAC address which needs to be set on the system.
+-     *  @returns macAddress of the interface or throws an error.
+-     */
+-    std::string mACAddress(std::string value) override;
+-
+-    /** @brief sets the NTP servers.
+-     *  @param[in] value - vector of NTP servers.
+-     */
+-    ServerList nTPServers(ServerList value) override;
+-
+-    /** @brief sets the DNS/nameservers.
+-     *  @param[in] value - vector of DNS servers.
+-     */
+-    ServerList nameservers(ServerList value) override;
+-
+-    /** @brief create Vlan interface.
+-     *  @param[in] id- VLAN identifier.
+-     */
+-    void createVLAN(VlanId id);
+-
+-    /** @brief load the vlan info from the system
+-     *         and creates the ip address dbus objects.
+-     *  @param[in] vlanID- VLAN identifier.
+-     */
+-    void loadVLAN(VlanId vlanID);
+-
+-    /** @brief write the network conf file with the in-memory objects.
+-     */
+-    void writeConfigurationFile();
+-
+-    /** @brief delete all dbus objects.
+-     */
+-    void deleteAll();
+-
+-    using EthernetInterfaceIntf::dHCPEnabled;
+-    using EthernetInterfaceIntf::interfaceName;
+-    using MacAddressIntf::mACAddress;
+-
+-    /** @brief Absolute path of the resolv conf file */
+-    static constexpr auto resolvConfFile = "/etc/resolv.conf";
+-
+-  protected:
+-    /** @brief get the info of the ethernet interface.
+-     *  @return tuple having the link speed,autonegotiation,duplexmode .
+-     */
+-    InterfaceInfo getInterfaceInfo() const;
+-
+-    /* @brief delete the vlan interface from system.
+-     * @param[in] interface - vlan Interface.
+-     */
+-    void deleteVLANFromSystem(const std::string& interface);
+-
+-    /** @brief get the mac address of the interface.
+-     *  @param[in] interfaceName - Network interface name.
+-     *  @return macaddress on success
+-     */
+-
+-    std::string getMACAddress(const std::string& interfaceName) const;
+-
+-    /** @brief construct the ip address dbus object path.
+-     *  @param[in] addressType - Type of ip address.
+-     *  @param[in] ipaddress - IP address.
+-     *  @param[in] prefixLength - Length of prefix.
+-     *  @param[in] gateway - Gateway address.
+-
+-     *  @return path of the address object.
+-     */
+-
+-    std::string generateObjectPath(IP::Protocol addressType,
+-                                   const std::string& ipaddress,
+-                                   uint8_t prefixLength,
+-                                   const std::string& gateway) const;
+-
+-    /** @brief generates the id by doing hash of ipaddress,
+-     *         prefixlength and the gateway.
+-     *  @param[in] ipaddress - IP address.
+-     *  @param[in] prefixLength - Length of prefix.
+-     *  @param[in] gateway - Gateway address.
+-     *  @return hash string.
+-     */
+-
+-    static std::string generateId(const std::string& ipaddress,
+-                                  uint8_t prefixLength,
+-                                  const std::string& gateway);
+-
+-    /** @brief write the dhcp section **/
+-    void writeDHCPSection(std::fstream& stream);
+-
+-    /** @brief get the NTP server list from the network conf
+-     *
+-     */
+-    ServerList getNTPServersFromConf();
+-
+-    /** @brief write the DNS entries to resolver file.
+-     *  @param[in] dnsList - DNS server list which needs to be written.
+-     *  @param[in] file    - File to write the name server entries to.
+-     */
+-    void writeDNSEntries(const ServerList& dnsList, const std::string& file);
+-
+-    /** @brief get the name server details from the network conf
+-     *
+-     */
+-    ServerList getNameServerFromConf();
+-
+-    /** @brief Persistent sdbusplus DBus bus connection. */
+-    sdbusplus::bus::bus& bus;
+-
+-    /** @brief Network Manager object. */
+-    Manager& manager;
+-
+-    /** @brief Persistent map of IPAddress dbus objects and their names */
+-    AddressMap addrs;
+-
+-    /** @brief Persistent map of VLAN interface dbus objects and their names */
+-    VlanInterfaceMap vlanInterfaces;
+-
+-    /** @brief Dbus object path */
+-    std::string objPath;
+-
+-    friend class TestEthernetInterface;
++    public:
++        EthernetInterface() = delete;
++        EthernetInterface(const EthernetInterface&) = delete;
++        EthernetInterface& operator=(const EthernetInterface&) = delete;
++        EthernetInterface(EthernetInterface&&) = delete;
++        EthernetInterface& operator=(EthernetInterface&&) = delete;
++        virtual ~EthernetInterface() = default;
++
++        /** @brief Constructor to put object onto bus at a dbus path.
++         *  @param[in] bus - Bus to attach to.
++         *  @param[in] objPath - Path to attach at.
++         *  @param[in] dhcpEnabled - is dhcp enabled(true/false).
++         *  @param[in] parent - parent object.
++         *  @param[in] emitSignal - true if the object added signal needs to be
++         *                          send.
++         */
++        EthernetInterface(sdbusplus::bus::bus& bus,
++                          const std::string& objPath,
++                          bool dhcpEnabled,
++                          Manager& parent,
++                          bool emitSignal = true);
++
++        /** @brief Function to create ipaddress dbus object.
++         *  @param[in] addressType - Type of ip address.
++         *  @param[in] ipaddress- IP address.
++         *  @param[in] prefixLength - Length of prefix.
++         *  @param[in] gateway - Gateway ip address.
++         */
++
++        void iP(IP::Protocol addressType,
++                std::string ipaddress,
++                uint8_t prefixLength,
++                std::string gateway) override;
++
++        /* @brief delete the dbus object of the given ipaddress.
++         * @param[in] ipaddress - IP address.
++         */
++        void deleteObject(const std::string& ipaddress);
++
++        /* @brief delete the vlan dbus object of the given interface.
++         *        Also deletes the device file and the network file.
++         * @param[in] interface - VLAN Interface.
++         */
++        void deleteVLANObject(const std::string& interface);
++
++        /* @brief creates the dbus object(IPaddres) given in the address list.
++         * @param[in] addrs - address list for which dbus objects needs
++         *                    to create.
++         */
++        void createIPAddressObjects();
++
++        /* @brief Gets all the ip addresses.
++         * @returns the list of ipaddress.
++         */
++        const AddressMap& getAddresses() const { return addrs; }
++
++        /** Set value of DHCPEnabled */
++        bool dHCPEnabled(bool value) override;
++
++        /** @brief sets the MAC address.
++         *  @param[in] value - MAC address which needs to be set on the system.
++         *  @returns macAddress of the interface or throws an error.
++         */
++        std::string mACAddress(std::string value) override;
++
++        /** @brief sets the NTP servers.
++         *  @param[in] value - vector of NTP servers.
++         */
++        ServerList nTPServers(ServerList value) override;
++
++        /** @brief sets the DNS/nameservers.
++         *  @param[in] value - vector of DNS servers.
++         */
++        ServerList nameservers(ServerList value) override;
++
++        /** @brief create Vlan interface.
++         *  @param[in] id- VLAN identifier.
++         */
++        void createVLAN(VlanId id);
++
++        /** @brief load the vlan info from the system
++         *         and creates the ip address dbus objects.
++         *  @param[in] vlanID- VLAN identifier.
++         */
++        void loadVLAN(VlanId vlanID);
++
++        /** @brief write the network conf file with the in-memory objects.
++         */
++        void writeConfigurationFile();
++
++        /** @brief delete all dbus objects.
++         */
++        void deleteAll();
++
++        /** @brief get the mac address of the interface.
++         *  @param[in] interfaceName - Network interface name.
++         *  @return macaddress on success
++         */
++
++        static std::string getMACAddress(const std::string& interfaceName);
++
++        using EthernetInterfaceIntf::dHCPEnabled;
++        using EthernetInterfaceIntf::interfaceName;
++        using MacAddressIntf::mACAddress;
++
++        /** @brief Absolute path of the resolv conf file */
++        static constexpr auto resolvConfFile = "/etc/resolv.conf";
++
++    protected:
++        /** @brief get the info of the ethernet interface.
++         *  @return tuple having the link speed,autonegotiation,duplexmode .
++         */
++        InterfaceInfo getInterfaceInfo() const;
++
++        /* @brief delete the vlan interface from system.
++         * @param[in] interface - vlan Interface.
++         */
++        void deleteVLANFromSystem(const std::string& interface);
++
++        /** @brief construct the ip address dbus object path.
++         *  @param[in] addressType - Type of ip address.
++         *  @param[in] ipaddress - IP address.
++         *  @param[in] prefixLength - Length of prefix.
++         *  @param[in] gateway - Gateway address.
++
++         *  @return path of the address object.
++         */
++
++        std::string generateObjectPath(IP::Protocol addressType,
++                                       const std::string& ipaddress,
++                                       uint8_t prefixLength,
++                                       const std::string& gateway) const;
++
++        /** @brief generates the id by doing hash of ipaddress,
++         *         prefixlength and the gateway.
++         *  @param[in] ipaddress - IP address.
++         *  @param[in] prefixLength - Length of prefix.
++         *  @param[in] gateway - Gateway address.
++         *  @return hash string.
++         */
++
++        static std::string generateId(const std::string& ipaddress,
++                                      uint8_t prefixLength,
++                                      const std::string& gateway);
++
++        /** @brief write the dhcp section **/
++        void writeDHCPSection(std::fstream& stream);;
++
++        /** @brief get the NTP server list from the network conf
++         *
++         */
++        ServerList getNTPServersFromConf();
++
++        /** @brief write the DNS entries to resolver file.
++         *  @param[in] dnsList - DNS server list which needs to be written.
++         *  @param[in] file    - File to write the name server entries to.
++         */
++        void writeDNSEntries(const ServerList& dnsList,
++                             const std::string& file);
++
++        /** @brief get the name server details from the network conf
++         *
++         */
++        ServerList getNameServerFromConf();
++
++        /** @brief Persistent sdbusplus DBus bus connection. */
++        sdbusplus::bus::bus& bus;
++
++        /** @brief Network Manager object. */
++        Manager& manager;
++
++        /** @brief Persistent map of IPAddress dbus objects and their names */
++        AddressMap addrs;
++
++        /** @brief Persistent map of VLAN interface dbus objects and their names */
++        VlanInterfaceMap vlanInterfaces;
++
++        /** @brief Dbus object path */
++        std::string objPath;
++
++        friend class TestEthernetInterface;
+ };
+ 
+ } // namespace network
+diff --git a/network_config.cpp b/network_config.cpp
+index e83b16c..8ebad54 100644
+--- a/network_config.cpp
++++ b/network_config.cpp
+@@ -1,3 +1,5 @@
++#include "network_config.hpp"
++#include "ethernet_interface.hpp"
+ #include "config.h"
+ 
+ #include "network_config.hpp"
+@@ -5,27 +7,27 @@
+ #include <fstream>
+ #include <string>
+ 
+-namespace phosphor
+-{
+-namespace network
+-{
++namespace phosphor {
++namespace network {
+ 
+-namespace bmc
+-{
+-void writeDHCPDefault(const std::string& filename, const std::string& interface)
++namespace bmc {
++void writeDHCPDefault(const std::string &filename, const std::string &interface)
+ {
++
+     std::ofstream filestream;
+ 
+     filestream.open(filename);
+     filestream << "[Match]\nName=" << interface <<
+-                "\n[Network]\nDHCP=true\n"
++            "\n[Network]\nDHCP=true\n"
+ #ifdef LINK_LOCAL_AUTOCONFIGURATION
+                 "LinkLocalAddressing=yes\n"
+ #else
+                 "LinkLocalAddressing=no\n"
+ #endif
+-                "IPv6AcceptRA=false\n"
+-                "[DHCP]\nClientIdentifier=mac\n";
++                        "IPv6AcceptRA=false\n"
++                        "[DHCP]\nClientIdentifier=mac\n"
++                        "[Link]\nMACAddress="
++        << EthernetInterface::getMACAddress(interface) << "\n";
+     filestream.close();
+ }
+ } // namespace bmc
+-- 
+2.17.1
+

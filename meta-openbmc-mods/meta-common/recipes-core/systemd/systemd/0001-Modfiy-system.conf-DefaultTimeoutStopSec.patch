@@ -1,0 +1,28 @@
+From 3016898f4300fdd8db74f821cd6ea54dbf39fdc8 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Tue, 6 Mar 2018 16:06:33 -0800
+Subject: [PATCH 1/1] Modfiy system.conf DefaultTimeoutStopSec
+
+Current time is 5 minutes, change it to 10 seconds.
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ src/core/system.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/core/system.conf.in b/src/core/system.conf.in
+index 746572b..ba2a265 100644
+--- a/src/core/system.conf.in
++++ b/src/core/system.conf.in
+@@ -33,7 +33,7 @@
+ #DefaultStandardOutput=journal
+ #DefaultStandardError=inherit
+ #DefaultTimeoutStartSec=90s
+-#DefaultTimeoutStopSec=90s
++DefaultTimeoutStopSec=10s
+ #DefaultRestartSec=100ms
+ #DefaultStartLimitIntervalSec=10s
+ #DefaultStartLimitBurst=5
+-- 
+2.7.4
+

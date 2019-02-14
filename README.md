@@ -1,135 +1,43 @@
 # OpenBMC
 
-[![Build Status](https://openpower.xyz/buildStatus/icon?job=openbmc-build)](https://openpower.xyz/job/openbmc-build/)
+Intel-BMC/openbmc is a BMC implementation for servers. The purpose is to provide
+early access to features and capabilities which have not yet been accepted or
+merged in the OpenBMC main project (github.com/openbmc). In due course, all of
+the capabilities here will be brought to the OpenBMC project.
 
-The OpenBMC project can be described as a Linux distribution for embedded
-devices that have a BMC; typically, but not limited to, things like servers,
-top of rack switches or RAID appliances. The OpenBMC stack uses technologies
-such as [Yocto](https://www.yoctoproject.org/),
-[OpenEmbedded](https://www.openembedded.org/wiki/Main_Page),
-[systemd](https://www.freedesktop.org/wiki/Software/systemd/), and
-[D-Bus](https://www.freedesktop.org/wiki/Software/dbus/) to allow easy
-customization for your server platform.
+Some answers to the main questions that tend to get asked: 
 
+### Does this mean that Intel is no longer contributing to the Linux foundation project? ###
 
-## Setting up your OpenBMC project
+No. This repo is for components that are intended for the eventual
+release to the LF OpenBMC project. There are a number of reasons where things
+might be checked in here.  For example: functionality that is still under
+discussion or in the LF OpenBMC project, features that have not gone through
+the level of testing or integration needed to be included in the OpenBMC
+project
 
-### 1) Prerequisite
-- Ubuntu 14.04
+### Why does this repo exist at all? ###
 
-```
-sudo apt-get install -y git build-essential libsdl1.2-dev texinfo gawk chrpath diffstat
-```
+Upstreaming changes to the linux kernel, uboot, systemd, yocto, and the various
+projects that OpenBMC pulls in requires a significant effort.  While we aspire
+to that process being fast, painless, and with minimal rework, the reality is
+far from that, and features or functions that require changes across a number
+of repos require a coordinated effort, and a single source of function. As a
+general rule, this repository loosens the requirements of "form over function"
+and prefers to make some simplifying assumptions of BMC capabilities, chipsets,
+and required features.
 
-- Fedora 28
+### Can I upstream/release the code from this repository? ###
 
-```
-sudo dnf install -y git patch diffstat texinfo chrpath SDL-devel bitbake rpcgen
-sudo dnf groupinstall "C Development Tools and Libraries"
-```
-### 2) Download the source
-```
-git clone git@github.com:openbmc/openbmc.git
-cd openbmc
-```
+It very much depends on the component. While in general the answer ends up
+being "yes", prior approval should be granted, as this repo contains future
+facing capabilities that may not have been announced yet.  Please email
+openbmc@intel.com to discuss. Appropriate licenses will be applied to the
+portions of this codebase that are approved for upstreaming.
 
-### 3) Target your hardware
-Any build requires an environment variable known as `TEMPLATECONF` to be set
-to a hardware target.
-You can see all of the known targets with
-`find meta-* -name local.conf.sample`. Choose the hardware target and
-then move to the next step. Additional examples can be found in the
-[OpenBMC Cheatsheet](https://github.com/openbmc/docs/blob/master/cheatsheet.md)
+### Which platforms does this code work on? ###
 
-Machine | TEMPLATECONF
---------|---------
-Palmetto | ```meta-ibm/meta-palmetto/conf```
-Zaius| ```meta-ingrasys/meta-zaius/conf```
-Witherspoon| ```meta-ibm/meta-witherspoon/conf```
-Romulus| ```meta-ibm/meta-romulus/conf```
+While the code is easily portable across different type of IA platforms,
+currently we use Intel’s Wolf Pass (S2600WP) platform for development and most
+testing.  
 
-
-As an example target Palmetto
-```
-export TEMPLATECONF=meta-ibm/meta-palmetto/conf
-```
-
-### 4) Build
-
-```
-. openbmc-env
-bitbake obmc-phosphor-image
-```
-
-Additional details can be found in the [docs](https://github.com/openbmc/docs)
-repository.
-
-## Build Validation and Testing
-Commits submitted by members of the OpenBMC GitHub community are compiled and
-tested via our [Jenkins](https://openpower.xyz/) server.  Commits are run
-through two levels of testing.  At the repository level the makefile `make
-check` directive is run.  At the system level, the commit is built into a
-firmware image and run with an arm-softmmu QEMU model against a barrage of
-[CI tests](https://openpower.xyz/job/openbmc-test-qemu-ci/).
-
-Commits submitted by non-members do not automatically proceed through CI
-testing. After visual inspection of the commit, a CI run can be manually
-performed by the reviewer.
-
-Automated testing against the QEMU model along with supported systems are
-performed.  The OpenBMC project uses the
-[Robot Framework](http://robotframework.org/) for all automation.  Our
-complete test repository can be found
-[here](https://github.com/openbmc/openbmc-test-automation).
-
-## Submitting Patches
-Support of additional hardware and software packages is always welcome.
-Please follow the [contributing guidelines](https://github.com/openbmc/docs/blob/master/CONTRIBUTING.md)
-when making a submission.  It is expected that contributions contain test
-cases.
-
-## Bug Reporting
-[Issues](https://github.com/openbmc/openbmc/issues) are managed on
-GitHub.  It is recommended you search through the issues before opening
-a new one.
-
-## Features of OpenBMC
-
-**Feature List**
-* REST Management
-* IPMI
-* SSH based SOL
-* Power and Cooling Management
-* Event Logs
-* Zeroconf discoverable
-* Sensors
-* Inventory
-* LED Management
-* Host Watchdog
-* Simulation
-* Code Update Support for multiple BMC/BIOS images
-
-**Features In Progress**
-* Full IPMI 2.0 Compliance with DCMI
-* Verified Boot
-* HTML5 Java Script Web User Interface
-* BMC RAS
-
-**Features Requested but need help**
-* OpenCompute Redfish Compliance
-* OpenBMC performance monitoring
-* cgroup user management and policies
-* Remote KVM
-* Remote USB
-* OpenStack Ironic Integration
-* QEMU enhancements
-
-
-## Finding out more
-Dive deeper in to OpenBMC by opening the [docs](https://github.com/openbmc/docs)
-repository.
-
-## Contact
-- Mail: openbmc@lists.ozlabs.org [https://lists.ozlabs.org/listinfo/openbmc](https://lists.ozlabs.org/listinfo/openbmc)
-- IRC: #openbmc on freenode.net
-- Riot: [#openbmc:matrix.org](https://riot.im/app/#/room/#openbmc:matrix.org)

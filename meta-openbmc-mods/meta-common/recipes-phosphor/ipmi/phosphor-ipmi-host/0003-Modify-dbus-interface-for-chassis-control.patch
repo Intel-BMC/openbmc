@@ -1,0 +1,33 @@
+From 48ac37551cd51415deafe8b1dcb23ebeef1e8ade Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Mon, 17 Sep 2018 13:04:42 +0800
+Subject: [PATCH] Modify-dbus-interface-for-chassis-control
+
+Switch chassis control service namespace from "org" to "xyz",
+to compatible with new intel-chassis services
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ apphandler.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/apphandler.cpp b/apphandler.cpp
+index b089331..f2889c5 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -393,9 +393,9 @@ ipmi_ret_t ipmi_app_get_device_guid(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                                     ipmi_data_len_t data_len,
+                                     ipmi_context_t context)
+ {
+-    const char* objname = "/org/openbmc/control/chassis0";
++    const char* objname = "/xyz/openbmc_project/Chassis/Control/Chassis";
+     const char* iface = "org.freedesktop.DBus.Properties";
+-    const char* chassis_iface = "org.openbmc.control.Chassis";
++    const char* chassis_iface = "xyz.openbmc_project.Chassis.Control.Chassis";
+     sd_bus_message* reply = NULL;
+     sd_bus_error error = SD_BUS_ERROR_NULL;
+     int r = 0;
+-- 
+2.7.4
+

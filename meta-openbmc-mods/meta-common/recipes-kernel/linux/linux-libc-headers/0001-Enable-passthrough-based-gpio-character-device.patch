@@ -1,0 +1,26 @@
+From 61a5796d151337fd537d1aeb3fb072dcdf96abbe Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Sun, 3 Feb 2019 16:08:11 +0800
+Subject: [PATCH] Enable passthrough based gpio character device.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ include/uapi/linux/gpio.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/uapi/linux/gpio.h b/include/uapi/linux/gpio.h
+index 1bf6e6df..8883ca90 100644
+--- a/include/uapi/linux/gpio.h
++++ b/include/uapi/linux/gpio.h
+@@ -62,7 +62,7 @@ struct gpioline_info {
+ #define GPIOHANDLE_REQUEST_ACTIVE_LOW	(1UL << 2)
+ #define GPIOHANDLE_REQUEST_OPEN_DRAIN	(1UL << 3)
+ #define GPIOHANDLE_REQUEST_OPEN_SOURCE	(1UL << 4)
+-
++#define GPIOHANDLE_REQUEST_PASS_THROUGH	(1UL << 5)
+ /**
+  * struct gpiohandle_request - Information about a GPIO handle request
+  * @lineoffsets: an array desired lines, specified by offset index for the
+-- 
+2.16.2
+

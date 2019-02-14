@@ -1,0 +1,13 @@
+[Unit]
+Description=Intel BMC At Scale Debug
+Requires=com.intel.AtScaleDebugJtagTest.service network-online.target
+
+[Service]
+Restart=always
+RestartSec=30
+ExecStart={bindir}/asd -k /home/root/server.pem
+Type=simple
+SyslogIdentifier=asd
+
+[Install]
+WantedBy=obmc-host-start@0.target

@@ -1,0 +1,54 @@
+From 8415002a2e77a41831b3064dae264f60996ac88a Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Thu, 6 Dec 2018 15:07:09 -0800
+Subject: [PATCH] Enable Macronix and Micron SPI support
+
+This commit enables Macronix and Micron SPI support.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ configs/ast_g5_ncsi_2boot_defconfig | 2 ++
+ configs/ast_g5_ncsi_defconfig       | 2 ++
+ configs/ast_g5_phy_defconfig        | 2 ++
+ 3 files changed, 6 insertions(+)
+
+diff --git a/configs/ast_g5_ncsi_2boot_defconfig b/configs/ast_g5_ncsi_2boot_defconfig
+index d5b7894a9e00..abceed817615 100644
+--- a/configs/ast_g5_ncsi_2boot_defconfig
++++ b/configs/ast_g5_ncsi_2boot_defconfig
+@@ -10,6 +10,8 @@ CONFIG_FIT_VERBOSE=y
+ CONFIG_HUSH_PARSER=y
+ CONFIG_OF_LIBFDT=y
+ CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_STMICRO=y
+ CONFIG_SYS_NS16550=y
+ CONFIG_FIRMWARE_2ND_BOOT=y
+ CONFIG_AUTOBOOT=y
+diff --git a/configs/ast_g5_ncsi_defconfig b/configs/ast_g5_ncsi_defconfig
+index 9481e5fb6e9d..3f504a325649 100644
+--- a/configs/ast_g5_ncsi_defconfig
++++ b/configs/ast_g5_ncsi_defconfig
+@@ -10,5 +10,7 @@ CONFIG_FIT_VERBOSE=y
+ CONFIG_HUSH_PARSER=y
+ CONFIG_OF_LIBFDT=y
+ CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_STMICRO=y
+ CONFIG_SYS_NS16550=y
+ CONFIG_USE_IRQ=y
+diff --git a/configs/ast_g5_phy_defconfig b/configs/ast_g5_phy_defconfig
+index 4aefcf49e880..8f0919043376 100644
+--- a/configs/ast_g5_phy_defconfig
++++ b/configs/ast_g5_phy_defconfig
+@@ -11,5 +11,7 @@ CONFIG_FIT_VERBOSE=y
+ CONFIG_HUSH_PARSER=y
+ CONFIG_OF_LIBFDT=y
+ CONFIG_SPI_FLASH=y
++CONFIG_SPI_FLASH_MACRONIX=y
++CONFIG_SPI_FLASH_STMICRO=y
+ CONFIG_SYS_NS16550=y
+ CONFIG_USE_IRQ=y
+-- 
+2.7.4
+

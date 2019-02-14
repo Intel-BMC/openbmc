@@ -1,0 +1,112 @@
+From 2f3587cf9e44f261fe74413ef6a54467686c910b Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 20 Nov 2018 15:49:15 -0800
+Subject: [PATCH] Test code for LPC MBOX
+
+Blocked interrupt driven code for test.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/misc/aspeed-lpc-mbox.c | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/misc/aspeed-lpc-mbox.c b/drivers/misc/aspeed-lpc-mbox.c
+index 0f0c711bafee..0933e0553953 100644
+--- a/drivers/misc/aspeed-lpc-mbox.c
++++ b/drivers/misc/aspeed-lpc-mbox.c
+@@ -19,6 +19,8 @@
+ 
+ #define DEVICE_NAME	"aspeed-mbox"
+ 
++#define MBX_USE_INTERRUPT 0
++
+ #define ASPEED_MBOX_NUM_REGS 16
+ 
+ #define ASPEED_MBOX_DATA_0 0x00
+@@ -79,12 +81,14 @@ static int aspeed_mbox_open(struct inode *inode, struct file *file)
+ 	struct aspeed_mbox *mbox = file_mbox(file);
+ 
+ 	if (atomic_inc_return(&aspeed_mbox_open_count) == 1) {
++#if MBX_USE_INTERRUPT
+ 		/*
+ 		 * Clear the interrupt status bit if it was left on and unmask
+ 		 * interrupts.
+ 		 * ASPEED_MBOX_CTRL_RECV bit is W1C, this also unmasks in 1 step
+ 		 */
+ 		aspeed_mbox_outb(mbox, ASPEED_MBOX_CTRL_RECV, ASPEED_MBOX_BMC_CTRL);
++#endif
+ 		return 0;
+ 	}
+ 
+@@ -106,6 +110,7 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 	if (count + *ppos > ASPEED_MBOX_NUM_REGS)
+ 		return -EINVAL;
+ 
++#if MBX_USE_INTERRUPT
+ 	if (file->f_flags & O_NONBLOCK) {
+ 		if (!(aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) &
+ 				ASPEED_MBOX_CTRL_RECV))
+@@ -115,6 +120,7 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 				ASPEED_MBOX_CTRL_RECV)) {
+ 		return -ERESTARTSYS;
+ 	}
++#endif
+ 
+ 	mutex_lock(&mbox->mutex);
+ 
+@@ -129,8 +135,10 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 		count--;
+ 	}
+ 
++#if MBX_USE_INTERRUPT
+ 	/* ASPEED_MBOX_CTRL_RECV bit is write to clear, this also unmasks in 1 step */
+ 	aspeed_mbox_outb(mbox, ASPEED_MBOX_CTRL_RECV, ASPEED_MBOX_BMC_CTRL);
++#endif
+ 	ret = p - buf;
+ 
+ out_unlock:
+@@ -180,7 +188,9 @@ static unsigned int aspeed_mbox_poll(struct file *file, poll_table *wait)
+ 
+ 	poll_wait(file, &mbox->queue, wait);
+ 
++#if MBX_USE_INTERRUPT
+ 	if (aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) & ASPEED_MBOX_CTRL_RECV)
++#endif
+ 		mask |= POLLIN;
+ 
+ 	return mask;
+@@ -206,6 +216,7 @@ static irqreturn_t aspeed_mbox_irq(int irq, void *arg)
+ {
+ 	struct aspeed_mbox *mbox = arg;
+ 
++#if MBX_USE_INTERRUPT
+ 	if (!(aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) & ASPEED_MBOX_CTRL_RECV))
+ 		return IRQ_NONE;
+ 
+@@ -216,6 +227,7 @@ static irqreturn_t aspeed_mbox_irq(int irq, void *arg)
+ 
+ 	/* Mask it off, we'll clear it when we the data gets read */
+ 	aspeed_mbox_outb(mbox, ASPEED_MBOX_CTRL_MASK, ASPEED_MBOX_BMC_CTRL);
++#endif
+ 
+ 	wake_up(&mbox->queue);
+ 	return IRQ_HANDLED;
+@@ -248,7 +260,14 @@ static int aspeed_mbox_config_irq(struct aspeed_mbox *mbox,
+ 	aspeed_mbox_outb(mbox, 0xff, ASPEED_MBOX_STATUS_0);
+ 	aspeed_mbox_outb(mbox, 0xff, ASPEED_MBOX_STATUS_1);
+ 
+-	aspeed_mbox_outb(mbox, ASPEED_MBOX_CTRL_RECV, ASPEED_MBOX_BMC_CTRL);
++	aspeed_mbox_outb(mbox, aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) | ASPEED_MBOX_CTRL_MASK, ASPEED_MBOX_BMC_CTRL);
++
++	/*
++	 * Because mailbox data register init value is random, need to give a
++	 * init value to mailbox data register.
++	 */
++	aspeed_mbox_outb(mbox, 0x00, ASPEED_MBOX_DATA_0);
++
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

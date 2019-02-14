@@ -1,0 +1,16 @@
+[Unit]
+Description=Start Power%i on
+Wants=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+After=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+Conflicts=obmc-chassis-poweroff@%i.target
+ConditionPathExists=!/run/openbmc/chassis@%i-on
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "busctl call `mapper get-service /xyz/openbmc_project/Chassis/Control/Power%i` \
+          /xyz/openbmc_project/Chassis/Control/Power%i xyz.openbmc_project.Chassis.Control.Power setPowerState i 1"
+SyslogIdentifier=intel-power-start
+StartLimitInterval=0
+
+[Install]
+WantedBy=obmc-host-start@%i.target

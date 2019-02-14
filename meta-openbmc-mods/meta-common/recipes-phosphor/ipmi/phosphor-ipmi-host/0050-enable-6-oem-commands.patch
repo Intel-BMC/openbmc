@@ -1,0 +1,15 @@
+diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
+index 22a2a3c..5d71698 100644
+--- a/host-ipmid-whitelist.conf
++++ b/host-ipmid-whitelist.conf
+@@ -49,3 +49,10 @@
+ 0x30:0x26    //<OEM>:<Set BIOS ID>
+ 0x30:0x27    //<OEM>:<Get Device Info>
+ 0x30:0x31    //<OEM>:<Get AIC card FRU>
++0x30:0x54    //<OEM>:<Set Power Restore Delay>
++0x30:0x55    //<OEM>:<Get Power Restore Delay>
++0x30:0x9A    //<OEM>:<Get Processor Error Config>
++0x30:0x9B    //<OEM>:<Set Processor Error Config>
++0x30:0xB0    //<OEM>:<Get LED Status>
++0x30:0xE9    //<OEM>:<Get BIOS Post Codes>
++

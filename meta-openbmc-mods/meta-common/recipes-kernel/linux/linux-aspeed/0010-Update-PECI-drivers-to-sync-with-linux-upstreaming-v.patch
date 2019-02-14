@@ -1,0 +1,276 @@
+From 3b9ab062d0eb781fc767bd15ce58dc7b7990e65b Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 7 Jan 2019 09:56:10 -0800
+Subject: [PATCH] Update PECI drivers to sync with linux upstreaming version
+
+This commit updates PECI drivers to with linux community
+upstreaming version.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/hwmon/peci-cputemp.c          |  2 +-
+ drivers/hwmon/peci-dimmtemp.c         |  2 +-
+ drivers/hwmon/peci-hwmon.h            |  2 +-
+ drivers/mfd/intel-peci-client.c       | 43 +++++++++++++++--------------------
+ drivers/peci/peci-aspeed.c            |  2 +-
+ drivers/peci/peci-core.c              | 10 ++++----
+ include/linux/mfd/intel-peci-client.h |  4 +---
+ include/linux/peci.h                  |  2 +-
+ 8 files changed, 29 insertions(+), 38 deletions(-)
+
+diff --git a/drivers/hwmon/peci-cputemp.c b/drivers/hwmon/peci-cputemp.c
+index 11880c86a854..63796d883c82 100644
+--- a/drivers/hwmon/peci-cputemp.c
++++ b/drivers/hwmon/peci-cputemp.c
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0
+-// Copyright (c) 2018 Intel Corporation
++// Copyright (c) 2018-2019 Intel Corporation
+ 
+ #include <linux/hwmon.h>
+ #include <linux/jiffies.h>
+diff --git a/drivers/hwmon/peci-dimmtemp.c b/drivers/hwmon/peci-dimmtemp.c
+index 86a45a90805b..6e90d9bfeb45 100644
+--- a/drivers/hwmon/peci-dimmtemp.c
++++ b/drivers/hwmon/peci-dimmtemp.c
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0
+-// Copyright (c) 2018 Intel Corporation
++// Copyright (c) 2018-2019 Intel Corporation
+ 
+ #include <linux/hwmon.h>
+ #include <linux/jiffies.h>
+diff --git a/drivers/hwmon/peci-hwmon.h b/drivers/hwmon/peci-hwmon.h
+index 6ca1855a86bb..16e3c195094c 100644
+--- a/drivers/hwmon/peci-hwmon.h
++++ b/drivers/hwmon/peci-hwmon.h
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-/* Copyright (c) 2018 Intel Corporation */
++/* Copyright (c) 2018-2019 Intel Corporation */
+ 
+ #ifndef __PECI_HWMON_H
+ #define __PECI_HWMON_H
+diff --git a/drivers/mfd/intel-peci-client.c b/drivers/mfd/intel-peci-client.c
+index d53e4f1078ac..d62442438512 100644
+--- a/drivers/mfd/intel-peci-client.c
++++ b/drivers/mfd/intel-peci-client.c
+@@ -1,12 +1,12 @@
+ // SPDX-License-Identifier: GPL-2.0
+-// Copyright (c) 2018 Intel Corporation
++// Copyright (c) 2018-2019 Intel Corporation
+ 
+ #include <linux/bitfield.h>
+ #include <linux/mfd/core.h>
+ #include <linux/mfd/intel-peci-client.h>
+ #include <linux/module.h>
+-#include <linux/peci.h>
+ #include <linux/of_device.h>
++#include <linux/peci.h>
+ 
+ #define CPU_ID_MODEL_MASK      GENMASK(7, 4)
+ #define CPU_ID_FAMILY_MASK     GENMASK(11, 8)
+@@ -18,12 +18,6 @@
+ #define LOWER_BYTE_MASK        GENMASK(7, 0)
+ #define UPPER_BYTE_MASK        GENMASK(16, 8)
+ 
+-enum cpu_gens {
+-	CPU_GEN_HSX = 0, /* Haswell Xeon */
+-	CPU_GEN_BRX,     /* Broadwell Xeon */
+-	CPU_GEN_SKX,     /* Skylake Xeon */
+-};
+-
+ static struct mfd_cell peci_functions[] = {
+ 	{ .name = "peci-cputemp", },
+ 	{ .name = "peci-dimmtemp", },
+@@ -31,19 +25,19 @@ static struct mfd_cell peci_functions[] = {
+ };
+ 
+ static const struct cpu_gen_info cpu_gen_info_table[] = {
+-	[CPU_GEN_HSX] = {
++	{ /* Haswell Xeon */
+ 		.family        = 6, /* Family code */
+ 		.model         = INTEL_FAM6_HASWELL_X,
+ 		.core_max      = CORE_MAX_ON_HSX,
+ 		.chan_rank_max = CHAN_RANK_MAX_ON_HSX,
+ 		.dimm_idx_max  = DIMM_IDX_MAX_ON_HSX },
+-	[CPU_GEN_BRX] = {
++	{ /* Broadwell Xeon */
+ 		.family        = 6, /* Family code */
+ 		.model         = INTEL_FAM6_BROADWELL_X,
+ 		.core_max      = CORE_MAX_ON_BDX,
+ 		.chan_rank_max = CHAN_RANK_MAX_ON_BDX,
+ 		.dimm_idx_max  = DIMM_IDX_MAX_ON_BDX },
+-	[CPU_GEN_SKX] = {
++	{ /* Skylake Xeon */
+ 		.family        = 6, /* Family code */
+ 		.model         = INTEL_FAM6_SKYLAKE_X,
+ 		.core_max      = CORE_MAX_ON_SKX,
+@@ -53,16 +47,17 @@ static const struct cpu_gen_info cpu_gen_info_table[] = {
+ 
+ static int peci_client_get_cpu_gen_info(struct peci_client_manager *priv)
+ {
++	struct device *dev = &priv->client->dev;
+ 	u32 cpu_id;
+ 	u16 family;
+ 	u8 model;
+-	int rc;
++	int ret;
+ 	int i;
+ 
+-	rc = peci_get_cpu_id(priv->client->adapter, priv->client->addr,
+-			     &cpu_id);
+-	if (rc)
+-		return rc;
++	ret = peci_get_cpu_id(priv->client->adapter, priv->client->addr,
++			      &cpu_id);
++	if (ret)
++		return ret;
+ 
+ 	family = FIELD_PREP(LOWER_BYTE_MASK,
+ 			    FIELD_GET(CPU_ID_FAMILY_MASK, cpu_id)) |
+@@ -83,11 +78,11 @@ static int peci_client_get_cpu_gen_info(struct peci_client_manager *priv)
+ 	}
+ 
+ 	if (!priv->gen_info) {
+-		dev_err(priv->dev, "Can't support this CPU: 0x%x\n", cpu_id);
+-		rc = -ENODEV;
++		dev_err(dev, "Can't support this CPU: 0x%x\n", cpu_id);
++		ret = -ENODEV;
+ 	}
+ 
+-	return rc;
++	return ret;
+ }
+ 
+ static int peci_client_probe(struct peci_client *client)
+@@ -103,31 +98,29 @@ static int peci_client_probe(struct peci_client *client)
+ 
+ 	dev_set_drvdata(dev, priv);
+ 	priv->client = client;
+-	priv->dev = dev;
+ 	cpu_no = client->addr - PECI_BASE_ADDR;
+ 
+ 	ret = peci_client_get_cpu_gen_info(priv);
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = devm_mfd_add_devices(priv->dev, cpu_no, peci_functions,
++	ret = devm_mfd_add_devices(dev, cpu_no, peci_functions,
+ 				   ARRAY_SIZE(peci_functions), NULL, 0, NULL);
+ 	if (ret < 0) {
+-		dev_err(priv->dev, "Failed to register child devices: %d\n",
+-			ret);
++		dev_err(dev, "Failed to register child devices: %d\n", ret);
+ 		return ret;
+ 	}
+ 
+ 	return 0;
+ }
+ 
+-#ifdef CONFIG_OF
++#if IS_ENABLED(CONFIG_OF)
+ static const struct of_device_id peci_client_of_table[] = {
+ 	{ .compatible = "intel,peci-client" },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(of, peci_client_of_table);
+-#endif
++#endif /* CONFIG_OF */
+ 
+ static const struct peci_device_id peci_client_ids[] = {
+ 	{ .name = "peci-client" },
+diff --git a/drivers/peci/peci-aspeed.c b/drivers/peci/peci-aspeed.c
+index 51cb2563ceb6..2293d4e56e63 100644
+--- a/drivers/peci/peci-aspeed.c
++++ b/drivers/peci/peci-aspeed.c
+@@ -1,6 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0
+ // Copyright (C) 2012-2017 ASPEED Technology Inc.
+-// Copyright (c) 2018 Intel Corporation
++// Copyright (c) 2018-2019 Intel Corporation
+ 
+ #include <linux/bitfield.h>
+ #include <linux/clk.h>
+diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
+index fac8c72dcda8..7ae05ded94bf 100644
+--- a/drivers/peci/peci-core.c
++++ b/drivers/peci/peci-core.c
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0
+-// Copyright (c) 2018 Intel Corporation
++// Copyright (c) 2018-2019 Intel Corporation
+ 
+ #include <linux/bitfield.h>
+ #include <linux/crc8.h>
+@@ -666,9 +666,9 @@ peci_of_match_device(const struct of_device_id *matches,
+ 		return NULL;
+ 
+ 	return of_match_device(matches, &client->dev);
+-#else
++#else /* CONFIG_OF */
+ 	return NULL;
+-#endif
++#endif /* CONFIG_OF */
+ }
+ 
+ static const struct peci_device_id *
+@@ -1119,7 +1119,7 @@ static void peci_of_register_devices(struct peci_adapter *adapter)
+ 
+ 	of_node_put(bus);
+ }
+-#else
++#else /* CONFIG_OF */
+ static void peci_of_register_devices(struct peci_adapter *adapter) { }
+ #endif /* CONFIG_OF */
+ 
+@@ -1216,7 +1216,7 @@ static int peci_of_notify(struct notifier_block *nb,
+ static struct notifier_block peci_of_notifier = {
+ 	.notifier_call = peci_of_notify,
+ };
+-#else
++#else /* CONFIG_OF_DYNAMIC */
+ extern struct notifier_block peci_of_notifier;
+ #endif /* CONFIG_OF_DYNAMIC */
+ 
+diff --git a/include/linux/mfd/intel-peci-client.h b/include/linux/mfd/intel-peci-client.h
+index 8f6d823a59cd..dd5eb36cca75 100644
+--- a/include/linux/mfd/intel-peci-client.h
++++ b/include/linux/mfd/intel-peci-client.h
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-/* Copyright (c) 2018 Intel Corporation */
++/* Copyright (c) 2018-2019 Intel Corporation */
+ 
+ #ifndef __LINUX_MFD_INTEL_PECI_CLIENT_H
+ #define __LINUX_MFD_INTEL_PECI_CLIENT_H
+@@ -58,7 +58,6 @@ struct cpu_gen_info {
+ /**
+  * struct peci_client_manager - PECI client manager information
+  * @client; pointer to the PECI client
+- * @dev: pointer to the struct device
+  * @name: PECI client manager name
+  * @gen_info: CPU generation info of the detected CPU
+  *
+@@ -67,7 +66,6 @@ struct cpu_gen_info {
+  */
+ struct peci_client_manager {
+ 	struct peci_client *client;
+-	struct device *dev;
+ 	char name[PECI_NAME_SIZE];
+ 	const struct cpu_gen_info *gen_info;
+ };
+diff --git a/include/linux/peci.h b/include/linux/peci.h
+index d0e47d45d1d0..4b8be939585c 100644
+--- a/include/linux/peci.h
++++ b/include/linux/peci.h
+@@ -1,5 +1,5 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+-/* Copyright (c) 2018 Intel Corporation */
++/* Copyright (c) 2018-2019 Intel Corporation */
+ 
+ #ifndef __LINUX_PECI_H
+ #define __LINUX_PECI_H
+-- 
+2.7.4
+

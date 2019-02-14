@@ -1,0 +1,12 @@
+[Unit]
+Description=Chassis%i (Hard Power Off)
+Wants={SYSTEMD_DEFAULT_TARGET}
+After={SYSTEMD_DEFAULT_TARGET}
+Wants=mapper-wait@-xyz-openbmc_project-Chassis-Control-Chassis%i.service
+After=mapper-wait@-xyz-openbmc_project-Chassis-Control-Chassis%i.service
+Conflicts=obmc-chassis-poweron@%i.target
+Conflicts=obmc-chassis-reset@%i.target
+Conflicts=obmc-host-shutdown@%i.target
+Conflicts=xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service
+RefuseManualStop=yes
+

@@ -1,0 +1,42 @@
+Index: u-boot/include/configs/ast-common.h
+===================================================================
+--- u-boot.orig/include/configs/ast-common.h
++++ u-boot/include/configs/ast-common.h
+@@ -103,10 +103,13 @@
+ #define CONFIG_SYS_MAX_FLASH_BANKS 	(CONFIG_FMC_CS)
+ #define CONFIG_SYS_MAX_FLASH_SECT	(8192)		/* max number of sectors on one chip */
+ #define CONFIG_ENV_IS_IN_FLASH		1
+-#define CONFIG_ENV_ADDR			(AST_FMC_CS0_BASE + 0x60000)
++#define CONFIG_ENV_OFFSET		0x2400000	/* environment starts here  */
++#define CONFIG_ENV_ADDR			(AST_FMC_CS0_BASE + CONFIG_ENV_OFFSET)
++#define CONFIG_ENV_SIZE			0x10000	/* Total Size of Environment Sector */
+ 
+-#define CONFIG_ENV_OFFSET		0x60000	/* environment starts here  */
+-#define CONFIG_ENV_SIZE			0x20000	/* Total Size of Environment Sector */
++#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
++#define CONFIG_ENV_ADDR_REDUND	(AST_FMC_CS0_BASE + CONFIG_ENV_OFFSET_REDUND)
++#define CONFIG_ENV_SIZE_REDUND	CONFIG_ENV_SIZE
+ 
+ #define CONFIG_BOOTCOMMAND		"bootm 20080000"
+ #define CONFIG_ENV_OVERWRITE
+Index: u-boot/common/board_r.c
+===================================================================
+--- u-boot.orig/common/board_r.c
++++ u-boot/common/board_r.c
+@@ -494,10 +494,14 @@ static int should_load_env(void)
+ static int initr_env(void)
+ {
+ 	/* initialize environment */
+-	if (should_load_env())
++	if (should_load_env()) {
++		/* try again, in case the environment failed to load the first time */
++		if (!gd->env_valid)
++			env_init();
+ 		env_relocate();
+-	else
++	} else {
+ 		set_default_env(NULL);
++	}
+ #ifdef CONFIG_OF_CONTROL
+ 	setenv_addr("fdtcontroladdr", gd->fdt_blob);
+ #endif

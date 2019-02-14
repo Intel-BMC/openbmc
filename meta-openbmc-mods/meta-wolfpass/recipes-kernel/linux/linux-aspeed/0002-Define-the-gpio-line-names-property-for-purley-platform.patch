@@ -1,0 +1,63 @@
+From 971b69835fcafbac02adf828a744af541c7554d0 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 19 Sep 2018 17:51:06 +0800
+Subject: [PATCH] Define the gpio-line-names property for purley platform
+
+Based on aspeed AST-2500 Datasheet and Intel Purley platform spec,
+defined following gpios.
+
+"name": "PGOOD",  "pin": "AB3";
+"name": "POWER_BUTTON", "pin": "E2";
+"name": "POWER_UP_PIN", "pin": "E3";
+"name": "RESET_BUTTON", "pin": "E0";
+"name": "RESET_OUT", "pin": "E1";
+"name": "ID_BUTTON", "pin": "S6";
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 29 +++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
+index 1c9aed9fcf94..9e187453750f 100644
+--- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
++++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
+@@ -91,6 +91,35 @@
+ 
+ &gpio {
+ 	status = "okay";
++        gpio-line-names = "A0","A1","A2","A3","A4","A5","A6","A7",
++                    "B0","B1","B2","B3","B4","B5","B6","B7",
++                    "C0","C1","C2","C3","C4","C5","C6","C7",
++                    "D0","D1","D2","D3","D4","D5","D6","D7",
++                    "RESET_BUTTON","RESET_OUT","POWER_BUTTON","POWER_UP_PIN","E4","E5","E6","E7",
++                    "F0","F1","F2","F3","F4","F5","F6","F7",
++                    "G0","G1","G2","G3","G4","G5","G6","G7",
++                    "H0","H1","H2","H3","H4","H5","H6","H7",
++                    "I0","I1","I2","I3","I4","I5","I6","I7",
++                    "J0","J1","J2","J3","J4","J5","J6","J7",
++                    "K0","E1","E2","E3","E4","E5","E6","E7",
++                    "L0","L1","L2","L3","L4","L5","L6","L7",
++                    "M0","M1","M2","M3","M4","M5","M6","M7",
++                    "N0","N1","N2","N3","N4","N5","N6","N7",
++                    "O0","O1","O2","O3","O4","O5","O6","O7",
++                    "P0","P1","P2","P3","P4","P5","P6","P7",
++                    "Q0","Q1","Q2","Q3","Q4","Q5","Q6","Q7",
++                    "R0","R1","R2","R3","R4","R5","R6","R7",
++                    "S0","S1","S2","S3","S4","S5","ID_BUTTON","S7",
++                    "T0","T1","T2","T3","T4","T5","T6","T7",
++                    "U0","U1","U2","U3","U4","U5","U6","U7",
++                    "V0","V1","V2","V3","V4","V5","V6","V7",
++                    "W0","W1","W2","W3","W4","W5","W6","W7",
++                    "X0","X1","X2","X3","X4","X5","X6","X7",
++                    "Y0","Y1","Y2","Y3","Y4","Y5","Y6","Y7",
++                    "Z0","Z1","Z2","Z3","Z4","Z5","Z6","Z7",
++                    "AA0","AA1","AA2","AA3","AA4","AA5","AA6","AA7",
++                    "AB0","AB1","AB2","PGOOD","AB4","AB5","AB6","AB7",
++                    "AC0","AC1","AC2","AC3","AC4","AC5","AC6","AC7";
+ };
+ 
+ &kcs3 {
+-- 
+2.17.0
+

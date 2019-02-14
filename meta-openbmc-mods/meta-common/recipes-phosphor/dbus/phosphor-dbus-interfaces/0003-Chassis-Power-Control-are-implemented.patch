@@ -1,0 +1,257 @@
+From 35271230690c5d85dc7a6502031b38d93ddd683f Mon Sep 17 00:00:00 2001
+From: Ed Tanous <ed.tanous@intel.com>
+Date: Thu, 24 Jan 2019 09:29:01 -0800
+Subject: [PATCH] Chassis Power Control are implemented.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Feature level:
+Power on server is ready
+Power off server is ready
+Power cycle server is ready
+Power reset server is ready
+
+Framework level:
+WebUI is enabled.
+IPMI Commands is enabled.
+Restful API is enabled.
+Physical buttons (Power/Reset/ID) are enabled.
+Chassis state manager is enabled.
+Host state manager is enabled.
+
+Enabled IPMI commands:
+ipmitool -H <ip_addr>  -P <pass_word> -I lanplus chassis status
+ipmitool -H <ip_addr>  -P <pass_word> -I lanplus chassis power status
+ipmitool -H <ip_addr>  -P <pass_word> -I lanplus chassis power on
+ipmitool -H <ip_addr>  -P <pass_word> -I lanplus chassis power off
+ipmitool -H <ip_addr>  -P <pass_word> -I lanplus chassis power cycle
+ipmitool -H <ip_addr>  -P <pass_word> -I lanplus chassis power reset
+
+Enabled Restful APIs:
+Login: curl --noproxy <ip_addr> -c cjar -b cjar -k -H "Content-Type: application/json" -X POST https://<ip_addr>/login -d "{\"data\": [ \"root\", \"0penBmc\" ] }“
+Host State: curl --noproxy <ip_addr> -b cjar -k https://<ip_addr>/xyz/openbmc_project/state/host0
+Chassis State: curl --noproxy <ip_addr> -b cjar -k https://<ip_addr>/xyz/openbmc_project/state/chassis0
+Power state: curl --noproxy <ip_addr> -b cjar -k https://<ip_addr>/xyz/openbmc_project/Chassis/Control/Power0
+Power on/off: curl --noproxy <ip_addr> -q1c cjar -b cjar -k -H "Content-Type: application/json" -d '{"data": "xyz.openbmc_project.State.Host.Transition.Off"}' -X PUT https://<ip_addr>/xyz/openbmc_project/state/host0/attr/RequestedHostTransition
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ .../Chassis/Control/Chassis.interface.yaml    | 94 +++++++++++++++++++
+ .../Chassis/Control/Power.interface.yaml      | 85 ++++++++++++++---
+ 2 files changed, 166 insertions(+), 13 deletions(-)
+ create mode 100644 xyz/openbmc_project/Chassis/Control/Chassis.interface.yaml
+
+diff --git a/xyz/openbmc_project/Chassis/Control/Chassis.interface.yaml b/xyz/openbmc_project/Chassis/Control/Chassis.interface.yaml
+new file mode 100644
+index 0000000..c28492a
+--- /dev/null
++++ b/xyz/openbmc_project/Chassis/Control/Chassis.interface.yaml
+@@ -0,0 +1,94 @@
++description: >
++    chassis control service
++methods:
++    - name: powerOn
++      description: >
++        Power on system.
++      returns:
++        - name: state
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
++    - name: powerOff
++      description: >
++        Power Off system.
++      returns:
++        - name: state
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
++    - name: softPowerOff
++      description: >
++        Soft Power off system.
++      returns:
++        - name: state
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
++    - name: reboot
++      description: >
++        reboot system.
++      returns:
++        - name: state
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
++    - name: softReboot
++      description: >
++        Soft Reboot  system.
++      returns:
++        - name: state
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
++    - name: quiesce
++      description: >
++        Quiesce system.
++      returns:
++        - name: state
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
++    - name: getPowerState
++      description: >
++        Get system power state.
++      returns:
++        - name: state
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
+diff --git a/xyz/openbmc_project/Chassis/Control/Power.interface.yaml b/xyz/openbmc_project/Chassis/Control/Power.interface.yaml
+index 082586f..e77598b 100644
+--- a/xyz/openbmc_project/Chassis/Control/Power.interface.yaml
++++ b/xyz/openbmc_project/Chassis/Control/Power.interface.yaml
+@@ -1,31 +1,90 @@
+ description: >
+-    Power control service
++    Chassis control service
+ methods:
++    - name: setPowerState
++      description: >
++        set host power state.
++      parameters:
++        - name: state
++          type: int32
++          description: >
++            0 for force power off host
++            1 for power on host
++      returns:
++        - name: status
++          type: int32
++          description: >
++            The result of command.
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
++    - name: getPowerState
++      description: >
++        Get current host power status.
++      returns:
++        - name: status
++          type: int32
++          description: >
++            Current host status,
++            0 for host power off
++            1 for host power on
++      errors:
++       - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
++       - xyz.openbmc_project.Chassis.Common.Error.IOError
++
+     - name: forcePowerOff
+       description: >
+         Force power off the host.
+       returns:
+         - name: status
+-          type: boolean
++          type: int32
+           description: >
+             The result of power off command.
+       errors:
+        - xyz.openbmc_project.Chassis.Common.Error.UnsupportedCommand
++
+        - xyz.openbmc_project.Chassis.Common.Error.IOError
+ 
+ properties:
+-    - name: PGood
+-      type: boolean
+-      default: false
++    - name: vrd_good
++      type: int32
++      default: 0
+       description: >
+-       PSU Power good property
+-       It is a read-only property.
+-    - name: State
++       ACPI status
++    - name: s4s5_state
+       type: int32
+       default: 0
+       description: >
+-       System power status
+-       0: power is off
+-       1: power is on
+-       Setting its value to change the system state
+-       Read its value to get the system state.
+\ No newline at end of file
++       ACPI status
++    - name: pgood
++      type: int32
++      default: 0
++      description: >
++       pgood property
++    - name: state
++      type: int32
++      default: 0
++      description: >
++       state property
++    - name: pgood_timeout
++      type: int32
++      default: 0
++      description: >
++       pgoodtimeout property
++    - name: post_complete
++      type: boolean
++      default: false
++      description: >
++        The current BIOS POST state,
++        false means not completed or system reset,
++        true means BIOS POST completed.
++signals:
++    - name: PowerGood
++      description: >
++        Signal for powergood
++    - name: PowerLost
++      description: >
++        Signal for powerlost
+-- 
+2.17.1
+

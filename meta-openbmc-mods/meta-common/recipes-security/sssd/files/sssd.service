@@ -1,0 +1,15 @@
+[Unit]
+Description=System Security Services Daemon
+# SSSD must be running before we permit user sessions
+Before=systemd-user-sessions.service nss-user-lookup.target
+Wants=nss-user-lookup.target
+
+[Service]
+Environment=LDB_MODULES_PATH=/usr/lib/ldb DEBUG_LOGGER=-f
+ExecStart=/usr/sbin/sssd $DEBUG_LOGGER
+Type=simple
+Restart=always
+PIDFile=/var/run/sssd.pid
+
+[Install]
+WantedBy=multi-user.target

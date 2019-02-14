@@ -1,0 +1,31 @@
+From 39df500f277eca01d6a0538d4db8ec34894d9441 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Mon, 17 Sep 2018 12:59:12 +0800
+Subject: [PATCH] Modify dbus interface for power control
+
+Switch power control service namespace from "org" to "xyz",
+to compatible with new intel-chassis services
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ chassishandler.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index 6002e7a..0e83bba 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -786,8 +786,8 @@ ipmi_ret_t ipmi_get_chassis_status(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                                    ipmi_data_len_t data_len,
+                                    ipmi_context_t context)
+ {
+-    const char* objname = "/org/openbmc/control/power0";
+-    const char* intf = "org.openbmc.control.Power";
++    const char* objname = "/xyz/openbmc_project/Chassis/Control/Power0";
++    const char* intf = "xyz.openbmc_project.Chassis.Control.Power";
+ 
+     sd_bus* bus = NULL;
+     sd_bus_message* reply = NULL;
+-- 
+2.7.4
+

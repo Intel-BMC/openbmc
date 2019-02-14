@@ -1,0 +1,13 @@
+[Unit]
+Description=Broadcast host stopping signal to dbus
+Wants=mapper-wait@-xyz-openbmc_project-state-host%i.service
+After=mapper-wait@-xyz-openbmc_project-state-host%i.service
+
+[Service]
+Restart=no
+Type=oneshot
+ExecStart=/bin/sh -c "dbus-send --system --type=signal /xyz/openbmc_project/state/host0 xyz.openbmc_project.State.Host.HostStoping"
+SyslogIdentifier=hoststoppingsignal
+
+[Install]
+WantedBy=obmc-host-stopping@%i.target

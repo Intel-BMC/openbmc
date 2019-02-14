@@ -1,0 +1,474 @@
+From 42505ffb3c24b3e7f8182af520ab1c10a3b3f3c4 Mon Sep 17 00:00:00 2001
+From: "Feist, James" <james.feist@intel.com>
+Date: Mon, 5 Jun 2017 11:13:52 -0700
+Subject: [PATCH] Add ASPEED SGPIO driver.
+
+Port aspeed sgpio driver to OBMC Kernel and
+enable it on Purley config. Based off AST sdk 4.0.
+
+Change-Id: I8529c3fb001ea6f93e63b269cdcdde3887a84e40
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/gpio/Kconfig        |   8 +
+ drivers/gpio/Makefile       |   1 +
+ drivers/gpio/sgpio-aspeed.c | 416 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 425 insertions(+)
+ create mode 100644 drivers/gpio/sgpio-aspeed.c
+
+diff --git a/drivers/gpio/Kconfig b/drivers/gpio/Kconfig
+index 71c0ab46f216..a0485be99db7 100644
+--- a/drivers/gpio/Kconfig
++++ b/drivers/gpio/Kconfig
+@@ -124,6 +124,14 @@ config GPIO_ASPEED
+ 	help
+ 	  Say Y here to support Aspeed AST2400 and AST2500 GPIO controllers.
+ 
++config SGPIO_ASPEED
++	bool "ASPEED SGPIO support"
++	depends on ARCH_ASPEED
++	select GPIO_GENERIC
++	select GPIOLIB_IRQCHIP
++	help
++	  Say Y here to support ASPEED SGPIO functionality.
++
+ config GPIO_ATH79
+ 	tristate "Atheros AR71XX/AR724X/AR913X GPIO support"
+ 	default y if ATH79
+diff --git a/drivers/gpio/Makefile b/drivers/gpio/Makefile
+index 1324c8f966a7..23b8d29bef70 100644
+--- a/drivers/gpio/Makefile
++++ b/drivers/gpio/Makefile
+@@ -32,6 +32,7 @@ obj-$(CONFIG_GPIO_AMDPT)	+= gpio-amdpt.o
+ obj-$(CONFIG_GPIO_ARIZONA)	+= gpio-arizona.o
+ obj-$(CONFIG_GPIO_ATH79)	+= gpio-ath79.o
+ obj-$(CONFIG_GPIO_ASPEED)	+= gpio-aspeed.o
++obj-$(CONFIG_SGPIO_ASPEED)	+= sgpio-aspeed.o
+ obj-$(CONFIG_GPIO_RASPBERRYPI_EXP)	+= gpio-raspberrypi-exp.o
+ obj-$(CONFIG_GPIO_BCM_KONA)	+= gpio-bcm-kona.o
+ obj-$(CONFIG_GPIO_BD9571MWV)	+= gpio-bd9571mwv.o
+diff --git a/drivers/gpio/sgpio-aspeed.c b/drivers/gpio/sgpio-aspeed.c
+new file mode 100644
+index 000000000000..9c4add74602a
+--- /dev/null
++++ b/drivers/gpio/sgpio-aspeed.c
+@@ -0,0 +1,416 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (C) 2012-2017 ASPEED Technology Inc.
++// Copyright (c) 2018 Intel Corporation
++
++#include <asm/mach/irq.h>
++#include <linux/bitfield.h>
++#include <linux/gpio/driver.h>
++#include <linux/init.h>
++#include <linux/io.h>
++#include <linux/module.h>
++#include <linux/of_gpio.h>
++#include <linux/platform_device.h>
++
++#ifdef ARCH_NR_GPIOS
++#undef ARCH_NR_GPIOS
++#endif
++
++// TODO: move this to aspeed_sgpio_of_table
++#if defined(CONFIG_MACH_ASPEED_G5)
++#define GPIO_PORT_NUM 29
++#elif defined(CONFIG_MACH_ASPEED_G4)
++#define GPIO_PORT_NUM 28
++#endif
++
++// TODO: fix defines
++#define GPIOS_PER_PORT            8
++#define ARCH_NR_GPIOS             (GPIOS_PER_PORT * GPIO_PORT_NUM)
++#define ASPEED_SGPIO_CTRL         0x54
++#define SGPIO_CHAIN_CHIP_BASE     ARCH_NR_GPIOS
++#define SGPIO_GROUP_NUMS          10
++
++#define ASPEED_VIC_NUMS           64
++#define ASPEED_FIQ_NUMS           64
++#define ARCH_NR_I2C               14
++
++#define IRQ_I2C_CHAIN_START       (ASPEED_VIC_NUMS + ASPEED_FIQ_NUMS)
++#define IRQ_GPIO_CHAIN_START      (IRQ_I2C_CHAIN_START + ARCH_NR_I2C)
++#define IRQ_SGPIO_CHAIN_START     (IRQ_GPIO_CHAIN_START + ARCH_NR_GPIOS)
++
++#define ASPEED_SGPIO_PINS_MASK    GENMASK(9, 6)
++#define ASPEED_SGPIO_CLK_DIV_MASK GENMASK(31, 16)
++#define ASPEED_SGPIO_ENABLE       BIT(0)
++
++struct aspeed_sgpio {
++	struct device		*dev;
++	int			mirq; /* master irq */
++	void __iomem		*base;
++// TODO: make below members as a struct member
++	uint			index;
++	uint			data_offset;
++	uint			data_read_offset;
++	uint			int_en_offset;
++	uint			int_type_offset;
++	uint			int_sts_offset;
++	uint			rst_tol_offset;
++	struct gpio_chip	chip;
++};
++
++uint aspeed_sgpio_to_irq(uint gpio)
++{
++	return (gpio + IRQ_SGPIO_CHAIN_START);
++}
++EXPORT_SYMBOL(aspeed_sgpio_to_irq);
++
++uint aspeed_irq_to_sgpio(uint irq)
++{
++	return (irq - IRQ_SGPIO_CHAIN_START);
++}
++EXPORT_SYMBOL(aspeed_irq_to_sgpio);
++
++static int aspeed_sgpio_get(struct gpio_chip *chip, unsigned offset)
++{
++	struct aspeed_sgpio *priv = gpiochip_get_data(chip);
++	uint bit_nr = priv->index * GPIOS_PER_PORT + offset;
++	unsigned long flags;
++	u32 v;
++
++	local_irq_save(flags);
++
++	v = readl(priv->base + priv->data_offset);
++	v &= BIT(bit_nr);
++
++	if (v)
++		v = 1;
++	else
++		v = 0;
++
++	local_irq_restore(flags);
++
++	dev_dbg(priv->dev, "%s, %s[%d]: %d\n", __func__, chip->label,
++		offset, v);
++
++	return v;
++}
++
++static void aspeed_sgpio_set(struct gpio_chip *chip, unsigned offset, int val)
++{
++	struct aspeed_sgpio *priv = gpiochip_get_data(chip);
++	uint bit_nr = priv->index * GPIOS_PER_PORT + offset;
++	unsigned long flags;
++	u32 v;
++
++	local_irq_save(flags);
++
++	v = readl(priv->base + priv->data_read_offset);
++
++	if (val)
++		v |= BIT(bit_nr);
++	else
++		v &= ~BIT(bit_nr);
++
++	writel(v, priv->base + priv->data_offset);
++
++	dev_dbg(priv->dev, "%s, %s[%d]: %d\n", __func__, chip->label,
++		offset, val);
++
++	local_irq_restore(flags);
++}
++
++#define SGPIO_BANK(name, index_no, data, read_data, int_en, int_type, \
++		   int_sts, rst_tol, chip_base_idx) { \
++	.index = index_no, \
++	.data_offset = data, \
++	.data_read_offset = read_data, \
++	.int_en_offset = int_en, \
++	.int_type_offset = int_type, \
++	.int_sts_offset = int_sts, \
++	.rst_tol_offset = rst_tol, \
++	.chip = { \
++		.label = name, \
++		.get = aspeed_sgpio_get, \
++		.set = aspeed_sgpio_set, \
++		.base = SGPIO_CHAIN_CHIP_BASE + chip_base_idx * 8, \
++		.ngpio = GPIOS_PER_PORT, \
++	}, \
++}
++
++// TODO: use a single priv after changing it as an array member of the priv
++static struct aspeed_sgpio aspeed_sgpio_gp[] = {
++	SGPIO_BANK("SGPIOA", 0, 0x000, 0x070, 0x004, 0x008, 0x014, 0x018, 0),
++	SGPIO_BANK("SGPIOB", 1, 0x000, 0x070, 0x004, 0x008, 0x014, 0x018, 1),
++	SGPIO_BANK("SGPIOC", 2, 0x000, 0x070, 0x004, 0x008, 0x014, 0x018, 2),
++	SGPIO_BANK("SGPIOD", 3, 0x000, 0x070, 0x004, 0x008, 0x014, 0x018, 3),
++	SGPIO_BANK("SGPIOE", 0, 0x01C, 0x074, 0x020, 0x024, 0x030, 0x034, 4),
++	SGPIO_BANK("SGPIOF", 1, 0x01C, 0x074, 0x020, 0x024, 0x030, 0x034, 5),
++	SGPIO_BANK("SGPIOG", 2, 0x01C, 0x074, 0x020, 0x024, 0x030, 0x034, 6),
++	SGPIO_BANK("SGPIOH", 3, 0x01C, 0x074, 0x020, 0x024, 0x030, 0x034, 7),
++	SGPIO_BANK("SGPIOI", 0, 0x038, 0x078, 0x03C, 0x040, 0x04C, 0x050, 8),
++	SGPIO_BANK("SGPIOJ", 1, 0x038, 0x078, 0x03C, 0x040, 0x04C, 0x050, 9),
++};
++
++/**
++ * We need to unmask the GPIO bank interrupt as soon as possible to avoid
++ * missing GPIO interrupts for other lines in the bank. Then we need to
++ * mask-read-clear-unmask the triggered GPIO lines in the bank to avoid missing
++ * nested interrupts for a GPIO line. If we wait to unmask individual GPIO lines
++ * in the bank after the line's interrupt handler has been run, we may miss some
++ * nested interrupts.
++ */
++static void aspeed_sgpio_irq_handler(struct irq_desc *desc)
++{
++	struct irq_chip *chip = irq_desc_get_chip(desc);
++	struct aspeed_sgpio *priv = irq_desc_get_chip_data(desc);
++	u32 isr;
++	int i;
++
++	chained_irq_enter(chip, desc);
++
++	isr = readl(priv->base + priv->int_sts_offset);
++	isr = (isr >> (GPIOS_PER_PORT * priv->index)) & 0xff;
++
++	dev_dbg(priv->dev, "[%s] isr %x \n", priv->chip.label, isr);
++
++	if (isr != 0) {
++		for (i = 0; i < GPIOS_PER_PORT; i++) {
++			if (BIT(i) & isr)
++				generic_handle_irq(i * GPIOS_PER_PORT +
++						   i + IRQ_SGPIO_CHAIN_START);
++		}
++	}
++
++	chained_irq_exit(chip, desc);
++}
++
++static void aspeed_sgpio_ack_irq(struct irq_data *d)
++{
++	struct aspeed_sgpio *priv = irq_get_chip_data(d->irq);
++	uint sgpio_irq = (d->irq - IRQ_SGPIO_CHAIN_START) % GPIOS_PER_PORT;
++	uint bit_nr = priv->index * GPIOS_PER_PORT + sgpio_irq;
++
++	dev_dbg(priv->dev, "irq %d: %s [%s] pin %d\n", d->irq, __func__,
++		priv->chip.label, sgpio_irq);
++
++	writel(BIT(bit_nr), priv->base + priv->int_sts_offset);
++}
++
++static void aspeed_sgpio_mask_irq(struct irq_data *d)
++{
++	struct aspeed_sgpio *priv = irq_get_chip_data(d->irq);
++	uint sgpio_irq = (d->irq - IRQ_SGPIO_CHAIN_START) % GPIOS_PER_PORT;
++	uint bit_nr = priv->index * GPIOS_PER_PORT + sgpio_irq;
++
++	/* Disable IRQ */
++	writel(readl(priv->base + priv->int_en_offset) & ~BIT(bit_nr),
++	       priv->base + priv->int_en_offset);
++
++	dev_dbg(priv->dev, "irq %d: %s [%s] pin %d\n ", d->irq, __func__,
++	        priv->chip.label, sgpio_irq);
++}
++
++static void aspeed_sgpio_unmask_irq(struct irq_data *d)
++{
++	struct aspeed_sgpio *priv = irq_data_get_irq_chip_data(d);
++	u32 sgpio_irq = (d->irq - IRQ_SGPIO_CHAIN_START) % GPIOS_PER_PORT;
++	uint bit_nr = priv->index * GPIOS_PER_PORT + sgpio_irq;
++
++	/* Enable IRQ */
++	writel(BIT(bit_nr), priv->base + priv->int_sts_offset);
++	writel(readl(priv->base + priv->int_en_offset) | BIT(bit_nr),
++	       priv->base + priv->int_en_offset);
++
++	dev_dbg(priv->dev, "irq %d: %s [%s] pin %d\n", d->irq, __func__,
++		priv->chip.label, sgpio_irq);
++}
++
++static int aspeed_sgpio_irq_type(struct irq_data *d, unsigned int type)
++{
++	unsigned int irq = d->irq;
++	struct aspeed_sgpio *priv = irq_get_chip_data(irq);
++	u32 sgpio_irq = (irq - IRQ_SGPIO_CHAIN_START) % GPIOS_PER_PORT;
++	u32 type0, type1, type2;
++
++	dev_dbg(priv->dev, "irq: %d, sgpio_irq: %d , irq_type: 0x%x\n",
++		irq, sgpio_irq, type);
++
++	if (type & ~IRQ_TYPE_SENSE_MASK)
++		return -EINVAL;
++
++	type0 = readl(priv->base + priv->int_type_offset);
++	type1 = readl(priv->base + priv->int_type_offset + 0x04);
++	type2 = readl(priv->base + priv->int_type_offset + 0x08);
++
++	switch (type) {
++	/* Edge rising type */
++	case IRQ_TYPE_EDGE_RISING:
++		type0 |= BIT(sgpio_irq);
++		type1 &= ~BIT(sgpio_irq);
++		type2 &= ~BIT(sgpio_irq);
++		break;
++	/* Edge falling type */
++	case IRQ_TYPE_EDGE_FALLING:
++		type2 |= BIT(sgpio_irq);
++		break;
++	case IRQ_TYPE_EDGE_BOTH:
++		type0 &= ~BIT(sgpio_irq);
++		type1 |= BIT(sgpio_irq);
++		type2 &= ~BIT(sgpio_irq);
++		break;
++	case IRQ_TYPE_LEVEL_HIGH:
++		type0 |= BIT(sgpio_irq);
++		type1 |= BIT(sgpio_irq);
++		type2 &= ~BIT(sgpio_irq);
++		break;
++	case IRQ_TYPE_LEVEL_LOW:
++		type0 &= ~BIT(sgpio_irq);
++		type1 |= BIT(sgpio_irq);
++		type2 &= ~BIT(sgpio_irq);
++		break;
++	default:
++		dev_dbg(priv->dev, "not supported trigger type: %d", type);
++		return -EINVAL;
++		break;
++	}
++
++	writel(type0, priv->base + priv->int_type_offset);
++	writel(type1, priv->base + priv->int_type_offset + 0x04);
++	writel(type2, priv->base + priv->int_type_offset + 0x08);
++
++	return 0;
++}
++
++static struct irq_chip aspeed_sgpio_irq_chip = {
++	.name = "aspeed-sgpio",
++	.irq_ack = aspeed_sgpio_ack_irq,
++	.irq_mask = aspeed_sgpio_mask_irq,
++	.irq_unmask = aspeed_sgpio_unmask_irq,
++	.irq_set_type = aspeed_sgpio_irq_type,
++};
++
++static int aspeed_sgpio_config(struct aspeed_sgpio *priv)
++{
++	/**
++	 * There is a limitation that SGPIO clock division has to be larger or
++	 * equal to 1. And the value of clock division read back is left shift
++	 * 1 bit from actual value.
++	 *
++	 * GPIO254[31:16] - Serial GPIO clock division
++	 * Serial GPIO clock period = period of PCLK * 2 * (GPIO254[31:16] + 1)
++	 *
++	 * SGPIO master controller updates every data input when SGPMLD is low.
++	 * For example, SGPIO clock is 1MHz and number of SGPIO is 80 then each
++	 * SGPIO will be updated in every 80us.
++	 */
++	writel(FIELD_PREP(ASPEED_SGPIO_CLK_DIV_MASK, 10) |
++	       FIELD_PREP(ASPEED_SGPIO_PINS_MASK, SGPIO_GROUP_NUMS) |
++	       ASPEED_SGPIO_ENABLE,
++	       priv->base + ASPEED_SGPIO_CTRL);
++	dev_dbg(priv->dev, "sgpio config reg: 0x%08X\n",
++		readl(priv->base + ASPEED_SGPIO_CTRL));
++
++	return 0;
++}
++
++static int aspeed_sgpio_probe(struct platform_device *pdev)
++{
++	int i, j;
++	uint irq;
++	struct resource *res;
++	struct aspeed_sgpio *priv;
++	void __iomem *base;
++	int mirq;
++
++	// aspeed_scu_multi_func_sgpio(); done via pinctl
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++
++	base = devm_ioremap_resource(&pdev->dev, res);
++	if (IS_ERR(base))
++		return PTR_ERR(base);
++
++	mirq = platform_get_irq(pdev, 0);
++	if (!mirq)
++		return -ENODEV;
++
++	for (i = 0; i < ARRAY_SIZE(aspeed_sgpio_gp); i++) {
++		// TODO: use heap allocation and use a single priv
++		priv = &aspeed_sgpio_gp[i];
++		priv->dev = &pdev->dev;
++		priv->base = base;
++		priv->mirq = mirq;
++		dev_set_drvdata(&pdev->dev, priv);
++
++		dev_dbg(priv->dev, "add gpio_chip [%s]: %d\n", priv->chip.label,
++			  i);
++
++		devm_gpiochip_add_data(&pdev->dev, &priv->chip, priv);
++
++		/* Disable Interrupt & Clear Status & Set Level-High Trigger */
++		writel(0x00000000, priv->base + priv->int_en_offset);
++		writel(0xffffffff, priv->base + priv->int_sts_offset);
++		writel(0xffffffff, priv->base + priv->int_type_offset);
++		writel(0xffffffff, priv->base + priv->int_type_offset + 0x04);
++		writel(0x00000000, priv->base + priv->int_type_offset + 0x08);
++
++		// TODO: no this many chip registration is needed. fix it.
++		for (j = 0; j < GPIOS_PER_PORT; j++) {
++			irq = i * GPIOS_PER_PORT + j + IRQ_SGPIO_CHAIN_START;
++			dev_dbg(priv->dev, "inst chip data %d\n", irq);
++			irq_set_chip_data(irq, priv);
++			irq_set_chip_and_handler(irq, &aspeed_sgpio_irq_chip,
++						 handle_level_irq);
++			irq_clear_status_flags(irq, IRQ_NOREQUEST);
++		}
++	}
++
++	irq_set_chained_handler(priv->mirq, aspeed_sgpio_irq_handler);
++
++	aspeed_sgpio_config(priv);
++
++	dev_info(&pdev->dev, "sgpio controller registered, irq %d\n",
++		 priv->mirq);
++
++	return 0;
++}
++
++static int aspeed_sgpio_remove(struct platform_device *pdev)
++{
++	struct aspeed_sgpio *priv =
++		&aspeed_sgpio_gp[ARRAY_SIZE(aspeed_sgpio_gp) - 1];
++
++	irq_set_chained_handler(priv->mirq, NULL);
++
++	return 0;
++}
++
++static const struct of_device_id aspeed_sgpio_of_table[] = {
++	{ .compatible = "aspeed,ast2400-sgpio", },
++	{ .compatible = "aspeed,ast2500-sgpio", },
++	{ },
++};
++MODULE_DEVICE_TABLE(of, aspeed_sgpio_of_table);
++
++static struct platform_driver aspeed_sgpio_driver = {
++	.probe = aspeed_sgpio_probe,
++	.remove = aspeed_sgpio_remove,
++	.driver = {
++		.name = "sgpio-aspeed",
++		.of_match_table = of_match_ptr(aspeed_sgpio_of_table),
++	},
++};
++
++static int __init aspeed_sgpio_init(void)
++{
++	return platform_driver_register(&aspeed_sgpio_driver);
++}
++subsys_initcall(aspeed_sgpio_init);
++
++static void __exit aspeed_sgpio_exit(void)
++{
++	platform_driver_unregister(&aspeed_sgpio_driver);
++}
++module_exit(aspeed_sgpio_exit);
++
++MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
++MODULE_AUTHOR("Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>");
++MODULE_DESCRIPTION("ASPEED SGPIO driver");
++MODULE_LICENSE("GPL v2");
+-- 
+2.7.4
+
