@@ -1,0 +1,19 @@
+trigger:
+- master
+
+jobs:
+- job: Build
+  timeoutInMinutes: 0
+
+  pool:
+    vmImage: 'Ubuntu-16.04'
+
+  steps:
+    - bash: |
+        sudo apt-get install gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat
+        rm -rf build/conf
+        source oe-init-build-env
+        bitbake intel-platforms
+      displayName: 'Build'
+      timeoutInMinutes: 0
+
