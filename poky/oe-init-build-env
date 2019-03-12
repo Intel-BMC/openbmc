@@ -25,6 +25,8 @@
 # when being sourced.  To workaround the shell limitation use "set <builddir>"
 # prior to sourcing this script.
 #
+
+TEMPLATECONF="${TEMPLATECONF:-meta-openbmc-mods/meta-wolfpass/conf}"
 if [ -n "$BASH_SOURCE" ]; then
     THIS_SCRIPT=$BASH_SOURCE
 elif [ -n "$ZSH_NAME" ]; then
