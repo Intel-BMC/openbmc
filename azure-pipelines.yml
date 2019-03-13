@@ -1,5 +1,6 @@
 trigger:
 - master
+- intel
 
 jobs:
 - job: Build
