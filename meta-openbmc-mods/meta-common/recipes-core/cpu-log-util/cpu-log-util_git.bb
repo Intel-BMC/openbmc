@@ -11,7 +11,7 @@ LICENSE = "CLOSED"
 LIC_FILES_CHKSUM = ""
 
 SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
-SRCREV = "de77d02aefa3c9df62365e7f07224c5cf9b0eb96"
+SRCREV = "120060461403f1e74d2a189cda40f5301acc0087"
 
 S = "${WORKDIR}/git/cpu-log-util"
 PACKAGES += "libpeci"

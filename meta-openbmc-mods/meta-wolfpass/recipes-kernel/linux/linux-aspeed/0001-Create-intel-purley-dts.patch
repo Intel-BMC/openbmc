@@ -1,4 +1,4 @@
-From 939070905b0d6d70b2e39d424e0797451efdedf8 Mon Sep 17 00:00:00 2001
+From 66e2224f7eb1ccb11dc401b253ba88952bccdcd5 Mon Sep 17 00:00:00 2001
 From: Yuan Li <yuan.li@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] ARM: dts: purley: Merge all dts node in the unified patch.
@@ -21,22 +21,23 @@ The below changes to the dts file are merged together:
 * uart4/serail3
 * enable high speed uart clock
 * timer pwm
+* cpu0/1fault LEDs
 
 Signed-off-by: Yuan Li <yuan.li@linux.intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 347 ++++++++++++++++++++++++++
- 1 file changed, 347 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 354 ++++++++++++++++++++++++++
+ 1 file changed, 354 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 new file mode 100644
-index 000000000000..8a18645e6316
+index 0000000..7ef20a5
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -0,0 +1,347 @@
+@@ -0,0 +1,354 @@
 +/dts-v1/;
 +
 +#include "aspeed-g5.dtsi"
@@ -100,15 +101,26 @@ index 000000000000..8a18645e6316
 +		compatible = "gpio-leds";
 +
 +		identify {
++			default-state = "off";
 +			gpios = <&gpio ASPEED_GPIO(S, 6) GPIO_ACTIVE_LOW>;
 +		};
 +
 +		status_amber {
++			default-state = "off";
 +			gpios = <&gpio ASPEED_GPIO(S, 5) GPIO_ACTIVE_LOW>;
 +		};
 +
 +		status_green {
++			default-state = "keep";
 +			gpios = <&gpio ASPEED_GPIO(S, 4) GPIO_ACTIVE_LOW>;
++		};
++
++		cpu0fault {
++			gpios = <&gpio ASPEED_GPIO(F, 4) GPIO_ACTIVE_HIGH>;
++		};
++
++		cpu1fault {
++			gpios = <&gpio ASPEED_GPIO(F, 5) GPIO_ACTIVE_HIGH>;
 +		};
 +	};
 +
@@ -302,12 +314,8 @@ index 000000000000..8a18645e6316
 +
 +&i2c7 {
 +	multi-master;
++	#retries = <3>;
 +	status = "okay";
-+
-+	smlink1-pmbus1@10 {
-+		compatible = "slave-mqueue";
-+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
-+	};
 +};
 +
 +&gfx {

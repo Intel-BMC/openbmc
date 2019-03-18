@@ -15,7 +15,7 @@ BBLAYERS ?= " \
   ##OEROOT##/meta-phosphor \
   ##OEROOT##/meta-aspeed \
   ##OEROOT##/meta-x86 \
-  ##OEROOT##/meta-openbmc-mods \
+  ##OEROOT##/openbmc-meta-intel \
   ##OEROOT##/meta-intel \
   ##OEROOT##/meta-openbmc-mods/meta-common \
   ##OEROOT##/meta-openbmc-mods/meta-common-small \

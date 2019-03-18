@@ -1,24 +1,27 @@
-From 8dea573181c4455e144335e14cac9f54ebbf7208 Mon Sep 17 00:00:00 2001
+From c0f01261572cb527cf9dc62fa732b28c658ff013 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Tue, 7 Aug 2018 16:43:00 +0800
 Subject: [PATCH] Capture host restart cause
 
-Capture host restart cause on power/reset button pressed.
+Capture host restart cause on power/reset button pressed,
+and power restore policy settings.
 Save the restart cause into file system.
 And restort it when BMC boot up.
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- configure.ac           |  4 +--
- host_state_manager.cpp | 16 ++++++++++++
- host_state_manager.hpp | 56 +++++++++++++++++++++++++++++++++++++++---
- 3 files changed, 71 insertions(+), 5 deletions(-)
+ configure.ac              |  4 ++--
+ discover_system_state.cpp | 14 ++++++++++++
+ host_state_manager.cpp    | 16 ++++++++++++++
+ host_state_manager.hpp    | 56 ++++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 85 insertions(+), 5 deletions(-)
 
 diff --git a/configure.ac b/configure.ac
-index 838aaf2..5879e2f 100644
+index e985a95..b9e64c8 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -54,9 +54,9 @@ AC_ARG_VAR(HOST_RUNNING_FILE, [File to create if host is running])
+@@ -56,9 +56,9 @@ AC_ARG_VAR(HOST_RUNNING_FILE, [File to create if host is running])
  AS_IF([test "x$HOST_RUNNING_FILE" == "x"], [HOST_RUNNING_FILE="/run/openbmc/host@%u-on"])
  AC_DEFINE_UNQUOTED([HOST_RUNNING_FILE], ["$HOST_RUNNING_FILE"], [File to create if host is running])
  
@@ -30,11 +33,50 @@ index 838aaf2..5879e2f 100644
  AC_DEFINE_UNQUOTED([HOST_STATE_PERSIST_PATH], ["$HOST_STATE_PERSIST_PATH"], \
      [Path of file for storing requested host state.])
  
+diff --git a/discover_system_state.cpp b/discover_system_state.cpp
+index 3a38152..0b5798a 100644
+--- a/discover_system_state.cpp
++++ b/discover_system_state.cpp
+@@ -12,6 +12,7 @@
+ #include "settings.hpp"
+ #include "xyz/openbmc_project/Common/error.hpp"
+ #include "xyz/openbmc_project/Control/Power/RestorePolicy/server.hpp"
++#include <xyz/openbmc_project/State/Host/server.hpp>
+ 
+ namespace phosphor
+ {
+@@ -181,6 +182,10 @@ int main(int argc, char** argv)
+         log<level::INFO>("power_policy=ALWAYS_POWER_ON, powering host on");
+         setProperty(bus, hostPath, HOST_BUSNAME, "RequestedHostTransition",
+                     convertForMessage(server::Host::Transition::On));
++
++        setProperty(
++            bus, hostPath, HOST_BUSNAME, "HostRestartCause",
++            convertForMessage(server::Host::RestartCause::PowerPolicyAlwaysOn));
+     }
+     else if (RestorePolicy::Policy::Restore ==
+              RestorePolicy::convertPolicyFromString(powerPolicy))
+@@ -192,6 +197,15 @@ int main(int argc, char** argv)
+             getProperty(bus, hostPath, HOST_BUSNAME, "RequestedHostTransition");
+         setProperty(bus, hostPath, HOST_BUSNAME, "RequestedHostTransition",
+                     hostReqState);
++
++        if (server::Host::convertTransitionFromString(hostReqState) ==
++            server::Host::Transition::On)
++        {
++            setProperty(
++                bus, hostPath, HOST_BUSNAME, "HostRestartCause",
++                convertForMessage(
++                    server::Host::RestartCause::PowerPolicyPreviousState));
++        }
+     }
+ 
+     return 0;
 diff --git a/host_state_manager.cpp b/host_state_manager.cpp
-index ec1f95f..8573d00 100644
+index 7d661dd..03d210d 100644
 --- a/host_state_manager.cpp
 +++ b/host_state_manager.cpp
-@@ -304,6 +304,15 @@ bool Host::deserialize(const fs::path& path)
+@@ -308,6 +308,15 @@ bool Host::deserialize(const fs::path& path)
      }
  }
  
@@ -50,7 +92,7 @@ index ec1f95f..8573d00 100644
  Host::Transition Host::requestedHostTransition(Transition value)
  {
      log<level::INFO>("Host State transaction request",
-@@ -349,6 +358,13 @@ Host::HostState Host::currentHostState(HostState value)
+@@ -353,6 +362,13 @@ Host::HostState Host::currentHostState(HostState value)
      return server::Host::currentHostState(value);
  }
  
@@ -63,7 +105,7 @@ index ec1f95f..8573d00 100644
 +
  } // namespace manager
  } // namespace state
- } // namepsace phosphor
+ } // namespace phosphor
 diff --git a/host_state_manager.hpp b/host_state_manager.hpp
 index 2b00777..e74fab7 100644
 --- a/host_state_manager.hpp
@@ -188,5 +230,5 @@ index 2b00777..e74fab7 100644
  
  } // namespace manager
 -- 
-2.17.0
+2.7.4
 

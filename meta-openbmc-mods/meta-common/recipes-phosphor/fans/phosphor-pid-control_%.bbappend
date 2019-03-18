@@ -5,4 +5,4 @@ SYSTEMD_SERVICE_${PN} = "phosphor-pid-control.service"
 EXTRA_OECONF = "--enable-configure-dbus=yes"
 
 SRC_URI = "git://github.com/openbmc/phosphor-pid-control.git"
-SRCREV = "f42741197ec807e0436a5e519ccff18519c67248"
+SRCREV = "b5cc37cebec74f0bd2a8d378d5f911fc4fa3439e"

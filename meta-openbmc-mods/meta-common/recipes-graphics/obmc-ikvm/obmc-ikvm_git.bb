@@ -7,6 +7,9 @@ DEPENDS = " libvncserver sdbusplus sdbusplus-native phosphor-logging phosphor-db
 
 SRC_URI = "git://github.com/openbmc/obmc-ikvm"
 SRCREV = "2bc661d34abd1fda92a9d2b256ed88ca0e90d09a"
+SRC_URI += "file://0001-Fix-video-restarting-sync-issue.patch \
+            file://0002-Restart-video-when-mode-detection-is-failed.patch \
+            "
 
 PR = "r1"
 PR_append = "+gitr${SRCPV}"

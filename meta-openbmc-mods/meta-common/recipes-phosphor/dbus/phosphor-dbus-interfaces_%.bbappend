@@ -13,4 +13,5 @@ SRC_URI += "file://0002-Modify-Dbus-for-IPv6.patch \
             file://0016-Add-DBUS-interface-of-SMBIOS-MDR-V2.patch \
             file://0017-Add-shutdown-policy-interface-for-get-set-shutdown-p.patch \
             file://0018-Define-post-code-interfaces-for-post-code-manager.patch \
+            file://0019-Creating-the-Session-interface-for-Host-and-LAN.patch \
             "

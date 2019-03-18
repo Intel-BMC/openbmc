@@ -1,0 +1,82 @@
+From 474addee4ed8da523bdc1cfe609099f9ebfb6f07 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Fri, 15 Mar 2019 15:21:51 -0700
+Subject: [PATCH] Restart video when mode detection is failed
+
+KVM sometimes stops when video mode is changed. This commit adds
+video restarting logic for the case.
+
+Tested:
+  1. Open BMCWeb -> Server control -> KVM
+  2. Checked KVM screen update while restarting the host. It
+     updates all frames even when video mode changes happen.
+
+Change-Id: If986394110986e49a6eaac1ae2859208fa7681f5
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ ikvm_video.cpp | 23 +++++++++++++----------
+ ikvm_video.hpp |  6 ++++++
+ 2 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/ikvm_video.cpp b/ikvm_video.cpp
+index ed5ed92ef131..a34cdf2c083f 100644
+--- a/ikvm_video.cpp
++++ b/ikvm_video.cpp
+@@ -155,6 +155,7 @@ bool Video::needsResize()
+     {
+         log<level::ERR>("Failed to query timings",
+                         entry("ERROR=%s", strerror(errno)));
++        restart();
+         return false;
+     }
+ 
+@@ -265,17 +266,19 @@ void Video::resize()
+                 xyz::openbmc_project::Common::Device::ReadFailure::
+                     CALLOUT_DEVICE_PATH(path.c_str()));
+         }
+-
+-        rc = ioctl(fd, VIDIOC_S_DV_TIMINGS, &timings);
+-        if (rc < 0)
++        else
+         {
+-            log<level::ERR>("Failed to set timings",
+-                            entry("ERROR=%s", strerror(errno)));
+-            elog<ReadFailure>(
+-                xyz::openbmc_project::Common::Device::ReadFailure::
+-                    CALLOUT_ERRNO(errno),
+-                xyz::openbmc_project::Common::Device::ReadFailure::
+-                    CALLOUT_DEVICE_PATH(path.c_str()));
++            rc = ioctl(fd, VIDIOC_S_DV_TIMINGS, &timings);
++            if (rc < 0)
++            {
++                log<level::ERR>("Failed to set timings",
++                                entry("ERROR=%s", strerror(errno)));
++                elog<ReadFailure>(
++                    xyz::openbmc_project::Common::Device::ReadFailure::
++                        CALLOUT_ERRNO(errno),
++                    xyz::openbmc_project::Common::Device::ReadFailure::
++                        CALLOUT_DEVICE_PATH(path.c_str()));
++            }
+         }
+ 
+         buffers.clear();
+diff --git a/ikvm_video.hpp b/ikvm_video.hpp
+index 0e5f3afb27b4..faaa57d36f1a 100644
+--- a/ikvm_video.hpp
++++ b/ikvm_video.hpp
+@@ -50,6 +50,12 @@ class Video
+     void start();
+     /* @brief Stops streaming from the video device */
+     void stop();
++    /* @brief Restarts streaming from the video device */
++    void restart()
++    {
++        stop();
++        start();
++    }
+ 
+     /*
+      * @brief Gets the desired video frame rate in frames per second
+-- 
+2.7.4
+
