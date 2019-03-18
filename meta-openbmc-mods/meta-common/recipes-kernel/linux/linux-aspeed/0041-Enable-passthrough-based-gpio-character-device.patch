@@ -1,0 +1,287 @@
+From d34efc982a9206db87da49be3d9b1e20f59be56f Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Thu, 31 Jan 2019 17:47:39 +0800
+Subject: [PATCH] Enable passthrough based gpio character device.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ drivers/gpio/gpio-aspeed.c              | 47 ++++++++++++++++++++++-
+ drivers/gpio/gpiolib.c                  | 51 +++++++++++++++++++++++--
+ drivers/gpio/gpiolib.h                  |  1 +
+ include/linux/gpio/consumer.h           |  9 +++++
+ include/linux/pinctrl/pinconf-generic.h |  2 +
+ include/uapi/linux/gpio.h               |  1 +
+ 6 files changed, 106 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/gpio/gpio-aspeed.c b/drivers/gpio/gpio-aspeed.c
+index 2342e154029b..06fd95197684 100644
+--- a/drivers/gpio/gpio-aspeed.c
++++ b/drivers/gpio/gpio-aspeed.c
+@@ -17,9 +17,11 @@
+ #include <linux/init.h>
+ #include <linux/io.h>
+ #include <linux/kernel.h>
++#include <linux/mfd/syscon.h>
+ #include <linux/module.h>
+ #include <linux/pinctrl/consumer.h>
+ #include <linux/platform_device.h>
++#include <linux/regmap.h>
+ #include <linux/spinlock.h>
+ #include <linux/string.h>
+ 
+@@ -58,6 +60,7 @@ struct aspeed_gpio {
+ 	struct gpio_chip chip;
+ 	spinlock_t lock;
+ 	void __iomem *base;
++	struct regmap *scu;
+ 	int irq;
+ 	const struct aspeed_gpio_config *config;
+ 
+@@ -91,6 +94,13 @@ struct aspeed_gpio_bank {
+  *       and thus can be used to read back what was last written
+  *       reliably.
+  */
++#define SCU8C				0x8C /* Multi-function Pin Control #4 */
++#define PASS_THROUGH1		32
++#define PASS_THROUGH2		34
++#define PASS_THROUGH2_MASK	0x2000
++#define PASS_THROUGH1_MASK	0x1000
++#define PASS_THROUGH2_ON 	0x2000
++#define PASS_THROUGH1_ON 	0x1000
+ 
+ static const int debounce_timers[4] = { 0x00, 0x50, 0x54, 0x58 };
+ 
+@@ -988,12 +998,38 @@ static int set_debounce(struct gpio_chip *chip, unsigned int offset,
+ 	return disable_debounce(chip, offset);
+ }
+ 
++static int aspeed_gpio_pass_through(struct gpio_chip *chip, unsigned int offset,
++				    unsigned long param)
++{
++	struct aspeed_gpio *gpio = gpiochip_get_data(chip);
++	u32 value;
++
++	if (!gpio->scu)
++		return -ENOTSUPP;
++	if (param == PIN_CONFIG_PASS_THROUGH_ENABLE){
++		if (offset == PASS_THROUGH2){
++			regmap_update_bits(gpio->scu, SCU8C, PASS_THROUGH2_MASK, PASS_THROUGH2_ON);
++		} else if (offset == PASS_THROUGH1){
++			regmap_update_bits(gpio->scu, SCU8C, PASS_THROUGH1_MASK, PASS_THROUGH1_ON);
++		}
++	} else if (param == PIN_CONFIG_PASS_THROUGH_DISABLE){
++		if (offset == PASS_THROUGH2){
++			regmap_update_bits(gpio->scu, SCU8C, PASS_THROUGH2_MASK, ~(PASS_THROUGH2_ON));
++		} else if (offset == PASS_THROUGH1){
++			regmap_update_bits(gpio->scu, SCU8C, PASS_THROUGH1_MASK, ~(PASS_THROUGH1_ON));
++		}
++	} else {
++		return -ENOTSUPP;
++	}
++
++	return 0;
++}
++
+ static int aspeed_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
+ 				  unsigned long config)
+ {
+ 	unsigned long param = pinconf_to_config_param(config);
+ 	u32 arg = pinconf_to_config_argument(config);
+-
+ 	if (param == PIN_CONFIG_INPUT_DEBOUNCE)
+ 		return set_debounce(chip, offset, arg);
+ 	else if (param == PIN_CONFIG_BIAS_DISABLE ||
+@@ -1006,6 +1042,9 @@ static int aspeed_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
+ 		return -ENOTSUPP;
+ 	else if (param == PIN_CONFIG_PERSIST_STATE)
+ 		return aspeed_gpio_reset_tolerance(chip, offset, arg);
++	else if (param == PIN_CONFIG_PASS_THROUGH_ENABLE ||
++			param == PIN_CONFIG_PASS_THROUGH_DISABLE)
++		return aspeed_gpio_pass_through(chip, offset, param);
+ 
+ 	return -ENOTSUPP;
+ }
+@@ -1167,7 +1206,11 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
+ 	gpio->base = devm_ioremap_resource(&pdev->dev, res);
+ 	if (IS_ERR(gpio->base))
+ 		return PTR_ERR(gpio->base);
+-
++	gpio->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
++	if (IS_ERR(gpio->scu)) {
++		dev_err(&pdev->dev, "Failed to find SCU regmap\n");
++		gpio->scu = NULL;
++	}
+ 	spin_lock_init(&gpio->lock);
+ 
+ 	gpio_id = of_match_node(aspeed_gpio_of_table, pdev->dev.of_node);
+diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
+index a8e01d99919c..21eeca17583d 100644
+--- a/drivers/gpio/gpiolib.c
++++ b/drivers/gpio/gpiolib.c
+@@ -419,6 +419,7 @@ struct linehandle_state {
+ 	GPIOHANDLE_REQUEST_OUTPUT | \
+ 	GPIOHANDLE_REQUEST_ACTIVE_LOW | \
+ 	GPIOHANDLE_REQUEST_OPEN_DRAIN | \
++	GPIOHANDLE_REQUEST_PASS_THROUGH | \
+ 	GPIOHANDLE_REQUEST_OPEN_SOURCE)
+ 
+ static long linehandle_ioctl(struct file *filep, unsigned int cmd,
+@@ -519,7 +520,6 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+ 		return -EINVAL;
+ 
+ 	lflags = handlereq.flags;
+-
+ 	/* Return an error if an unknown flag is set */
+ 	if (lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS)
+ 		return -EINVAL;
+@@ -579,6 +579,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+ 			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
+ 		if (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)
+ 			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
++		if (lflags & GPIOHANDLE_REQUEST_PASS_THROUGH)
++			set_bit(FLAG_PASS_THROUGH, &desc->flags);
+ 
+ 		ret = gpiod_set_transitory(desc, false);
+ 		if (ret < 0)
+@@ -598,6 +600,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+ 			ret = gpiod_direction_input(desc);
+ 			if (ret)
+ 				goto out_free_descs;
++		} else if (lflags & GPIOHANDLE_REQUEST_PASS_THROUGH) {
++			int val = !!handlereq.default_values[i];
++			ret = gpiod_direction_pass_through(desc, val);
++			if (ret)
++				goto out_free_descs;
+ 		}
+ 		dev_dbg(&gdev->dev, "registered chardev handle for line %d\n",
+ 			offset);
+@@ -1010,7 +1017,6 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 	struct gpio_device *gdev = filp->private_data;
+ 	struct gpio_chip *chip = gdev->chip;
+ 	void __user *ip = (void __user *)arg;
+-
+ 	/* We fail any subsequent ioctl():s when the chip is gone */
+ 	if (!chip)
+ 		return -ENODEV;
+@@ -1018,7 +1024,6 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 	/* Fill in the struct and pass to userspace */
+ 	if (cmd == GPIO_GET_CHIPINFO_IOCTL) {
+ 		struct gpiochip_info chipinfo;
+-
+ 		memset(&chipinfo, 0, sizeof(chipinfo));
+ 
+ 		strncpy(chipinfo.name, dev_name(&gdev->dev),
+@@ -2643,6 +2648,46 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
+ }
+ EXPORT_SYMBOL_GPL(gpiod_direction_output);
+ 
++/**
++ * gpiod_direction_pass_through - set the GPIO direction to pass-through
++ * @desc:	GPIO to set to pass-through
++ *
++ * Set the direction of the passed GPIO to passthrough.
++ *
++ * Return 0 in case of success, else an error code.
++ */
++int gpiod_direction_pass_through(struct gpio_desc *desc, int val)
++{
++	struct gpio_chip *gc;
++
++	VALIDATE_DESC(desc);
++	/* GPIOs used for IRQs shall not be set as pass-through */
++	if (test_bit(FLAG_USED_AS_IRQ, &desc->flags)) {
++		gpiod_err(desc,
++			  "%s: tried to set a GPIO tied to an IRQ as pass-through\n",
++			  __func__);
++		return -EIO;
++	}
++	gc = desc->gdev->chip;
++	val = !!val;
++	if (test_bit(FLAG_PASS_THROUGH, &desc->flags)) {
++		if (val)
++			gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
++						PIN_CONFIG_PASS_THROUGH_ENABLE);
++		else
++			gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
++						PIN_CONFIG_PASS_THROUGH_DISABLE);
++	} else {
++		gpiod_err(desc,
++			  "%s: desc->flags is not set to FLAG_PASS_THROUGH\n",
++			  __func__);
++		return -EIO;
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(gpiod_direction_pass_through);
++
+ /**
+  * gpiod_set_debounce - sets @debounce time for a GPIO
+  * @desc: descriptor of the GPIO for which to set debounce time
+diff --git a/drivers/gpio/gpiolib.h b/drivers/gpio/gpiolib.h
+index a7e49fef73d4..b143ee47870a 100644
+--- a/drivers/gpio/gpiolib.h
++++ b/drivers/gpio/gpiolib.h
+@@ -210,6 +210,7 @@ struct gpio_desc {
+ #define FLAG_IS_OUT	1
+ #define FLAG_EXPORT	2	/* protected by sysfs_lock */
+ #define FLAG_SYSFS	3	/* exported via /sys/class/gpio/control */
++#define FLAG_PASS_THROUGH 4 /*Gpio is passthrough type*/
+ #define FLAG_ACTIVE_LOW	6	/* value has active low */
+ #define FLAG_OPEN_DRAIN	7	/* Gpio is open drain type */
+ #define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
+diff --git a/include/linux/gpio/consumer.h b/include/linux/gpio/consumer.h
+index 21ddbe440030..96551839c191 100644
+--- a/include/linux/gpio/consumer.h
++++ b/include/linux/gpio/consumer.h
+@@ -99,6 +99,7 @@ void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs);
+ int gpiod_get_direction(struct gpio_desc *desc);
+ int gpiod_direction_input(struct gpio_desc *desc);
+ int gpiod_direction_output(struct gpio_desc *desc, int value);
++int gpiod_direction_pass_through(struct gpio_desc *desc, int val);
+ int gpiod_direction_output_raw(struct gpio_desc *desc, int value);
+ 
+ /* Value get/set from non-sleeping context */
+@@ -314,6 +315,14 @@ static inline int gpiod_direction_output(struct gpio_desc *desc, int value)
+ 	WARN_ON(1);
+ 	return -ENOSYS;
+ }
++
++static inline int gpiod_direction_pass_through(struct gpio_desc *desc, int val)
++{
++	/* GPIO can never have been requested */
++	WARN_ON(1);
++	return -ENOSYS;
++}
++
+ static inline int gpiod_direction_output_raw(struct gpio_desc *desc, int value)
+ {
+ 	/* GPIO can never have been requested */
+diff --git a/include/linux/pinctrl/pinconf-generic.h b/include/linux/pinctrl/pinconf-generic.h
+index 6c0680641108..59f0cbabb685 100644
+--- a/include/linux/pinctrl/pinconf-generic.h
++++ b/include/linux/pinctrl/pinconf-generic.h
+@@ -124,6 +124,8 @@ enum pin_config_param {
+ 	PIN_CONFIG_SLEW_RATE,
+ 	PIN_CONFIG_SKEW_DELAY,
+ 	PIN_CONFIG_PERSIST_STATE,
++	PIN_CONFIG_PASS_THROUGH_ENABLE,
++	PIN_CONFIG_PASS_THROUGH_DISABLE,
+ 	PIN_CONFIG_END = 0x7F,
+ 	PIN_CONFIG_MAX = 0xFF,
+ };
+diff --git a/include/uapi/linux/gpio.h b/include/uapi/linux/gpio.h
+index 1bf6e6df084b..384ced158412 100644
+--- a/include/uapi/linux/gpio.h
++++ b/include/uapi/linux/gpio.h
+@@ -62,6 +62,7 @@ struct gpioline_info {
+ #define GPIOHANDLE_REQUEST_ACTIVE_LOW	(1UL << 2)
+ #define GPIOHANDLE_REQUEST_OPEN_DRAIN	(1UL << 3)
+ #define GPIOHANDLE_REQUEST_OPEN_SOURCE	(1UL << 4)
++#define GPIOHANDLE_REQUEST_PASS_THROUGH	(1UL << 5)
+ 
+ /**
+  * struct gpiohandle_request - Information about a GPIO handle request
+-- 
+2.19.1
+

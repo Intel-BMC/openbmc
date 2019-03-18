@@ -34,3 +34,11 @@ enclosure_identify:
     identify:
         Action: 'On'
 
+cpu0_fault:
+    cpu0fault:
+        Action: 'On'
+
+cpu1_fault:
+    cpu1fault:
+        Action: 'On'
+

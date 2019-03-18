@@ -17,6 +17,8 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0050-enable-6-oem-commands.patch \
             file://0051-Fix-Set-LAN-Config-to-work-without-SetInProgress.patch \
             file://0053-Fix-keep-looping-issue-when-entering-OS.patch \
+            file://0054-Fix-User-commands-require-channel-layer-lib.patch \
+            file://0055-Implement-set-front-panel-button-enables-command.patch \
             "
 
 do_install_append(){

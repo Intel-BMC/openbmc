@@ -1,0 +1,136 @@
+#!/bin/sh
+
+setup_image()
+{
+	set -x
+	local storage="$1"
+	local sz_mb="$2"
+	# create the backing store
+	dd if=/dev/zero of=$storage bs=1M seek=$sz_mb count=0 2>/dev/null
+	# this shows up as 23FC-F676 in /dev/disk/by-uuid
+	local diskid=0x23FCF676
+	mkdosfs -n 'OPENBMC-FW' -i $diskid -I $storage >/dev/null 2>&1
+}
+
+mount_image()
+{
+	set -x
+	local storage="$1"
+	local stormnt="$2"
+	mkdir -p $stormnt || exit 1
+	mount -o loop -t vfat $storage $stormnt
+}
+
+cleanup_image()
+{
+	set -x
+	local storage="$1"
+	local stormnt="$2"
+	umount -f "$stormnt"
+	rm -f "$storage"
+	rmdir "$stormnt"
+}
+
+GADGET_BASE=/sys/kernel/config/usb_gadget
+
+which_dev()
+{
+	local in_use=$(cat $GADGET_BASE/*/UDC)
+	cd /sys/class/udc
+	for D in *; do
+		case "$in_use" in
+			*"$D"*) ;;
+			*) echo "$D"; return 0;;
+		esac
+	done
+	return 1
+}
+
+usb_ms_insert()
+{
+	local name="$1"
+	local storage="$2"
+
+	if [ -d $GADGET_BASE/$name ]; then
+		echo "device $name already exists" >&2
+		return 1
+	fi
+	mkdir $GADGET_BASE/$name
+	cd $GADGET_BASE/$name
+
+	echo 0x1d6b > idVendor  # Linux Foundation
+	echo 0x0105 > idProduct # FunctionFS Gadget
+	mkdir strings/0x409
+	local machineid=$(cat /etc/machine-id)
+	local data="OpenBMC USB mass storage gadget device serial number"
+	local serial=$( echo -n "${machineid}${data}${machineid}" | \
+		sha256sum | cut -b 0-12 )
+	echo $serial > strings/0x409/serialnumber
+	echo OpenBMC > strings/0x409/manufacturer
+	echo "OpenBMC Mass Storage" > strings/0x409/product
+
+	mkdir configs/c.1
+	mkdir functions/mass_storage.$name
+	echo $storage > functions/mass_storage.$name/lun.0/file
+	echo 0 > functions/mass_storage.$name/lun.0/removable
+	mkdir configs/c.1/strings/0x409
+
+	echo "Conf 1" > configs/c.1/strings/0x409/configuration
+	echo 120 > configs/c.1/MaxPower
+	ln -s functions/mass_storage.$name configs/c.1
+	local dev=$(which_dev)
+	echo $dev > UDC
+}
+
+usb_ms_eject()
+{
+	local name="$1"
+
+	echo '' > $GADGET_BASE/$name/UDC
+
+	rm -f $GADGET_BASE/$name/configs/c.1/mass_storage.$name
+	rmdir $GADGET_BASE/$name/configs/c.1/strings/0x409
+	rmdir $GADGET_BASE/$name/configs/c.1
+	rmdir $GADGET_BASE/$name/functions/mass_storage.$name
+	rmdir $GADGET_BASE/$name/strings/0x409
+	rmdir $GADGET_BASE/$name
+}
+
+usage()
+{
+	echo "Usage: $0 <action> ..."
+	echo "       $0 setup <file> <sizeMB>"
+	echo "       $0 insert <name> <file>"
+	echo "       $0 eject <name>"
+	echo "       $0 mount <file> <mnt>"
+	echo "       $0 cleanup <file> <mnt>"
+	exit 1
+}
+
+echo "$#: $0 $@"
+case "$1" in
+	insert)
+		shift
+		usb_ms_insert "$@"
+		;;
+	eject)
+		shift
+		usb_ms_eject "$@"
+		;;
+	setup)
+		shift
+		setup_image "$@"
+		;;
+	mount)
+		shift
+		mount_image "$@"
+		;;
+	cleanup)
+		shift
+		cleanup_image "$@"
+		;;
+	*)
+		usage
+		;;
+esac
+exit $?

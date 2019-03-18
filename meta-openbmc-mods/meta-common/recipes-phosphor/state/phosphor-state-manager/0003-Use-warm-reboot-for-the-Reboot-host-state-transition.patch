@@ -1,0 +1,71 @@
+From 8a7f73a0688524c71023da89e8cb5578dac16f5d Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Fri, 8 Mar 2019 17:21:49 +0800
+Subject: [PATCH] Use warm-reboot for the Reboot host state transition
+
+The same as reset button pressing, the pgood signal will keep on during the reboot
+
+Tested By:
+ipmitool chassis power reset
+The pgood(gpio219) will be keep high during the reset process
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ host_state_manager.cpp | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/host_state_manager.cpp b/host_state_manager.cpp
+index 03d210d..8fac348 100644
+--- a/host_state_manager.cpp
++++ b/host_state_manager.cpp
+@@ -44,8 +44,9 @@ constexpr auto HOST_STATE_SOFT_POWEROFF_TGT = "obmc-host-shutdown@0.target";
+ constexpr auto HOST_STATE_POWEROFF_TGT = "obmc-host-stop@0.target";
+ constexpr auto HOST_STATE_POWERON_TGT = "obmc-host-start@0.target";
+ constexpr auto HOST_STATE_POWERON_MIN_TGT = "obmc-host-startmin@0.target";
+-constexpr auto HOST_STATE_REBOOT_TGT = "obmc-host-reboot@0.target";
++constexpr auto HOST_STATE_REBOOT_TGT = "obmc-host-warm-reset@0.target";
+ constexpr auto HOST_STATE_QUIESCE_TGT = "obmc-host-quiesce@0.target";
++constexpr auto hostStateRebootService = "intel-power-warm-reset@0.service";
+ 
+ constexpr auto ACTIVE_STATE = "active";
+ constexpr auto ACTIVATING_STATE = "activating";
+@@ -168,6 +169,7 @@ bool Host::stateActive(const std::string& target)
+ 
+     const auto& currentStateStr =
+         sdbusplus::message::variant_ns::get<std::string>(currentState);
++
+     return currentStateStr == ACTIVE_STATE ||
+            currentStateStr == ACTIVATING_STATE;
+ }
+@@ -236,18 +238,22 @@ void Host::sysStateChange(sdbusplus::message::message& msg)
+     // Read the msg and populate each variable
+     msg.read(newStateID, newStateObjPath, newStateUnit, newStateResult);
+ 
+-    if ((newStateUnit == HOST_STATE_POWEROFF_TGT) &&
+-        (newStateResult == "done") &&
+-        (!stateActive(HOST_STATE_POWERON_MIN_TGT)))
++    if (((newStateUnit == HOST_STATE_POWEROFF_TGT) &&
++         (newStateResult == "done") &&
++         (!stateActive(HOST_STATE_POWERON_MIN_TGT))) ||
++        ((newStateUnit == hostStateRebootService) &&
++         (newStateResult == "done")))
+     {
+         log<level::INFO>("Received signal that host is off");
+         this->currentHostState(server::Host::HostState::Off);
+         this->bootProgress(bootprogress::Progress::ProgressStages::Unspecified);
+         this->operatingSystemState(osstatus::Status::OSStatus::Inactive);
+     }
+-    else if ((newStateUnit == HOST_STATE_POWERON_MIN_TGT) &&
+-             (newStateResult == "done") &&
+-             (stateActive(HOST_STATE_POWERON_MIN_TGT)))
++    else if (((newStateUnit == HOST_STATE_POWERON_MIN_TGT) &&
++              (newStateResult == "done") &&
++              (stateActive(HOST_STATE_POWERON_MIN_TGT))) ||
++             ((newStateUnit == HOST_STATE_REBOOT_TGT) &&
++              (newStateResult == "done")))
+     {
+         log<level::INFO>("Received signal that host is running");
+         this->currentHostState(server::Host::HostState::Running);
+-- 
+2.7.4
+

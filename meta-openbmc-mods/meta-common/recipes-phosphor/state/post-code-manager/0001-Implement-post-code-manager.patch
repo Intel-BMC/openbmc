@@ -1,0 +1,499 @@
+From 7d78e70735e1bce51ef34cfe128be68758de3447 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Tue, 19 Feb 2019 15:00:11 +0800
+Subject: [PATCH] Implement post code manager
+
+Implement method and properties defined in PostCode.interface.yaml
+under phosphor-dbus-interfaces/xyz/openbmc_project/State/Boot
+1. Method: std::vector<uint64_t> PostCode::getPostCodes(uint16_t index)
+2. Properties: CurrentBootCycleIndex/MaxBootCycleNum
+
+Test-By:
+    Every cycle post codes is saved in "/var/lib/phosphor-post-code-manager"
+    "1" file is saved all post codes for cycle 1
+    "2" file is saved all post codes for cycle 2
+    "CurrentBootCycleIndex" file is saved the current boot cycle number.
+    root@wolfpass:/var/lib/phosphor-post-code-manager# ls
+      1  2 CurrentBootCycleIndex
+
+Change-Id: Ia89b9121983261fef5573092d890beb84626ceeb
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ CMakeLists.txt                                |  45 ++++++
+ MAINTAINERS                                   |  45 ++++++
+ inc/post_code.hpp                             | 152 ++++++++++++++++++
+ ...penbmc_project.State.Boot.PostCode.service |  11 ++
+ src/main.cpp                                  |  61 +++++++
+ src/post_code.cpp                             | 109 +++++++++++++
+ 6 files changed, 423 insertions(+)
+ create mode 100644 CMakeLists.txt
+ create mode 100644 MAINTAINERS
+ create mode 100644 inc/post_code.hpp
+ create mode 100644 service_files/xyz.openbmc_project.State.Boot.PostCode.service
+ create mode 100644 src/main.cpp
+ create mode 100644 src/post_code.cpp
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..594d839
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,45 @@
++cmake_minimum_required(VERSION 2.8.10 FATAL_ERROR)
++project(post-code-manager CXX)
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++
++set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
++include(GNUInstallDirs)
++include_directories(${CMAKE_CURRENT_SOURCE_DIR}/inc)
++include_directories(${CMAKE_CURRENT_BINARY_DIR})
++
++set(DBUS_OBJECT_NAME "xyz/openbmc_project/State/Boot/PostCode")
++set(DBUS_INTF_NAME "xyz.openbmc_project.State.Boot.PostCode")
++
++add_definitions(-DDBUS_OBJECT_NAME="/${DBUS_OBJECT_NAME}")
++add_definitions(-DDBUS_INTF_NAME="${DBUS_INTF_NAME}")
++set(SRC_FILES src/post_code.cpp
++    src/main.cpp )
++set ( SERVICE_FILES
++    service_files/xyz.openbmc_project.State.Boot.PostCode.service )
++
++# import sdbusplus
++find_package(PkgConfig REQUIRED)
++pkg_check_modules(SDBUSPLUSPLUS sdbusplus REQUIRED)
++include_directories(${SDBUSPLUSPLUS_INCLUDE_DIRS})
++link_directories(${SDBUSPLUSPLUS_LIBRARY_DIRS})
++find_program(SDBUSPLUSPLUS sdbus++)
++
++# import phosphor-logging
++find_package(PkgConfig REQUIRED)
++pkg_check_modules(LOGGING phosphor-logging REQUIRED)
++include_directories(${LOGGING_INCLUDE_DIRS})
++link_directories(${LOGGING_LIBRARY_DIRS})
++
++# phosphor-dbus-interfaces
++find_package(PkgConfig REQUIRED)
++pkg_check_modules(DBUSINTERFACE phosphor-dbus-interfaces REQUIRED)
++include_directories(${DBUSINTERFACE_INCLUDE_DIRS})
++link_directories(${DBUSINTERFACE_LIBRARY_DIRS})
++
++add_executable(${PROJECT_NAME} ${SRC_FILES})
++target_link_libraries(${PROJECT_NAME} ${DBUSINTERFACE_LIBRARIES} )
++target_link_libraries(${PROJECT_NAME} "${SDBUSPLUSPLUS_LIBRARIES} -lstdc++fs -lphosphor_dbus")
++
++install (TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
++install (FILES ${SERVICE_FILES} DESTINATION /lib/systemd/system/)
+\ No newline at end of file
+diff --git a/MAINTAINERS b/MAINTAINERS
+new file mode 100644
+index 0000000..de6cc54
+--- /dev/null
++++ b/MAINTAINERS
+@@ -0,0 +1,45 @@
++How to use this list:
++    Find the most specific section entry (described below) that matches where
++    your change lives and add the reviewers (R) and maintainers (M) as
++    reviewers. You can use the same method to track down who knows a particular
++    code base best.
++
++    Your change/query may span multiple entries; that is okay.
++
++    If you do not find an entry that describes your request at all, someone
++    forgot to update this list; please at least file an issue or send an email
++    to a maintainer, but preferably you should just update this document.
++
++Description of section entries:
++
++    Section entries are structured according to the following scheme:
++
++    X:  NAME <EMAIL_USERNAME@DOMAIN> <IRC_USERNAME!>
++    X:  ...
++    .
++    .
++    .
++
++    Where REPO_NAME is the name of the repository within the OpenBMC GitHub
++    organization; FILE_PATH is a file path within the repository, possibly with
++    wildcards; X is a tag of one of the following types:
++
++    M:  Denotes maintainer; has fields NAME <EMAIL_USERNAME@DOMAIN> <IRC_USERNAME!>;
++        if omitted from an entry, assume one of the maintainers from the
++        MAINTAINERS entry.
++    R:  Denotes reviewer; has fields NAME <EMAIL_USERNAME@DOMAIN> <IRC_USERNAME!>;
++        these people are to be added as reviewers for a change matching the repo
++        path.
++    F:  Denotes forked from an external repository; has fields URL.
++
++    Line comments are to be denoted "# SOME COMMENT" (typical shell style
++    comment); it is important to follow the correct syntax and semantics as we
++    may want to use automated tools with this file in the future.
++
++    A change cannot be added to an OpenBMC repository without a MAINTAINER's
++    approval; thus, a MAINTAINER should always be listed as a reviewer.
++
++START OF MAINTAINERS LIST
++-------------------------
++
++M:  Kuiying Wang <kuiying.wang@intel.com> <kuiyingw>
+\ No newline at end of file
+diff --git a/inc/post_code.hpp b/inc/post_code.hpp
+new file mode 100644
+index 0000000..84c8b3e
+--- /dev/null
++++ b/inc/post_code.hpp
+@@ -0,0 +1,152 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++#pragma once
++#include <fcntl.h>
++#include <unistd.h>
++#include <cereal/cereal.hpp>
++#include <experimental/filesystem>
++#include <cereal/access.hpp>
++#include <cereal/archives/json.hpp>
++#include <iostream>
++#include <fstream>
++#include <cereal/types/vector.hpp>
++
++#include <xyz/openbmc_project/State/Boot/PostCode/server.hpp>
++#include <xyz/openbmc_project/Common/error.hpp>
++#include <phosphor-logging/elog-errors.hpp>
++#include <xyz/openbmc_project/State/Host/server.hpp>
++
++#define MaxPostCodeCycles 100
++
++const static constexpr char *PostCodePath =
++    "/xyz/openbmc_project/state/boot/raw";
++const static constexpr char *PropertiesIntf =
++    "org.freedesktop.DBus.Properties";
++const static constexpr char *PostCodeListPath =
++    "/var/lib/phosphor-post-code-manager/";
++const static constexpr char *CurrentBootCycleIndexName =
++    "CurrentBootCycleIndex";
++const static constexpr char *HostStatePath =
++    "/xyz/openbmc_project/state/host0";
++
++
++struct EventDeleter
++{
++    void operator()(sd_event *event) const
++    {
++        event = sd_event_unref(event);
++    }
++};
++using EventPtr = std::unique_ptr<sd_event, EventDeleter>;
++namespace fs = std::experimental::filesystem;
++namespace StateServer = sdbusplus::xyz::openbmc_project::State::server;
++
++using post_code =
++    sdbusplus::xyz::openbmc_project::State::Boot::server::PostCode;
++
++struct PostCode : sdbusplus::server::object_t<post_code>
++{
++    PostCode(sdbusplus::bus::bus& bus, const char* path,
++                 EventPtr &event) :
++        sdbusplus::server::object_t<post_code>(bus, path),
++        bus(bus),
++        propertiesChangedSignalRaw(
++            bus,
++            sdbusplus::bus::match::rules::type::signal() +
++                sdbusplus::bus::match::rules::member("PropertiesChanged") +
++                sdbusplus::bus::match::rules::path(PostCodePath) +
++                sdbusplus::bus::match::rules::interface(PropertiesIntf),
++            [this](sdbusplus::message::message &msg) {
++                std::string objectName;
++                std::map<std::string, sdbusplus::message::variant<uint64_t>> msgData;
++                msg.read(objectName, msgData);
++                // Check if it was the Value property that changed.
++                auto valPropMap = msgData.find("Value");
++                {
++                    if (valPropMap != msgData.end())
++                    {
++                        this->savePostCodes(sdbusplus::message::variant_ns::get<uint64_t>(valPropMap->second));
++                    }
++                }
++        }),
++        propertiesChangedSignalCurrentHostState(
++            bus,
++            sdbusplus::bus::match::rules::type::signal() +
++                sdbusplus::bus::match::rules::member("PropertiesChanged") +
++                sdbusplus::bus::match::rules::path(HostStatePath) +
++                sdbusplus::bus::match::rules::interface(PropertiesIntf),
++            [this](sdbusplus::message::message &msg) {
++                std::string objectName;
++                std::map<std::string, sdbusplus::message::variant<std::string>> msgData;
++                msg.read(objectName, msgData);
++                // Check if it was the Value property that changed.
++                auto valPropMap = msgData.find("CurrentHostState");
++                {
++                    if (valPropMap != msgData.end())
++                    {
++                        StateServer::Host::HostState currentHostState =
++                            StateServer::Host::convertHostStateFromString(
++                            sdbusplus::message::variant_ns::get<std::string>(valPropMap->second));
++                        if (currentHostState == StateServer::Host::HostState::Off)
++                        {
++                            if (this->currentBootCycleIndex() >= this->maxBootCycleNum())
++                            {
++                                this->currentBootCycleIndex(1);
++                            } else{
++                                this->currentBootCycleIndex(this->currentBootCycleIndex() + 1);
++                            }
++                            this->postCodes.clear();
++                        }
++                    }
++                }
++        })
++    {
++        phosphor::logging::log<phosphor::logging::level::INFO>(
++                    "PostCode is created");
++        auto dir = fs::path(PostCodeListPath);
++        fs::create_directories(dir);
++        strPostCodeListPath = PostCodeListPath;
++        strCurrentBootCycleIndexName = CurrentBootCycleIndexName;
++        uint16_t index = 0;
++        deserialize(fs::path(strPostCodeListPath + strCurrentBootCycleIndexName), index);
++        currentBootCycleIndex(index);
++        maxBootCycleNum(MaxPostCodeCycles);
++        if (currentBootCycleIndex() >= maxBootCycleNum())
++        {
++            currentBootCycleIndex(1);
++        } else{
++            currentBootCycleIndex(currentBootCycleIndex() + 1);
++        }
++    }
++    ~PostCode()
++    {
++
++    }
++
++    std::vector<uint64_t> getPostCodes(uint16_t index) override;
++
++  private:
++    sdbusplus::bus::bus& bus;
++    std::vector<uint64_t> postCodes;
++    std::string strPostCodeListPath;
++    std::string strCurrentBootCycleIndexName;
++    void savePostCodes(uint64_t code);
++    sdbusplus::bus::match_t propertiesChangedSignalRaw;
++    sdbusplus::bus::match_t propertiesChangedSignalCurrentHostState;
++    fs::path serialize(const std::string& path);
++    bool deserialize(const fs::path& path, uint16_t& index);
++    bool deserializePostCodes(const fs::path& path, std::vector<uint64_t> &codes);
++};
+diff --git a/service_files/xyz.openbmc_project.State.Boot.PostCode.service b/service_files/xyz.openbmc_project.State.Boot.PostCode.service
+new file mode 100644
+index 0000000..67bc43f
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.State.Boot.PostCode.service
+@@ -0,0 +1,11 @@
++[Unit]
++Description=Post code manager
++
++[Service]
++ExecStart=/usr/bin/env post-code-manager
++SyslogIdentifier=post-code-manager
++Type=dbus
++BusName=xyz.openbmc_project.State.Boot.PostCode
++
++[Install]
++WantedBy=obmc-standby.target
+diff --git a/src/main.cpp b/src/main.cpp
+new file mode 100644
+index 0000000..4a74b29
+--- /dev/null
++++ b/src/main.cpp
+@@ -0,0 +1,61 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++#include "post_code.hpp"
++
++int main(int argc, char* argv[])
++{
++    int ret = 0;
++
++    phosphor::logging::log<phosphor::logging::level::INFO>(
++        "Start post code manager service...");
++
++    sd_event* event = nullptr;
++    ret = sd_event_default(&event);
++    if (ret < 0)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "Error creating a default sd_event handler");
++        return ret;
++    }
++    EventPtr eventP{event};
++    event = nullptr;
++
++    sdbusplus::bus::bus bus = sdbusplus::bus::new_default();
++    sdbusplus::server::manager_t m{bus, DBUS_OBJECT_NAME};
++
++    bus.request_name(DBUS_INTF_NAME);
++
++    PostCode postCode{bus, DBUS_OBJECT_NAME, eventP};
++
++    try
++    {
++        bus.attach_event(eventP.get(), SD_EVENT_PRIORITY_NORMAL);
++        ret = sd_event_loop(eventP.get());
++        if (ret < 0)
++        {
++            phosphor::logging::log<phosphor::logging::level::ERR>(
++                "Error occurred during the sd_event_loop",
++                phosphor::logging::entry("RET=%d", ret));
++        }
++    }
++    catch (std::exception& e)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
++        return -1;
++    }
++    return 0;
++
++}
+diff --git a/src/post_code.cpp b/src/post_code.cpp
+new file mode 100644
+index 0000000..983eeee
+--- /dev/null
++++ b/src/post_code.cpp
+@@ -0,0 +1,109 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++#include "post_code.hpp"
++std::vector<uint64_t> PostCode::getPostCodes(uint16_t index)
++{
++    std::vector<uint64_t> codes;
++
++    if (currentBootCycleIndex() == index)
++        return postCodes;
++    deserializePostCodes(fs::path(strPostCodeListPath + std::to_string(index)), codes);
++    return codes;
++}
++void PostCode::savePostCodes(uint64_t code)
++{
++    postCodes.push_back(code);
++    serialize(fs::path(PostCodeListPath));
++    return;
++}
++
++fs::path PostCode::serialize(const std::string& path)
++{
++    try
++    {
++        uint16_t index = currentBootCycleIndex();
++        fs::path fullPath(path + strCurrentBootCycleIndexName);
++        std::ofstream os(fullPath.c_str(), std::ios::binary);
++        cereal::JSONOutputArchive oarchive(os);
++        oarchive(index);
++
++        std::ofstream osPostCodes((path + std::to_string(currentBootCycleIndex())).c_str(), std::ios::binary);
++        cereal::JSONOutputArchive oarchivePostCodes(osPostCodes);
++        oarchivePostCodes(postCodes);
++
++        return path;
++    }
++    catch (cereal::Exception& e)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
++    }
++    catch (const fs::filesystem_error& e)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
++    }
++}
++
++bool PostCode::deserialize(const fs::path& path, uint16_t& index)
++{
++    try
++    {
++        if (fs::exists(path))
++        {
++            std::ifstream is(path.c_str(), std::ios::in | std::ios::binary);
++            cereal::JSONInputArchive iarchive(is);
++            iarchive(index);
++            return true;
++        }
++        return false;
++    }
++    catch (cereal::Exception& e)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
++        return false;
++    }
++    catch (const fs::filesystem_error& e)
++    {
++        return false;
++    }
++
++    return false;
++}
++
++bool PostCode::deserializePostCodes(const fs::path& path, std::vector<uint64_t> &codes)
++{
++    try
++    {
++        if (fs::exists(path))
++        {
++            std::ifstream is(path.c_str(), std::ios::in | std::ios::binary);
++            cereal::JSONInputArchive iarchive(is);
++            iarchive(codes);
++            return true;
++        }
++        return false;
++    }
++    catch (cereal::Exception& e)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
++        return false;
++    }
++    catch (const fs::filesystem_error& e)
++    {
++        return false;
++    }
++
++    return false;
++}
+-- 
+2.19.1
+
