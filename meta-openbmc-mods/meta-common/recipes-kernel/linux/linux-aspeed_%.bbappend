@@ -11,7 +11,7 @@ SRC_URI += " \
         file://0007-New-flash-map-for-intel.patch \
         file://0008-Add-ASPEED-SGPIO-driver.patch \
         file://0009-SGPIO-DT-and-pinctrl-fixup.patch \
-	file://0010-Update-PECI-drivers-to-sync-with-linux-upstreaming-v.patch \
+        file://0010-Update-PECI-drivers-to-sync-with-linux-upstreaming-v.patch \
         file://0019-Add-I2C-IPMB-support.patch \
         file://0021-Initial-Port-of-Aspeed-LPC-SIO-driver.patch \
         file://0022-Add-AST2500-eSPI-driver.patch \
@@ -28,4 +28,6 @@ SRC_URI += " \
         file://0038-media-aspeed-backport-ikvm-patches.patch \
         file://0039-Add-Aspeed-PWM-driver-which-uses-FTTMR010-timer-IP.patch \
         file://0040-i2c-Add-mux-hold-unhold-msg-types.patch \
+        file://0041-Enable-passthrough-based-gpio-character-device.patch \
+        file://0042-Add-bus-timeout-ms-and-retries-device-tree-propertie.patch \
         "

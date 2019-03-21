@@ -1,6 +1,6 @@
 # this is here just to bump faster than upstream
 SRC_URI = "git://github.com/openbmc/entity-manager.git"
-SRCREV = "9945ddffc67a9e564a92a3c0bddf2a2d7dc70b97"
+SRCREV = "623de6cbb49070085bb97b98ba379206bac98a7a"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 

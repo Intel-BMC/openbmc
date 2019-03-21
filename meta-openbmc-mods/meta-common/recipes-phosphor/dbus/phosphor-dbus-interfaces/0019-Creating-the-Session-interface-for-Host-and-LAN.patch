@@ -1,0 +1,126 @@
+From f805522921d69eb4ea70248fe7e54557363aacea Mon Sep 17 00:00:00 2001
+From: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
+Date: Sat, 2 Mar 2019 03:31:09 +0530
+Subject: [PATCH] Creating the Session interface- for Host and LAN
+
+Defined all needed session properites to manage the session in
+host and also in LAN
+
+Change-Id: Ic7cccfc3333a602ee07fcd60077ec58fd8f06304
+Signed-off-by: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
+---
+ xyz/openbmc_project/Session/Info.interface.yaml | 56 +++++++++++++++++++++++++
+ xyz/openbmc_project/Session/README.md           | 38 +++++++++++++++++
+ 2 files changed, 94 insertions(+)
+ create mode 100644 xyz/openbmc_project/Session/Info.interface.yaml
+ create mode 100644 xyz/openbmc_project/Session/README.md
+
+diff --git a/xyz/openbmc_project/Session/Info.interface.yaml b/xyz/openbmc_project/Session/Info.interface.yaml
+new file mode 100644
+index 0000000..fbb5a45
+--- /dev/null
++++ b/xyz/openbmc_project/Session/Info.interface.yaml
+@@ -0,0 +1,56 @@
++description: >
++    Provides properties for session objects.
++    As communication to this service is done through authenticated
++    & authorized session, there won't be any validation for the both.
++
++properties:
++    - name: SessionHandle
++      type: byte
++      description: >
++          Session Handle,unique number to locate the session.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: ChannelNum
++      type: byte
++      description: >
++          channelnumber which session is created.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: CurrentPrivilege
++      type: byte
++      description: >
++          Privilege of the session.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: RemoteIPAddr
++      type: uint32
++      description: >
++          Remote IP address.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: RemotePort
++      type: uint16
++      description: >
++          Remote IP Port.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: RemoteMACAddress
++      type: array[byte]
++      description: >
++          Remote MAC address.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: UserID
++      type: byte
++      description: >
++           Session created by given user ID.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: State
++      type: byte
++      description: >
++          Session state.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
++
++# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+diff --git a/xyz/openbmc_project/Session/README.md b/xyz/openbmc_project/Session/README.md
+new file mode 100644
+index 0000000..f220885
+--- /dev/null
++++ b/xyz/openbmc_project/Session/README.md
+@@ -0,0 +1,38 @@
++# Session Management
++
++## Overview
++Session Manager service exposes D-Bus methods for session management operations.
++
++### Session Manager Interface
++Session manager interface `xyz.openbmc_project.Session.Manager` provides following
++methods, properties and signals.
++
++#### xyz.openbmc_project.Session.Manager interface
++##### methods
++* CreateSession - To create new session object to the system.
++
++##### properties
++* MaxSessionSupported - To list all the groups supported in the system.
++* ActiveSessionCount - To hold the no of active sessions.
++
++Session manager service will create session objects for every session
++in the system under object path `/xyz/openbmc_project/session/<SessionIndex>`.
++Each session object can be handled through 'org.freedesktop.DBus.ObjectManager'.
++session  object will expose following properties and methods.
++
++#### xyz.openbmc_project.Session.Info interface
++##### properties
++* SessionID - Session ID,random unique number to locate the session.
++* Channel   -  Session created Channel.
++* SessionPrivilege - Privilege of the session.
++* RemoteIPAddr  – Remote IP address.
++* RemotePort   - Remote Port address.
++* RemoteMACAddress -Remote MAC Address.
++* UserID  - Session created by given user id.
++
++
++
++#### xyz.openbmc_project.Object.Delete
++#### methods
++* Delete - To delete the session object in the system.
++
+-- 
+2.7.4
+

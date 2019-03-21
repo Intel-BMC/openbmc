@@ -6,8 +6,6 @@ GROUPADD_PARAM_${PN} = "web; redfish "
 
 FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
 
-SRC_URI += "file://0001-Refine-KVM-websock-proxy.patch"
-
 # Enable CPU Log and Raw PECI support
 EXTRA_OECMAKE += "-DBMCWEB_ENABLE_REDFISH_CPU_LOG=ON"
 EXTRA_OECMAKE += "-DBMCWEB_ENABLE_REDFISH_RAW_PECI=ON"

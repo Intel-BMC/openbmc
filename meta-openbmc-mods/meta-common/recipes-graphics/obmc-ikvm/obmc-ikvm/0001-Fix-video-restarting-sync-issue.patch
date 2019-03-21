@@ -1,0 +1,57 @@
+From 561e73cf200fa25a2c2f1ede4e4c899e192a95a4 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Wed, 6 Mar 2019 15:39:58 -0800
+Subject: [PATCH] Fix video restarting sync issue
+
+There is a video start/stop sync issue inbetween ikvm server and
+ikvm manager because newClient and clientGone callback called
+by a different thread from libvncserver. To fix this issue, this
+commit moves the video.start() call from server to manager to
+unify video control thread.
+
+Tested:
+  Open KVM web page and reload the web page by pressing F5.
+  KVM page should be reloaded correctly.
+
+Change-Id: Ic0d14ea712510318e9e8f45615a95e82aeaaddf1
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ ikvm_manager.cpp | 1 +
+ ikvm_server.cpp  | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/ikvm_manager.cpp b/ikvm_manager.cpp
+index 5e014d057410..d56110dd977f 100644
+--- a/ikvm_manager.cpp
++++ b/ikvm_manager.cpp
+@@ -21,6 +21,7 @@ void Manager::run()
+     {
+         if (server.wantsFrame())
+         {
++            video.start();
+             video.getFrame();
+             server.sendFrame();
+         }
+diff --git a/ikvm_server.cpp b/ikvm_server.cpp
+index 37a927b9d418..35310da292be 100644
+--- a/ikvm_server.cpp
++++ b/ikvm_server.cpp
+@@ -154,6 +154,7 @@ void Server::clientGone(rfbClientPtr cl)
+     Server* server = (Server*)cl->screen->screenData;
+ 
+     delete (ClientData*)cl->clientData;
++    cl->clientData = nullptr;
+ 
+     if (server->numClients-- == 1)
+     {
+@@ -173,7 +174,6 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
+     {
+         server->pendingResize = false;
+         server->frameCounter = 0;
+-        server->video.start();
+     }
+ 
+     return RFB_CLIENT_ACCEPT;
+-- 
+2.7.4
+

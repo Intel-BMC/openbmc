@@ -13,7 +13,7 @@ do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
 SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
 
-SRCREV = "de77d02aefa3c9df62365e7f07224c5cf9b0eb96"
+SRCREV = "c4c223bdbe5b58a7acad12dc9700365330f2df1c"
 S = "${WORKDIR}/git"
 
 SYSTEMD_SERVICE_${PN} += "com.intel.AtScaleDebug.service"

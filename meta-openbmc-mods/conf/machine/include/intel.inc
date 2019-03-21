@@ -10,6 +10,8 @@ OBMC_MACHINE_FEATURES += "\
 
 VIRTUAL-RUNTIME_skeleton_workbook = "${MACHINE}-config"
 
+VIRTUAL-RUNTIME_obmc-led-monitor = ""
+
 PREFERRED_PROVIDER_virtual/obmc-host-ipmi-hw = "phosphor-ipmi-kcs"
 PREFERRED_PROVIDER_virtual/obmc-chassis-mgmt = "packagegroup-intel-apps"
 PREFERRED_PROVIDER_virtual/obmc-fan-mgmt = "packagegroup-intel-apps"

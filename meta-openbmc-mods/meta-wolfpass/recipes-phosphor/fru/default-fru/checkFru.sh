@@ -2,7 +2,7 @@
 
 # this script checks the gpio id and loads the correct baseboard fru
 fruFile="/etc/fru/baseboard.fru.bin"
-idGpio=( 8 9 10 11 12)
+idGpio=( 8 9 10 11 12 53)
 result=0
 idx=0
 
@@ -21,14 +21,17 @@ do
 done
 
 # wp
-if (($result == 30)); then
+if (($result == 62)); then
     cat S2600WP.fru.bin > $fruFile
 # wc
-elif (($result == 13)); then
+elif (($result == 45)); then
     cat S2600WC.fru.bin > $fruFile
 # cyp
-elif (($result == 28)); then
+elif (($result == 60)); then
     cat S2600CYP.fru.bin > $fruFile
+# tnp
+elif (($result == 12)); then
+    cat S2600TNP.fru.bin > $fruFile
 # default to wft
 else
     cat S2600WFT.fru.bin > $fruFile

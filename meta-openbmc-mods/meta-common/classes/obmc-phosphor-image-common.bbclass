@@ -29,6 +29,7 @@ IMAGE_INSTALL_append = " \
         frb2-watchdog \
         srvcfg-manager \
         callback-manager \
+        post-code-manager \
         "
 
 # this package was flagged as a security risk
