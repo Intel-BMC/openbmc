@@ -1,0 +1,18 @@
+{
+    "Exposes": [
+
+    ],
+    "Name": "OPB2RH Chassis",
+    "Type": "Chassis",
+    "Probe": [
+        "FOUND('TNP Baseboard')",
+        "AND",
+        "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'FCXXPDBASSMBL'})"
+    ],
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "Intel Corporation",
+        "Model": "OPB2RH",
+        "PartNumber": "R1234",
+        "SerialNumber": "12345"
+    }
+}

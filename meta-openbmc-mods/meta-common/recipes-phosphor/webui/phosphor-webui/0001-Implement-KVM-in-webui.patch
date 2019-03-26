@@ -1,4 +1,4 @@
-From a129c4e92eebd03772e5f68a2fcf855e00874f19 Mon Sep 17 00:00:00 2001
+From 4c63b4e16fbc3b536a437b2ab5d5df5e846e6b83 Mon Sep 17 00:00:00 2001
 From: Ed tanous <ed@tanous.net>
 Date: Sun, 22 Apr 2018 10:53:28 -0700
 Subject: [PATCH] Implement KVM in webui
@@ -24,46 +24,46 @@ Signed-off-by: Gunnar Mills <gmills@us.ibm.com>
  app/server-control/styles/index.scss               |  1 +
  app/server-control/styles/kvm.scss                 | 11 +++++
  package-lock.json                                  |  5 ++
- package.json                                       |  5 +-
+ package.json                                       |  1 +
  webpack.config.js                                  |  6 ++-
- 10 files changed, 98 insertions(+), 8 deletions(-)
+ 10 files changed, 96 insertions(+), 6 deletions(-)
  create mode 100644 app/server-control/controllers/kvm-controller.html
  create mode 100644 app/server-control/controllers/kvm-controller.js
  create mode 100644 app/server-control/styles/kvm.scss
 
 diff --git a/app/common/directives/app-navigation.html b/app/common/directives/app-navigation.html
-index 2f3ded76cad2..f8b5db742acc 100644
+index a45a24bcbaa1..e54b23631b3e 100644
 --- a/app/common/directives/app-navigation.html
 +++ b/app/common/directives/app-navigation.html
-@@ -85,19 +85,21 @@
-       <a href="#/server-control/bmc-reboot" tabindex="12" ng-click="closeSubnav()">Reboot BMC</a></li>
+@@ -87,19 +87,21 @@
+       <a href="#/server-control/bmc-reboot" tabindex="13" ng-click="closeSubnav()">Reboot BMC</a></li>
      <li ng-class="{'active': (path == '/server-control/remote-console')}">
-       <a href="#/server-control/remote-console" tabindex="13" ng-click="closeSubnav()">Serial over LAN console</a></li>
+       <a href="#/server-control/remote-console" tabindex="14" ng-click="closeSubnav()">Serial over LAN console</a></li>
 +    <li ng-class="{'active': (path == '/server-control/kvm')}">
-+      <a href="#/server-control/kvm" tabindex="14" ng-click="closeSubnav()">KVM</a></li>
++      <a href="#/server-control/kvm" tabindex="15" ng-click="closeSubnav()">KVM</a></li>
    </ul>
    <ul class="nav__second-level btn-firmware" ng-style="navStyle" ng-class="{opened: (showSubMenu && firstLevel == 'configuration')}">
      <li ng-class="{'active': (path == '/configuration' || path == '/configuration/network')}">
--      <a href="#/configuration/network" tabindex="14" ng-click="closeSubnav()">Network settings</a></li>
-+      <a href="#/configuration/network" tabindex="15" ng-click="closeSubnav()">Network settings</a></li>
+-      <a href="#/configuration/network" tabindex="15" ng-click="closeSubnav()">Network settings</a></li>
++      <a href="#/configuration/network" tabindex="16" ng-click="closeSubnav()">Network settings</a></li>
      <li ng-class="{'active': (path == '/configuration' || path == '/configuration/snmp')}">
--      <a href="#/configuration/snmp" tabindex="15" ng-click="closeSubnav()">SNMP settings</a></li>
-+      <a href="#/configuration/snmp" tabindex="16" ng-click="closeSubnav()">SNMP settings</a></li>
+-      <a href="#/configuration/snmp" tabindex="16" ng-click="closeSubnav()">SNMP settings</a></li>
++      <a href="#/configuration/snmp" tabindex="17" ng-click="closeSubnav()">SNMP settings</a></li>
      <li ng-class="{'active': (path == '/configuration' || path == '/configuration/firmware')}">
--      <a href="#/configuration/firmware" tabindex="16" ng-click="closeSubnav()">Firmware</a></li>
-+      <a href="#/configuration/firmware" tabindex="17" ng-click="closeSubnav()">Firmware</a></li>
+-      <a href="#/configuration/firmware" tabindex="17" ng-click="closeSubnav()">Firmware</a></li>
++      <a href="#/configuration/firmware" tabindex="18" ng-click="closeSubnav()">Firmware</a></li>
      <li ng-class="{'active': (path == '/configuration' || path == '/configuration/date-time')}">
--      <a href="#/configuration/date-time" tabindex="17" ng-click="closeSubnav()">Date and time settings</a></li>
-+      <a href="#/configuration/date-time" tabindex="18" ng-click="closeSubnav()">Date and time settings</a></li>
+-      <a href="#/configuration/date-time" tabindex="18" ng-click="closeSubnav()">Date and time settings</a></li>
++      <a href="#/configuration/date-time" tabindex="19" ng-click="closeSubnav()">Date and time settings</a></li>
    </ul>
    <ul class="nav__second-level btn-users" ng-style="navStyle" ng-class="{opened: (showSubMenu && firstLevel == 'users')}">
      <li ng-class="{'active': (path == '/users' || path == '/users/manage-accounts')}">
--      <a href="#/users/manage-accounts" tabindex="18" ng-click="closeSubnav()">Manage user accounts</a></li>
-+      <a href="#/users/manage-accounts" tabindex="19" ng-click="closeSubnav()">Manage user account</a></li>
+-      <a href="#/users/manage-accounts" tabindex="19" ng-click="closeSubnav()">Manage user account</a></li>
++      <a href="#/users/manage-accounts" tabindex="20" ng-click="closeSubnav()">Manage user account</a></li>
    </ul>
  </nav>
 diff --git a/app/index.js b/app/index.js
-index c9fed83fe4a9..d6b4a08fa5c6 100644
+index 38df0e9896f4..a0dde4df96b7 100644
 --- a/app/index.js
 +++ b/app/index.js
 @@ -69,6 +69,7 @@ import power_operations_controller from './server-control/controllers/power-oper
@@ -205,18 +205,14 @@ index 2d9d31b21968..103c9b84b933 100644
        "version": "10.12.18",
        "resolved": "https://registry.npmjs.org/@types/node/-/node-10.12.18.tgz",
 diff --git a/package.json b/package.json
-index 35c6b78e320c..c0125a0b72fd 100644
+index 35c6b78e320c..fd253cbb2f02 100644
 --- a/package.json
 +++ b/package.json
-@@ -28,8 +28,9 @@
-     "node"
-   ],
+@@ -30,6 +30,7 @@
    "dependencies": {
--    "angular": "^1.7.5",
--    "angular-animate": "^1.7.5",
+     "angular": "^1.7.5",
+     "angular-animate": "^1.7.5",
 +    "@novnc/novnc": "^1.0.0",
-+    "angular": "^1.7.3",
-+    "angular-animate": "^1.7.3",
      "angular-clipboard": "^1.6.2",
      "angular-cookies": "^1.7.5",
      "angular-messages": "^1.7.6",

@@ -1,4 +1,4 @@
-From 6e13c881be7df3cd1e19c69355ef87b91dbc197b Mon Sep 17 00:00:00 2001
+From 726be648df955f5ae94f34391adc0e88f6956345 Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Mon, 2 Jul 2018 19:23:25 -0700
 Subject: [PATCH] Added suport for multiple user manager services
@@ -20,17 +20,16 @@ Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.co
  create mode 100644 user_service.hpp
 
 diff --git a/Makefile.am b/Makefile.am
-index 9da26ef..5556619 100644
+index b138aea..288b780 100644
 --- a/Makefile.am
 +++ b/Makefile.am
-@@ -1,12 +1,13 @@
+@@ -1,11 +1,12 @@
  sbin_PROGRAMS = phosphor-user-manager
  
--noinst_HEADERS = user.hpp user_mgr.hpp users.hpp
-+noinst_HEADERS = user.hpp user_mgr.hpp users.hpp user_service.hpp
+-noinst_HEADERS = user_mgr.hpp users.hpp
++noinst_HEADERS = user_mgr.hpp users.hpp user_service.hpp
  
  phosphor_user_manager_SOURCES = \
-                 user.cpp \
                  mainapp.cpp \
                  user_mgr.cpp \
 -                users.cpp

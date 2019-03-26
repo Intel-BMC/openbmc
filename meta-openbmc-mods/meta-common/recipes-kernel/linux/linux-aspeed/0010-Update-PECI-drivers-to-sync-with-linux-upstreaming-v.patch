@@ -1,4 +1,4 @@
-From 23f9b7808eab57957fa3bcb37974a1fdb22e7b64 Mon Sep 17 00:00:00 2001
+From ce7a88017fb2124100c4e5481a205034f34da23c Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 7 Jan 2019 09:56:10 -0800
 Subject: [PATCH] Update PECI drivers to sync with linux upstreaming version
@@ -1940,7 +1940,7 @@ index 51cb2563ceb6..000000000000
 -MODULE_DESCRIPTION("ASPEED PECI driver");
 -MODULE_LICENSE("GPL v2");
 diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
-index fac8c72dcda8..3ebdb46613b9 100644
+index fac8c72dcda8..e2ef013e5002 100644
 --- a/drivers/peci/peci-core.c
 +++ b/drivers/peci/peci-core.c
 @@ -1,38 +1,31 @@
@@ -2109,7 +2109,7 @@ index fac8c72dcda8..3ebdb46613b9 100644
 +	tmp_buf[0] = msg->addr;
 +	tmp_buf[1] = msg->tx_len;
 +	tmp_buf[2] = msg->rx_len;
-+	memcpy(&tmp_buf[2], &msg->tx_buf[0], len - 3);
++	memcpy(&tmp_buf[3], msg->tx_buf, len - 3);
 +
 +	*aw_fcs = crc8(peci_crc8_table, tmp_buf, (size_t)len, 0);
 +

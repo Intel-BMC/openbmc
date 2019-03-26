@@ -15,7 +15,6 @@ IMAGE_INSTALL_append = " \
         dbus-sensors \
         phosphor-webui \
         rest-dbus-static \
-        nv-overlay \
         phosphor-pid-control \
         phosphor-host-postd \
         smbios-mdrv1 \
@@ -30,6 +29,8 @@ IMAGE_INSTALL_append = " \
         srvcfg-manager \
         callback-manager \
         post-code-manager \
+        preinit-mounts \
+        mtd-utils-ubifs \
         "
 
 # this package was flagged as a security risk

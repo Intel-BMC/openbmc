@@ -1,5 +1,10 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
+# TODO: This should be removed, once up-stream bump up
+# issue is resolved
+#SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
+SRCREV = "55768e3548ef7476d4fdbe7be7a3ddb4d4896f14"
+
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0002-Modify-dbus-interface-for-power-control.patch \
             file://0003-Modify-dbus-interface-for-chassis-control.patch \
@@ -17,8 +22,9 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0050-enable-6-oem-commands.patch \
             file://0051-Fix-Set-LAN-Config-to-work-without-SetInProgress.patch \
             file://0053-Fix-keep-looping-issue-when-entering-OS.patch \
-            file://0054-Fix-User-commands-require-channel-layer-lib.patch \
             file://0055-Implement-set-front-panel-button-enables-command.patch \
+            file://0056-add-SetInProgress-to-get-set-boot-option-cmd.patch \
+            file://0057-Add-timer-use-actions-support.patch \
             "
 
 do_install_append(){

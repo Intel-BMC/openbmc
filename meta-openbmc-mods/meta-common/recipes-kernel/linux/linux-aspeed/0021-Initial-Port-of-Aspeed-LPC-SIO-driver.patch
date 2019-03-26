@@ -1,4 +1,4 @@
-From 4084484a57d9a81b6581455ff144fc4f9c603075 Mon Sep 17 00:00:00 2001
+From 7d5cd323d3b05a00f8b8a6eb38a5a1ec7925660a Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@intel.com>
 Date: Mon, 13 Nov 2017 16:29:44 +0800
 Subject: [PATCH] Aspeed LPC SIO driver
@@ -6,39 +6,82 @@ Subject: [PATCH] Aspeed LPC SIO driver
 Add lpc sio device driver for AST2500/2400
 
 Signed-off-by: Yong Li <yong.b.li@intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- .../devicetree/bindings/misc/aspeed-sio.txt        |  14 +
+ .../devicetree/bindings/misc/aspeed-sio.txt        |  18 +
+ arch/arm/boot/dts/aspeed-g4.dtsi                   |   7 +
+ arch/arm/boot/dts/aspeed-g5.dtsi                   |   7 +
  drivers/misc/Kconfig                               |   9 +
  drivers/misc/Makefile                              |   1 +
- drivers/misc/aspeed-lpc-sio.c                      | 435 +++++++++++++++++++++
- include/uapi/linux/aspeed-lpc-sio.h                |  44 +++
- 5 files changed, 503 insertions(+)
+ drivers/misc/aspeed-lpc-sio.c                      | 450 +++++++++++++++++++++
+ include/uapi/linux/aspeed-lpc-sio.h                |  44 ++
+ 7 files changed, 536 insertions(+)
  create mode 100644 Documentation/devicetree/bindings/misc/aspeed-sio.txt
  create mode 100644 drivers/misc/aspeed-lpc-sio.c
  create mode 100644 include/uapi/linux/aspeed-lpc-sio.h
 
 diff --git a/Documentation/devicetree/bindings/misc/aspeed-sio.txt b/Documentation/devicetree/bindings/misc/aspeed-sio.txt
 new file mode 100644
-index 000000000000..7953cd3367df
+index 000000000000..3530c2b02f5c
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/misc/aspeed-sio.txt
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,18 @@
 +* Aspeed LPC SIO driver.
 +
 +Required properties:
-+- compatible: "aspeed,ast2500-lpc-sio"
-+	- aspeed,ast2500-lpc-sio: Aspeed AST2500 family
-+- reg: Should contain lpc-sio registers location and length
++- compatible : Should be one of:
++	"aspeed,ast2400-lpc-sio"
++	"aspeed,ast2500-lpc-sio"
++- reg : Should contain lpc-sio registers location and length
++- clocks: contains a phandle to the syscon node describing the clocks.
++	  There should then be one cell representing the clock to use.
 +
 +Example:
 +lpc_sio: lpc-sio@100 {
 +	compatible = "aspeed,ast2500-lpc-sio";
 +	reg = <0x100 0x20>;
++        clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
 +	status = "disabled";
 +};
 +
+diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
+index e8bcfc90bf7c..a87fd5ee1c84 100644
+--- a/arch/arm/boot/dts/aspeed-g4.dtsi
++++ b/arch/arm/boot/dts/aspeed-g4.dtsi
+@@ -340,6 +340,13 @@
+ 						compatible = "aspeed,bmc-misc";
+ 					};
+ 
++					lpc_sio: lpc-sio@100 {
++						compatible = "aspeed,ast2400-lpc-sio";
++						reg = <0x100 0x20>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
++						status = "disabled";
++					};
++
+ 					mbox: mbox@180 {
+ 						compatible = "aspeed,ast2400-mbox";
+ 						reg = <0x180 0x5c>;
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index e5c0ba0f87c8..a568699c28f4 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -451,6 +451,13 @@
+ 						compatible = "aspeed,bmc-misc";
+ 					};
+ 
++					lpc_sio: lpc-sio@100 {
++						compatible = "aspeed,ast2500-lpc-sio";
++						reg = <0x100 0x20>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
++						status = "disabled";
++					};
++
+ 					mbox: mbox@180 {
+ 						compatible = "aspeed,ast2500-mbox";
+ 						reg = <0x180 0x5c>;
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index 689d07ea7ded..fe1e2a4072a8 100644
+index 00d1c547ece7..3ffb18f915e8 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
 @@ -493,6 +493,15 @@ config ASPEED_LPC_CTRL
@@ -58,7 +101,7 @@ index 689d07ea7ded..fe1e2a4072a8 100644
  	tristate "Aspeed ast2500 HOST LPC snoop support"
  	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
 diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index e4170f62ab98..a2b85ec21d09 100644
+index 768278b059c3..de2d5c6d186c 100644
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
 @@ -56,6 +56,7 @@ obj-$(CONFIG_CXL_BASE)		+= cxl/
@@ -71,21 +114,15 @@ index e4170f62ab98..a2b85ec21d09 100644
  obj-$(CONFIG_MISC_RTSX)		+= cardreader/
 diff --git a/drivers/misc/aspeed-lpc-sio.c b/drivers/misc/aspeed-lpc-sio.c
 new file mode 100644
-index 000000000000..fd9a83bd66d7
+index 000000000000..c717a3182320
 --- /dev/null
 +++ b/drivers/misc/aspeed-lpc-sio.c
-@@ -0,0 +1,435 @@
-+/*
-+ * Copyright (C) 2012-2020	ASPEED Technology Inc.
-+ * Copyright (c) 2017 Intel Corporation
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; either version
-+ * 2 of the License, or (at your option) any later version.
-+ *
-+ */
+@@ -0,0 +1,450 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (C) 2012-2017 ASPEED Technology Inc.
++// Copyright (c) 2017-2019 Intel Corporation
 +
++#include <linux/clk.h>
 +#include <linux/mfd/syscon.h>
 +#include <linux/miscdevice.h>
 +#include <linux/mm.h>
@@ -142,8 +179,9 @@ index 000000000000..fd9a83bd66d7
 +struct aspeed_lpc_sio {
 +	struct miscdevice	miscdev;
 +	struct regmap		*regmap;
-+	struct semaphore lock;
-+	unsigned int        reg_base;
++	struct clk		*clk;
++	struct semaphore	lock;
++	unsigned int		reg_base;
 +};
 +
 +static struct aspeed_lpc_sio *file_aspeed_lpc_sio(struct file *file)
@@ -466,16 +504,36 @@ index 000000000000..fd9a83bd66d7
 +
 +	sema_init(&lpc_sio->lock, 1);
 +
++	lpc_sio->clk = devm_clk_get(dev, NULL);
++	if (IS_ERR(lpc_sio->clk)) {
++		rc = PTR_ERR(lpc_sio->clk);
++		if (rc != -EPROBE_DEFER)
++			dev_err(dev, "couldn't get clock\n");
++		return rc;
++	}
++	rc = clk_prepare_enable(lpc_sio->clk);
++	if (rc) {
++		dev_err(dev, "couldn't enable clock\n");
++		return rc;
++	}
++
 +	lpc_sio->miscdev.minor = MISC_DYNAMIC_MINOR;
 +	lpc_sio->miscdev.name = DEVICE_NAME;
 +	lpc_sio->miscdev.fops = &aspeed_lpc_sio_fops;
 +	lpc_sio->miscdev.parent = dev;
 +	rc = misc_register(&lpc_sio->miscdev);
-+	if (rc)
++	if (rc) {
 +		dev_err(dev, "Unable to register device\n");
-+	else
-+		dev_info(dev, "Loaded at %pap (0x%08x)\n",
-+			&lpc_sio->regmap, lpc_sio->reg_base);
++		goto err;
++	}
++
++	dev_info(dev, "Loaded at %pap (0x%08x)\n", &lpc_sio->regmap,
++		 lpc_sio->reg_base);
++
++	return 0;
++
++err:
++	clk_disable_unprepare(lpc_sio->clk);
 +
 +	return rc;
 +}
@@ -485,6 +543,7 @@ index 000000000000..fd9a83bd66d7
 +	struct aspeed_lpc_sio *lpc_sio = dev_get_drvdata(&pdev->dev);
 +
 +	misc_deregister(&lpc_sio->miscdev);
++	clk_disable_unprepare(lpc_sio->clk);
 +
 +	return 0;
 +}
@@ -493,6 +552,7 @@ index 000000000000..fd9a83bd66d7
 +	{ .compatible = "aspeed,ast2500-lpc-sio" },
 +	{ },
 +};
++MODULE_DEVICE_TABLE(of, aspeed_lpc_sio_match);
 +
 +static struct platform_driver aspeed_lpc_sio_driver = {
 +	.driver = {
@@ -502,10 +562,8 @@ index 000000000000..fd9a83bd66d7
 +	.probe = aspeed_lpc_sio_probe,
 +	.remove = aspeed_lpc_sio_remove,
 +};
-+
 +module_platform_driver(aspeed_lpc_sio_driver);
 +
-+MODULE_DEVICE_TABLE(of, aspeed_lpc_sio_match);
 +MODULE_LICENSE("GPL");
 +MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 +MODULE_AUTHOR("Yong Li <yong.blli@linux.intel.com>");
