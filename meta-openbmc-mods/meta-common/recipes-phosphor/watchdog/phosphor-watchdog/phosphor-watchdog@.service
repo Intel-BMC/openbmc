@@ -1,0 +1,12 @@
+[Unit]
+Description=Phosphor %I watchdog
+
+[Service]
+Restart=no
+EnvironmentFile={envfiledir}/obmc/watchdog/%I
+ExecStart=/usr/bin/env phosphor-watchdog --continue --service=${{SERVICE}} --path=${{DEVPATH}} \
+          --action_target=xyz.openbmc_project.State.Watchdog.Action.HardReset=obmc-host-warm-reset@0.target \
+          --action_target=xyz.openbmc_project.State.Watchdog.Action.PowerOff=obmc-host-shutdown@0.target \
+          --action_target=xyz.openbmc_project.State.Watchdog.Action.PowerCycle=obmc-host-reboot@0.target
+
+SyslogIdentifier=phosphor-watchdog

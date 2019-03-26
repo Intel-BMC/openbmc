@@ -1,15 +1,12 @@
 SUMMARY = "OpenBMC VNC server and ipKVM daemon"
 DESCRIPTION = "obmc-ikvm is a vncserver for JPEG-serving V4L2 devices to allow ipKVM"
-LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
+LICENSE = "GPLv2"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=75859989545e37968a99b631ef42722e"
 
 DEPENDS = " libvncserver sdbusplus sdbusplus-native phosphor-logging phosphor-dbus-interfaces autoconf-archive-native"
 
 SRC_URI = "git://github.com/openbmc/obmc-ikvm"
-SRCREV = "2bc661d34abd1fda92a9d2b256ed88ca0e90d09a"
-SRC_URI += "file://0001-Fix-video-restarting-sync-issue.patch \
-            file://0002-Restart-video-when-mode-detection-is-failed.patch \
-            "
+SRCREV = "f6ed0e75b05b573345e4f3eb9d80e677f98992ac"
 
 PR = "r1"
 PR_append = "+gitr${SRCPV}"

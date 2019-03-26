@@ -1,0 +1,140 @@
+From d82aacea62f2cc3f5c4f6654bd8920255edf24fd Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 13 Mar 2019 15:04:16 -0700
+Subject: [PATCH] char: ipmi: Add clock control logic into Aspeed LPC BT driver
+
+If LPC BT driver is registered ahead of lpc-ctrl module, LPC BT
+block will be enabled without heart beating of LCLK until lpc-ctrl
+enables the LCLK. This issue causes improper handling on host
+interrupts when the host sends interrupt in that time frame. Then
+kernel eventually forcibly disables the interrupt with dumping
+stack and printing a 'nobody cared this irq' message out.
+
+To prevent this issue, all LPC sub-nodes should enable LCLK
+individually so this patch adds clock control logic into the LPC
+BT driver.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ .../bindings/ipmi/aspeed,ast2400-ibt-bmc.txt       |  3 +++
+ arch/arm/boot/dts/aspeed-g4.dtsi                   |  1 +
+ arch/arm/boot/dts/aspeed-g5.dtsi                   |  1 +
+ drivers/char/ipmi/bt-bmc.c                         | 24 +++++++++++++++++++++-
+ 4 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/devicetree/bindings/ipmi/aspeed,ast2400-ibt-bmc.txt b/Documentation/devicetree/bindings/ipmi/aspeed,ast2400-ibt-bmc.txt
+index 028268fd99ee..d13887d60f19 100644
+--- a/Documentation/devicetree/bindings/ipmi/aspeed,ast2400-ibt-bmc.txt
++++ b/Documentation/devicetree/bindings/ipmi/aspeed,ast2400-ibt-bmc.txt
+@@ -10,6 +10,8 @@ Required properties:
+ 	"aspeed,ast2400-ibt-bmc"
+ 	"aspeed,ast2500-ibt-bmc"
+ - reg: physical address and size of the registers
++- clocks: contains a phandle to the syscon node describing the clocks.
++	  There should then be one cell representing the clock to use.
+ 
+ Optional properties:
+ 
+@@ -22,4 +24,5 @@ Example:
+ 		compatible = "aspeed,ast2400-ibt-bmc";
+ 		reg = <0x1e789140 0x18>;
+ 		interrupts = <8>;
++		clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 	};
+diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
+index 6e6f50a0fbab..3a7e31f3de07 100644
+--- a/arch/arm/boot/dts/aspeed-g4.dtsi
++++ b/arch/arm/boot/dts/aspeed-g4.dtsi
+@@ -333,6 +333,7 @@
+ 					ibt: ibt@c0  {
+ 						compatible = "aspeed,ast2400-ibt-bmc";
+ 						reg = <0xc0 0x18>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						interrupts = <8>;
+ 					};
+ 
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index 4cd4a8258e42..a6720bc952b0 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -468,6 +468,7 @@
+ 					ibt: ibt@c0 {
+ 						compatible = "aspeed,ast2500-ibt-bmc";
+ 						reg = <0xc0 0x18>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						interrupts = <8>;
+ 					};
+ 
+diff --git a/drivers/char/ipmi/bt-bmc.c b/drivers/char/ipmi/bt-bmc.c
+index 40b9927c072c..a4ec9d1743d7 100644
+--- a/drivers/char/ipmi/bt-bmc.c
++++ b/drivers/char/ipmi/bt-bmc.c
+@@ -5,6 +5,7 @@
+ 
+ #include <linux/atomic.h>
+ #include <linux/bt-bmc.h>
++#include <linux/clk.h>
+ #include <linux/errno.h>
+ #include <linux/interrupt.h>
+ #include <linux/io.h>
+@@ -60,6 +61,7 @@ struct bt_bmc {
+ 	struct device		dev;
+ 	struct miscdevice	miscdev;
+ 	struct regmap		*map;
++	struct clk		*clk;
+ 	int			offset;
+ 	int			irq;
+ 	wait_queue_head_t	queue;
+@@ -467,6 +469,19 @@ static int bt_bmc_probe(struct platform_device *pdev)
+ 	mutex_init(&bt_bmc->mutex);
+ 	init_waitqueue_head(&bt_bmc->queue);
+ 
++	bt_bmc->clk = devm_clk_get(dev, NULL);
++	if (IS_ERR(bt_bmc->clk)) {
++		rc = PTR_ERR(bt_bmc->clk);
++		if (rc != -EPROBE_DEFER)
++			dev_err(dev, "couldn't get clock\n");
++		return rc;
++	}
++	rc = clk_prepare_enable(bt_bmc->clk);
++	if (rc) {
++		dev_err(dev, "couldn't enable clock\n");
++		return rc;
++	}
++
+ 	bt_bmc->miscdev.minor	= MISC_DYNAMIC_MINOR,
+ 		bt_bmc->miscdev.name	= DEVICE_NAME,
+ 		bt_bmc->miscdev.fops	= &bt_bmc_fops,
+@@ -474,7 +489,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
+ 	rc = misc_register(&bt_bmc->miscdev);
+ 	if (rc) {
+ 		dev_err(dev, "Unable to register misc device\n");
+-		return rc;
++		goto err;
+ 	}
+ 
+ 	bt_bmc_config_irq(bt_bmc, pdev);
+@@ -498,6 +513,11 @@ static int bt_bmc_probe(struct platform_device *pdev)
+ 	clr_b_busy(bt_bmc);
+ 
+ 	return 0;
++
++err:
++	clk_disable_unprepare(bt_bmc->clk);
++
++	return rc;
+ }
+ 
+ static int bt_bmc_remove(struct platform_device *pdev)
+@@ -507,6 +527,8 @@ static int bt_bmc_remove(struct platform_device *pdev)
+ 	misc_deregister(&bt_bmc->miscdev);
+ 	if (!bt_bmc->irq)
+ 		del_timer_sync(&bt_bmc->poll_timer);
++	clk_disable_unprepare(bt_bmc->clk);
++
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

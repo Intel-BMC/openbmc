@@ -1,0 +1,40 @@
+From abf63c03805bf7df31133b720e165eab759ea702 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Thu, 14 Mar 2019 13:11:49 -0700
+Subject: [PATCH] ARM: dts: aspeed: Set default status of LPC BT as 'disabled'
+
+LPC BT is not widely used so set its default status as 'disabled'.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g4.dtsi | 1 +
+ arch/arm/boot/dts/aspeed-g5.dtsi | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
+index 729245b74c13..d4e1e29c6ed2 100644
+--- a/arch/arm/boot/dts/aspeed-g4.dtsi
++++ b/arch/arm/boot/dts/aspeed-g4.dtsi
+@@ -371,6 +371,7 @@
+ 						reg = <0xc0 0x18>;
+ 						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						interrupts = <8>;
++						status = "disabled";
+ 					};
+ 
+ 					sio_regs: regs {
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index df9d63a94264..a3850644b10e 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -475,6 +475,7 @@
+ 						reg = <0xc0 0x18>;
+ 						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						interrupts = <8>;
++						status = "disabled";
+ 					};
+ 
+ 					sio_regs: regs {
+-- 
+2.7.4
+

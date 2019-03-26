@@ -15,7 +15,6 @@ SRC_URI += " \
         file://0019-Add-I2C-IPMB-support.patch \
         file://0021-Initial-Port-of-Aspeed-LPC-SIO-driver.patch \
         file://0022-Add-AST2500-eSPI-driver.patch \
-        file://0025-dts-add-AST2500-LPC-SIO-tree-node.patch \
         file://0026-Add-support-for-new-PECI-commands.patch \
         file://0028-Add-AST2500-JTAG-driver.patch \
         file://0029-i2c-aspeed-Improve-driver-to-support-multi-master-us.patch \
@@ -30,4 +29,10 @@ SRC_URI += " \
         file://0040-i2c-Add-mux-hold-unhold-msg-types.patch \
         file://0041-Enable-passthrough-based-gpio-character-device.patch \
         file://0042-Add-bus-timeout-ms-and-retries-device-tree-propertie.patch \
+        file://0043-char-ipmi-Add-clock-control-logic-into-Aspeed-LPC-BT.patch \
+        file://0044-misc-Add-clock-control-logic-into-Aspeed-LPC-SNOOP-d.patch \
+        file://0045-char-ipmi-Add-clock-control-logic-into-Aspeed-LPC-KC.patch \
+        file://0046-misc-Add-clock-control-logic-into-Aspeed-LPC-MBOX-dr.patch \
+        file://0047-misc-Block-error-printing-on-probe-defer-case-in-Asp.patch \
+        file://0048-ARM-dts-aspeed-Set-default-status-of-LPC-BT-as-disab.patch \
         "

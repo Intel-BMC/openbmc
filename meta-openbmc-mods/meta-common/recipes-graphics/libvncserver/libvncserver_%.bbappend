@@ -9,7 +9,7 @@ do_install_append() {
 inherit cmake
 
 # Use the latest to support obmc-ikvm
-DEPENDS += "openssl"
+DEPENDS += "openssl lzo"
 SRC_URI = "git://github.com/LibVNC/libvncserver"
 SRCREV = "3348a7e42e86dfb98dd7458ad29def476cf6096f"
 S = "${WORKDIR}/git"

@@ -1,4 +1,4 @@
-From fb77288a4cb922bea97003a6ece97c527df8a0f2 Mon Sep 17 00:00:00 2001
+From f631d7dc034be1de17213b1498651ad37f3ce98b Mon Sep 17 00:00:00 2001
 From: Yuan Li <yuan.li@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] ARM: dts: purley: Merge all dts node in the unified patch.
@@ -28,16 +28,16 @@ Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 357 ++++++++++++++++++++++++++
- 1 file changed, 357 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 346 ++++++++++++++++++++++++++
+ 1 file changed, 346 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 new file mode 100644
-index 000000000000..4d70d776e330
+index 000000000000..144d59642a71
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -0,0 +1,357 @@
+@@ -0,0 +1,346 @@
 +/dts-v1/;
 +
 +#include "aspeed-g5.dtsi"
@@ -69,11 +69,6 @@ index 000000000000..4d70d776e330
 +		vga_memory: framebuffer@7f000000 {
 +			no-map;
 +			reg = <0x7f000000 0x01000000>;
-+		};
-+
-+		safs_memory: region@30000000 {
-+			no-map;
-+			reg = <0x30000000 0x08000000>; /* 128M */
 +		};
 +
 +		gfx_memory: framebuffer {
@@ -200,12 +195,6 @@ index 000000000000..4d70d776e330
 + *	};
 + *};
 + */
-+
-+&lpc_ctrl {
-+	status = "okay";
-+	memory-region = <&safs_memory>;
-+	flash = <&spi1>;
-+};
 +
 +&sgpio {
 +	status = "okay";
