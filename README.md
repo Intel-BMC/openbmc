@@ -1,5 +1,7 @@
 # OpenBMC
 
+![Build status](https://dev.azure.com/openbmc/OpenBMC/_apis/build/status/Intel-BMC.openbmc?branchName=intel "Build status")
+
 Intel-BMC/openbmc is a BMC implementation for servers. The purpose is to provide
 early access to features and capabilities which have not yet been accepted or
 merged in the OpenBMC main project (github.com/openbmc). In due course, all of
