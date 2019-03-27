@@ -12,7 +12,7 @@ jobs:
   steps:
     - bash: |
         sudo apt-get install gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat
-        rm -rf build/conf
+        rm -rf build
         source oe-init-build-env
         bitbake intel-platforms
       displayName: 'Build'
