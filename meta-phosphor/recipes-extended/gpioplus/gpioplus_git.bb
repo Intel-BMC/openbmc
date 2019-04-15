@@ -18,6 +18,6 @@ EXTRA_OECONF_append += " \
         "
 
 SRC_URI += "git://github.com/openbmc/gpioplus"
-SRCREV = "444d6214d532a8b5862ad3a41893ca7079b1e9ff"
+SRCREV = "48e6288da8486a25fd52e944fb0f7148fc1c02db"
 
 S = "${WORKDIR}/git"

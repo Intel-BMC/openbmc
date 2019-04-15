@@ -41,15 +41,8 @@ DEPENDS += "sdbusplus"
 DEPENDS += "sdeventplus"
 DEPENDS += "phosphor-logging"
 DEPENDS += "phosphor-dbus-interfaces"
+DEPENDS += "systemd"
 DEPENDS += "libcereal"
-RDEPENDS_${PN} += "sdbusplus"
-
-RDEPENDS_${PN}-host += "libsystemd phosphor-dbus-interfaces"
-RDEPENDS_${PN}-chassis += "libsystemd phosphor-dbus-interfaces"
-RDEPENDS_${PN}-bmc += "libsystemd phosphor-dbus-interfaces"
-RDEPENDS_${PN}-discover += "libsystemd phosphor-dbus-interfaces"
-RDEPENDS_${PN}-host-check += "libsystemd phosphor-dbus-interfaces"
-RDEPENDS_${PN}-reset-sensor-states += "libsystemd phosphor-dbus-interfaces"
 
 FILES_${PN}-host = "${sbindir}/phosphor-host-state-manager"
 DBUS_SERVICE_${PN}-host += "xyz.openbmc_project.State.Host.service"
@@ -94,14 +87,14 @@ SYSTEMD_LINK_${PN}-reset-sensor-states += "${@compose_list_zip(d, 'SENSOR_RESET_
 
 # Force the standby target to run the host reset check target
 RESET_TMPL_CTRL = "obmc-host-reset@.target"
-SYSD_TGT = "${SYSTEMD_DEFAULT_TARGET}"
+SYSD_TGT = "multi-user.target"
 RESET_INSTFMT_CTRL = "obmc-host-reset@{0}.target"
 RESET_FMT_CTRL = "../${RESET_TMPL_CTRL}:${SYSD_TGT}.wants/${RESET_INSTFMT_CTRL}"
 SYSTEMD_LINK_${PN}-host-check += "${@compose_list_zip(d, 'RESET_FMT_CTRL', 'OBMC_HOST_INSTANCES')}"
 
 TMPL = "phosphor-discover-system-state@.service"
 INSTFMT = "phosphor-discover-system-state@{0}.service"
-FMT = "../${TMPL}:${SYSTEMD_DEFAULT_TARGET}.wants/${INSTFMT}"
+FMT = "../${TMPL}:multi-user.target.wants/${INSTFMT}"
 SYSTEMD_LINK_${PN}-discover += "${@compose_list(d, 'FMT', 'OBMC_HOST_INSTANCES')}"
 
 # Force the shutdown target to run the chassis-poweroff target
