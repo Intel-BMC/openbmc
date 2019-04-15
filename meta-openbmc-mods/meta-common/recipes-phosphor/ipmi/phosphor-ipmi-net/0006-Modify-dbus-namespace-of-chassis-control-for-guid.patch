@@ -24,7 +24,7 @@ Index: phosphor-net-ipmid.clean/command/guid.cpp
  
 -static constexpr auto guidObjPath = "/org/openbmc/control/chassis0";
 +static constexpr auto guidObjPath =
-+                "/xyz/openbmc_project/Chassis/Control/Chassis0";
++    "/xyz/openbmc_project/Chassis/Control/Chassis0";
  static constexpr auto propInterface = "org.freedesktop.DBus.Properties";
  
  Guid getSystemGUID()

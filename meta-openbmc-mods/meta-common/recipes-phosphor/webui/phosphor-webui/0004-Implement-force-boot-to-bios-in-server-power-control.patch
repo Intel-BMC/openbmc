@@ -1,0 +1,199 @@
+From a4f948f98e9bfd8b019699b4e23281448f7b7313 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 27 Mar 2019 19:35:12 +0800
+Subject: [PATCH] Implement force to BIOS
+
+UI page review use below link:
+https://projects.invisionapp.com/share/UER87D98GPM#/screens
+
+Tested:
+      Switch on "Boot To BIOS", could enter BIOS setup page directly
+      when power on system.
+
+Change-Id: Ib46dc5d84df51d31cc5ff8635fa0c0f52de0e194
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ app/common/services/api-utils.js              | 49 +++++++++++++++++++
+ app/common/services/constants.js              |  4 ++
+ app/common/services/dataService.js            |  1 +
+ .../power-operations-controller.html          | 12 +++++
+ .../power-operations-controller.js            | 32 ++++++++++++
+ 5 files changed, 98 insertions(+)
+
+diff --git a/app/common/services/api-utils.js b/app/common/services/api-utils.js
+index 840db8e..193c172 100644
+--- a/app/common/services/api-utils.js
++++ b/app/common/services/api-utils.js
+@@ -31,6 +31,7 @@ window.angular && (function(angular) {
+         HOST_STATE: Constants.HOST_STATE,
+         LED_STATE: Constants.LED_STATE,
+         LED_STATE_TEXT: Constants.LED_STATE_TEXT,
++        FORCE_TO_BIOS_STATE_TEXT: Constants.FORCE_TO_BIOS_STATE_TEXT,
+         HOST_SESSION_STORAGE_KEY: Constants.API_CREDENTIALS.host_storage_key,
+         getChassisState: function() {
+           var deferred = $q.defer();
+@@ -451,6 +452,32 @@ window.angular && (function(angular) {
+                   });
+           return deferred.promise;
+         },
++        getForceToBIOSState: function() {
++          var deferred = $q.defer();
++
++          if (DataService.configJson.redfishSupportEnabled == true) {
++            $http({
++              method: 'GET',
++              url:
++                  DataService.getHost() + '/redfish/v1/Systems/system',
++              withCredentials: true
++            }).then(
++                    function(response) {
++                      var json = JSON.stringify(response.data);
++                      var content = JSON.parse(json);
++                      deferred.resolve(content.Boot.BootSourceOverrideTarget);
++                    },
++                    function(error) {
++                      console.log(error);
++                      deferred.reject(error);
++                    });
++          } else {
++            var err = "Redfish is not enabled!";
++            console.log(err);
++            deferred.reject(err);
++          }
++          return deferred.promise;
++        },
+         login: function(username, password, callback) {
+           $http({
+             method: 'POST',
+@@ -872,6 +899,28 @@ window.angular && (function(angular) {
+                     }
+                   });
+         },
++        setForceToBIOSState: function(state) {
++          if (DataService.configJson.redfishSupportEnabled == true) {
++            var data = JSON.stringify({'Boot':
++                                            {
++                                              'BootSourceOverrideTarget': state
++                                            }
++                                      });
++            return $http({
++              method: 'PATCH',
++              url:
++                  DataService.getHost() + '/redfish/v1/Systems/system',
++              withCredentials: true,
++              data: data
++            });
++          } else {
++            var deferred = $q.defer();
++            var err = "Redfish is not enabled!";
++            console.log(err);
++            deferred.reject(err);
++            return deferred.promise;
++          }
++        },
+         getLastRebootTime: function() {
+           return $http({
+                    method: 'GET',
+diff --git a/app/common/services/constants.js b/app/common/services/constants.js
+index 9931f01..8da0b12 100644
+--- a/app/common/services/constants.js
++++ b/app/common/services/constants.js
+@@ -38,6 +38,10 @@ window.angular && (function(angular) {
+       HOST_STATE: {on: 1, off: -1, error: 0, unreachable: -2},
+       LED_STATE: {on: true, off: false},
+       LED_STATE_TEXT: {on: 'on', off: 'off'},
++      FORCE_TO_BIOS_STATE_TEXT: {
++        on: 'BiosSetup',
++        off: 'None'
++      },
+       SEVERITY_TO_PRIORITY_MAP: {
+         Emergency: 'High',
+         Alert: 'High',
+diff --git a/app/common/services/dataService.js b/app/common/services/dataService.js
+index 76ab381..bcd7142 100644
+--- a/app/common/services/dataService.js
++++ b/app/common/services/dataService.js
+@@ -18,6 +18,7 @@ window.angular && (function(angular) {
+       this.server_status = -2;
+       this.chassis_state = 'On';
+       this.LED_state = Constants.LED_STATE_TEXT.off;
++      this.ForceToBIOS_state = Constants.FORCE_TO_BIOS_STATE_TEXT.off;
+       this.last_updated = new Date();
+ 
+       this.loading = false;
+diff --git a/app/server-control/controllers/power-operations-controller.html b/app/server-control/controllers/power-operations-controller.html
+index 3dc69d2..1f00f4a 100644
+--- a/app/server-control/controllers/power-operations-controller.html
++++ b/app/server-control/controllers/power-operations-controller.html
+@@ -10,6 +10,18 @@
+     <div class="row column">
+         <div id="power-indicator-bar" class="power__indicator-bar" ng-class="{'power__state-on': dataService.server_state == 'Running', 'power__state-off': dataService.server_state == 'Off', 'power__state-indet': dataService.server_state == 'Standby', 'power__state-error': dataService.server_state == 'Quiesced'}">
+             <p class="inline">{{dataService.hostname}} - {{dataService.server_id}}</p>
++              <div class="toggle float-right">
++                <input id="toggle__switch-round"
++                    class="toggle-switch toggle-switch__round-flat"
++                    type="checkbox"
++                    tabindex="0"
++                    ng-click="toggleForceToBIOS()"
++                    ng-checked="dataService.ForceToBIOS_state == 'BiosSetup'"
++                    ng-disabled="dataService.server_unreachable">
++                <label for="toggle__switch-round" tabindex="0"> </label>
++                <h3 class="inline">Boot to BIOS</h3>
++              </div>
++
+             <h3 class="power__state inline no-margin h3"><span>{{dataService.server_state | quiescedToError}}</span></h3>
+         </div>
+     </div>
+diff --git a/app/server-control/controllers/power-operations-controller.js b/app/server-control/controllers/power-operations-controller.js
+index 1a1f355..9a832e8 100644
+--- a/app/server-control/controllers/power-operations-controller.js
++++ b/app/server-control/controllers/power-operations-controller.js
+@@ -26,6 +26,17 @@ window.angular && (function(angular) {
+ 
+       var pollChassisStatusTimer = undefined;
+       var pollStartTime = null;
++      APIUtils.getForceToBIOSState().then(
++          function(data) {
++            if (data == APIUtils.FORCE_TO_BIOS_STATE_TEXT.on) {
++              dataService.ForceToBIOS_state = APIUtils.FORCE_TO_BIOS_STATE_TEXT.on;
++            } else {
++              dataService.ForceToBIOS_state = APIUtils.FORCE_TO_BIOS_STATE_TEXT.off;
++            }
++          },
++          function(error) {
++            console.log(JSON.stringify(error));
++          });
+ 
+       //@TODO: call api and get proper state
+ 
+@@ -50,6 +61,27 @@ window.angular && (function(angular) {
+             (dataService.server_state == 'Running') ? 'Off' : 'Running';
+       };
+ 
++      $scope.toggleForceToBIOS = function() {
++        var toggleState =
++            (dataService.ForceToBIOS_state == APIUtils.FORCE_TO_BIOS_STATE_TEXT.on) ?
++            APIUtils.FORCE_TO_BIOS_STATE_TEXT.off :
++            APIUtils.FORCE_TO_BIOS_STATE_TEXT.on;
++        dataService.ForceToBIOS_state =
++            (dataService.ForceToBIOS_state == APIUtils.FORCE_TO_BIOS_STATE_TEXT.on) ?
++            APIUtils.FORCE_TO_BIOS_STATE_TEXT.off :
++            APIUtils.FORCE_TO_BIOS_STATE_TEXT.on;
++        APIUtils.setForceToBIOSState(toggleState)
++            .then(
++                function(response) {},
++                function(errors) {
++                  toastService.error(
++                      'Failed to set Boot to BIOS ');
++                  console.log(JSON.stringify(errors));
++                  // Reload to get correct current state
++                  $route.reload();
++                })
++      };
++
+       $scope.powerOn = function() {
+         $scope.loading = true;
+         dataService.setUnreachableState();
+-- 
+2.19.1
+

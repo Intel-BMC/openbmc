@@ -1,6 +1,6 @@
-From cd4bc9e4291771f638f66efa205bf8fbec518546 Mon Sep 17 00:00:00 2001
+From c20bc8eb6a08d177d951012eb91b37398b15d81d Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
-Date: Mon, 4 Feb 2019 10:30:12 -0800
+Date: Tue, 27 Nov 2018 11:01:15 -0800
 Subject: [PATCH] IPv6 Network changes
 
 Allow IPv6 IPMI set/get commands
@@ -11,17 +11,62 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 
 Change-Id: If5528d3b7294c5f8c17db5919439235d0fad0446
 ---
- transporthandler.cpp | 667 ++++++++++++++++++++++++++++++++++++++++++-
- transporthandler.hpp |  68 +++++
- types.hpp            |   9 +
- utils.hpp            |   1 +
- 4 files changed, 744 insertions(+), 1 deletion(-)
+ include/ipmid/types.hpp |   9 +
+ include/ipmid/utils.hpp |   1 +
+ transporthandler.cpp    | 654 +++++++++++++++++++++++++++++++++++++++-
+ transporthandler.hpp    |  50 +++
+ 4 files changed, 713 insertions(+), 1 deletion(-)
 
-Index: phosphor-host-ipmid.clean/transporthandler.cpp
-===================================================================
---- phosphor-host-ipmid.clean.orig/transporthandler.cpp
-+++ phosphor-host-ipmid.clean/transporthandler.cpp
-@@ -41,6 +41,12 @@ extern std::unique_ptr<phosphor::Timer>
+diff --git a/include/ipmid/types.hpp b/include/ipmid/types.hpp
+index 57c5873..c06fd8c 100644
+--- a/include/ipmid/types.hpp
++++ b/include/ipmid/types.hpp
+@@ -224,6 +224,7 @@ constexpr auto ADDR_TYPE_FORMAT = "%hhx";
+ 
+ constexpr auto IPV4_ADDRESS_SIZE_BYTE = 4;
+ constexpr auto IPV6_ADDRESS_SIZE_BYTE = 16;
++constexpr auto IPV6_ADDRESS_STATUS_SIZE = 22;
+ 
+ constexpr auto DEFAULT_MAC_ADDRESS = "00:00:00:00:00:00";
+ constexpr auto DEFAULT_ADDRESS = "0.0.0.0";
+@@ -235,6 +236,7 @@ constexpr auto BITS_32 = 32;
+ constexpr auto MASK_32_BIT = 0xFFFFFFFF;
+ constexpr auto VLAN_ID_MASK = 0x00000FFF;
+ constexpr auto VLAN_ENABLE_MASK = 0x8000;
++constexpr auto IPV6_DUID_SIZE = 18;
+ 
+ enum class IPOrigin : uint8_t
+ {
+@@ -243,5 +245,12 @@ enum class IPOrigin : uint8_t
+     DHCP = 2,
+ };
+ 
++enum class AddressingEnables : uint8_t
++{
++    IPv4Only = 0,
++    IPv6Only = 1,
++    IPv4AndIPv6 = 2,
++};
++
+ } // namespace network
+ } // namespace ipmi
+diff --git a/include/ipmid/utils.hpp b/include/ipmid/utils.hpp
+index 9ef1488..8b91b12 100644
+--- a/include/ipmid/utils.hpp
++++ b/include/ipmid/utils.hpp
+@@ -256,6 +256,7 @@ namespace network
+ constexpr auto ROOT = "/xyz/openbmc_project/network";
+ constexpr auto SERVICE = "xyz.openbmc_project.Network";
+ constexpr auto IP_TYPE = "ipv4";
++constexpr auto IPV6_TYPE = "ipv6";
+ constexpr auto IPV4_PREFIX = "169.254";
+ constexpr auto IPV6_PREFIX = "fe80";
+ constexpr auto IP_INTERFACE = "xyz.openbmc_project.Network.IP";
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 8172cc4..12d224a 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -30,6 +30,12 @@ std::unique_ptr<phosphor::Timer> networkTimer = nullptr;
  
  const int SIZE_MAC = 18; // xx:xx:xx:xx:xx:xx
  constexpr auto ipv4Protocol = "xyz.openbmc_project.Network.IP.Protocol.IPv4";
@@ -34,7 +79,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
  
  std::map<int, std::unique_ptr<struct ChannelConfig_t>> channelConfig;
  
-@@ -400,7 +406,6 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -389,7 +395,6 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
                                    ipmi_context_t context)
  {
      ipmi_ret_t rc = IPMI_CC_OK;
@@ -42,7 +87,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
  
      using namespace std::chrono_literals;
  
-@@ -414,6 +419,9 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -403,6 +408,9 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
      auto reqptr = reinterpret_cast<const set_lan_t*>(request);
      sdbusplus::bus::bus bus(ipmid_get_sd_bus_connection());
  
@@ -51,8 +96,8 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
 +
      // channel number is the lower nibble
      int channel = reqptr->channel & CHANNEL_MASK;
-     auto ethdevice = ipmi::network::ChanneltoEthernet(channel);
-@@ -437,6 +445,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+     auto ethdevice = ipmi::getChannelName(channel);
+@@ -426,6 +434,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
  
          case LanParam::IPSRC:
          {
@@ -64,7 +109,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
              uint8_t ipsrc{};
              std::memcpy(&ipsrc, reqptr->data, ipmi::network::IPSRC_SIZE_BYTE);
              channelConf->ipsrc = static_cast<ipmi::network::IPOrigin>(ipsrc);
-@@ -445,6 +458,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -434,6 +447,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
  
          case LanParam::MAC:
          {
@@ -76,7 +121,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
              char mac[SIZE_MAC];
  
              std::snprintf(mac, SIZE_MAC, ipmi::network::MAC_ADDRESS_FORMAT,
-@@ -465,6 +483,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -454,6 +472,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
  
          case LanParam::SUBNET:
          {
@@ -88,7 +133,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
              std::snprintf(netmask, INET_ADDRSTRLEN,
                            ipmi::network::IP_ADDRESS_FORMAT, reqptr->data[0],
                            reqptr->data[1], reqptr->data[2], reqptr->data[3]);
-@@ -474,6 +497,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -463,6 +486,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
  
          case LanParam::GATEWAY:
          {
@@ -100,7 +145,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
              std::snprintf(gateway, INET_ADDRSTRLEN,
                            ipmi::network::IP_ADDRESS_FORMAT, reqptr->data[0],
                            reqptr->data[1], reqptr->data[2], reqptr->data[3]);
-@@ -483,6 +511,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -472,6 +500,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
  
          case LanParam::VLAN:
          {
@@ -112,7 +157,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
              uint16_t vlan{};
              std::memcpy(&vlan, reqptr->data, ipmi::network::VLAN_SIZE_BYTE);
              // We are not storing the enable bit
-@@ -495,6 +528,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -484,6 +517,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
  
          case LanParam::INPROGRESS:
          {
@@ -124,7 +169,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
              if (reqptr->data[0] == SET_COMPLETE)
              {
                  channelConf->lan_set_in_progress = SET_COMPLETE;
-@@ -523,6 +561,122 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+@@ -512,6 +550,122 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
          }
          break;
  
@@ -247,7 +292,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
          default:
          {
              rc = IPMI_CC_PARM_NOT_SUPPORTED;
-@@ -549,6 +703,7 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_n
+@@ -538,6 +692,7 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
      ipmi_ret_t rc = IPMI_CC_OK;
      *data_len = 0;
      const uint8_t current_revision = 0x11; // Current rev per IPMI Spec 2.0
@@ -255,7 +300,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
  
      get_lan_t* reqptr = (get_lan_t*)request;
      // channel number is the lower nibble
-@@ -687,6 +842,489 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_n
+@@ -676,6 +831,476 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
                          static_cast<uint8_t>(cipherList.size());
              break;
          }
@@ -327,12 +372,10 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
 +                    networkInterfacePath = networkInterfaceObject.first;
 +                }
 +
-+                std::string ipEnables =
-+                    sdbusplus::message::variant_ns::get<std::string>(
-+                        ipmi::getDbusProperty(bus, ipmi::network::SERVICE,
-+                                              networkInterfacePath,
-+                                              ipmi::network::ETHERNET_INTERFACE,
-+                                              "IPAddressEnables"));
++                ipmi::Value ipEnablesProp = ipmi::getDbusProperty(
++                    bus, ipmi::network::SERVICE, networkInterfacePath,
++                    ipmi::network::ETHERNET_INTERFACE, "IPAddressEnables");
++                std::string ipEnables = std::get<std::string>(ipEnablesProp);
 +
 +                // check if on off ipv4 ipv6, etc.
 +                bool found = false;
@@ -392,20 +435,14 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
 +                        bus, ipObjectInfo.second, ipObjectInfo.first,
 +                        ipmi::network::IP_INTERFACE);
 +
-+                    std::string origin =
-+                        sdbusplus::message::variant_ns::get<std::string>(
-+                            properties["Origin"]);
-+                    if (sdbusplus::message::variant_ns::get<std::string>(
-+                            properties["Origin"]) ==
++                    if (std::get<std::string>(properties["Origin"]) ==
 +                        "xyz.openbmc_project.Network.IP.AddressOrigin.Static")
 +                    {
 +                        ipaddress =
-+                            sdbusplus::message::variant_ns::get<std::string>(
-+                                properties["Address"]);
++                            std::get<std::string>(properties["Address"]);
 +                        ipv6AddressSource = 0x81; // Looking at bit 0 and bit 7
 +                        prefixLength =
-+                            sdbusplus::message::variant_ns::get<uint8_t>(
-+                                properties["PrefixLength"]);
++                            std::get<uint8_t>(properties["PrefixLength"]);
 +                        status = 0;
 +                    }
 +                }
@@ -458,8 +495,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
 +                    bus, macObjectInfo.second, macObjectInfo.first,
 +                    ipmi::network::MAC_INTERFACE, "MACAddress");
 +
-+                macAddress =
-+                    sdbusplus::message::variant_ns::get<std::string>(variant);
++                macAddress = std::get<std::string>(variant);
 +            }
 +            else if (channelConf->lan_set_in_progress == SET_IN_PROGRESS)
 +            {
@@ -505,17 +541,14 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
 +                        bus, ipObjectInfo.second, ipObjectInfo.first,
 +                        ipmi::network::IP_INTERFACE);
 +
-+                    if (sdbusplus::message::variant_ns::get<std::string>(
-+                            properties["Origin"]) ==
++                    if (std::get<std::string>(properties["Origin"]) ==
 +                        "xyz.openbmc_project.Network.IP.AddressOrigin.DHCP")
 +                    {
 +                        ipaddress =
-+                            sdbusplus::message::variant_ns::get<std::string>(
-+                                properties["Address"]);
++                            std::get<std::string>(properties["Address"]);
 +                        ipv6AddressSource = 0x81; // Looking at bit 0 and bit 7
 +                        prefixLength =
-+                            sdbusplus::message::variant_ns::get<uint8_t>(
-+                                properties["PrefixLength"]);
++                            std::get<uint8_t>(properties["PrefixLength"]);
 +                        status = 0;
 +                    }
 +                    else
@@ -574,8 +607,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
 +                    bus, macObjectInfo.second, macObjectInfo.first,
 +                    ipmi::network::MAC_INTERFACE, "MACAddress");
 +
-+                macAddress =
-+                    sdbusplus::message::variant_ns::get<std::string>(variant);
++                macAddress = std::get<std::string>(variant);
 +            }
 +            else if (channelConf->lan_set_in_progress == SET_IN_PROGRESS)
 +            {
@@ -661,7 +693,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
 +                auto variant = ipmi::getDbusProperty(
 +                    bus, ipmi::network::SERVICE, networkInterfacePath,
 +                    ipmi::network::ETHERNET_INTERFACE, "IPv6AcceptRA");
-+                dynamicRA = sdbusplus::message::variant_ns::get<bool>(variant);
++                dynamicRA = std::get<bool>(variant);
 +            }
 +            else
 +            {
@@ -745,7 +777,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
          default:
              log<level::ERR>("Unsupported parameter",
                              entry("PARAMETER=0x%x", reqptr->parameter));
-@@ -932,6 +1570,16 @@ void applyChanges(int channel)
+@@ -921,6 +1546,16 @@ void applyChanges(int channel)
                                          ipaddress, prefix);
              }
  
@@ -762,7 +794,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
              if (!gateway.empty())
              {
                  ipmi::setDbusProperty(bus, systemObject.second,
-@@ -939,7 +1587,24 @@ void applyChanges(int channel)
+@@ -928,7 +1563,24 @@ void applyChanges(int channel)
                                        ipmi::network::SYSTEMCONFIG_INTERFACE,
                                        "DefaultGateway", std::string(gateway));
              }
@@ -787,11 +819,11 @@ Index: phosphor-host-ipmid.clean/transporthandler.cpp
      }
      catch (InternalFailure& e)
      {
-Index: phosphor-host-ipmid.clean/transporthandler.hpp
-===================================================================
---- phosphor-host-ipmid.clean.orig/transporthandler.hpp
-+++ phosphor-host-ipmid.clean/transporthandler.hpp
-@@ -80,6 +80,28 @@ enum class LanParam : uint8_t
+diff --git a/transporthandler.hpp b/transporthandler.hpp
+index 04d4673..bd23391 100644
+--- a/transporthandler.hpp
++++ b/transporthandler.hpp
+@@ -79,6 +79,28 @@ enum class LanParam : uint8_t
      IPV6_NEIGHBOR_TIMING_CONFIGURATION = 80,
  };
  
@@ -820,7 +852,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.hpp
  constexpr uint8_t SET_COMPLETE = 0;
  constexpr uint8_t SET_IN_PROGRESS = 1;
  constexpr uint8_t SET_COMMIT_WRITE = 2;         // Optional
-@@ -102,6 +124,20 @@ struct ChannelConfig_t
+@@ -101,6 +123,20 @@ struct ChannelConfig_t
      uint8_t lan_set_in_progress = SET_COMPLETE;
      bool flush = false;
  
@@ -841,7 +873,7 @@ Index: phosphor-host-ipmid.clean/transporthandler.hpp
      void clear()
      {
          ipaddr.clear();
-@@ -112,6 +148,20 @@ struct ChannelConfig_t
+@@ -111,6 +147,20 @@ struct ChannelConfig_t
          ipsrc = ipmi::network::IPOrigin::UNSPECIFIED;
          lan_set_in_progress = SET_COMPLETE;
          flush = false;
@@ -862,48 +894,6 @@ Index: phosphor-host-ipmid.clean/transporthandler.hpp
      }
  };
  
-Index: phosphor-host-ipmid.clean/types.hpp
-===================================================================
---- phosphor-host-ipmid.clean.orig/types.hpp
-+++ phosphor-host-ipmid.clean/types.hpp
-@@ -209,6 +209,7 @@ constexpr auto ADDR_TYPE_FORMAT = "%hhx"
- 
- constexpr auto IPV4_ADDRESS_SIZE_BYTE = 4;
- constexpr auto IPV6_ADDRESS_SIZE_BYTE = 16;
-+constexpr auto IPV6_ADDRESS_STATUS_SIZE = 22;
- 
- constexpr auto DEFAULT_MAC_ADDRESS = "00:00:00:00:00:00";
- constexpr auto DEFAULT_ADDRESS = "0.0.0.0";
-@@ -220,6 +221,7 @@ constexpr auto BITS_32 = 32;
- constexpr auto MASK_32_BIT = 0xFFFFFFFF;
- constexpr auto VLAN_ID_MASK = 0x00000FFF;
- constexpr auto VLAN_ENABLE_MASK = 0x8000;
-+constexpr auto IPV6_DUID_SIZE = 18;
- 
- enum class IPOrigin : uint8_t
- {
-@@ -228,5 +230,12 @@ enum class IPOrigin : uint8_t
-     DHCP = 2,
- };
- 
-+enum class AddressingEnables : uint8_t
-+{
-+    IPv4Only = 0,
-+    IPv6Only = 1,
-+    IPv4AndIPv6 = 2,
-+};
-+
- } // namespace network
- } // namespace ipmi
-Index: phosphor-host-ipmid.clean/utils.hpp
-===================================================================
---- phosphor-host-ipmid.clean.orig/utils.hpp
-+++ phosphor-host-ipmid.clean/utils.hpp
-@@ -246,6 +246,7 @@ namespace network
- constexpr auto ROOT = "/xyz/openbmc_project/network";
- constexpr auto SERVICE = "xyz.openbmc_project.Network";
- constexpr auto IP_TYPE = "ipv4";
-+constexpr auto IPV6_TYPE = "ipv6";
- constexpr auto IPV4_PREFIX = "169.254";
- constexpr auto IPV6_PREFIX = "fe80";
- constexpr auto IP_INTERFACE = "xyz.openbmc_project.Network.IP";
+-- 
+2.17.1
+

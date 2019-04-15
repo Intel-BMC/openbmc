@@ -1,4 +1,4 @@
-From ce7a88017fb2124100c4e5481a205034f34da23c Mon Sep 17 00:00:00 2001
+From 63ccbbe64f7e6560233971b886f6166fc59d20ef Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 7 Jan 2019 09:56:10 -0800
 Subject: [PATCH] Update PECI drivers to sync with linux upstreaming version
@@ -89,10 +89,10 @@ index 821a9258f2e6..a3a3e465c888 100644
 +temp[6-*]_crit_hyst	Provides the hysteresis value from Tcontrol to Tjmax of
  			the core.
 diff --git a/drivers/hwmon/Kconfig b/drivers/hwmon/Kconfig
-index 9e118d700b48..efe67f7faed3 100644
+index 996e80590b5b..93945eb19261 100644
 --- a/drivers/hwmon/Kconfig
 +++ b/drivers/hwmon/Kconfig
-@@ -1319,7 +1319,7 @@ config SENSORS_PECI_CPUTEMP
+@@ -1321,7 +1321,7 @@ config SENSORS_PECI_CPUTEMP
  	  the PECI Client Command Suite via the processor PECI client.
  	  Check Documentation/hwmon/peci-cputemp for details.
  
@@ -101,7 +101,7 @@ index 9e118d700b48..efe67f7faed3 100644
  	  will be called peci-cputemp.
  
  config SENSORS_PECI_DIMMTEMP
-@@ -1333,7 +1333,7 @@ config SENSORS_PECI_DIMMTEMP
+@@ -1335,7 +1335,7 @@ config SENSORS_PECI_DIMMTEMP
  	  Suite via the processor PECI client.
  	  Check Documentation/hwmon/peci-dimmtemp for details.
  
@@ -109,7 +109,7 @@ index 9e118d700b48..efe67f7faed3 100644
 +	  This driver can also be built as a module. If so, the module
  	  will be called peci-dimmtemp.
  
- source drivers/hwmon/pmbus/Kconfig
+ source "drivers/hwmon/pmbus/Kconfig"
 diff --git a/drivers/hwmon/peci-cputemp.c b/drivers/hwmon/peci-cputemp.c
 index 11880c86a854..30ba1638e358 100644
 --- a/drivers/hwmon/peci-cputemp.c
@@ -663,10 +663,10 @@ index 6ca1855a86bb..ce6b470eae63 100644
  
  /**
 diff --git a/drivers/mfd/Kconfig b/drivers/mfd/Kconfig
-index 66b71a6122d6..28a83b354ea8 100644
+index 9af5730ad7ba..28087e9cd4da 100644
 --- a/drivers/mfd/Kconfig
 +++ b/drivers/mfd/Kconfig
-@@ -596,7 +596,7 @@ config MFD_INTEL_MSIC
+@@ -606,7 +606,7 @@ config MFD_INTEL_MSIC
  	  devices used in Intel Medfield platforms.
  
  config MFD_INTEL_PECI_CLIENT
@@ -675,7 +675,7 @@ index 66b71a6122d6..28a83b354ea8 100644
  	depends on (PECI || COMPILE_TEST)
  	select MFD_CORE
  	help
-@@ -609,6 +609,9 @@ config MFD_INTEL_PECI_CLIENT
+@@ -619,6 +619,9 @@ config MFD_INTEL_PECI_CLIENT
  	  Additional drivers must be enabled in order to use the functionality
  	  of the device.
  
@@ -1940,7 +1940,7 @@ index 51cb2563ceb6..000000000000
 -MODULE_DESCRIPTION("ASPEED PECI driver");
 -MODULE_LICENSE("GPL v2");
 diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
-index fac8c72dcda8..e2ef013e5002 100644
+index 6f241469ec7e..e2ef013e5002 100644
 --- a/drivers/peci/peci-core.c
 +++ b/drivers/peci/peci-core.c
 @@ -1,38 +1,31 @@
@@ -2851,7 +2851,7 @@ index fac8c72dcda8..e2ef013e5002 100644
 -		return -ENOTTY;
 -	}
 -
--	if (!access_ok(VERIFY_WRITE, argp, msg_len))
+-	if (!access_ok(argp, msg_len))
 -		return -EFAULT;
 -
 -	msg = memdup_user(argp, msg_len);

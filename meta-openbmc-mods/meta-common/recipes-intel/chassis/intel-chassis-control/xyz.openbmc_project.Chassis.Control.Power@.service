@@ -1,6 +1,8 @@
 
 [Unit]
 Description=Intel Power Control%i
+Wants=mapper-wait@-xyz-openbmc_project-control-gpio-Power_Good.service
+After=mapper-wait@-xyz-openbmc_project-control-gpio-Power_Good.service
 
 [Service]
 Restart=always

@@ -1,0 +1,76 @@
+From f51bef8f7c5785405ee5c83a921efb1bc05e4947 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Wed, 27 Mar 2019 16:11:25 +0800
+Subject: [PATCH] =?UTF-8?q?Add=20=E2=80=9CAC=20failed=E2=80=9D=20bit=20sup?=
+ =?UTF-8?q?port=20for=20get=20chassis=20status=20command?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+PFail property is provided by power control service,
+ture means the booting is from AC loss.
+
+Tested:
+Remove the AC cable and reconnect it
+Ipmitool chassis status to check the status:
+Last Power Event     : ac-failed
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ chassishandler.cpp | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index 7a522ad..40d2018 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -844,6 +844,7 @@ ipmi_ret_t ipmi_get_chassis_status(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+     sd_bus_message* reply = NULL;
+     int r = 0;
+     int pgood = 0;
++    bool pFail = true;
+     char* busname = NULL;
+     ipmi_ret_t rc = IPMI_CC_OK;
+     ipmi_get_chassis_status_t chassis_status{};
+@@ -904,6 +905,26 @@ ipmi_ret_t ipmi_get_chassis_status(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+         goto finish;
+     }
+ 
++    r = sd_bus_get_property(bus, busname, objname, intf, "PFail", NULL, &reply,
++                            "b");
++    if (r < 0)
++    {
++        log<level::ERR>("Failed to call sd_bus_get_property",
++                        entry("PROPERTY=%s", "PFail"), entry("ERRNO=0x%X", -r),
++                        entry("BUS=%s", busname), entry("PATH=%s", objname),
++                        entry("INTERFACE=%s", intf));
++        rc = IPMI_CC_UNSPECIFIED_ERROR;
++        goto finish;
++    }
++
++    r = sd_bus_message_read(reply, "b", &pFail);
++    if (r < 0)
++    {
++        log<level::ERR>("Failed to read PFail:", entry("ERRNO=0x%X", -r));
++        rc = IPMI_CC_UNSPECIFIED_ERROR;
++        goto finish;
++    }
++
+     s = dbusToIpmi.at(powerRestore);
+ 
+     // Current Power State
+@@ -952,6 +973,11 @@ ipmi_ret_t ipmi_get_chassis_status(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+ 
+     chassis_status.last_power_event = 0;
+ 
++    if (pFail)
++    {
++        chassis_status.last_power_event |= 1;
++    }
++
+     // Misc. Chassis State
+     // [7] – reserved
+     // [6] – 1b = Chassis Identify command and state info supported (Optional)
+-- 
+2.7.4
+

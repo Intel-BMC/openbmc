@@ -1,0 +1,50 @@
+From 1c0e658833ea7595b2fb42261ce5e0ce781bac98 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Thu, 4 Apr 2019 18:24:54 +0800
+Subject: [PATCH] Add redfish log support for IPMI watchdog timeout actions
+
+The current plan is that only threshold sensor events
+will be logged to the IPMI SEL,
+and all other events will be logged to the Redfish Event Log.
+
+Tested:
+Config IPMI watchdog: OEM hard reset after 10 seconds:
+ipmitool raw 0x06 0x24 0x5 0x1 0x0 0x0 0x64 0x00
+Start watchdog:
+Ipmitool mc watchdog reset
+Check the redfish logs in 10 seconds:
+https://BMCIP/redfish/v1/Systems/system/LogServices/EventLog/Entries
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ watchdog.cpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/watchdog.cpp b/watchdog.cpp
+index d529746..008cde5 100644
+--- a/watchdog.cpp
++++ b/watchdog.cpp
+@@ -1,5 +1,7 @@
+ #include "watchdog.hpp"
+ 
++#include <systemd/sd-journal.h>
++
+ #include <chrono>
+ #include <phosphor-logging/elog.hpp>
+ #include <phosphor-logging/log.hpp>
+@@ -115,6 +117,12 @@ void Watchdog::timeOutHandler()
+                          entry("ACTION=%s", convertForMessage(action).c_str()),
+                          entry("TARGET=%s", target->second.c_str()));
+ 
++        // Log into redfish event log
++        sd_journal_send("MESSAGE=IPMIWatchdog: Timed out ACTION=%s; TARGET=%s",
++                        convertForMessage(action).c_str(),
++                        target->second.c_str(), "PRIORITY=%i", LOG_INFO,
++                        "REDFISH_MESSAGE_ID=%s", "IPMIWatchdog", NULL);
++
+         try
+         {
+             auto method = bus.new_method_call(SYSTEMD_SERVICE, SYSTEMD_ROOT,
+-- 
+2.7.4
+

@@ -1,6 +1,6 @@
-From d0338f68edb7f818b45ee43765cf124c14ccae03 Mon Sep 17 00:00:00 2001
+From 06445210bfda7f9bbbb36133e6818575bd6a0cc1 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
-Date: Tue, 22 Jan 2019 16:15:36 +0800
+Date: Tue, 9 Apr 2019 14:42:05 +0800
 Subject: [PATCH] Add system reset status support
 
 Will display the reset reasons and other CPU information in u-boot,
@@ -9,25 +9,12 @@ for applications to query.
 
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- arch/arm/include/asm/arch-aspeed/ast_scu.h  |  1 +
  arch/arm/include/asm/arch-aspeed/platform.h |  2 ++
- arch/arm/mach-aspeed/ast-scu.c              | 55 +++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5-intel.c          | 30 ++++++++++++++++
- board/aspeed/ast-g5/ast-g5.c                |  7 ++++
- 5 files changed, 95 insertions(+)
+ arch/arm/mach-aspeed/ast-scu.c              |  4 ++++
+ board/aspeed/ast-g5/ast-g5-intel.c          | 30 +++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5.c                |  7 +++++++
+ 4 files changed, 43 insertions(+)
 
-diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-index c10e6a9..369c4e3 100644
---- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
-+++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-@@ -37,6 +37,7 @@ extern void ast_scu_get_who_init_dram(void);
- 
- extern u32 ast_get_clk_source(void);
- extern u32 ast_get_h_pll_clk(void);
-+extern u32 ast_get_m_pll_clk(void);
- extern u32 ast_get_ahbclk(void);
- 
- extern u32 ast_scu_get_vga_memsize(void);
 diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
 index 3b06e52..4e4140d 100644
 --- a/arch/arm/include/asm/arch-aspeed/platform.h
@@ -42,82 +29,10 @@ index 3b06e52..4e4140d 100644
  #err "No define for platform.h"
  #endif
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index 63e9c7c..f4268f3 100644
+index 3a9ba05..976c59b 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
-@@ -100,6 +100,7 @@ static struct soc_id soc_map_table[] = {
- 	SOC_ID("AST2510-A1", 0x04010103),
- 	SOC_ID("AST2520-A1", 0x04010203),
- 	SOC_ID("AST2530-A1", 0x04010403),
-+	SOC_ID("AST2500-A2", 0x04030303),
- };
- 
- void ast_scu_init_eth(u8 num)
-@@ -235,6 +236,29 @@ u32 ast_get_h_pll_clk(void)
- 	return clk;
- }
- 
-+u32 ast_get_m_pll_clk(void)
-+{
-+	u32 clk=0;
-+	u32 m_pll_set = ast_scu_read(AST_SCU_M_PLL);
-+
-+	if(m_pll_set & SCU_M_PLL_OFF)
-+		return 0;
-+
-+	// Programming
-+	clk = ast_get_clk_source();
-+	if(m_pll_set & SCU_M_PLL_BYPASS) {
-+		return clk;
-+	} else {
-+		//PD  == SCU20[13:18]
-+		//M  == SCU20[5:12]
-+		//N  == SCU20[0:4]
-+		//mpll =  24MHz * [(M+1) /(N+1)] / (P+1)
-+		clk = ((clk * (SCU_M_PLL_GET_MNUM(m_pll_set) + 1)) / (SCU_M_PLL_GET_NNUM(m_pll_set) + 1))/(SCU_M_PLL_GET_PDNUM(m_pll_set) + 1);
-+	}
-+	debug("m_pll = %d\n",clk);
-+	return clk;
-+}
-+
- u32 ast_get_ahbclk(void)
- {
- 	unsigned int axi_div, ahb_div, hpll;
-@@ -304,6 +328,33 @@ u32 ast_get_h_pll_clk(void)
- 	return clk;
- }
- 
-+u32 ast_get_m_pll_clk(void)
-+{
-+	u32 clk=0;
-+	u32 m_pll_set = ast_scu_read(AST_SCU_M_PLL);
-+
-+	if(m_pll_set & SCU_M_PLL_OFF)
-+		return 0;
-+
-+	// Programming
-+	clk = ast_get_clk_source();
-+	if(m_pll_set & SCU_M_PLL_BYPASS) {
-+		return clk;
-+	} else {
-+		//OD == SCU24[4]
-+		//OD = SCU_M_PLL_GET_DIV(h_pll_set);
-+		//Numerator == SCU24[10:5]
-+		//num = SCU_M_PLL_GET_NUM(h_pll_set);
-+		//Denumerator == SCU24[3:0]
-+		//denum = SCU_M_PLL_GET_DENUM(h_pll_set);
-+
-+		//hpll = 24MHz * (2-OD) * ((Numerator+2)/(Denumerator+1))
-+		clk = (clk * (2-SCU_M_PLL_GET_DIV(m_pll_set)) * ((SCU_M_PLL_GET_NUM(m_pll_set)+2)/(SCU_M_PLL_GET_DENUM(m_pll_set)+1)));
-+	}
-+	debug("m_pll = %d\n",clk);
-+	return clk;
-+}
-+
- u32 ast_get_ahbclk(void)
- {
- 	unsigned int div, hpll;
-@@ -452,6 +503,9 @@ void ast_scu_sys_rest_info(void)
+@@ -494,6 +494,9 @@ void ast_scu_sys_rest_info(void)
  {
  	u32 rest = ast_scu_read(AST_SCU_SYS_CTRL);
  
@@ -127,7 +42,7 @@ index 63e9c7c..f4268f3 100644
  	if (rest & SCU_SYS_EXT_RESET_FLAG) {
  		printf("RST : External\n");
  		ast_scu_write(SCU_SYS_EXT_RESET_FLAG, AST_SCU_SYS_CTRL);
-@@ -464,6 +518,7 @@ void ast_scu_sys_rest_info(void)
+@@ -506,6 +509,7 @@ void ast_scu_sys_rest_info(void)
  	} else {
  		printf("RST : CLK en\n");
  	}

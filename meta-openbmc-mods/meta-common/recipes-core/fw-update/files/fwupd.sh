@@ -84,6 +84,18 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+#this file being created at build time for PFR images
+#TODO: Need to do runtime detection of PFR platform
+#TODO: Also to check if PFR is provisioned or not
+if [ -e /usr/share/pfr ]
+then
+TGT="/dev/mtd/image-stg"
+echo "Updating $(basename $TGT)"
+flash_erase $TGT 0 0
+echo "Writing $(stat -c "%s" "$LOCAL_PATH") bytes"
+cat "$LOCAL_PATH" > "$TGT"
+#TODO: Add I2C command to write to PFRCPLD about BMC update intent.
+else
 # guess based on fw_env which partition we booted from
 BOOTADDR=$(fw_printenv bootcmd | awk '{print $2}')
 
@@ -101,4 +113,4 @@ fw_setenv "bootcmd" "bootm ${BOOTADDR}"
 
 # reboot
 reboot
-
+fi

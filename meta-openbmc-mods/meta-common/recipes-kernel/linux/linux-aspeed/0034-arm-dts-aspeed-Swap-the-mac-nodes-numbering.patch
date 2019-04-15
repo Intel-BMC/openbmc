@@ -1,7 +1,7 @@
 From 9c509b9450f641c169ee3aeb60e398c43810dcb2 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 3 Oct 2018 10:17:58 -0700
-Subject: [PATCH] arm: dts: adpeed: Swap the mac nodes numbering
+Subject: [PATCH] arm: dts: aspeed: Swap the mac nodes numbering
 
 This patch swaps the numbering of mac0 and mac1 to make a dedicated
 nic get assigned the first ethernet device number.

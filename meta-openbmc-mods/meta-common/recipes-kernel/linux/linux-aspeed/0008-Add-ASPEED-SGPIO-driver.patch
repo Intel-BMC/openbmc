@@ -1,4 +1,4 @@
-From 42505ffb3c24b3e7f8182af520ab1c10a3b3f3c4 Mon Sep 17 00:00:00 2001
+From 58adbd18074fbf8005d5d7a5ec116c326252f606 Mon Sep 17 00:00:00 2001
 From: "Feist, James" <james.feist@intel.com>
 Date: Mon, 5 Jun 2017 11:13:52 -0700
 Subject: [PATCH] Add ASPEED SGPIO driver.
@@ -6,7 +6,6 @@ Subject: [PATCH] Add ASPEED SGPIO driver.
 Port aspeed sgpio driver to OBMC Kernel and
 enable it on Purley config. Based off AST sdk 4.0.
 
-Change-Id: I8529c3fb001ea6f93e63b269cdcdde3887a84e40
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
@@ -17,7 +16,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  create mode 100644 drivers/gpio/sgpio-aspeed.c
 
 diff --git a/drivers/gpio/Kconfig b/drivers/gpio/Kconfig
-index 71c0ab46f216..a0485be99db7 100644
+index b5a2845347ec..e3ce2b68a1fc 100644
 --- a/drivers/gpio/Kconfig
 +++ b/drivers/gpio/Kconfig
 @@ -124,6 +124,14 @@ config GPIO_ASPEED
@@ -36,7 +35,7 @@ index 71c0ab46f216..a0485be99db7 100644
  	tristate "Atheros AR71XX/AR724X/AR913X GPIO support"
  	default y if ATH79
 diff --git a/drivers/gpio/Makefile b/drivers/gpio/Makefile
-index 1324c8f966a7..23b8d29bef70 100644
+index 37628f8dbf70..069155f1db9e 100644
 --- a/drivers/gpio/Makefile
 +++ b/drivers/gpio/Makefile
 @@ -32,6 +32,7 @@ obj-$(CONFIG_GPIO_AMDPT)	+= gpio-amdpt.o

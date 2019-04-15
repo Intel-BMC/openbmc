@@ -1,4 +1,4 @@
-From cd25f43461b41b74d19cd1f93ce301df9c3bd4f2 Mon Sep 17 00:00:00 2001
+From a8d7429b7bd9dea33d59c6e83f17372e77fe6145 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Fri, 21 Sep 2018 09:21:14 +0800
 Subject: [PATCH] Implement IPMI Master Write-Read command
@@ -11,31 +11,36 @@ that provide an SMBus slave interface.
 
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- apphandler.cpp            | 236 ++++++++++++++++++++++++++++++++++++++++++++++
+ apphandler.cpp            | 276 +++++++++++++++++++++++++++++++++++++-
  apphandler.hpp            |   1 +
  host-ipmid-whitelist.conf |   1 +
- 3 files changed, 238 insertions(+)
+ 3 files changed, 274 insertions(+), 4 deletions(-)
 
 diff --git a/apphandler.cpp b/apphandler.cpp
-index 17aff2a..2fe79f6 100644
+index 15965ca..d8fb23d 100644
 --- a/apphandler.cpp
 +++ b/apphandler.cpp
-@@ -8,6 +8,14 @@
- #include "types.hpp"
- #include "utils.hpp"
- 
+@@ -1,6 +1,19 @@
++#include "apphandler.hpp"
++
++#include "app/watchdog.hpp"
++#include "sys_info_param.hpp"
++#include "transporthandler.hpp"
++
+ #include <arpa/inet.h>
 +#include <fcntl.h>
++#include <ipmid/api.h>
+ #include <limits.h>
 +#include <linux/i2c-dev.h>
 +#include <linux/i2c.h>
+ #include <mapper.h>
 +#include <sys/ioctl.h>
 +#include <sys/stat.h>
 +#include <sys/types.h>
-+#include <unistd.h>
-+
- #include <arpa/inet.h>
- #include <host-ipmid/ipmid-api.h>
- #include <limits.h>
-@@ -55,6 +63,8 @@ constexpr auto bmc_guid_interface = "xyz.openbmc_project.Common.UUID";
+ #include <systemd/sd-bus.h>
+ #include <unistd.h>
+ 
+@@ -41,6 +54,8 @@ constexpr auto bmc_guid_interface = "xyz.openbmc_project.Common.UUID";
  constexpr auto bmc_guid_property = "UUID";
  constexpr auto bmc_guid_len = 16;
  
@@ -44,10 +49,23 @@ index 17aff2a..2fe79f6 100644
  static constexpr auto redundancyIntf =
      "xyz.openbmc_project.Software.RedundancyPriority";
  static constexpr auto versionIntf = "xyz.openbmc_project.Software.Version";
-@@ -86,6 +96,34 @@ typedef struct
-     uint8_t aux[4];
- } __attribute__((packed)) ipmi_device_id_t;
+@@ -59,6 +74,47 @@ using BMC = sdbusplus::xyz::openbmc_project::State::server::BMC;
+ namespace fs = std::filesystem;
+ namespace variant_ns = sdbusplus::message::variant_ns;
  
++// Offset in get device id command.
++typedef struct
++{
++    uint8_t id;
++    uint8_t revision;
++    uint8_t fw[2];
++    uint8_t ipmi_ver;
++    uint8_t addn_dev_support;
++    uint8_t manuf_id[3];
++    uint8_t prod_id[2];
++    uint8_t aux[4];
++} __attribute__((packed)) ipmi_device_id_t;
++
 +typedef struct
 +{
 +    uint8_t busId;
@@ -79,7 +97,7 @@ index 17aff2a..2fe79f6 100644
  /**
   * @brief Returns the Version info from primary s/w object
   *
-@@ -1089,8 +1127,195 @@ writeResponse:
+@@ -1022,6 +1078,192 @@ writeResponse:
      return IPMI_CC_OK;
  }
  
@@ -199,7 +217,8 @@ index 17aff2a..2fe79f6 100644
 +    reqptr += sizeof(ipmiI2cRwReq);
 +    std::copy(reqptr, reqptr + writeCount, outBuf.begin());
 +
-+    log<level::DEBUG>("checking list ", entry("SIZE=%d", getWhiteList().size()));
++    log<level::DEBUG>("checking list ",
++                      entry("SIZE=%d", getWhiteList().size()));
 +    // command whitelist checking
 +    for (unsigned int i = 0; i < getWhiteList().size(); i++)
 +    {
@@ -270,16 +289,26 @@ index 17aff2a..2fe79f6 100644
 +
  void register_netfn_app_functions()
  {
-+    int ret = -1;
-+
-     // <Get BT Interface Capabilities>
-     ipmi_register_callback(NETFUN_APP, IPMI_CMD_GET_CAP_BIT, NULL,
-                            ipmi_app_get_bt_capabilities, PRIVILEGE_USER);
-@@ -1145,6 +1370,17 @@ void register_netfn_app_functions()
-                            ipmi_app_channel_info, PRIVILEGE_USER);
- #endif
+     // <Get Device ID>
+@@ -1063,6 +1306,31 @@ void register_netfn_app_functions()
+     ipmi_register_callback(NETFUN_APP, IPMI_CMD_GET_ACPI, NULL,
+                            ipmi_app_get_acpi_power_state, PRIVILEGE_ADMIN);
  
-+    ret = loadI2CWhiteList();
++// TODO: Below code and associated api's need to be removed later.
++// Its commented for now to avoid merge conflicts with upstream
++// changes and smooth upstream upgrades.
++#if 0
++>>>>>>> IPMI Channel commands implementation
++    // <Get Channel Access>
++    ipmi_register_callback(NETFUN_APP, IPMI_CMD_GET_CHANNEL_ACCESS, NULL,
++                           ipmi_get_channel_access, PRIVILEGE_USER);
++
++    // <Get Channel Info Command>
++    ipmi_register_callback(NETFUN_APP, IPMI_CMD_GET_CHAN_INFO, NULL,
++                           ipmi_app_channel_info, PRIVILEGE_USER);
++#endif
++
++    int ret = loadI2CWhiteList();
 +    log<level::DEBUG>("i2c white list is loaded", entry("RET=%d", ret),
 +                      entry("SIZE=%d", getWhiteList().size()));
 +    if (ret == 0)
@@ -306,17 +335,17 @@ index d4dd8e8..f9e5c59 100644
      IPMI_CMD_SET_SYSTEM_INFO = 0x58,
      IPMI_CMD_GET_SYSTEM_INFO = 0x59,
 diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
-index c7eb2d8..22a2a3c 100644
+index 49ff7b0..1ae79fd 100644
 --- a/host-ipmid-whitelist.conf
 +++ b/host-ipmid-whitelist.conf
-@@ -25,6 +25,7 @@
- 0x06:0x36    //<App>:<Get BT Interface Capabilities>
+@@ -27,6 +27,7 @@
  0x06:0x37    //<App>:<Get System GUID>
  0x06:0x42    //<App>:<Get Channel Info Command>
+ 0x06:0x4E    //<App>:<Get Channel Payload Support>
 +0x06:0x52    //<App>:<Master Write Read Command>
  0x06:0x54    //<App>:<Get Channel Cipher Suites>
  0x0A:0x10    //<Storage>:<Get FRU Inventory Area Info>
  0x0A:0x11    //<Storage>:<Read FRU Data>
 -- 
-2.7.4
+2.17.1
 

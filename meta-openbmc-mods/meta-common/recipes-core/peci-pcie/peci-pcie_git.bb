@@ -10,7 +10,7 @@ SRC_URI = "git://git@github.com/Intel-BMC/provingground;protocol=ssh"
 DEPENDS = "boost sdbusplus cpu-log-util"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "f4d4bfc3296cb27feb17aa5d1d93b3061b56ce10"
+SRCREV = "785f19b128794611574ea6c18805740fb851ecff"
 
 S = "${WORKDIR}/git/peci_pcie"
 

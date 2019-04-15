@@ -1,0 +1,40 @@
+From 0fd38eb0a155cb11ff5a5452087f68c46d12111b Mon Sep 17 00:00:00 2001
+From: Cheng C Yang <cheng.c.yang@intel.com>
+Date: Thu, 28 Mar 2019 18:10:40 +0800
+Subject: [PATCH] Change Authentication Parameter
+
+Seprate D-bus interface Authentication to forceAuthentication,
+forceEncryption, Privilege according to the related change in
+sol-dbus-interface.
+
+Tested By:
+ipmitool -I lanplus -H x -U x -P x raw 0x0c 0x21 0x0e 0x02 0x03
+ipmitool -I lanplus -H x -U x -P x raw 0x0c 0x21 0x0e 0x02 0xc2
+The parameters has been changed to the request data in above command.
+
+Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
+---
+ sol/sol_manager.cpp | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/sol/sol_manager.cpp b/sol/sol_manager.cpp
+index de36723..0bd837e 100644
+--- a/sol/sol_manager.cpp
++++ b/sol/sol_manager.cpp
+@@ -195,8 +195,12 @@ void Manager::updateSOLParameter()
+ 
+     enable = std::get<bool>(properties["Enable"]);
+ 
++    forceEncrypt = std::get<bool>(properties["ForceEncryption"]);
++
++    forceAuth = std::get<bool>(properties["ForceAuthentication"]);
++
+     solMinPrivilege = static_cast<session::Privilege>(
+-        std::get<uint8_t>(properties["Authentication"]));
++        std::get<uint8_t>(properties["Privilege"]));
+ 
+     accumulateInterval =
+         std::get<uint8_t>((properties["AccumulateIntervalMS"])) *
+-- 
+2.16.2
+

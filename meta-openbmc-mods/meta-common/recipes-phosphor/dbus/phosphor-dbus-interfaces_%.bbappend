@@ -1,5 +1,5 @@
 SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git"
-SRCREV = "5515c34fded4c217e3cc07f551d59d34cd3329c5"
+SRCREV = "4623908c8c0e82d5831fca562c6f5a8430d494c8"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -17,4 +17,6 @@ SRC_URI += "file://0002-Modify-Dbus-for-IPv6.patch \
             file://0017-Add-shutdown-policy-interface-for-get-set-shutdown-p.patch \
             file://0018-Define-post-code-interfaces-for-post-code-manager.patch \
             file://0019-Creating-the-Session-interface-for-Host-and-LAN.patch \
+            file://0020-Change-some-properties-name-in-SOL-Dbus.patch \
+            file://0021-Add-interface-suppot-for-provisioning-modes.patch \
             "

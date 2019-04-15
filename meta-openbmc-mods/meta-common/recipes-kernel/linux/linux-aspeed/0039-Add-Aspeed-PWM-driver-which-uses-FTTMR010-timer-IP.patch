@@ -1,4 +1,4 @@
-From a771e5448ed259f768434d498daf8d8b292713de Mon Sep 17 00:00:00 2001
+From 95bae3d3051ee13627e5ef92bb9d60cfb5731118 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 11 Feb 2019 17:02:35 -0800
 Subject: [PATCH] Add Aspeed PWM driver which uses FTTMR010 timer IP
@@ -12,17 +12,16 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  arch/arm/boot/dts/aspeed-g5.dtsi     |   2 +-
  drivers/clocksource/timer-fttmr010.c |  25 ++
- drivers/input/misc/pwm-beeper.c      |   8 +-
  drivers/pwm/Kconfig                  |   9 +
  drivers/pwm/Makefile                 |   1 +
  drivers/pwm/pwm-fttmr010.c           | 465 +++++++++++++++++++++++++++++++++++
  include/clocksource/timer-fttmr010.h |  17 ++
- 7 files changed, 522 insertions(+), 5 deletions(-)
+ 6 files changed, 514 insertions(+), 5 deletions(-)
  create mode 100644 drivers/pwm/pwm-fttmr010.c
  create mode 100644 include/clocksource/timer-fttmr010.h
 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 6686a13a5354..ccf2845cd788 100644
+index d5783eaf30ae..992de63d7a19 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
 @@ -301,7 +301,7 @@
@@ -35,7 +34,7 @@ index 6686a13a5354..ccf2845cd788 100644
  				interrupts = <16 17 18 35 36 37 38 39>;
  				clocks = <&syscon ASPEED_CLK_APB>;
 diff --git a/drivers/clocksource/timer-fttmr010.c b/drivers/clocksource/timer-fttmr010.c
-index cf93f6419b51..8226ccf5cc2c 100644
+index fadff7915dd9..49a790924360 100644
 --- a/drivers/clocksource/timer-fttmr010.c
 +++ b/drivers/clocksource/timer-fttmr010.c
 @@ -20,6 +20,8 @@
@@ -45,9 +44,9 @@ index cf93f6419b51..8226ccf5cc2c 100644
 +#include <clocksource/timer-fttmr010.h>
 +
  /*
-  * Register definitions for the timers
+  * Register definitions common for all the timer variants.
   */
-@@ -77,6 +79,9 @@
+@@ -91,6 +93,9 @@
  #define TIMER_3_INT_OVERFLOW	BIT(8)
  #define TIMER_INT_ALL_MASK	0x1ff
  
@@ -57,7 +56,7 @@ index cf93f6419b51..8226ccf5cc2c 100644
  struct fttmr010 {
  	void __iomem *base;
  	unsigned int tick_rate;
-@@ -123,8 +128,11 @@ static int fttmr010_timer_set_next_event(unsigned long cycles,
+@@ -137,8 +142,11 @@ static int fttmr010_timer_set_next_event(unsigned long cycles,
  				       struct clock_event_device *evt)
  {
  	struct fttmr010 *fttmr010 = to_fttmr010(evt);
@@ -69,7 +68,7 @@ index cf93f6419b51..8226ccf5cc2c 100644
  	/* Stop */
  	cr = readl(fttmr010->base + TIMER_CR);
  	cr &= ~fttmr010->t1_enable_val;
-@@ -147,27 +155,37 @@ static int fttmr010_timer_set_next_event(unsigned long cycles,
+@@ -161,27 +169,37 @@ static int fttmr010_timer_set_next_event(unsigned long cycles,
  	cr |= fttmr010->t1_enable_val;
  	writel(cr, fttmr010->base + TIMER_CR);
  
@@ -107,16 +106,16 @@ index cf93f6419b51..8226ccf5cc2c 100644
  	/* Stop */
  	cr = readl(fttmr010->base + TIMER_CR);
  	cr &= ~fttmr010->t1_enable_val;
-@@ -186,6 +204,8 @@ static int fttmr010_timer_set_oneshot(struct clock_event_device *evt)
- 	cr |= TIMER_1_INT_MATCH1;
- 	writel(cr, fttmr010->base + TIMER_INTR_MASK);
+@@ -201,6 +219,8 @@ static int fttmr010_timer_set_oneshot(struct clock_event_device *evt)
+ 		writel(cr, fttmr010->base + TIMER_INTR_MASK);
+ 	}
  
 +	spin_unlock_irqrestore(&timer_fttmr010_lock, flags);
 +
  	return 0;
  }
  
-@@ -193,8 +213,11 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
+@@ -208,8 +228,11 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
  {
  	struct fttmr010 *fttmr010 = to_fttmr010(evt);
  	u32 period = DIV_ROUND_CLOSEST(fttmr010->tick_rate, HZ);
@@ -128,7 +127,7 @@ index cf93f6419b51..8226ccf5cc2c 100644
  	/* Stop */
  	cr = readl(fttmr010->base + TIMER_CR);
  	cr &= ~fttmr010->t1_enable_val;
-@@ -221,6 +244,8 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
+@@ -235,6 +258,8 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
  	cr |= fttmr010->t1_enable_val;
  	writel(cr, fttmr010->base + TIMER_CR);
  
@@ -137,45 +136,11 @@ index cf93f6419b51..8226ccf5cc2c 100644
  	return 0;
  }
  
-diff --git a/drivers/input/misc/pwm-beeper.c b/drivers/input/misc/pwm-beeper.c
-index edca0d737750..a3baa52f187f 100644
---- a/drivers/input/misc/pwm-beeper.c
-+++ b/drivers/input/misc/pwm-beeper.c
-@@ -52,7 +52,7 @@ static int pwm_beeper_on(struct pwm_beeper *beeper, unsigned long period)
- 	if (error)
- 		return error;
- 
--	if (!beeper->amplifier_on) {
-+	if (beeper->amplifier && !beeper->amplifier_on) {
- 		error = regulator_enable(beeper->amplifier);
- 		if (error) {
- 			pwm_disable(beeper->pwm);
-@@ -67,7 +67,7 @@ static int pwm_beeper_on(struct pwm_beeper *beeper, unsigned long period)
- 
- static void pwm_beeper_off(struct pwm_beeper *beeper)
- {
--	if (beeper->amplifier_on) {
-+	if (beeper->amplifier && beeper->amplifier_on) {
- 		regulator_disable(beeper->amplifier);
- 		beeper->amplifier_on = false;
- 	}
-@@ -163,9 +163,9 @@ static int pwm_beeper_probe(struct platform_device *pdev)
- 	if (IS_ERR(beeper->amplifier)) {
- 		error = PTR_ERR(beeper->amplifier);
- 		if (error != -EPROBE_DEFER)
--			dev_err(dev, "Failed to get 'amp' regulator: %d\n",
-+			dev_dbg(dev, "Failed to get 'amp' regulator: %d\n",
- 				error);
--		return error;
-+		beeper->amplifier = NULL;
- 	}
- 
- 	INIT_WORK(&beeper->work, pwm_beeper_work);
 diff --git a/drivers/pwm/Kconfig b/drivers/pwm/Kconfig
-index 504d252716f2..9d4642c668c9 100644
+index a8f47df0655a..92a8fbebe2d9 100644
 --- a/drivers/pwm/Kconfig
 +++ b/drivers/pwm/Kconfig
-@@ -168,6 +168,15 @@ config PWM_FSL_FTM
+@@ -170,6 +170,15 @@ config PWM_FSL_FTM
  	  To compile this driver as a module, choose M here: the module
  	  will be called pwm-fsl-ftm.
  

@@ -1,4 +1,4 @@
-From a01815b4bb983ede71993d6c761dedd22d148b6b Mon Sep 17 00:00:00 2001
+From 3437db37b2f39a69505338546d9f846338de6c88 Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Sat, 24 Feb 2018 11:12:32 +0800
 Subject: [PATCH] eSPI: add ASPEED AST2500 eSPI driver to boot a host with PCH
@@ -181,10 +181,10 @@ index 000000000000..185acd71bd26
 +<https://www.intel.com/content/dam/support/us/en/documents/software/chipset-software/327432-004_espi_base_specification_rev1.0.pdf>`_
 +
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 4a302d745b09..165a2bddc6cd 100644
+index da9e903808bc..01d27e845982 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -266,6 +266,7 @@
+@@ -267,6 +267,7 @@
  				clocks = <&syscon ASPEED_CLK_APB>;
  				interrupt-controller;
  				#interrupt-cells = <2>;
@@ -192,7 +192,7 @@ index 4a302d745b09..165a2bddc6cd 100644
  			};
  
  			sgpio: sgpio@1e780200 {
-@@ -360,6 +361,9 @@
+@@ -361,6 +362,9 @@
  				reg = <0x1e6ee000 0x100>;
  				interrupts = <23>;
  				status = "disabled";
@@ -203,7 +203,7 @@ index 4a302d745b09..165a2bddc6cd 100644
  
  			lpc: lpc@1e789000 {
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index fe1e2a4072a8..f2062546250c 100644
+index d4ed3777462a..8b1fcf741411 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
 @@ -485,6 +485,14 @@ config VEXPRESS_SYSCFG
@@ -222,7 +222,7 @@ index fe1e2a4072a8..f2062546250c 100644
  	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
  	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
 diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index a2b85ec21d09..bb89694e6b4b 100644
+index 7b018962cad3..89b051f82391 100644
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
 @@ -53,6 +53,7 @@ obj-$(CONFIG_GENWQE)		+= genwqe/

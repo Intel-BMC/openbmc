@@ -1,19 +1,20 @@
-From 380a088dbe9fdd69e98bf6da8086e3d664da8338 Mon Sep 17 00:00:00 2001
-From: Kuiying Wang <kuiying.wang@intel.com>
-Date: Thu, 31 Jan 2019 22:28:48 +0800
-Subject: [PATCH] Add pass through setting in gpioset
+From 0c393ec7a71f21506334caa3a321fa013a9723ef Mon Sep 17 00:00:00 2001
+From: Ed Tanous <ed.tanous@intel.com>
+Date: Mon, 8 Apr 2019 11:46:09 -0700
+Subject: [PATCH] [PATCH] Add pass through setting in gpioset
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: Ed Tanous <ed.tanous@intel.com>
 ---
  aclocal.m4            |  2 +-
  configure             |  2 +-
  include/gpiod.h       | 10 ++++++++--
- src/lib/core.c        | 13 +++++++------
- src/lib/ctxless.c     |  8 ++++----
- src/lib/helpers.c     |  3 ++-
- src/tools/gpioset.c   | 13 +++++++++----
+ lib/core.c            | 13 +++++++------
+ lib/ctxless.c         |  8 +++++---
+ lib/helpers.c         |  3 ++-
  tests/tests-ctxless.c |  2 +-
- 8 files changed, 33 insertions(+), 20 deletions(-)
+ tools/gpioset.c       | 13 +++++++++----
+ 8 files changed, 34 insertions(+), 19 deletions(-)
 
 diff --git a/aclocal.m4 b/aclocal.m4
 index b0db596..a5e28ad 100644
@@ -29,10 +30,10 @@ index b0db596..a5e28ad 100644
  dnl require some minimum version.  Point them to the right macro.
  m4_if([$1], [1.15], [],
 diff --git a/configure b/configure
-index 3d44cd1..d218338 100755
+index f5a0a23..c0cdbf1 100755
 --- a/configure
 +++ b/configure
-@@ -2477,7 +2477,7 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
+@@ -2484,7 +2484,7 @@ ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
  
  
  
@@ -42,7 +43,7 @@ index 3d44cd1..d218338 100755
  # Find a good install program.  We prefer a C program (faster),
  # so one script is as good as another.  But avoid the broken or
 diff --git a/include/gpiod.h b/include/gpiod.h
-index ccff977..0f935e6 100644
+index 2679478..7b5c186 100644
 --- a/include/gpiod.h
 +++ b/include/gpiod.h
 @@ -121,6 +121,7 @@ typedef void (*gpiod_ctxless_set_value_cb)(void *);
@@ -97,11 +98,11 @@ index ccff977..0f935e6 100644
  };
  
  /**
-diff --git a/src/lib/core.c b/src/lib/core.c
-index 4f273e3..feec362 100644
---- a/src/lib/core.c
-+++ b/src/lib/core.c
-@@ -472,7 +472,6 @@ static int line_request_values(struct gpiod_line_bulk *bulk,
+diff --git a/lib/core.c b/lib/core.c
+index 05e5a46..635569c 100644
+--- a/lib/core.c
++++ b/lib/core.c
+@@ -470,7 +470,6 @@ static int line_request_values(struct gpiod_line_bulk *bulk,
  	struct gpiohandle_request req;
  	unsigned int i;
  	int rv, fd;
@@ -109,7 +110,7 @@ index 4f273e3..feec362 100644
  	if ((config->request_type != GPIOD_LINE_REQUEST_DIRECTION_OUTPUT) &&
  	    (config->flags & (GPIOD_LINE_REQUEST_FLAG_OPEN_DRAIN |
  			      GPIOD_LINE_REQUEST_FLAG_OPEN_SOURCE))) {
-@@ -499,14 +498,15 @@ static int line_request_values(struct gpiod_line_bulk *bulk,
+@@ -497,14 +496,15 @@ static int line_request_values(struct gpiod_line_bulk *bulk,
  		req.flags |= GPIOHANDLE_REQUEST_INPUT;
  	else if (config->request_type == GPIOD_LINE_REQUEST_DIRECTION_OUTPUT)
  		req.flags |= GPIOHANDLE_REQUEST_OUTPUT;
@@ -129,7 +130,7 @@ index 4f273e3..feec362 100644
  			req.default_values[i] = !!default_vals[i];
  	}
  
-@@ -617,7 +617,8 @@ static bool line_request_is_direction(int request)
+@@ -615,7 +615,8 @@ static bool line_request_is_direction(int request)
  {
  	return request == GPIOD_LINE_REQUEST_DIRECTION_AS_IS ||
  	       request == GPIOD_LINE_REQUEST_DIRECTION_INPUT ||
@@ -139,10 +140,10 @@ index 4f273e3..feec362 100644
  }
  
  static bool line_request_is_events(int request)
-diff --git a/src/lib/ctxless.c b/src/lib/ctxless.c
-index 0009504..a16207e 100644
---- a/src/lib/ctxless.c
-+++ b/src/lib/ctxless.c
+diff --git a/lib/ctxless.c b/lib/ctxless.c
+index ba85018..88b0388 100644
+--- a/lib/ctxless.c
++++ b/lib/ctxless.c
 @@ -76,17 +76,17 @@ int gpiod_ctxless_get_value_multiple(const char *device,
  }
  
@@ -164,20 +165,20 @@ index 0009504..a16207e 100644
  				     gpiod_ctxless_set_value_cb cb, void *data)
  {
  	struct gpiod_line_bulk bulk;
-@@ -117,7 +117,7 @@ int gpiod_ctxless_set_value_multiple(const char *device,
- 	}
+@@ -118,6 +118,8 @@ int gpiod_ctxless_set_value_multiple(const char *device,
  
  	flags = active_low ? GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW : 0;
--
+ 
 +	flags |= pass_through ? GPIOD_LINE_REQUEST_FLAG_PASS_THROUGH : 0;
- 	status = gpiod_line_request_bulk_output_flags(&bulk, consumer,
- 						      flags, values);
- 	if (status < 0) {
-diff --git a/src/lib/helpers.c b/src/lib/helpers.c
-index 80b8eff..807fb93 100644
---- a/src/lib/helpers.c
-+++ b/src/lib/helpers.c
-@@ -362,7 +362,8 @@ int gpiod_line_request_bulk_output_flags(struct gpiod_line_bulk *bulk,
++
+ 	rv = gpiod_line_request_bulk_output_flags(&bulk, consumer,
+ 						  flags, values);
+ 	if (rv < 0) {
+diff --git a/lib/helpers.c b/lib/helpers.c
+index 479f370..7b2884f 100644
+--- a/lib/helpers.c
++++ b/lib/helpers.c
+@@ -360,7 +360,8 @@ int gpiod_line_request_bulk_output_flags(struct gpiod_line_bulk *bulk,
  		.request_type = GPIOD_LINE_REQUEST_DIRECTION_OUTPUT,
  		.flags = flags,
  	};
@@ -187,10 +188,23 @@ index 80b8eff..807fb93 100644
  	return gpiod_line_request_bulk(bulk, &config, default_vals);
  }
  
-diff --git a/src/tools/gpioset.c b/src/tools/gpioset.c
-index fb012fa..d5f0b77 100644
---- a/src/tools/gpioset.c
-+++ b/src/tools/gpioset.c
+diff --git a/tests/tests-ctxless.c b/tests/tests-ctxless.c
+index 638274f..b215f9c 100644
+--- a/tests/tests-ctxless.c
++++ b/tests/tests-ctxless.c
+@@ -20,7 +20,7 @@ static void ctxless_set_get_value(void)
+ 	TEST_ASSERT_EQ(rv, 0);
+ 
+ 	rv = gpiod_ctxless_set_value(test_chip_name(0), 3, 1,
+-				     false, TEST_CONSUMER, NULL, NULL);
++				     false, false, TEST_CONSUMER, NULL, NULL);
+ 	TEST_ASSERT_RET_OK(rv);
+ 
+ 	rv = gpiod_ctxless_get_value(test_chip_name(0), 3,
+diff --git a/tools/gpioset.c b/tools/gpioset.c
+index d9977a7..094d609 100644
+--- a/tools/gpioset.c
++++ b/tools/gpioset.c
 @@ -22,7 +22,8 @@
  static const struct option longopts[] = {
  	{ "help",		no_argument,		NULL,	'h' },
@@ -221,15 +235,15 @@ index fb012fa..d5f0b77 100644
  	printf("  -m, --mode=[exit|wait|time|signal] (defaults to 'exit'):\n");
  	printf("		tell the program what to do after setting values\n");
  	printf("  -s, --sec=SEC:\tspecify the number of seconds to wait (only valid for --mode=time)\n");
-@@ -179,6 +181,7 @@ int main(int argc, char **argv)
- 	int *values, status, optc, opti;
+@@ -185,6 +187,7 @@ int main(int argc, char **argv)
+ 	int *values, rv, optc, opti;
  	struct callback_data cbdata;
  	bool active_low = false;
 +	bool pass_through = false;
  	char *device, *end;
  
  	memset(&cbdata, 0, sizeof(cbdata));
-@@ -197,6 +200,8 @@ int main(int argc, char **argv)
+@@ -203,6 +206,8 @@ int main(int argc, char **argv)
  			return EXIT_SUCCESS;
  		case 'l':
  			active_low = true;
@@ -238,28 +252,15 @@ index fb012fa..d5f0b77 100644
  			break;
  		case 'm':
  			mode = parse_mode(optarg);
-@@ -263,7 +268,7 @@ int main(int argc, char **argv)
+@@ -269,7 +274,7 @@ int main(int argc, char **argv)
  	}
  
- 	status = gpiod_ctxless_set_value_multiple(device, offsets, values,
--						  num_lines, active_low,
-+						  num_lines, active_low, pass_through,
- 						  "gpioset", mode->callback,
- 						  &cbdata);
- 	if (status < 0)
-diff --git a/tests/tests-ctxless.c b/tests/tests-ctxless.c
-index ea9403d..228c49d 100644
---- a/tests/tests-ctxless.c
-+++ b/tests/tests-ctxless.c
-@@ -20,7 +20,7 @@ static void ctxless_set_get_value(void)
- 	TEST_ASSERT_EQ(ret, 0);
- 
- 	ret = gpiod_ctxless_set_value(test_chip_name(0), 3, 1,
--				      false, TEST_CONSUMER, NULL, NULL);
-+				      false, false, TEST_CONSUMER, NULL, NULL);
- 	TEST_ASSERT_RET_OK(ret);
- 
- 	ret = gpiod_ctxless_get_value(test_chip_name(0), 3,
+ 	rv = gpiod_ctxless_set_value_multiple(device, offsets, values,
+-					      num_lines, active_low, "gpioset",
++					      num_lines, active_low, pass_through, "gpioset",
+ 					      mode->callback, &cbdata);
+ 	if (rv < 0)
+ 		die_perror("error setting the GPIO line values");
 -- 
-2.19.1
+2.17.1
 

@@ -1,4 +1,4 @@
-From 971b69835fcafbac02adf828a744af541c7554d0 Mon Sep 17 00:00:00 2001
+From d36b385e17eb21c305200048007d3cc6ad38f072 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Wed, 19 Sep 2018 17:51:06 +0800
 Subject: [PATCH] Define the gpio-line-names property for purley platform
@@ -15,14 +15,14 @@ defined following gpios.
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 29 +++++++++++++++++++
+ arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 29 +++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-index 1c9aed9fcf94..9e187453750f 100644
+index 144d59642a71..8aba46cdce46 100644
 --- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -91,6 +91,35 @@
+@@ -117,6 +117,35 @@
  
  &gpio {
  	status = "okay";
@@ -59,5 +59,5 @@ index 1c9aed9fcf94..9e187453750f 100644
  
  &kcs3 {
 -- 
-2.17.0
+2.7.4
 

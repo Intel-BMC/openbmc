@@ -1,7 +1,7 @@
-From f5c7d30be4a097998d9390614c0faa2d77109ca5 Mon Sep 17 00:00:00 2001
+From b05fb3231810865ef1b6e627bb0452ae7a6c61f8 Mon Sep 17 00:00:00 2001
 From: ssekar <suryakanth.sekar@linux.intel.com>
 Date: Wed, 12 Dec 2018 16:04:15 +0530
-Subject: [PATCH] Adding support for GetSessionInfo command
+Subject: [PATCH 1/2] Adding support for GetSessionInfo command
 
 Description: user can get all session info (remote ip,port,
 session id, priv, etc) using this command.
@@ -20,14 +20,13 @@ Signed-off-by: ssekar <suryakanth.sekar@linux.intel.com>
  message_handler.cpp      |   1 +
  sessions_manager.cpp     |  55 +++++++++++++++
  sessions_manager.hpp     |   7 ++
- socket_channel.cpp       |  27 ++++++-
- socket_channel.hpp       |   3 +-
- 8 files changed, 301 insertions(+), 2 deletions(-)
+ socket_channel.hpp       |  17 +++++
+ 7 files changed, 290 insertions(+)
 
-Index: phosphor-net-ipmid.clean/comm_module.cpp
-===================================================================
---- phosphor-net-ipmid.clean.orig/comm_module.cpp
-+++ phosphor-net-ipmid.clean/comm_module.cpp
+diff --git a/comm_module.cpp b/comm_module.cpp
+index acc9089..7a1a17d 100644
+--- a/comm_module.cpp
++++ b/comm_module.cpp
 @@ -53,6 +53,14 @@ void sessionSetupCommands()
           &closeSession,
           session::Privilege::CALLBACK,
@@ -43,20 +42,14 @@ Index: phosphor-net-ipmid.clean/comm_module.cpp
      };
  
      for (auto& iter : commands)
-Index: phosphor-net-ipmid.clean/command/session_cmds.cpp
-===================================================================
---- phosphor-net-ipmid.clean.orig/command/session_cmds.cpp
-+++ phosphor-net-ipmid.clean/command/session_cmds.cpp
-@@ -5,11 +5,19 @@
- 
- #include <host-ipmid/ipmid-api.h>
- 
-+#include <iostream>
- #include <user_channel/channel_layer.hpp>
- #include <user_channel/user_layer.hpp>
- 
+diff --git a/command/session_cmds.cpp b/command/session_cmds.cpp
+index 8606ce5..4beeb6e 100644
+--- a/command/session_cmds.cpp
++++ b/command/session_cmds.cpp
+@@ -8,6 +8,14 @@
  namespace command
  {
+ 
 +// Defined as per IPMI sepcification
 +static constexpr uint8_t searchCurrentSession = 0x00;
 +static constexpr uint8_t searchSessionByHandle = 0xFE;
@@ -64,10 +57,11 @@ Index: phosphor-net-ipmid.clean/command/session_cmds.cpp
 +
 +static constexpr uint8_t ipmi15VerSession = 0x00;
 +static constexpr uint8_t ipmi20VerSession = 0x01;
- 
++
  std::vector<uint8_t>
      setSessionPrivilegeLevel(const std::vector<uint8_t>& inPayload,
-@@ -110,4 +118,143 @@ std::vector<uint8_t> closeSession(const
+                              const message::Handler& handler)
+@@ -92,4 +100,143 @@ std::vector<uint8_t> closeSession(const std::vector<uint8_t>& inPayload,
      return outPayload;
  }
  
@@ -211,10 +205,10 @@ Index: phosphor-net-ipmid.clean/command/session_cmds.cpp
 +}
 +
  } // namespace command
-Index: phosphor-net-ipmid.clean/command/session_cmds.hpp
-===================================================================
---- phosphor-net-ipmid.clean.orig/command/session_cmds.hpp
-+++ phosphor-net-ipmid.clean/command/session_cmds.hpp
+diff --git a/command/session_cmds.hpp b/command/session_cmds.hpp
+index 9737fdb..741de23 100644
+--- a/command/session_cmds.hpp
++++ b/command/session_cmds.hpp
 @@ -116,4 +116,59 @@ struct CloseSessionResponse
  std::vector<uint8_t> closeSession(const std::vector<uint8_t>& inPayload,
                                    const message::Handler& handler);
@@ -275,22 +269,22 @@ Index: phosphor-net-ipmid.clean/command/session_cmds.hpp
 +                                    const message::Handler& handler);
 +
  } // namespace command
-Index: phosphor-net-ipmid.clean/message_handler.cpp
-===================================================================
---- phosphor-net-ipmid.clean.orig/message_handler.cpp
-+++ phosphor-net-ipmid.clean/message_handler.cpp
-@@ -43,6 +43,7 @@ std::shared_ptr<Message> Handler::receiv
-     sessionID = message->bmcSessionID;
-     message->rcSessionID = session->getRCSessionID();
+diff --git a/message_handler.cpp b/message_handler.cpp
+index e2aafb3..b335236 100644
+--- a/message_handler.cpp
++++ b/message_handler.cpp
+@@ -43,6 +43,7 @@ bool Handler::receive()
+     sessionID = inMessage->bmcSessionID;
+     inMessage->rcSessionID = session->getRCSessionID();
      session->updateLastTransactionTime();
 +    session->channelPtr = channel;
  
-     return message;
+     return true;
  }
-Index: phosphor-net-ipmid.clean/sessions_manager.cpp
-===================================================================
---- phosphor-net-ipmid.clean.orig/sessions_manager.cpp
-+++ phosphor-net-ipmid.clean/sessions_manager.cpp
+diff --git a/sessions_manager.cpp b/sessions_manager.cpp
+index 95a8a15..9f3210b 100644
+--- a/sessions_manager.cpp
++++ b/sessions_manager.cpp
 @@ -88,6 +88,9 @@ std::shared_ptr<Session>
          }
          sessionID = session->getBMCSessionID();
@@ -301,7 +295,7 @@ Index: phosphor-net-ipmid.clean/sessions_manager.cpp
          return session;
      }
  
-@@ -149,12 +152,15 @@ std::shared_ptr<Session> Manager::getSes
+@@ -149,12 +152,15 @@ std::shared_ptr<Session> Manager::getSession(SessionID sessionID,
  
  void Manager::cleanStaleEntries()
  {
@@ -371,10 +365,10 @@ Index: phosphor-net-ipmid.clean/sessions_manager.cpp
 +    return count;
 +}
  } // namespace session
-Index: phosphor-net-ipmid.clean/sessions_manager.hpp
-===================================================================
---- phosphor-net-ipmid.clean.orig/sessions_manager.hpp
-+++ phosphor-net-ipmid.clean/sessions_manager.hpp
+diff --git a/sessions_manager.hpp b/sessions_manager.hpp
+index 9fd38b1..f6ed1c3 100644
+--- a/sessions_manager.hpp
++++ b/sessions_manager.hpp
 @@ -82,8 +82,15 @@ class Manager
      std::shared_ptr<Session>
          getSession(SessionID sessionID,
@@ -391,14 +385,15 @@ Index: phosphor-net-ipmid.clean/sessions_manager.hpp
      /**
       * @brief Session Manager keeps the session objects as a sorted
       *        associative container with Session ID as the unique key
-Index: phosphor-net-ipmid.clean/socket_channel.hpp
-===================================================================
---- phosphor-net-ipmid.clean.orig/socket_channel.hpp
-+++ phosphor-net-ipmid.clean/socket_channel.hpp
-@@ -65,6 +65,23 @@ class Channel
+diff --git a/socket_channel.hpp b/socket_channel.hpp
+index ebe0c8f..349701e 100644
+--- a/socket_channel.hpp
++++ b/socket_channel.hpp
+@@ -64,6 +64,23 @@ class Channel
+         return endpoint.port();
      }
  
-     /**
++    /**
 +     * @brief Return the binary representation of the remote IPv4 address
 +     *
 +     * getSessionInfo needs to return the remote IPv4 addresses of each session
@@ -415,7 +410,9 @@ Index: phosphor-net-ipmid.clean/socket_channel.hpp
 +        return 0;
 +    }
 +
-+    /**
+     /**
       * @brief Read the incoming packet
       *
-      * Reads the data available on the socket
+-- 
+2.17.1
+

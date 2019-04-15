@@ -1,4 +1,4 @@
-From e39e3a3e54cbe8e5a39b4148a9232f4570d009a6 Mon Sep 17 00:00:00 2001
+From 37b192b278d5ea5da62b2fcff4fce7cf372e4fe6 Mon Sep 17 00:00:00 2001
 From: Oskar Senft <osk@google.com>
 Date: Wed, 8 Aug 2018 10:15:05 -0400
 Subject: [PATCH] misc: aspeed: Add Aspeed UART routing control driver.
@@ -102,10 +102,10 @@ index 000000000000..afaf17cb7eda
 +$ cat /sys/bus/platform/drivers/aspeed-uart-routing/*.uart_routing/uart1
 +io1 io2 io3 io4 uart2 [uart3] uart4 io6
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-index 655bb37e422f..eb05f5a2c480 100644
+index 8aba46cdce46..d184fdf6dda6 100644
 --- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -174,6 +174,10 @@
+@@ -227,6 +227,10 @@
  	status = "okay";
  };
  
@@ -117,10 +117,10 @@ index 655bb37e422f..eb05f5a2c480 100644
  	status = "okay";
  
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 3bb31c1daf9d..92843cc1a8f4 100644
+index adde826ac1d9..5606ac1d96d5 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -482,6 +482,12 @@
+@@ -479,6 +479,12 @@
  						status = "disabled";
  					};
  				};
@@ -134,12 +134,12 @@ index 3bb31c1daf9d..92843cc1a8f4 100644
  
  			peci: bus@1e78b000 {
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index f2062546250c..8e2fc51dcc44 100644
+index 8b1fcf741411..60f203c04b9b 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
-@@ -537,6 +537,12 @@ config MISC_RTSX
- 	tristate
- 	default MISC_RTSX_PCI || MISC_RTSX_USB
+@@ -560,6 +560,12 @@ config NPCM7XX_PCI_MBOX
+ 	  Expose the NPCM750/730/715/705 PCI MBOX registers found on
+ 	  Nuvoton SOCs to userspace.
  
 +config ASPEED_UART_ROUTING
 +	tristate "Aspeed ast2500 UART routing control"
@@ -151,7 +151,7 @@ index f2062546250c..8e2fc51dcc44 100644
  source "drivers/misc/eeprom/Kconfig"
  source "drivers/misc/cb710/Kconfig"
 diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index bb89694e6b4b..0f00eb63556c 100644
+index 89b051f82391..8f70b888a9ca 100644
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
 @@ -56,6 +56,7 @@ obj-$(CONFIG_CXL_BASE)		+= cxl/

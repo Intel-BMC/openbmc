@@ -23,6 +23,9 @@ typeset -i value=$( echo $(( $var )) )
 
 if [[ $1 == "0" ]]; then
     value=$((value & ~PASSTHROUGH_ENABLE))
+    # Mark the gpio reset out & power up pin as released
+    echo "1" > /sys/class/gpio/gpio33/value
+    echo "1" > /sys/class/gpio/gpio35/value
 fi
 
 if [[ $1 == "1" ]]; then

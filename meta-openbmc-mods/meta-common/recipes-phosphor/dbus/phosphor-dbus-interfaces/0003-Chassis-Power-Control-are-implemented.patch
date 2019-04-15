@@ -1,4 +1,4 @@
-From 35271230690c5d85dc7a6502031b38d93ddd683f Mon Sep 17 00:00:00 2001
+From a20f9fa9941533b591b6bbfe6b22a74b7c0dfe64 Mon Sep 17 00:00:00 2001
 From: Ed Tanous <ed.tanous@intel.com>
 Date: Thu, 24 Jan 2019 09:29:01 -0800
 Subject: [PATCH] Chassis Power Control are implemented.
@@ -38,9 +38,9 @@ Power on/off: curl --noproxy <ip_addr> -q1c cjar -b cjar -k -H "Content-Type: ap
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- .../Chassis/Control/Chassis.interface.yaml    | 94 +++++++++++++++++++
- .../Chassis/Control/Power.interface.yaml      | 85 ++++++++++++++---
- 2 files changed, 166 insertions(+), 13 deletions(-)
+ .../Chassis/Control/Chassis.interface.yaml         | 94 ++++++++++++++++++++++
+ .../Chassis/Control/Power.interface.yaml           | 92 ++++++++++++++++++---
+ 2 files changed, 173 insertions(+), 13 deletions(-)
  create mode 100644 xyz/openbmc_project/Chassis/Control/Chassis.interface.yaml
 
 diff --git a/xyz/openbmc_project/Chassis/Control/Chassis.interface.yaml b/xyz/openbmc_project/Chassis/Control/Chassis.interface.yaml
@@ -144,10 +144,10 @@ index 0000000..c28492a
 +       - xyz.openbmc_project.Chassis.Common.Error.IOError
 +
 diff --git a/xyz/openbmc_project/Chassis/Control/Power.interface.yaml b/xyz/openbmc_project/Chassis/Control/Power.interface.yaml
-index 082586f..e77598b 100644
+index 082586f..368beca 100644
 --- a/xyz/openbmc_project/Chassis/Control/Power.interface.yaml
 +++ b/xyz/openbmc_project/Chassis/Control/Power.interface.yaml
-@@ -1,31 +1,90 @@
+@@ -1,31 +1,97 @@
  description: >
 -    Power control service
 +    Chassis control service
@@ -207,12 +207,22 @@ index 082586f..e77598b 100644
 +    - name: vrd_good
 +      type: int32
 +      default: 0
++      description: >
++       ACPI status
++    - name: s4s5_state
++      type: int32
++      default: 0
++      description: >
++       ACPI status
++    - name: pgood
++      type: int32
++      default: 0
        description: >
 -       PSU Power good property
 -       It is a read-only property.
 -    - name: State
-+       ACPI status
-+    - name: s4s5_state
++       pgood property
++    - name: state
        type: int32
        default: 0
        description: >
@@ -222,16 +232,6 @@ index 082586f..e77598b 100644
 -       Setting its value to change the system state
 -       Read its value to get the system state.
 \ No newline at end of file
-+       ACPI status
-+    - name: pgood
-+      type: int32
-+      default: 0
-+      description: >
-+       pgood property
-+    - name: state
-+      type: int32
-+      default: 0
-+      description: >
 +       state property
 +    - name: pgood_timeout
 +      type: int32
@@ -245,6 +245,13 @@ index 082586f..e77598b 100644
 +        The current BIOS POST state,
 +        false means not completed or system reset,
 +        true means BIOS POST completed.
++    - name: PFail
++      type: boolean
++      default: true
++      description: >
++        The current booting status,
++        true means booting from AC loss,
++        false means not booting from AC loss.
 +signals:
 +    - name: PowerGood
 +      description: >
@@ -253,5 +260,5 @@ index 082586f..e77598b 100644
 +      description: >
 +        Signal for powerlost
 -- 
-2.17.1
+2.7.4
 

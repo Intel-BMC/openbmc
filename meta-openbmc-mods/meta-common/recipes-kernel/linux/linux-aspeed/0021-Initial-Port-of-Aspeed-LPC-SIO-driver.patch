@@ -111,7 +111,7 @@ index 768278b059c3..de2d5c6d186c 100644
 +obj-$(CONFIG_ASPEED_LPC_SIO)   += aspeed-lpc-sio.o
  obj-$(CONFIG_PCI_ENDPOINT_TEST)	+= pci_endpoint_test.o
  obj-$(CONFIG_OCXL)		+= ocxl/
- obj-$(CONFIG_MISC_RTSX)		+= cardreader/
+ obj-y				+= cardreader/
 diff --git a/drivers/misc/aspeed-lpc-sio.c b/drivers/misc/aspeed-lpc-sio.c
 new file mode 100644
 index 000000000000..c717a3182320

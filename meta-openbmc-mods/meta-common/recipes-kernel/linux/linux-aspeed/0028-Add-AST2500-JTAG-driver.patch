@@ -1,4 +1,4 @@
-From 43470f186979483ba6c1e6374c7ea3a129622862 Mon Sep 17 00:00:00 2001
+From 409ea2cede8588a59badd5dd7cf8721879d4c68a Mon Sep 17 00:00:00 2001
 From: "Hunt, Bryan" <bryan.hunt@intel.com>
 Date: Fri, 30 Mar 2018 10:48:01 -0700
 Subject: [PATCH] Add AST2500d JTAG driver
@@ -21,10 +21,10 @@ Signed-off-by: Hunt, Bryan <bryan.hunt@intel.com>
  create mode 100644 include/uapi/linux/jtag_drv.h
 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index a7bbc2adecc9..b63003c2c0c7 100644
+index 01d27e845982..adde826ac1d9 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -366,6 +366,15 @@
+@@ -367,6 +367,15 @@
  				pinctrl-0 = <&pinctrl_espi_default>;
  			};
  
@@ -41,17 +41,17 @@ index a7bbc2adecc9..b63003c2c0c7 100644
  				compatible = "aspeed,ast2500-lpc", "simple-mfd";
  				reg = <0x1e789000 0x1000>;
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index c633db2b41fb..2778a5c33ca5 100644
+index bbb66439a307..a1579d66f47d 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
-@@ -221,4 +221,5 @@ source "drivers/slimbus/Kconfig"
+@@ -230,4 +230,5 @@ source "drivers/slimbus/Kconfig"
  
  source "drivers/peci/Kconfig"
  
 +source "drivers/jtag/Kconfig"
  endmenu
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 63c9b425e6e1..714067945fd2 100644
+index 9ec44c032a42..69b201766154 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
 @@ -187,3 +187,4 @@ obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/

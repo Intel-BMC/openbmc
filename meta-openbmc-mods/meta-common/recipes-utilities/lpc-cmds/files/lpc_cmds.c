@@ -302,6 +302,25 @@ static void SIOGetPWRBTNOverride(unsigned short clear)
 	close(fd);
 }
 
+static void SIOGetPFailStatus()
+{
+	int fd;
+	struct sio_ioctl_data sio_data;
+
+	fd = open(SIO_DEVICE_NAME, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		printf("Error open %s\n", SIO_DEVICE_NAME);
+		exit(1);
+	}
+
+	sio_data.sio_cmd = SIO_GET_PFAIL_STATUS;
+
+	if (ioctl(fd, SIO_IOC_COMMAND, &sio_data) == 0)
+		printf("PFail status : %u\n", sio_data.data);
+
+	close(fd);
+}
+
 /*********************************************************************************/
 
 #if SUPPORT_MAILBOX
@@ -370,6 +389,7 @@ static void usage(void)
 	       "\tlpc_cmds sio set_onctl_gpio_low\n"
 	       "\tlpc_cmds sio get_pwrbtn_override_status\n"
 	       "\tlpc_cmds sio get_pwrbtn_override_status_clear\n"
+	       "\tlpc_cmds sio get_pfail_status\n"
 	       "\n"
 #if SUPPORT_KCS_ADDR_CMD
 	       "\tlpc_cmds kcs [1 ~ 4] (getaddr / setaddr / quiet)\n"
@@ -423,6 +443,8 @@ int main(int argc, char** argv)
 			SIOGetPWRBTNOverride(0);
 		else if (strcmp(argv[2], "get_pwrbtn_override_status_clear") == 0)
 			SIOGetPWRBTNOverride(1);
+		else if (strcmp(argv[2], "get_pfail_status") == 0)
+			SIOGetPFailStatus();
 	} else if (strcmp(cmd, "kcs") == 0) {
 		int ifc;
 

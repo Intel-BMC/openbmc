@@ -21,10 +21,8 @@ SRC_URI += " \
         file://0030-Add-dump-debug-code-into-I2C-drivers.patch \
         file://0031-Add-high-speed-baud-rate-support-for-UART.patch \
         file://0032-misc-aspeed-Add-Aspeed-UART-routing-control-driver.patch \
-        file://0034-arm-dts-adpeed-Swap-the-mac-nodes-numbering.patch \
+        file://0034-arm-dts-aspeed-Swap-the-mac-nodes-numbering.patch \
         file://0035-Implement-a-memory-driver-share-memory.patch \
-        file://0036-net-ncsi-backport-ncsi-patches.patch \
-        file://0038-media-aspeed-backport-ikvm-patches.patch \
         file://0039-Add-Aspeed-PWM-driver-which-uses-FTTMR010-timer-IP.patch \
         file://0040-i2c-Add-mux-hold-unhold-msg-types.patch \
         file://0041-Enable-passthrough-based-gpio-character-device.patch \
@@ -35,4 +33,6 @@ SRC_URI += " \
         file://0046-misc-Add-clock-control-logic-into-Aspeed-LPC-MBOX-dr.patch \
         file://0047-misc-Block-error-printing-on-probe-defer-case-in-Asp.patch \
         file://0048-ARM-dts-aspeed-Set-default-status-of-LPC-BT-as-disab.patch \
+        file://0049-Suppress-excessive-HID-gadget-error-logs.patch \
+        file://0050-media-platform-Fix-a-kernel-warning-on-clk-control.patch \
         "

@@ -1,20 +1,20 @@
-From d34efc982a9206db87da49be3d9b1e20f59be56f Mon Sep 17 00:00:00 2001
+From 554bc7a7c7aa6e0c0ec49a24063102e17954d06c Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Thu, 31 Jan 2019 17:47:39 +0800
 Subject: [PATCH] Enable passthrough based gpio character device.
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
- drivers/gpio/gpio-aspeed.c              | 47 ++++++++++++++++++++++-
- drivers/gpio/gpiolib.c                  | 51 +++++++++++++++++++++++--
+ drivers/gpio/gpio-aspeed.c              | 47 ++++++++++++++++++++++++++++--
+ drivers/gpio/gpiolib.c                  | 51 +++++++++++++++++++++++++++++++--
  drivers/gpio/gpiolib.h                  |  1 +
- include/linux/gpio/consumer.h           |  9 +++++
- include/linux/pinctrl/pinconf-generic.h |  2 +
+ include/linux/gpio/consumer.h           |  9 ++++++
+ include/linux/pinctrl/pinconf-generic.h |  2 ++
  include/uapi/linux/gpio.h               |  1 +
  6 files changed, 106 insertions(+), 5 deletions(-)
 
 diff --git a/drivers/gpio/gpio-aspeed.c b/drivers/gpio/gpio-aspeed.c
-index 2342e154029b..06fd95197684 100644
+index 854bce4fb9e7..5f1bce3a9274 100644
 --- a/drivers/gpio/gpio-aspeed.c
 +++ b/drivers/gpio/gpio-aspeed.c
 @@ -17,9 +17,11 @@
@@ -115,10 +115,10 @@ index 2342e154029b..06fd95197684 100644
  
  	gpio_id = of_match_node(aspeed_gpio_of_table, pdev->dev.of_node);
 diff --git a/drivers/gpio/gpiolib.c b/drivers/gpio/gpiolib.c
-index a8e01d99919c..21eeca17583d 100644
+index d1adfdf50fb3..4f9fdd25c6d7 100644
 --- a/drivers/gpio/gpiolib.c
 +++ b/drivers/gpio/gpiolib.c
-@@ -419,6 +419,7 @@ struct linehandle_state {
+@@ -428,6 +428,7 @@ struct linehandle_state {
  	GPIOHANDLE_REQUEST_OUTPUT | \
  	GPIOHANDLE_REQUEST_ACTIVE_LOW | \
  	GPIOHANDLE_REQUEST_OPEN_DRAIN | \
@@ -126,7 +126,7 @@ index a8e01d99919c..21eeca17583d 100644
  	GPIOHANDLE_REQUEST_OPEN_SOURCE)
  
  static long linehandle_ioctl(struct file *filep, unsigned int cmd,
-@@ -519,7 +520,6 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -530,7 +531,6 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  		return -EINVAL;
  
  	lflags = handlereq.flags;
@@ -134,7 +134,7 @@ index a8e01d99919c..21eeca17583d 100644
  	/* Return an error if an unknown flag is set */
  	if (lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS)
  		return -EINVAL;
-@@ -579,6 +579,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -590,6 +590,8 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  			set_bit(FLAG_OPEN_DRAIN, &desc->flags);
  		if (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)
  			set_bit(FLAG_OPEN_SOURCE, &desc->flags);
@@ -143,7 +143,7 @@ index a8e01d99919c..21eeca17583d 100644
  
  		ret = gpiod_set_transitory(desc, false);
  		if (ret < 0)
-@@ -598,6 +600,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
+@@ -609,6 +611,11 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
  			ret = gpiod_direction_input(desc);
  			if (ret)
  				goto out_free_descs;
@@ -155,7 +155,7 @@ index a8e01d99919c..21eeca17583d 100644
  		}
  		dev_dbg(&gdev->dev, "registered chardev handle for line %d\n",
  			offset);
-@@ -1010,7 +1017,6 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+@@ -1027,7 +1034,6 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
  	struct gpio_device *gdev = filp->private_data;
  	struct gpio_chip *chip = gdev->chip;
  	void __user *ip = (void __user *)arg;
@@ -163,7 +163,7 @@ index a8e01d99919c..21eeca17583d 100644
  	/* We fail any subsequent ioctl():s when the chip is gone */
  	if (!chip)
  		return -ENODEV;
-@@ -1018,7 +1024,6 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+@@ -1035,7 +1041,6 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
  	/* Fill in the struct and pass to userspace */
  	if (cmd == GPIO_GET_CHIPINFO_IOCTL) {
  		struct gpiochip_info chipinfo;
@@ -171,11 +171,10 @@ index a8e01d99919c..21eeca17583d 100644
  		memset(&chipinfo, 0, sizeof(chipinfo));
  
  		strncpy(chipinfo.name, dev_name(&gdev->dev),
-@@ -2643,6 +2648,46 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
- }
+@@ -2709,6 +2714,46 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
  EXPORT_SYMBOL_GPL(gpiod_direction_output);
  
-+/**
+ /**
 + * gpiod_direction_pass_through - set the GPIO direction to pass-through
 + * @desc:	GPIO to set to pass-through
 + *
@@ -215,14 +214,15 @@ index a8e01d99919c..21eeca17583d 100644
 +}
 +EXPORT_SYMBOL_GPL(gpiod_direction_pass_through);
 +
- /**
++/**
   * gpiod_set_debounce - sets @debounce time for a GPIO
   * @desc: descriptor of the GPIO for which to set debounce time
+  * @debounce: debounce time in microseconds
 diff --git a/drivers/gpio/gpiolib.h b/drivers/gpio/gpiolib.h
-index a7e49fef73d4..b143ee47870a 100644
+index bc57f0dc5953..a821a04fc04b 100644
 --- a/drivers/gpio/gpiolib.h
 +++ b/drivers/gpio/gpiolib.h
-@@ -210,6 +210,7 @@ struct gpio_desc {
+@@ -212,6 +212,7 @@ struct gpio_desc {
  #define FLAG_IS_OUT	1
  #define FLAG_EXPORT	2	/* protected by sysfs_lock */
  #define FLAG_SYSFS	3	/* exported via /sys/class/gpio/control */
@@ -231,10 +231,10 @@ index a7e49fef73d4..b143ee47870a 100644
  #define FLAG_OPEN_DRAIN	7	/* Gpio is open drain type */
  #define FLAG_OPEN_SOURCE 8	/* Gpio is open source type */
 diff --git a/include/linux/gpio/consumer.h b/include/linux/gpio/consumer.h
-index 21ddbe440030..96551839c191 100644
+index 9ddcf50a3c59..f9775be5a46a 100644
 --- a/include/linux/gpio/consumer.h
 +++ b/include/linux/gpio/consumer.h
-@@ -99,6 +99,7 @@ void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs);
+@@ -110,6 +110,7 @@ void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs);
  int gpiod_get_direction(struct gpio_desc *desc);
  int gpiod_direction_input(struct gpio_desc *desc);
  int gpiod_direction_output(struct gpio_desc *desc, int value);
@@ -242,7 +242,7 @@ index 21ddbe440030..96551839c191 100644
  int gpiod_direction_output_raw(struct gpio_desc *desc, int value);
  
  /* Value get/set from non-sleeping context */
-@@ -314,6 +315,14 @@ static inline int gpiod_direction_output(struct gpio_desc *desc, int value)
+@@ -348,6 +349,14 @@ static inline int gpiod_direction_output(struct gpio_desc *desc, int value)
  	WARN_ON(1);
  	return -ENOSYS;
  }
@@ -271,7 +271,7 @@ index 6c0680641108..59f0cbabb685 100644
  	PIN_CONFIG_MAX = 0xFF,
  };
 diff --git a/include/uapi/linux/gpio.h b/include/uapi/linux/gpio.h
-index 1bf6e6df084b..384ced158412 100644
+index 4ebfe0ac6c5b..99864572b7d9 100644
 --- a/include/uapi/linux/gpio.h
 +++ b/include/uapi/linux/gpio.h
 @@ -62,6 +62,7 @@ struct gpioline_info {
@@ -283,5 +283,5 @@ index 1bf6e6df084b..384ced158412 100644
  /**
   * struct gpiohandle_request - Information about a GPIO handle request
 -- 
-2.19.1
+2.7.4
 

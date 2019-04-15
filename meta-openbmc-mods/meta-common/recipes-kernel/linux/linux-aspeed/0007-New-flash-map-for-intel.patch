@@ -1,22 +1,23 @@
-From 074f1c74fde88aac3a10059e4928919782cd40d6 Mon Sep 17 00:00:00 2001
+From 3eabb52efdecfc0da896476ac5567060a6b3788a Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Mon, 4 Jun 2018 13:45:42 -0700
 Subject: [PATCH] New flash map for Intel
- ===================================================================
 
+Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
- .../boot/dts/openbmc-flash-layout-intel-128MB.dtsi | 58 ++++++++++++++++++++++
- .../boot/dts/openbmc-flash-layout-intel-64MB.dtsi  | 39 +++++++++++++++
- 2 files changed, 97 insertions(+)
+ .../boot/dts/openbmc-flash-layout-intel-128MB.dtsi | 52 ++++++++++++++++++++++
+ .../boot/dts/openbmc-flash-layout-intel-64MB.dtsi  | 39 ++++++++++++++++
+ 2 files changed, 91 insertions(+)
  create mode 100644 arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
  create mode 100644 arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
 
 diff --git a/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi b/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
 new file mode 100644
-index 0000000..23426ac
+index 000000000000..23426acc30c7
 --- /dev/null
 +++ b/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,52 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +// 128MB flash layout: PFR (active + tmp1/tmp2 + extra)
 +//                     image with common RW partition
@@ -31,53 +32,47 @@ index 0000000..23426ac
 +		label = "u-boot";
 +	};
 +
-+	fit-image-a@80000 {
-+		reg = <0x80000 0x1b80000>;
-+		label = "image-a";
++	pfm@80000 {
++		reg = <0x80000 0x20000>;
++		label = "pfm";
 +	};
 +
-+	sofs@1c00000 {
-+		reg = <0x1c00000 0x200000>;
-+		label = "sofs";
-+	};
-+
-+	rwfs@1e00000 {
-+		reg = <0x1e00000 0x600000>;
-+		label = "rwfs";
-+	};
-+
-+	u-boot-env@2400000 {
-+		reg = <0x2400000 0x20000>;
++	u-boot-env@a0000 {
++		reg = <0xa0000 0x20000>;
 +		label = "u-boot-env";
 +	};
 +
-+	/*
-+	pfr-resvd@1260000 {
-+		reg = <0x2460000 0x20000>;
-+		label = "pfr-resvd";
-+	};
-+	*/
-+
-+	rc1@2480000 {
-+		reg = <0x2480000 0x1b80000>;
-+		label = "rc1";
++	sofs@c0000 {
++		reg = <0xc0000 0x200000>;
++		label = "sofs";
 +	};
 +
-+	rc2@4000000 {
-+		reg = <0x4000000 0x1b80000>;
-+		label = "rc2";
++	rwfs@2c0000 {
++		reg = <0x2c0000 0xe40000>;
++		label = "rwfs";
 +	};
 +
-+	bios-staging@6000000 {
-+		reg = <0x6000000 0x2000000>;
-+		label = "bios-staging";
++	fit-image-a@1100000 {
++		reg = <0x1100000 0x2500000>;
++		label = "image-a";
 +	};
++
++	rc-image@3600000 {
++		reg = <0x3600000 0x2500000>;
++		label = "rc-image";
++	};
++
++	image-staging@5b00000 {
++		reg = <0x5b00000 0x2500000>;
++		label = "image-stg";
++	};
++
 +};
 +
 +
 diff --git a/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi b/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
 new file mode 100644
-index 0000000..6ae8e57
+index 000000000000..6ae8e57087e2
 --- /dev/null
 +++ b/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
 @@ -0,0 +1,39 @@

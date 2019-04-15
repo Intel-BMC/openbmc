@@ -1,0 +1,415 @@
+From 1c15df9d82254286d0773086836767f23711c5d9 Mon Sep 17 00:00:00 2001
+From: Cheng C Yang <cheng.c.yang@intel.com>
+Date: Tue, 2 Apr 2019 00:34:34 +0800
+Subject: [PATCH] Move Set SOL config parameter to host-ipmid
+
+Move Set SOL config parameter command from net-ipmid to host-ipmid,
+so that BIOS in Intel platform can enable or disable SOL through KCS.
+Get SOL config parameter command will be moved later.
+
+Tested by:
+With the related change in phospher-ipmi-net and phospher-dbus-interface,
+Run commands:
+ipmitool raw 0x0c 0x21 0x0e 0x00 0x01
+ipmitool raw 0x0c 0x21 0x0e 0x01 0x00
+ipmitool raw 0x0c 0x21 0x0e 0x02 0x03
+ipmitool raw 0x0c 0x21 0x0e 0x03 0x5 0x03
+ipmitool raw 0x0c 0x21 0x0e 0x04 0x5 0x03
+All these commands have correct response and all dbus interface for
+sol command change to same value in above commands.
+After reboot BMC, "Progress" property in dbus interface change back
+to 0 and other properties will not reset to default value.
+
+Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
+---
+ host-ipmid-whitelist.conf |   1 +
+ include/ipmid/api.h       |   1 +
+ transporthandler.cpp      | 222 ++++++++++++++++++++++++++++++++++++++
+ transporthandler.hpp      |  97 +++++++++++++++++
+ 4 files changed, 321 insertions(+)
+
+diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
+index 2a83347..544b766 100644
+--- a/host-ipmid-whitelist.conf
++++ b/host-ipmid-whitelist.conf
+@@ -41,6 +41,7 @@
+ 0x0A:0x48    //<Storage>:<Get SEL Time>
+ 0x0A:0x49    //<Storage>:<Set SEL Time>
+ 0x0C:0x02    //<Transport>:<Get LAN Configuration Parameters>
++0x0C:0x21    //<Transport>:<Set SOL Configuration Parameters>
+ 0x2C:0x00    //<Group Extension>:<Group Extension Command>
+ 0x2C:0x01    //<Group Extension>:<Get DCMI Capabilities>
+ 0x2C:0x02    //<Group Extension>:<Get Power Reading>
+diff --git a/include/ipmid/api.h b/include/ipmid/api.h
+index f08ee11..2f366b4 100644
+--- a/include/ipmid/api.h
++++ b/include/ipmid/api.h
+@@ -113,6 +113,7 @@ enum ipmi_return_codes
+     IPMI_DCMI_CC_NO_ACTIVE_POWER_LIMIT = 0x80,
+     IPMI_WDOG_CC_NOT_INIT = 0x80,
+     IPMI_CC_SYSTEM_INFO_PARAMETER_NOT_SUPPORTED = 0x80,
++    IPMI_CC_SET_IN_PROGRESS_ACTIVE = 0x81,
+     IPMI_CC_SYSTEM_INFO_PARAMETER_SET_READ_ONLY = 0x82,
+     IPMI_CC_BUSY = 0xC0,
+     IPMI_CC_INVALID = 0xC1,
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 8f18b76..a693279 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -36,6 +36,9 @@ static const std::array<std::string, 3> ipAddressEnablesType = {
+     "xyz.openbmc_project.Network.EthernetInterface.IPAllowed.IPv6Only",
+     "xyz.openbmc_project.Network.EthernetInterface.IPAllowed.IPv4AndIPv6"};
+ 
++constexpr const char* solInterface = "xyz.openbmc_project.Ipmi.SOL";
++constexpr const char* solPath = "/xyz/openbmc_project/ipmi/sol";
++
+ std::map<int, std::unique_ptr<struct ChannelConfig_t>> channelConfig;
+ 
+ using namespace phosphor::logging;
+@@ -1633,6 +1636,219 @@ void createNetworkTimer()
+     }
+ }
+ 
++static int setSOLParameter(std::string property, const ipmi::Value& value)
++{
++    auto dbus = getSdBus();
++
++    static std::string solService{};
++    if (solService.empty())
++    {
++        try
++        {
++            solService = ipmi::getService(*dbus, solInterface, solPath);
++        }
++        catch (const sdbusplus::exception::SdBusError& e)
++        {
++            solService.clear();
++            phosphor::logging::log<phosphor::logging::level::ERR>(
++                "Error: get SOL service failed");
++            return -1;
++        }
++    }
++    try
++    {
++        ipmi::setDbusProperty(*dbus, solService, solPath, solInterface,
++                              property, value);
++    }
++    catch (sdbusplus::exception_t&)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "Error setting sol parameter");
++        return -1;
++    }
++
++    return 0;
++}
++
++static int getSOLParameter(std::string property, ipmi::Value& value)
++{
++    auto dbus = getSdBus();
++
++    static std::string solService{};
++    if (solService.empty())
++    {
++        try
++        {
++            solService = ipmi::getService(*dbus, solInterface, solPath);
++        }
++        catch (const sdbusplus::exception::SdBusError& e)
++        {
++            solService.clear();
++            phosphor::logging::log<phosphor::logging::level::ERR>(
++                "Error: get SOL service failed");
++            return -1;
++        }
++    }
++    try
++    {
++        value = ipmi::getDbusProperty(*dbus, solService, solPath, solInterface,
++                                      property);
++    }
++    catch (sdbusplus::exception_t&)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "Error getting sol parameter");
++        return -1;
++    }
++
++    return 0;
++}
++
++void initializeSOLInProgress()
++{
++    if (setSOLParameter("Progress", static_cast<uint8_t>(0)) < 0)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "Error initialize sol progress");
++    }
++}
++
++ipmi_ret_t setConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
++                         ipmi_request_t request, ipmi_response_t response,
++                         ipmi_data_len_t dataLen, ipmi_context_t context)
++{
++    auto reqData = reinterpret_cast<const SetConfParamsRequest*>(request);
++
++    // Check request length first
++    switch (static_cast<sol::Parameter>(reqData->paramSelector))
++    {
++        case sol::Parameter::progress:
++        case sol::Parameter::enable:
++        case sol::Parameter::authentication:
++        {
++            if (*dataLen != sizeof(SetConfParamsRequest) - 1)
++            {
++                *dataLen = 0;
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++            break;
++        }
++        case sol::Parameter::accumulate:
++        case sol::Parameter::retry:
++        {
++            if (*dataLen != sizeof(SetConfParamsRequest))
++            {
++                *dataLen = 0;
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
++            break;
++        }
++        default:
++            break;
++    }
++
++    *dataLen = 0;
++
++    switch (static_cast<sol::Parameter>(reqData->paramSelector))
++    {
++        case sol::Parameter::progress:
++        {
++            uint8_t progress = reqData->value & progressMask;
++            ipmi::Value currentProgress = 0;
++            if (getSOLParameter("Progress", currentProgress) < 0)
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++
++            if ((std::get<uint8_t>(currentProgress) == 1) && (progress == 1))
++            {
++                return IPMI_CC_SET_IN_PROGRESS_ACTIVE;
++            }
++
++            if (setSOLParameter("Progress", progress) < 0)
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++            break;
++        }
++        case sol::Parameter::enable:
++        {
++            bool enable = reqData->value & enableMask;
++            if (setSOLParameter("Enable", enable) < 0)
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++            break;
++        }
++        case sol::Parameter::authentication:
++        {
++            // if encryption is used authentication must also be used.
++            if (reqData->auth.encrypt && !reqData->auth.auth)
++            {
++                return IPMI_CC_SYSTEM_INFO_PARAMETER_SET_READ_ONLY;
++            }
++            else if (reqData->auth.privilege <
++                         static_cast<uint8_t>(sol::Privilege::userPriv) ||
++                     reqData->auth.privilege >
++                         static_cast<uint8_t>(sol::Privilege::oemPriv))
++            {
++                return IPMI_CC_INVALID_FIELD_REQUEST;
++            }
++
++            if ((setSOLParameter("Privilege", reqData->auth.privilege) < 0) ||
++                (setSOLParameter("ForceEncryption",
++                                 static_cast<bool>(reqData->auth.encrypt)) <
++                 0) ||
++                (setSOLParameter("ForceAuthentication",
++                                 static_cast<bool>(reqData->auth.auth)) < 0))
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++
++            break;
++        }
++        case sol::Parameter::accumulate:
++        {
++            if (reqData->acc.threshold == 0)
++            {
++                return IPMI_CC_INVALID_FIELD_REQUEST;
++            }
++            if (setSOLParameter("AccumulateIntervalMS", reqData->acc.interval) <
++                0)
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++            if (setSOLParameter("Threshold", reqData->acc.threshold) < 0)
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++            break;
++        }
++        case sol::Parameter::retry:
++        {
++            if ((setSOLParameter("RetryCount", reqData->retry.count) < 0) ||
++                (setSOLParameter("RetryIntervalMS", reqData->retry.interval) <
++                 0))
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++
++            break;
++        }
++        case sol::Parameter::port:
++        {
++            return IPMI_CC_SYSTEM_INFO_PARAMETER_SET_READ_ONLY;
++        }
++        case sol::Parameter::nvbitrate:
++        case sol::Parameter::vbitrate:
++        case sol::Parameter::channel:
++        default:
++            return IPMI_CC_PARM_NOT_SUPPORTED;
++    }
++
++    return IPMI_CC_OK;
++}
++
+ void register_netfn_transport_functions()
+ {
+     // As this timer is only for transport handler
+@@ -1650,5 +1866,11 @@ void register_netfn_transport_functions()
+     ipmi_register_callback(NETFUN_TRANSPORT, IPMI_CMD_GET_LAN, NULL,
+                            ipmi_transport_get_lan, PRIVILEGE_OPERATOR);
+ 
++    ipmi_register_callback(NETFUN_TRANSPORT, IPMI_CMD_SET_SOL_CONF_PARAMS, NULL,
++                           setConfParams, PRIVILEGE_ADMIN);
++
++    // Initialize dbus property progress to 0 every time sol manager restart.
++    initializeSOLInProgress();
++
+     return;
+ }
+diff --git a/transporthandler.hpp b/transporthandler.hpp
+index bd23391..3b5e9e1 100644
+--- a/transporthandler.hpp
++++ b/transporthandler.hpp
+@@ -8,6 +8,8 @@ enum ipmi_netfn_storage_cmds
+     // Get capability bits
+     IPMI_CMD_SET_LAN = 0x01,
+     IPMI_CMD_GET_LAN = 0x02,
++    IPMI_CMD_SET_SOL_CONF_PARAMS = 0x21,
++    IPMI_CMD_GET_SOL_CONF_PARAMS = 0x22,
+ };
+ 
+ // Command specific completion codes
+@@ -186,3 +188,98 @@ void commitNetworkChanges();
+  * @param[in] channel: channel number.
+  */
+ void applyChanges(int channel);
++
++namespace sol
++{
++enum class Parameter
++{
++    progress,       //!< Set In Progress.
++    enable,         //!< SOL Enable.
++    authentication, //!< SOL Authentication.
++    accumulate,     //!< Character Accumulate Interval & Send Threshold.
++    retry,          //!< SOL Retry.
++    nvbitrate,      //!< SOL non-volatile bit rate.
++    vbitrate,       //!< SOL volatile bit rate.
++    channel,        //!< SOL payload channel.
++    port,           //!< SOL payload port.
++};
++
++enum class Privilege : uint8_t
++{
++    highestPriv,
++    callbackPriv,
++    userPriv,
++    operatorPriv,
++    adminPriv,
++    oemPriv,
++};
++
++} // namespace sol
++
++constexpr uint8_t progressMask = 0x03;
++constexpr uint8_t enableMask = 0x01;
++
++struct Auth
++{
++#if BYTE_ORDER == LITTLE_ENDIAN
++    uint8_t privilege : 4; //!< SOL privilege level.
++    uint8_t reserved : 2;  //!< Reserved.
++    uint8_t auth : 1;      //!< Force SOL payload Authentication.
++    uint8_t encrypt : 1;   //!< Force SOL payload encryption.
++#endif
++
++#if BYTE_ORDER == BIG_ENDIAN
++    uint8_t encrypt : 1;   //!< Force SOL payload encryption.
++    uint8_t auth : 1;      //!< Force SOL payload Authentication.
++    uint8_t reserved : 2;  //!< Reserved.
++    uint8_t privilege : 4; //!< SOL privilege level.
++#endif
++} __attribute__((packed));
++
++struct Accumulate
++{
++    uint8_t interval;  //!< Character accumulate interval.
++    uint8_t threshold; //!< Character send threshold.
++} __attribute__((packed));
++
++struct Retry
++{
++#if BYTE_ORDER == LITTLE_ENDIAN
++    uint8_t count : 3;    //!< SOL retry count.
++    uint8_t reserved : 5; //!< Reserved.
++#endif
++
++#if BYTE_ORDER == BIG_ENDIAN
++    uint8_t reserved : 5; //!< Reserved.
++    uint8_t count : 3;    //!< SOL retry count.
++#endif
++
++    uint8_t interval; //!< SOL retry interval.
++} __attribute__((packed));
++
++struct SetConfParamsRequest
++{
++#if BYTE_ORDER == LITTLE_ENDIAN
++    uint8_t channelNumber : 4; //!< Channel number.
++    uint8_t reserved : 4;      //!< Reserved.
++#endif
++
++#if BYTE_ORDER == BIG_ENDIAN
++    uint8_t reserved : 4;      //!< Reserved.
++    uint8_t channelNumber : 4; //!< Channel number.
++#endif
++
++    uint8_t paramSelector; //!< Parameter selector.
++    union
++    {
++        uint8_t value;         //!< Represents one byte SOL parameters.
++        struct Accumulate acc; //!< Character accumulate values.
++        struct Retry retry;    //!< Retry values.
++        struct Auth auth;      //!< Authentication parameters.
++    };
++} __attribute__((packed));
++
++struct SetConfParamsResponse
++{
++    uint8_t completionCode; //!< Completion code.
++} __attribute__((packed));
+-- 
+2.17.1
+

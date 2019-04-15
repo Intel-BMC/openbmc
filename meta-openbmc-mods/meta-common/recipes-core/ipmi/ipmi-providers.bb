@@ -2,7 +2,7 @@ SUMMARY = "Intel IPMI Providers"
 DESCRIPTION = "IPMI Provider Libraries"
 
 SRC_URI = "git://git@github.com/Intel-BMC/intel-ipmi-providers;protocol=ssh"
-SRCREV = "bbb45687fc2993980ac95117d8503ee6c2358965"
+SRCREV = "91d0178dc4fe513cdfd0e3d52e5eb41193b2bf57"
 
 S = "${WORKDIR}/git"
 PV = "0.1+git${SRCPV}"
@@ -30,8 +30,3 @@ FILES_${PN}_append = " ${libdir}/host-ipmid/lib*${SOLIBS}"
 FILES_${PN}_append = " ${libdir}/net-ipmid/lib*${SOLIBS}"
 FILES_${PN}-dev_append = " ${libdir}/ipmid-providers/lib*${SOLIBSDEV}"
 
-do_configure_prepend() {
-    cp -r ${WORKDIR}/recipe-sysroot${libdir}/phosphor-ipmi-host ${S}
-    cp -r ${WORKDIR}/recipe-sysroot${includedir}/phosphor-ipmi-host ${S}
-    cp -r ${WORKDIR}/recipe-sysroot${includedir}/intel-ipmi-oem ${S}
-}

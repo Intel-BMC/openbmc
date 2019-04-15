@@ -20,12 +20,14 @@ IMAGE_TYPES_MASKED += "mtd-auto"
 # Flash characteristics in KB unless otherwise noted
 python() {
     # TODO: find partition list in DTS
-    DTB_FULL_FIT_IMAGE_OFFSETS = [0x80000, 0x2480000]
     d.setVar('FLASH_UBOOT_OFFSET', str(0))
     if d.getVar('IMAGE_TYPE', True) == 'pfr':
         d.setVar('FLASH_SIZE', str(128*1024))
+        DTB_FULL_FIT_IMAGE_OFFSETS = [0x1100000]
     else:
         d.setVar('FLASH_SIZE', str(64*1024))
+        DTB_FULL_FIT_IMAGE_OFFSETS = [0x80000, 0x2480000]
+
     d.setVar('FLASH_RUNTIME_OFFSETS', ' '.join(
         [str(int(x/1024)) for x in DTB_FULL_FIT_IMAGE_OFFSETS]
         )

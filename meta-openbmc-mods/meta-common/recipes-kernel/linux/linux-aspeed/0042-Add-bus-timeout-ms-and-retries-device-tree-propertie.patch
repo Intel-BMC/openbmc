@@ -1,4 +1,4 @@
-From ca4f6555620212ffccd943ea4c58e7ee7b1b0571 Mon Sep 17 00:00:00 2001
+From 6515a2134f90f33dbbea8ede5de598d17bb00c12 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Thu, 7 Mar 2019 15:17:40 -0800
 Subject: [PATCH] Add bus-timeout-ms and #retries device tree properties
@@ -42,7 +42,7 @@ index 8fbd8633a387..7da7e813b2b0 100644
  Example:
  
 diff --git a/Documentation/devicetree/bindings/i2c/i2c.txt b/Documentation/devicetree/bindings/i2c/i2c.txt
-index 11263982470e..bdead91f82a4 100644
+index 44efafdfd7f5..e382931cf3d6 100644
 --- a/Documentation/devicetree/bindings/i2c/i2c.txt
 +++ b/Documentation/devicetree/bindings/i2c/i2c.txt
 @@ -80,6 +80,12 @@ wants to support one of the below features, it should adapt the bindings below.
@@ -71,10 +71,10 @@ index 506d867b43d9..84237c5d0aca 100644
  	bus->adap.dev.parent = &pdev->dev;
  	bus->adap.dev.of_node = pdev->dev.of_node;
 diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
-index 728b818501b1..17cf0fb037ac 100644
+index 009b0507768e..386aa2dad908 100644
 --- a/drivers/i2c/i2c-core-base.c
 +++ b/drivers/i2c/i2c-core-base.c
-@@ -1232,6 +1232,7 @@ static void i2c_adapter_hold_timer_callback(struct timer_list *t)
+@@ -1231,6 +1231,7 @@ static void i2c_adapter_hold_timer_callback(struct timer_list *t)
  
  static int i2c_register_adapter(struct i2c_adapter *adap)
  {
@@ -82,7 +82,7 @@ index 728b818501b1..17cf0fb037ac 100644
  	int res = -EINVAL;
  
  	/* Can't register until after driver model init */
-@@ -1258,8 +1259,15 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
+@@ -1257,8 +1258,15 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
  	INIT_LIST_HEAD(&adap->userspace_clients);
  
  	/* Set default timeout to 1 second if not already set */

@@ -1,0 +1,43 @@
+From 7dd0a7c62e5885bb726ef2bd5007e79a50932c38 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 18 Mar 2019 14:06:36 -0700
+Subject: [PATCH] Suppress excessive HID gadget error logs
+
+HID events can be sent even when the host disconnects the HID
+device according to the current graphic mode. For an example, if
+KVM mouse events are sent when the host is in text mode, queueing
+of end point messages will be dropped with this message:
+
+configfs-gadget gadget: usb_ep_queue error on int endpoint -108
+
+This case is very usual case in BMC since BMC can control power
+status of the host, so this commit suppress the error printing outs
+with making HID gadget driver drop events quietly in the case.
+
+This should be a downstream only customization. Do not upstream it.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/usb/gadget/function/f_hid.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/usb/gadget/function/f_hid.c b/drivers/usb/gadget/function/f_hid.c
+index f3816a5c861e..3a94584a9dbc 100644
+--- a/drivers/usb/gadget/function/f_hid.c
++++ b/drivers/usb/gadget/function/f_hid.c
+@@ -395,8 +395,10 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
+ 
+ 	status = usb_ep_queue(hidg->in_ep, req, GFP_ATOMIC);
+ 	if (status < 0) {
+-		ERROR(hidg->func.config->cdev,
+-			"usb_ep_queue error on int endpoint %zd\n", status);
++		if (status != -ESHUTDOWN)
++			ERROR(hidg->func.config->cdev,
++			      "usb_ep_queue error on int endpoint %zd\n",
++			      status);
+ 		goto release_write_pending;
+ 	} else {
+ 		status = count;
+-- 
+2.7.4
+
