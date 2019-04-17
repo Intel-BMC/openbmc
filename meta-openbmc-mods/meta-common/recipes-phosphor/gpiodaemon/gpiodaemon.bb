@@ -10,7 +10,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 SRC_URI = "git://git@github.com/Intel-BMC/provingground.git;protocol=ssh"
 
-SRCREV = "f4d4bfc3296cb27feb17aa5d1d93b3061b56ce10"
+SRCREV = "785f19b128794611574ea6c18805740fb851ecff"
 
 inherit cmake systemd
 SYSTEMD_SERVICE_${PN} = "gpiodaemon.service"

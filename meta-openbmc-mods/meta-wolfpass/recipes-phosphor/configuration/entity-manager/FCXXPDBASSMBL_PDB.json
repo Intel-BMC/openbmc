@@ -66,6 +66,12 @@
                 "Type": "TMP75"
             },
             {
+                "Address": "0x18",
+                "Bus": "$bus",
+                "Name": "Multi Node Presence Detector",
+                "Type": "MultiNode"
+            },
+            {
                 "Address": "$address",
                 "Bus": "$bus",
                 "Name": "FCXXPDBASSMBL Fru",
@@ -73,8 +79,8 @@
             }
         ],
         "Name": "FCXXPDBASSMBL PDB",
-        "Type": "Board",
         "Probe": "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'FCXXPDBASSMBL', 'ADDRESS' : 85})",
+        "Type": "Board",
         "xyz.openbmc_project.Inventory.Decorator.Asset": {
             "Manufacturer": "$BOARD_MANUFACTURER",
             "Model": "$BOARD_PRODUCT_NAME",

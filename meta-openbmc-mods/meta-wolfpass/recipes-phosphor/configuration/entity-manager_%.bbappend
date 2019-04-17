@@ -3,7 +3,8 @@ SRC_URI_append = " file://WC-Baseboard.json \
                    file://WP-Baseboard.json \
                    file://TNP-baseboard.json \
                    file://FCXXPDBASSMBL_PDB.json \
-                   file://OPB2RH-Chassis.json"
+                   file://OPB2RH-Chassis.json \
+                   file://CYP-baseboard.json"
 
 RDEPENDS_${PN} += " default-fru"
 

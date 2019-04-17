@@ -1,5 +1,5 @@
-From 1d459c15998c9a79ba7a758cef6129ed29f3b958 Mon Sep 17 00:00:00 2001
-From: cyang29 <cheng.c.yang@intel.com>
+From dae410353f8681b58907c61eb2eb056513d86f6d Mon Sep 17 00:00:00 2001
+From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Fri, 9 Nov 2018 10:24:37 +0800
 Subject: [PATCH] Implement a memory driver share memory
 
@@ -8,7 +8,7 @@ The driver is used by MDRV2. In MDRV2 BIOS will send whole
 SMBIOS table to VGA memory and BMC can get the table from VGA
 memory through this driver.
 
-Signed-off-by: cyang29 <cheng.c.yang@intel.com>
+Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
 ---
  .../devicetree/bindings/misc/vga-shared-memory.txt |  20 +++
  drivers/misc/Kconfig                               |  10 ++
@@ -45,10 +45,10 @@ index 000000000000..03f57c53e844
 +	reg = <0x9ff00000 0x100000>;
 +};
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index 8e2fc51dcc44..1279a9674537 100644
+index 60f203c04b9b..2d4c6ba87e70 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
-@@ -543,6 +543,16 @@ config ASPEED_UART_ROUTING
+@@ -566,6 +566,16 @@ config ASPEED_UART_ROUTING
  	  If you want to configure UART routing on Aspeed BMC platforms, enable
  	  this option.
  
@@ -66,14 +66,17 @@ index 8e2fc51dcc44..1279a9674537 100644
  source "drivers/misc/eeprom/Kconfig"
  source "drivers/misc/cb710/Kconfig"
 diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index 0f00eb63556c..f4951a6e435b 100644
+index 8f70b888a9ca..30ee065491ef 100644
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
-@@ -62,3 +62,4 @@ obj-$(CONFIG_ASPEED_LPC_SIO)   += aspeed-lpc-sio.o
+@@ -59,6 +59,7 @@ obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
+ obj-$(CONFIG_ASPEED_UART_ROUTING) += aspeed-uart-routing.o
+ obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o
+ obj-$(CONFIG_ASPEED_LPC_SIO)   += aspeed-lpc-sio.o
++obj-$(CONFIG_ASPEED_VGA_SHAREDMEM) += aspeed-vga-sharedmem.o
  obj-$(CONFIG_PCI_ENDPOINT_TEST)	+= pci_endpoint_test.o
  obj-$(CONFIG_OCXL)		+= ocxl/
- obj-$(CONFIG_MISC_RTSX)		+= cardreader/
-+obj-$(CONFIG_ASPEED_VGA_SHAREDMEM) += aspeed-vga-sharedmem.o
+ obj-y				+= cardreader/
 diff --git a/drivers/misc/aspeed-vga-sharedmem.c b/drivers/misc/aspeed-vga-sharedmem.c
 new file mode 100644
 index 000000000000..76f60cd67d3a
@@ -245,5 +248,5 @@ index 000000000000..76f60cd67d3a
 +MODULE_DESCRIPTION("Shared VGA memory");
 +MODULE_LICENSE("GPL v2");
 -- 
-2.16.2
+2.7.4
 

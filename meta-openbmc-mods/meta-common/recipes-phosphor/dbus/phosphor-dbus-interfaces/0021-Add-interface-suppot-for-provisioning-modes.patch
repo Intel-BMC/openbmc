@@ -1,0 +1,52 @@
+From 94fb1ac5dd4d54ea5a6d49597e1f15c384be7fd6 Mon Sep 17 00:00:00 2001
+From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Date: Mon, 8 Apr 2019 11:48:22 +0530
+Subject: [PATCH] Add interface suppot for provisioning modes
+
+Support for provisioning modes are added in
+RestrictionMode.interface.yaml
+
+Tested:
+1. Verified build, and verified specified modes are available
+and able to set / get the same using busctl command
+
+Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+---
+ .../Security/RestrictionMode.interface.yaml        | 24 ++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/xyz/openbmc_project/Control/Security/RestrictionMode.interface.yaml b/xyz/openbmc_project/Control/Security/RestrictionMode.interface.yaml
+index 8e4fd8d..d328dac 100644
+--- a/xyz/openbmc_project/Control/Security/RestrictionMode.interface.yaml
++++ b/xyz/openbmc_project/Control/Security/RestrictionMode.interface.yaml
+@@ -21,3 +21,27 @@ enumerations:
+         - name: Blacklist
+           description: >
+             Prevent, if in the blacklist.
++        - name: Provisioning
++          description: >
++            Indicate that system is in provisioning mode
++            and all commands are allowed in KCS inteface
++            in both pre and post BIOS boot.
++        - name: ProvisionedKCSWhiteList
++          description: >
++            Commands in the whitelist will only be executed
++            through KCS interface after BIOS POST complete.
++            All KCS commands are supported before POST complete.
++        - name: ProvisionedKCSDisabled
++          description: >
++            Commands through KCS interface are executed only
++            till BIOS POST complete notification, after
++            which no KCS commands will be executed(other
++            than BIOS SMI based ones).
++        - name: ValidationUnsecure
++          description: >
++            To indicate that BMC is in unsecure mode, and many
++            operations which are not meant for end-user will be
++            allowed in this mode. Interface which sets this
++            property has to make sure due diligence is made
++            as in this mode, many security intrinsic commands
++            can be executed.
+-- 
+2.7.4
+

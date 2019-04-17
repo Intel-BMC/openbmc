@@ -1,16 +1,16 @@
-From 0ecc7c816ad4836f8f54922ba92cb527f5978d5a Mon Sep 17 00:00:00 2001
+From a413e390563205476656a9005ca447f5b626872f Mon Sep 17 00:00:00 2001
 From: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
 Date: Wed, 6 Mar 2019 10:35:56 +0530
-Subject: [PATCH] Sync GetSession Info cmd based on Upstream review
+Subject: [PATCH 2/2] Sync GetSession Info cmd based on Upstream review
 
 Signed-off-by: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
 ---
- comm_module.cpp          | 12 ++++----
- command/session_cmds.cpp | 72 +++++++++++++++++++++---------------------------
- sessions_manager.cpp     | 10 +++----
+ comm_module.cpp          | 12 +++----
+ command/session_cmds.cpp | 71 ++++++++++++++++++----------------------
+ sessions_manager.cpp     | 10 +++---
  sessions_manager.hpp     |  2 +-
- socket_channel.hpp       | 33 +++++++++++-----------
- 5 files changed, 59 insertions(+), 70 deletions(-)
+ socket_channel.hpp       | 33 ++++++++++---------
+ 5 files changed, 59 insertions(+), 69 deletions(-)
 
 diff --git a/comm_module.cpp b/comm_module.cpp
 index 7a1a17d..2546583 100644
@@ -36,25 +36,19 @@ index 7a1a17d..2546583 100644
  
      for (auto& iter : commands)
 diff --git a/command/session_cmds.cpp b/command/session_cmds.cpp
-index 7563b18..fc996a4 100644
+index 4beeb6e..0c3a4ed 100644
 --- a/command/session_cmds.cpp
 +++ b/command/session_cmds.cpp
-@@ -5,13 +5,12 @@
- 
- #include <ipmid/api.h>
- 
--#include <iostream>
- #include <user_channel/channel_layer.hpp>
- #include <user_channel/user_layer.hpp>
- 
+@@ -8,7 +8,7 @@
  namespace command
  {
+ 
 -// Defined as per IPMI sepcification
 +// Defined as per IPMI specification
  static constexpr uint8_t searchCurrentSession = 0x00;
  static constexpr uint8_t searchSessionByHandle = 0xFE;
  static constexpr uint8_t searchSessionByID = 0xFF;
-@@ -129,20 +128,6 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
+@@ -111,20 +111,6 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
          reinterpret_cast<GetSessionInfoResponse*>(outPayload.data());
      uint32_t reqSessionID = handler.sessionID;
      response->completionCode = IPMI_CC_OK;
@@ -75,7 +69,7 @@ index 7563b18..fc996a4 100644
  
      // Here we look for session info according to session index parameter
      switch (request->sessionIndex)
-@@ -150,29 +135,22 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
+@@ -132,29 +118,22 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
          // Look for current active session which this cmd is received over
          case searchCurrentSession:
              // Request data should only contain session index byte
@@ -110,7 +104,7 @@ index 7563b18..fc996a4 100644
              }
  
              // Retrieve session id based on session handle
-@@ -186,7 +164,7 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
+@@ -168,7 +147,7 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
              {
                  response->completionCode = IPMI_CC_INVALID_FIELD_REQUEST;
                  outPayload.resize(sizeof(response->completionCode));
@@ -119,7 +113,7 @@ index 7563b18..fc996a4 100644
              }
              break;
          case searchSessionByID:
-@@ -196,23 +174,38 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
+@@ -178,23 +157,38 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
              {
                  response->completionCode = IPMI_CC_REQ_DATA_LEN_INVALID;
                  outPayload.resize(sizeof(response->completionCode));
@@ -162,7 +156,7 @@ index 7563b18..fc996a4 100644
      response->sessionHandle = 0;
      if (reqSessionID != 0)
      {
-@@ -225,9 +218,9 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
+@@ -207,9 +201,9 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
          }
          catch (std::exception& e)
          {
@@ -174,7 +168,7 @@ index 7563b18..fc996a4 100644
          }
          response->sessionHandle = std::get<session::Manager&>(singletonPool)
                                        .getSessionHandle(reqSessionID);
-@@ -236,25 +229,24 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
+@@ -218,25 +212,24 @@ std::vector<uint8_t> getSessionInfo(const std::vector<uint8_t>& inPayload,
          {
              response->completionCode = IPMI_CC_UNSPECIFIED_ERROR;
              outPayload.resize(sizeof(response->completionCode));
@@ -246,7 +240,7 @@ index 9f3210b..c6897c6 100644
      uint8_t count = 0;
      for (const auto& it : sessionsMap)
 diff --git a/sessions_manager.hpp b/sessions_manager.hpp
-index c4caad4..3a3825d 100644
+index f6ed1c3..3ff213e 100644
 --- a/sessions_manager.hpp
 +++ b/sessions_manager.hpp
 @@ -82,7 +82,7 @@ class Manager
@@ -314,5 +308,5 @@ index 349701e..8b64740 100644
  
      /**
 -- 
-2.7.4
+2.17.1
 

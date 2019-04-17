@@ -1,7 +1,7 @@
-From 769b30d1b5463291ddffd46f6039321d42f80417 Mon Sep 17 00:00:00 2001
+From c11a8ffcea24352579614d13d13ac4bda9a965cf Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Mon, 5 Nov 2018 15:38:19 -0800
-Subject: [PATCH 1/1] Leave GPIOE in passthrough after boot
+Subject: [PATCH] Leave GPIOE in passthrough after boot
 
 This is a temporary patch that seems to leave exported
 gpio in passthrough mode. It's hard to understand why this
@@ -16,11 +16,11 @@ change that can get us the correct result in the short term.
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c | 8 ++++----
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-index 0c89647f166f..386ae967835d 100644
+index 187abd7693cf..4230e1038a88 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 @@ -246,7 +246,7 @@ FUNC_GROUP_DECL(GPID6, G18, C21);
@@ -42,5 +42,5 @@ index 0c89647f166f..386ae967835d 100644
  #define F18 34
  SIG_EXPR_LIST_DECL_SINGLE(NDSR3, NDSR3, SIG_DESC_SET(SCU80, 18));
 -- 
-2.17.1
+2.7.4
 

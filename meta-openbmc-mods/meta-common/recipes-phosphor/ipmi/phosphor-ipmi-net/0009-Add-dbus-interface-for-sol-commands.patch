@@ -147,7 +147,7 @@ index 2046fe4..de36723 100644
  #include <boost/asio/write.hpp>
  #include <chrono>
  #include <cmath>
-+#include <phosphor-ipmi-host/utils.hpp>
++#include <ipmid/utils.hpp>
  #include <phosphor-logging/log.hpp>
 +#include <sdbusplus/message/types.hpp>
 +

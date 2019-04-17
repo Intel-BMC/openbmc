@@ -1,0 +1,85 @@
+From 9c509b9450f641c169ee3aeb60e398c43810dcb2 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 3 Oct 2018 10:17:58 -0700
+Subject: [PATCH] arm: dts: aspeed: Swap the mac nodes numbering
+
+This patch swaps the numbering of mac0 and mac1 to make a dedicated
+nic get assigned the first ethernet device number.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g4.dtsi | 16 ++++++++--------
+ arch/arm/boot/dts/aspeed-g5.dtsi | 16 ++++++++--------
+ 2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
+index 22eab8a952ed..004bbb08dd4a 100644
+--- a/arch/arm/boot/dts/aspeed-g4.dtsi
++++ b/arch/arm/boot/dts/aspeed-g4.dtsi
+@@ -101,14 +101,6 @@
+ 			reg = <0x1e6c2000 0x80>;
+ 		};
+ 
+-		mac0: ethernet@1e660000 {
+-			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
+-			reg = <0x1e660000 0x180>;
+-			interrupts = <2>;
+-			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
+-			status = "disabled";
+-		};
+-
+ 		mac1: ethernet@1e680000 {
+ 			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
+ 			reg = <0x1e680000 0x180>;
+@@ -117,6 +109,14 @@
+ 			status = "disabled";
+ 		};
+ 
++		mac0: ethernet@1e660000 {
++			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
++			reg = <0x1e660000 0x180>;
++			interrupts = <2>;
++			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
++			status = "disabled";
++		};
++
+ 		ehci0: usb@1e6a1000 {
+ 			compatible = "aspeed,ast2400-ehci", "generic-ehci";
+ 			reg = <0x1e6a1000 0x100>;
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index 92843cc1a8f4..30a7f349feeb 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -142,14 +142,6 @@
+ 			reg = <0x1e6c2000 0x80>;
+ 		};
+ 
+-		mac0: ethernet@1e660000 {
+-			compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
+-			reg = <0x1e660000 0x180>;
+-			interrupts = <2>;
+-			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
+-			status = "disabled";
+-		};
+-
+ 		mac1: ethernet@1e680000 {
+ 			compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
+ 			reg = <0x1e680000 0x180>;
+@@ -158,6 +150,14 @@
+ 			status = "disabled";
+ 		};
+ 
++		mac0: ethernet@1e660000 {
++			compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
++			reg = <0x1e660000 0x180>;
++			interrupts = <2>;
++			clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>;
++			status = "disabled";
++		};
++
+ 		ehci0: usb@1e6a1000 {
+ 			compatible = "aspeed,ast2500-ehci", "generic-ehci";
+ 			reg = <0x1e6a1000 0x100>;
+-- 
+2.7.4
+

@@ -1,0 +1,26 @@
+{
+    "Exposes": [
+        {
+            "Direction": "Input",
+            "Index": 143,
+            "Name": "Chassis Intrusion GPIO",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "BindGpioIntrusion": "Chassis Intrusion GPIO",
+            "Class": "Gpio",
+            "Name": "Chassis Intrusion Sensor",
+            "Type": "ChassisIntrusionSensor"
+        }
+    ],
+    "Name": "CYP Baseboard",
+    "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*CYP'})",
+    "Type": "Board",
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "$PRODUCT_MANUFACTURER",
+        "Model": "$PRODUCT_PRODUCT_NAME",
+        "PartNumber": "$PRODUCT_PART_NUMBER",
+        "SerialNumber": "$PRODUCT_SERIAL_NUMBER"
+    }
+}

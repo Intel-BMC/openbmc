@@ -1,14 +1,15 @@
 {
     "Exposes": [
-
+        {
+            "Name": "Multi Node Supported",
+            "Type": "MultiNode"
+        }
     ],
     "Name": "OPB2RH Chassis",
-    "Type": "Chassis",
     "Probe": [
-        "FOUND('TNP Baseboard')",
-        "AND",
         "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'FCXXPDBASSMBL'})"
     ],
+    "Type": "Chassis",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "Intel Corporation",
         "Model": "OPB2RH",

@@ -110,7 +110,7 @@
     - Interface: xyz.openbmc_project.Control.Security.RestrictionMode
       Properties:
           RestrictionMode:
-              Default: RestrictionMode::Modes::None
+              Default: RestrictionMode::Modes::Provisioning
 
 /xyz/openbmc_project/control/host0/TPMEnable:
     - Interface: xyz.openbmc_project.Control.TPM.Policy
@@ -179,3 +179,31 @@
               Default: '"Performance"'
           Supported:
               Default: '{"Acoustic", "Performance"}'
+
+/xyz/openbmc_project/control/cfm_limit:
+    - Interface: xyz.openbmc_project.Control.CFMLimit
+      Properties:
+          Limit:
+              Default: 0
+
+/xyz/openbmc_project/ipmi/sol:
+    - Interface:  xyz.openbmc_project.Ipmi.SOL
+      Properties:
+          Progress:
+              Default: 0
+          Enable:
+              Default: 'true'
+          ForceEncryption:
+              Default: 'true'
+          ForceAuthentication:
+              Default: 'true'
+          Privilege:
+              Default: 2
+          AccumulateIntervalMS:
+              Default: 20
+          Threshold:
+              Default: 1
+          RetryCount:
+              Default: 7
+          RetryIntervalMS:
+              Default: 10

@@ -1,4 +1,4 @@
-From 0b3a20690483d3a04cb10d785b33f01b9bf4079d Mon Sep 17 00:00:00 2001
+From ddfbe1364c6ecf77f06990e6550dfe5a3791e6bf Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Wed, 6 Feb 2019 15:59:34 +0530
 Subject: [PATCH] Selecting 128MB for PFR
@@ -7,17 +7,16 @@ PFR platforms requires 128MB flash mapping.
 This will override the existing 64MB flash map
 and loads 128MB flash map.
 
-Change-Id: If42805139d86061bd409915e8fc6374d6cf69147
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
  arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-index 20cc204..aab14fd 100644
+index 8aba46cdce46..6959a06d04e2 100644
 --- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -79,7 +79,7 @@
+@@ -90,7 +90,7 @@
  	flash@0 {
  		status = "okay";
  		m25p,fast-read;

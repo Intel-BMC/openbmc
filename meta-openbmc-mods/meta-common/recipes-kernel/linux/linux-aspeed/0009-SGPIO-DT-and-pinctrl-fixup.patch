@@ -1,4 +1,4 @@
-From f4b91f5c6723e56e106a609cdbcc8da48c56499e Mon Sep 17 00:00:00 2001
+From 2f895fe17cd72124b2a04af306f9349e5da90a6c Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Wed, 16 May 2018 10:03:14 -0700
 Subject: [PATCH] SGPIO DT and pinctrl fixup
@@ -15,11 +15,11 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  4 files changed, 54 insertions(+), 60 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 6af12872ee74..9aed0f696a98 100644
+index 3990aed25ee6..19f721118b52 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -201,6 +201,18 @@
- 				interrupt-controller;
+@@ -203,6 +203,18 @@
+ 				#interrupt-cells = <2>;
  			};
  
 +			sgpio: sgpio@1e780200 {
@@ -37,7 +37,7 @@ index 6af12872ee74..9aed0f696a98 100644
  			timer: timer@1e782000 {
  				/* This timer is a Faraday FTTMR010 derivative */
  				compatible = "aspeed,ast2400-timer";
-@@ -1150,44 +1162,14 @@
+@@ -1183,44 +1195,14 @@
  		groups = "SD2";
  	};
  
@@ -89,10 +89,10 @@ index 6af12872ee74..9aed0f696a98 100644
  
  	pinctrl_sioonctrl_default: sioonctrl_default {
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 01e901031bd4..36d72c91a2ad 100644
+index 0c74adf739d2..d4c99b82f7bd 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -274,6 +274,9 @@
+@@ -276,6 +276,9 @@
  				reg = <0x1e780200 0x0100>;
  				interrupts = <40>;
  				interrupt-controller;
@@ -101,8 +101,8 @@ index 01e901031bd4..36d72c91a2ad 100644
 +				status = "disabled";
  			};
  
- 			timer: timer@1e782000 {
-@@ -1324,6 +1327,11 @@
+ 			rtc: rtc@1e781000 {
+@@ -1388,6 +1391,11 @@
  		groups = "SDA2";
  	};
  
@@ -207,7 +207,7 @@ index 05b153034517..353af05b8602 100644
  	ASPEED_PINCTRL_FUNC(SIOPBI),
  	ASPEED_PINCTRL_FUNC(SIOPBO),
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-index 187abd7693cf..0c89647f166f 100644
+index 4230e1038a88..13f749e35001 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 @@ -577,6 +577,8 @@ SS_PIN_DECL(N3, GPIOJ2, SGPMO);

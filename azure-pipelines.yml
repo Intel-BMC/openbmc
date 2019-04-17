@@ -17,4 +17,4 @@ jobs:
         bitbake intel-platforms
       displayName: 'Build'
       timeoutInMinutes: 0
-
+      env: { DEBIAN_FRONTEND: noninteractive}
