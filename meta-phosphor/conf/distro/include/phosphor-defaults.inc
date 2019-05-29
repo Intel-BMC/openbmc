@@ -102,7 +102,7 @@ VIRTUAL-RUNTIME_obmc-dump-manager ?= "phosphor-debug-collector-manager"
 # Provide support for monitoring BMC core dumps
 VIRTUAL-RUNTIME_obmc-dump-monitor ?= "phosphor-debug-collector-monitor"
 
-PREFERRED_PROVIDER_virtual/obmc-system-mgmt ?= "obmc-phosphor-sysd"
+PREFERRED_PROVIDER_virtual/obmc-system-mgmt ??= "obmc-phosphor-sysd"
 
 # phosphor-hwmon-config
 #
@@ -194,21 +194,20 @@ PREFERRED_PROVIDER_virtual/phosphor-led-manager-config-native ?= \
 PREFERRED_PROVIDER_virtual/phosphor-logging-callouts ?= \
     "phosphor-logging-callouts-example-native"
 
-# The phosphor-fan-presence application is data driven and requires an
-# input YAML that maps fans to their tach sensors.
-# This virtual is a native recipe that provides that mapping by installing
-# configuration files in the format and native sysroot location expected by
-# the phosphor-fan-presence build process in the native sysroot.
+# The phosphor-fan-presence application is data driven and requires an input
+# YAML that maps fans to their tach sensors.  This virtual is a recipe that
+# provides that mapping by installing configuration files in the format and
+# sysroot location expected by the phosphor-fan-presence build process in the
+# sysroot.
 PREFERRED_PROVIDER_virtual/phosphor-fan-presence-config ?= \
-    "phosphor-fan-presence-config-native"
+    "phosphor-fan-presence-config"
 
-# The phosphor-fan-control application is data driven and requires a YAML
-# file to define the fans in the system.
-# This virtual is a native recipe that provides that definition by installing
-# the YAML file in the format and native sysroot location expected by
-# the phosphor-fan-control build process in the native sysroot.
+# The phosphor-fan-control application is data driven and requires a YAML file
+# to define the fans in the system.  This virtual is a recipe that provides
+# that definition by installing the YAML file in the format and sysroot
+# location expected by the phosphor-fan-control build process in the sysroot.
 PREFERRED_PROVIDER_virtual/phosphor-fan-control-fan-config ?= \
-    "phosphor-fan-control-fan-config-native"
+    "phosphor-fan-control-fan-config"
 
 # The phosphor-gpio-monitor application is data-driven and requires an input.
 # The application then watches the passed in input event entry for the

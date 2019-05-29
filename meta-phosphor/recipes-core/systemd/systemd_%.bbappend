@@ -1,11 +1,10 @@
 FILES_${PN}-catalog-extralocales = \
             "${exec_prefix}/lib/systemd/catalog/*.*.catalog"
 PACKAGES =+ "${PN}-catalog-extralocales"
-PACKAGECONFIG_remove = "backlight binfmt firstboot gshadow hibernate ima \
-                        localed logind machined nss nss-mymachines nss-resolve \
-                        polkit quotacheck smack utmp vconsole"
+PACKAGECONFIG = "pam hostnamed networkd randomseed resolved sysusers timedated \
+                 timesyncd xz"
 
-FILESEXTRAPATHS_append := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 SRC_URI += "file://default.network"
 SRC_URI += "file://0001-sd-bus-Don-t-automatically-add-ObjectManager.patch"
 

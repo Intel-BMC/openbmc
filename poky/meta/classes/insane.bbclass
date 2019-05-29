@@ -27,7 +27,7 @@ WARN_QA ?= "ldflags useless-rpaths rpaths staticdev libdir xorg-driver-abi \
             installed-vs-shipped compile-host-path install-host-path \
             pn-overrides infodir build-deps \
             unknown-configure-option symlink-to-sysroot multilib \
-            invalid-packageconfig host-user-contaminated uppercase-pn \
+            invalid-packageconfig host-user-contaminated uppercase-pn patch-fuzz \
             "
 ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch pkgconfig la \
             perms dep-cmp pkgvarcheck perm-config perm-line perm-link \
@@ -1033,6 +1033,54 @@ python do_qa_staging() {
         bb.fatal("QA staging was broken by the package built above")
 }
 
+python do_qa_patch() {
+    import subprocess
+
+    ###########################################################################
+    # Check patch.log for fuzz warnings
+    #
+    # Further information on why we check for patch fuzz warnings:
+    # http://lists.openembedded.org/pipermail/openembedded-core/2018-March/148675.html
+    # https://bugzilla.yoctoproject.org/show_bug.cgi?id=10450
+    ###########################################################################
+
+    logdir = d.getVar('T')
+    patchlog = os.path.join(logdir,"log.do_patch")
+
+    if os.path.exists(patchlog):
+        fuzzheader = '--- Patch fuzz start ---'
+        fuzzfooter = '--- Patch fuzz end ---'
+        statement = "grep -e '%s' %s > /dev/null" % (fuzzheader, patchlog)
+        if subprocess.call(statement, shell=True) == 0:
+            msg = "Fuzz detected:\n\n"
+            fuzzmsg = ""
+            inFuzzInfo = False
+            f = open(patchlog, "r")
+            for line in f:
+                if fuzzheader in line:
+                    inFuzzInfo = True
+                    fuzzmsg = ""
+                elif fuzzfooter in line:
+                    fuzzmsg = fuzzmsg.replace('\n\n', '\n')
+                    msg += fuzzmsg
+                    msg += "\n"
+                    inFuzzInfo = False
+                elif inFuzzInfo and not 'Now at patch' in line:
+                    fuzzmsg += line
+            f.close()
+            msg += "The context lines in the patches can be updated with devtool:\n"
+            msg += "\n"
+            msg += "    devtool modify %s\n" % d.getVar('PN')
+            msg += "    devtool finish --force-patch-refresh %s <layer_path>\n\n" % d.getVar('PN')
+            msg += "Don't forget to review changes done by devtool!\n"
+            if 'patch-fuzz' in d.getVar('ERROR_QA'):
+                bb.error(msg)
+            elif 'patch-fuzz' in d.getVar('WARN_QA'):
+                bb.warn(msg)
+            msg = "Patch log indicates that patches do not apply cleanly."
+            package_qa_handle_error("patch-fuzz", msg, d)
+}
+
 python do_qa_configure() {
     import subprocess
 
@@ -1087,18 +1135,22 @@ Rerun configure task after fixing this."""
             for config in configs:
                 gnu = "grep \"^[[:space:]]*AM_GNU_GETTEXT\" %s >/dev/null" % config
                 if subprocess.call(gnu, shell=True) == 0:
-                    error_msg = "%s required but not in DEPENDS for file %s. Missing inherit gettext?"
+                    error_msg = "AM_GNU_GETTEXT used but no inherit gettext"
                     package_qa_handle_error("configure-gettext", error_msg, d)
 
     ###########################################################################
     # Check unrecognised configure options (with a white list)
     ###########################################################################
-    if bb.data.inherits_class("autotools", d):
+    if bb.data.inherits_class("autotools", d) or bb.data.inherits_class("meson", d):
         bb.note("Checking configure output for unrecognised options")
         try:
-            flag = "WARNING: unrecognized options:"
-            log = os.path.join(d.getVar('B'), 'config.log')
-            output = subprocess.check_output(['grep', '-F', flag, log]).decode("utf-8").replace(', ', ' ')
+            if bb.data.inherits_class("autotools", d):
+                flag = "WARNING: unrecognized options:"
+                log = os.path.join(d.getVar('B'), 'config.log')
+            if bb.data.inherits_class("meson", d):
+                flag = "WARNING: Unknown options:"
+                log = os.path.join(d.getVar('T'), 'log.do_configure')
+            output = subprocess.check_output(['grep', '-F', flag, log]).decode("utf-8").replace(', ', ' ').replace('"', '')
             options = set()
             for line in output.splitlines():
                 options |= set(line.partition(flag)[2].split())
@@ -1136,6 +1188,9 @@ python do_qa_unpack() {
 # The Staging Func, to check all staging
 #addtask qa_staging after do_populate_sysroot before do_build
 do_populate_sysroot[postfuncs] += "do_qa_staging "
+
+# Check for patch fuzz
+do_patch[postfuncs] += "do_qa_patch "
 
 # Check broken config.log files, for packages requiring Gettext which
 # don't have it in DEPENDS.

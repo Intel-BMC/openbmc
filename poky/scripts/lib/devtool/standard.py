@@ -2,18 +2,8 @@
 #
 # Copyright (C) 2014-2017 Intel Corporation
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
+# SPDX-License-Identifier: GPL-2.0-only
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """Devtool standard plugins"""
 
 import os
@@ -1327,6 +1317,20 @@ def _export_local_files(srctree, rd, destdir, srctreebase):
                 # Remove fragment from local-files
                 if os.path.exists(os.path.join(local_files_dir, fragment_fn)):
                     os.unlink(os.path.join(local_files_dir, fragment_fn))
+
+    # Special handling for cml1, ccmake, etc bbclasses that generated
+    # configuration fragment files that are consumed as source files
+    for frag_class, frag_name in [("cml1", "fragment.cfg"), ("ccmake", "site-file.cmake")]:
+        if bb.data.inherits_class(frag_class, rd):
+            srcpath = os.path.join(rd.getVar('WORKDIR'), frag_name)
+            if os.path.exists(srcpath):
+                if frag_name not in new_set:
+                    new_set.append(frag_name)
+                # copy fragment into destdir
+                shutil.copy2(srcpath, destdir)
+                # copy fragment into local files if exists
+                if os.path.isdir(local_files_dir):
+                    shutil.copy2(srcpath, local_files_dir)
 
     if new_set is not None:
         for fname in new_set:

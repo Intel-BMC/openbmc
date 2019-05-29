@@ -3,7 +3,7 @@ DESCRIPTION = "The IPMB bridge implements a Dbus compliant interface for \
 implementing IPMB interfaces"
 
 SRC_URI = "git://github.com/openbmc/ipmbbridge.git"
-SRCREV = "08deaa317c7ac0dd6e4202529ff17962c63df485"
+SRCREV = "8188d7651c23502f88f9bf850ab7e549f6463997"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"
@@ -14,7 +14,9 @@ SYSTEMD_SERVICE_${PN} = "ipmb.service"
 DEPENDS = "sdbusplus \
            phosphor-logging \
            i2c-tools \
-           boost"
+           boost \
+           nlohmann-json"
 
 S = "${WORKDIR}/git/"
 inherit cmake systemd
+FILES_${PN} += "/usr/share/ipmbbridge/ipmb-channels.json"

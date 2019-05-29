@@ -1,0 +1,13 @@
+[Unit]
+Description = configure GPIO for SSD Power Control
+Before=nvme_powermanager.service
+
+[Service]
+Restart=no
+RemainAfterExit=true
+Type=oneshot
+ExecStart=/usr/bin/init_once.sh
+StandardOutput=syslog
+
+[Install]
+WantedBy=multi-user.target

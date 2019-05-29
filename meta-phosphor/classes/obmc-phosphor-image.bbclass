@@ -83,7 +83,6 @@ IMAGE_FEATURES_append_df-obmc-ubi-fs = " read-only-rootfs"
 
 CORE_IMAGE_EXTRA_INSTALL_append = " bash \
         packagegroup-obmc-apps-extras \
-        packagegroup-obmc-apps-extrasdev \
         packagegroup-obmc-apps-extrasdevtools \
         i2c-tools \
         obmc-console \
@@ -97,8 +96,6 @@ CORE_IMAGE_EXTRA_INSTALL_append = " bash \
         "
 
 OBMC_IMAGE_EXTRA_INSTALL ?= ""
-
-do_image_complete[depends] += "obmc-phosphor-debug-tarball:do_image_complete"
 
 # The /etc/version file is misleading and not useful.  Remove it.
 # Users should instead rely on /etc/os-release.
