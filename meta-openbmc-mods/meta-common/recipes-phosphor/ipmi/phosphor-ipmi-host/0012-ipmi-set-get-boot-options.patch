@@ -21,9 +21,8 @@ index 666addb..77af2dc 100644
  std::map<IpmiValue, Source::Sources> sourceIpmiToDbus = {
      {0x01, Source::Sources::Network},
      {0x02, Source::Sources::Disk},
--    {0x05, Source::Sources::ExternalMedia},
-+    {0x05, Source::Sources::DVD},
-+    {0x0f, Source::Sources::Removable},
+     {0x05, Source::Sources::ExternalMedia},
++    {0x0f, Source::Sources::RemovableMedia},
      {ipmiDefault, Source::Sources::Default}};
  
  std::map<IpmiValue, Mode::Modes> modeIpmiToDbus = {
@@ -31,9 +30,8 @@ index 666addb..77af2dc 100644
  std::map<Source::Sources, IpmiValue> sourceDbusToIpmi = {
      {Source::Sources::Network, 0x01},
      {Source::Sources::Disk, 0x02},
--    {Source::Sources::ExternalMedia, 0x05},
-+    {Source::Sources::DVD, 0x05},
-+    {Source::Sources::Removable, 0x0f},
+     {Source::Sources::ExternalMedia, 0x05},
++    {Source::Sources::RemovableMedia, 0x0f},
      {Source::Sources::Default, ipmiDefault}};
  
  std::map<Mode::Modes, IpmiValue> modeDbusToIpmi = {

@@ -1,110 +1,6 @@
 {
     "Exposes": [
         {
-            "Name": "System Fan connector 1",
-            "Pwm": 0,
-            "Tachs": [
-                0,
-                1
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "System Fan connector 2",
-            "Pwm": 1,
-            "Tachs": [
-                2,
-                3
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "System Fan connector 3",
-            "Pwm": 2,
-            "Tachs": [
-                4,
-                5
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "System Fan connector 4",
-            "Pwm": 3,
-            "Tachs": [
-                6,
-                7
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "System Fan connector 5",
-            "Pwm": 4,
-            "Tachs": [
-                8,
-                9
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "System Fan connector 6",
-            "Pwm": 5,
-            "Tachs": [
-                10,
-                11
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "System Fan connector 7",
-            "Pwm": 6,
-            "Tachs": [
-                12,
-                13
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "System Fan connector 8",
-            "Pwm": 7,
-            "Tachs": [
-                14,
-                15
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Address": "0x4A",
-            "Bus": 6,
-            "Name": "BMC Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
             "Index": 0,
             "Name": "A_P12V_PSU_SCALED",
             "PowerState": "On",
@@ -618,180 +514,6 @@
             "Type": "ADC"
         },
         {
-            "Address": "0x4B",
-            "Bus": 6,
-            "Name": "Right Rear Board Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
-            "Address": "0x49",
-            "Bus": 6,
-            "Name": "Left Rear Board Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
-            "Address": "0x48",
-            "Bus": 6,
-            "Name": "PCH M.2 Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
-            "Address": "0x4f",
-            "Bus": 6,
-            "Name": "Inlet BRD Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
-            "Address": "0x30",
-            "Bus": 0,
-            "CpuID": 1,
-            "Name": "Skylake CPU 1",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99,
-                    "label": "DIMM"
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89,
-                    "label": "DIMM"
-                }
-            ],
-            "Type": "SkylakeCPU"
-        },
-        {
-            "Address": "0x31",
-            "Bus": 0,
-            "CpuID": 2,
-            "Name": "Skylake CPU 2",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99,
-                    "label": "DIMM"
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89,
-                    "label": "DIMM"
-                }
-            ],
-            "Type": "SkylakeCPU"
-        },
-        {
             "BindConnector": "System Fan connector 1",
             "Index": 0,
             "Name": "Fan 1a",
@@ -888,16 +610,6 @@
             "Type": "AspeedFan"
         },
         {
-            "AlphaF": 4.352,
-            "AlphaS": 0.512,
-            "Name": "Exit Air Temp",
-            "PowerFactorMax": 10,
-            "PowerFactorMin": 4,
-            "QMax": 88,
-            "QMin": 15,
-            "Type": "ExitAirTempSensor"
-        },
-        {
             "C1": 92.16,
             "C2": 107.52,
             "MaxCFM": 17.5,
@@ -925,315 +637,45 @@
             "Type": "CFMSensor"
         },
         {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 1a",
-                "Fan 1b"
+            "AlphaF": 4.352,
+            "AlphaS": 0.512,
+            "Name": "Exit Air Temp",
+            "PowerFactorMax": 1.0,
+            "PowerFactorMin": 0.4,
+            "QMax": 88,
+            "QMin": 15,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 85
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 80
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
             ],
-            "Name": "Fan 1",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 1"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Left"
-            ]
-        },
-        {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 2a",
-                "Fan 2b"
-            ],
-            "Name": "Fan 2",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 2"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Left"
-            ]
-        },
-        {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 3a",
-                "Fan 3b"
-            ],
-            "Name": "Fan 3",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 3"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Left"
-            ]
-        },
-        {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 4a",
-                "Fan 4b"
-            ],
-            "Name": "Fan 4",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 4"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Left"
-            ]
-        },
-        {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 5a",
-                "Fan 5b"
-            ],
-            "Name": "Fan 5",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 5"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Right"
-            ]
-        },
-        {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 6a",
-                "Fan 6b"
-            ],
-            "Name": "Fan 6",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 6"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Right"
-            ]
-        },
-        {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 7a",
-                "Fan 7b"
-            ],
-            "Name": "Fan 7",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 7"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Right"
-            ]
-        },
-        {
-            "Class": "fan",
-            "FFGainCoefficient": 0.01,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": 0.0,
-            "ILimitMax": 0.0,
-            "ILimitMin": 0.0,
-            "Inputs": [
-                "Fan 8a",
-                "Fan 8b"
-            ],
-            "Name": "Fan 8",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
-            "Outputs": [
-                "Pwm 8"
-            ],
-            "PCoefficient": 0.0,
-            "PositiveHysteresis": 0.0,
-            "SlewNeg": 0.0,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Right"
-            ]
-        },
-        {
-            "FailSafePercent": 100,
-            "MinThermalOutput": 30,
-            "Name": "Left",
-            "Type": "Pid.Zone"
-        },
-        {
-            "FailSafePercent": 100,
-            "MinThermalOutput": 30,
-            "Name": "Right",
-            "Type": "Pid.Zone"
+            "Type": "ExitAirTempSensor"
         },
         {
             "AllowedFailures": 1,
             "Name": "FanRedundancy",
             "Type": "FanRedundancy"
-        },
-        {
-            "Class": "temp",
-            "FFGainCoefficient": 0.0,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": -0.2,
-            "ILimitMax": 100,
-            "ILimitMin": 30,
-            "Inputs": [
-                "Core \\d+ CPU1"
-            ],
-            "Name": "CPU1",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100,
-            "OutLimitMin": 30,
-            "Outputs": [],
-            "PCoefficient": -3.0,
-            "PositiveHysteresis": 0.0,
-            "SetPoint": 45.0,
-            "SlewNeg": -1,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Left"
-            ]
-        },
-        {
-            "Class": "temp",
-            "FFGainCoefficient": 0.0,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": -0.2,
-            "ILimitMax": 100,
-            "ILimitMin": 30,
-            "Inputs": [
-                "Core \\d+ CPU2"
-            ],
-            "Name": "CPU2",
-            "NegativeHysteresis": 2.0,
-            "OutLimitMax": 100,
-            "OutLimitMin": 30,
-            "Outputs": [],
-            "PCoefficient": -3.0,
-            "PositiveHysteresis": 0.0,
-            "SetPoint": 45.0,
-            "SlewNeg": -1,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Right"
-            ]
-        },
-        {
-            "Direction": "Input",
-            "Index": 32,
-            "Name": "Reset Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Out",
-            "Index": 33,
-            "Name": "Reset Out",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 34,
-            "Name": "Power Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Out",
-            "Index": 35,
-            "Name": "Power Up",
-            "Polarity": "Low",
-            "Type": "Gpio"
         },
         {
             "Direction": "Input",
@@ -1292,26 +734,76 @@
             "Type": "Gpio"
         },
         {
-            "Class": "Floor",
-            "Inputs": [
-                "Front Panel Temp"
+            "Name": "System Fan connector 1",
+            "Pwm": 0,
+            "Tachs": [
+                0,
+                1
             ],
-            "Name": "Front Panel LCC",
-            "NegativeHysteresis": 2,
-            "Output": [
-                50.0,
-                60.0
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "System Fan connector 2",
+            "Pwm": 1,
+            "Tachs": [
+                2,
+                3
             ],
-            "PositiveHysteresis": 0,
-            "Reading": [
-                20.0,
-                30.0
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "System Fan connector 3",
+            "Pwm": 2,
+            "Tachs": [
+                4,
+                5
             ],
-            "Type": "Stepwise",
-            "Zones": [
-                "Left",
-                "Right"
-            ]
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "System Fan connector 4",
+            "Pwm": 3,
+            "Tachs": [
+                6,
+                7
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "System Fan connector 5",
+            "Pwm": 4,
+            "Tachs": [
+                8,
+                9
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "System Fan connector 6",
+            "Pwm": 5,
+            "Tachs": [
+                10,
+                11
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "System Fan connector 7",
+            "Pwm": 6,
+            "Tachs": [
+                12,
+                13
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "System Fan connector 8",
+            "Pwm": 7,
+            "Tachs": [
+                14,
+                15
+            ],
+            "Type": "IntelFanConnector"
         },
         {
             "Address": "0x8",
@@ -1667,38 +1159,6 @@
             "Type": "IpmbSensor"
         },
         {
-            "Address": "0x4D",
-            "Bus": "0x1",
-            "Name": "Front Panel Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 55
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 50
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
             "Address": "0x71",
             "Bus": 2,
             "ChannelNames": [
@@ -1733,6 +1193,18 @@
             "Type": "PCA9545Mux"
         },
         {
+            "Address": "0x73",
+            "Bus": 9,
+            "ChannelNames": [
+                "MemoryChannel1",
+                "MemoryChannel2",
+                "MemoryChannel3",
+                "MemoryChannel4"
+            ],
+            "Name": "Memory Mux",
+            "Type": "PCA9545Mux"
+        },
+        {
             "Address": "0x74",
             "Bus": 2,
             "ChannelNames": [
@@ -1745,16 +1217,571 @@
             "Type": "PCA9546Mux"
         },
         {
-            "Address": "0x73",
-            "Bus": 9,
-            "ChannelNames": [
-                "MemoryChannel1",
-                "MemoryChannel2",
-                "MemoryChannel3",
-                "MemoryChannel4"
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "Exit Air Temp"
             ],
-            "Name": "Memory Mux",
-            "Type": "PCA9545Mux"
+            "Name": "Exit Air Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 1a",
+                "Fan 1b"
+            ],
+            "Name": "Fan 1",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 1"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 2a",
+                "Fan 2b"
+            ],
+            "Name": "Fan 2",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 2"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 3a",
+                "Fan 3b"
+            ],
+            "Name": "Fan 3",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 3"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 4a",
+                "Fan 4b"
+            ],
+            "Name": "Fan 4",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 4"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 5a",
+                "Fan 5b"
+            ],
+            "Name": "Fan 5",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 5"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 6a",
+                "Fan 6b"
+            ],
+            "Name": "Fan 6",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 6"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 7a",
+                "Fan 7b"
+            ],
+            "Name": "Fan 7",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 7"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 8a",
+                "Fan 8b"
+            ],
+            "Name": "Fan 8",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 8"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "BMC Temp"
+            ],
+            "Name": "BMC Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "DIMM [ABC]\\d+ CPU1"
+            ],
+            "Name": "CPU1 DIMM ABC",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "DIMM [DEF]\\d+ CPU1"
+            ],
+            "Name": "CPU1 DIMM DEF",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "DIMM [ABC]\\d+ CPU2"
+            ],
+            "Name": "CPU2 DIMM ABC",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right",
+                "PSU"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "DIMM [DEF]\\d+ CPU2"
+            ],
+            "Name": "CPU2 DIMM DEF",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "DTS CPU1"
+            ],
+            "Name": "DTS CPU1",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "DTS CPU2"
+            ],
+            "Name": "DTS CPU2",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right",
+                "PSU"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "Left Rear Temp"
+            ],
+            "Name": "Left Rear Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "Right Rear Board"
+            ],
+            "Name": "Right Rear Board",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "SSB Temp"
+            ],
+            "Name": "SSB Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "VR 1 Temp"
+            ],
+            "Name": "VR 1 Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "VR 2 Temp"
+            ],
+            "Name": "VR 2 Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 60.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right",
+                "PSU"
+            ]
+        },
+        {
+            "FailSafePercent": 100,
+            "MinThermalOutput": 30,
+            "Name": "Left",
+            "Type": "Pid.Zone"
+        },
+        {
+            "FailSafePercent": 100,
+            "MinThermalOutput": 30,
+            "Name": "Right",
+            "Type": "Pid.Zone"
+        },
+        {
+            "FailSafePercent": 100,
+            "MinThermalOutput": 30,
+            "Name": "PSU",
+            "Type": "Pid.Zone"
         },
         {
             "Class": "Ceiling",
@@ -1768,6 +1795,9 @@
                 80.0
             ],
             "PositiveHysteresis": 0,
+            "Profiles": [
+                "Acoustic"
+            ],
             "Reading": [
                 22.0,
                 32.0
@@ -1779,23 +1809,269 @@
             ]
         },
         {
-            "Controllers": [
-                ".*"
+            "Class": "Floor",
+            "Inputs": [
+                "Front Panel Temp"
             ],
-            "Name": "Acoustic",
-            "Type": "FanProfile"
+            "Name": "Front Panel LCC",
+            "NegativeHysteresis": 2,
+            "Output": [
+                50.0,
+                60.0
+            ],
+            "PositiveHysteresis": 0,
+            "Reading": [
+                20.0,
+                30.0
+            ],
+            "Type": "Stepwise",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
         },
         {
-            "Controllers": [
-                "Front Panel LCC",
-                "CPU\\d"
+            "Address": "0x4A",
+            "Bus": 6,
+            "Name": "BMC Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
             ],
-            "Name": "Performance",
-            "Type": "FanProfile"
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x4B",
+            "Bus": 6,
+            "Name": "Right Rear Board Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x49",
+            "Bus": 6,
+            "Name": "Left Rear Board Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x48",
+            "Bus": 6,
+            "Name": "PCH M.2 Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x4f",
+            "Bus": 6,
+            "Name": "Inlet BRD Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x4D",
+            "Bus": "0x1",
+            "Name": "Front Panel Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 55
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 50
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x30",
+            "Bus": 0,
+            "CpuID": 1,
+            "Name": "Xeon CPU 1",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 99,
+                    "label": "DIMM"
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 89,
+                    "label": "DIMM"
+                }
+            ],
+            "Type": "XeonCPU"
+        },
+        {
+            "Address": "0x31",
+            "Bus": 0,
+            "CpuID": 2,
+            "Name": "Xeon CPU 2",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 99,
+                    "label": "DIMM"
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 89,
+                    "label": "DIMM"
+                }
+            ],
+            "Type": "XeonCPU"
         }
     ],
     "Name": "WC Baseboard",
     "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*WC'})",
+    "ProductId": 145,
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",

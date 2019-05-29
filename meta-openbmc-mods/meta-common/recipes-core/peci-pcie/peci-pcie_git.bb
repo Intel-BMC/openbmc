@@ -5,12 +5,12 @@ LICENSE = "CLOSED"
 LIC_FILES_CHKSUM = ""
 inherit cmake systemd
 
-SRC_URI = "git://git@github.com/Intel-BMC/provingground;protocol=ssh"
+SRC_URI = "git://github.com/Intel-BMC/at-scale-debug;protocol=ssh"
 
-DEPENDS = "boost sdbusplus cpu-log-util"
+DEPENDS = "boost sdbusplus crashdump"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "785f19b128794611574ea6c18805740fb851ecff"
+SRCREV = "acf016bebe2cada610eb4aab7b97fdcd03e2200d"
 
 S = "${WORKDIR}/git/peci_pcie"
 

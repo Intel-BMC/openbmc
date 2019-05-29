@@ -1,0 +1,21 @@
+[Unit]
+Description=Wait for Power%i to turn on
+Wants=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+After=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+After=intel-power-start@%i.service
+Before=intel-wait-host-on@%i.service
+Conflicts=obmc-chassis-poweroff@%i.target
+ConditionPathExists=!/run/openbmc/chassis@%i-on
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/intel-wait-power-on.sh
+
+ExecStartPost=/bin/sh -c "mkdir -p /run/openbmc/ && touch /run/openbmc/chassis@%i-on"
+
+SyslogIdentifier=intel-wait-power-on
+TimeoutSec=15
+
+[Install]
+WantedBy=obmc-host-start@%i.target

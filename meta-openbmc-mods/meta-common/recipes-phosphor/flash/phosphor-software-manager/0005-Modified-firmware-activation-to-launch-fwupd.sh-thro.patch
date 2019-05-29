@@ -1,0 +1,188 @@
+From 7f29c255dd2af7fa6d38b02ad63a8b8940fbce84 Mon Sep 17 00:00:00 2001
+From: Jennifer Lee <jennifer1.lee@intel.com>
+Date: Mon, 10 Dec 2018 10:36:44 -0800
+Subject: [PATCH 5/6] Modified firmware activation to launch fwupd.sh through
+ non-ubi fs code path to match more closely to the upstream design 	-
+ Added option FWUPD_SCRIPT to saperate intel customized code 	- Adopted
+ ActivationProgress from ubi fs activation code mainly for progress indicator
+ for ipmi update
+
+Signed-off-by: Jennifer Lee <jennifer1.lee@intel.com>
+Change-Id: Id805deea75b21fab86f6bb6edbf50ddb3be42564
+---
+ activation.cpp   | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ configure.ac     |  7 +++++++
+ static/flash.cpp | 41 +++++++++++++++++++++++++++++++++++++++--
+ ubi/flash.cpp    |  9 +++------
+ 4 files changed, 93 insertions(+), 8 deletions(-)
+
+diff --git a/activation.cpp b/activation.cpp
+index f918221..f2923ae 100644
+--- a/activation.cpp
++++ b/activation.cpp
+@@ -163,6 +163,50 @@ auto Activation::activation(Activations value) -> Activations
+                     softwareServer::Activation::Activations::Active);
+             }
+         }
++#elif defined(FWUPD_SCRIPT)
++        if (!activationProgress)
++        {
++            // Enable systemd signals
++            Activation::subscribeToSystemdSignals();
++            parent.freeSpace(*this);
++
++            activationProgress =
++                std::make_unique<ActivationProgress>(bus, path);
++
++#ifdef WANT_SIGNATURE_VERIFY
++            fs::path uploadDir(IMG_UPLOAD_DIR);
++            if (!verifySignature(uploadDir / versionId, SIGNED_IMAGE_CONF_PATH))
++            {
++                onVerifyFailed();
++                // Stop the activation process, if fieldMode is enabled.
++                if (parent.control::FieldMode::fieldModeEnabled())
++                {
++                    return softwareServer::Activation::activation(
++                        softwareServer::Activation::Activations::Failed);
++                }
++            }
++#endif
++            flashWrite();
++            activationProgress->progress(10);
++        }
++        else if (activationProgress->progress() == 100)
++        {
++            log<level::ERR>("[Jennifer] progress == 100...");
++            if (!redundancyPriority)
++            {
++                redundancyPriority =
++                    std::make_unique<RedundancyPriority>(bus, path, *this, 0);
++            }
++
++            // Remove version object from image manager
++            Activation::deleteImageManagerObject();
++
++            // Create active association
++            parent.createActiveAssociation(path);
++
++            return softwareServer::Activation::activation(
++                softwareServer::Activation::Activations::Active);
++        }
+ #else // !UBIFS_LAYOUT
+ 
+ #ifdef WANT_SIGNATURE_VERIFY
+diff --git a/configure.ac b/configure.ac
+index 2da97ad..720e704 100755
+--- a/configure.ac
++++ b/configure.ac
+@@ -184,6 +184,13 @@ AS_IF([test "x$enable_ubifs_layout" == "xyes"], \
+     [AC_DEFINE([UBIFS_LAYOUT],[],[Enable ubifs support.])])
+ AM_CONDITIONAL([UBIFS_LAYOUT], [test "x$enable_ubifs_layout" == "xyes"])
+ 
++# setup fwupd script support
++AC_ARG_ENABLE([fwupd_script],
++    AS_HELP_STRING([--enable-fwupd_script], [Enable fwupd script support.]))
++AS_IF([test "x$enable_fwupd_script" == "xyes"], \
++    [AC_DEFINE([FWUPD_SCRIPT],[],[Enable fwupd script support.])])
++AM_CONDITIONAL([FWUPD_SCRIPT], [test "x$enable_fwupd_script" == "xyes"])
++
+ # Check for header files.
+ AC_CHECK_HEADER(systemd/sd-bus.h, ,[AC_MSG_ERROR([Could not find systemd/sd-bus.h...systemd development package required])])
+ AC_CHECK_HEADER(sdbusplus/server.hpp, ,[AC_MSG_ERROR([Could not find sdbusplus/server.hpp...openbmc/sdbusplus package required])])
+diff --git a/static/flash.cpp b/static/flash.cpp
+index 82c2393..1bf29d5 100644
+--- a/static/flash.cpp
++++ b/static/flash.cpp
+@@ -20,9 +20,11 @@ namespace updater
+ {
+ 
+ namespace fs = std::experimental::filesystem;
++namespace softwareServer = sdbusplus::xyz::openbmc_project::Software::server;
+ 
+ void Activation::flashWrite()
+ {
++#ifndef FWUPD_SCRIPT
+     // For static layout code update, just put images in /run/initramfs.
+     // It expects user to trigger a reboot and an updater script will program
+     // the image to flash during reboot.
+@@ -33,11 +35,46 @@ void Activation::flashWrite()
+         fs::copy_file(uploadDir / versionId / bmcImage, toPath / bmcImage,
+                       fs::copy_options::overwrite_existing);
+     }
++
++#else
++    auto method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
++                                      SYSTEMD_INTERFACE, "StartUnit");
++    method.append("fwupd@" + versionId + ".service", "replace");
++    bus.call_noreply(method);
++#endif
+ }
+ 
+-void Activation::onStateChanges(sdbusplus::message::message& /*msg*/)
++void Activation::onStateChanges(sdbusplus::message::message& msg)
+ {
+-    // Empty
++#ifndef FWUPD_SCRIPT
++    uint32_t newStateID{};
++    sdbusplus::message::object_path newStateObjPath;
++    std::string newStateUnit{};
++    std::string newStateResult{};
++
++    msg.read(newStateID, newStateObjPath, newStateUnit, newStateResult);
++
++    auto rwServiceFile = "fwupdw@" + versionId + ".service";
++
++    if (newStateUnit == rwServiceFile && newStateResult == "done")
++    {
++        activationProgress->progress(100);
++    }
++
++    if (newStateUnit == rwServiceFile)
++    {
++        if (newStateResult == "failed" || newStateResult == "dependency")
++        {
++            Activation::activation(
++                softwareServer::Activation::Activations::Failed);
++        }
++        else
++        {
++            Activation::activation(
++                softwareServer::Activation::Activations::Activating);
++        }
++    }
++#endif
+ }
+ 
+ } // namespace updater
+diff --git a/ubi/flash.cpp b/ubi/flash.cpp
+index 5af2a17..ffa9348 100644
+--- a/ubi/flash.cpp
++++ b/ubi/flash.cpp
+@@ -15,13 +15,10 @@ void Activation::flashWrite()
+ {
+     auto method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
+                                       SYSTEMD_INTERFACE, "StartUnit");
+-    std::string rwServiceFile =
+-        "obmc-flash-bmc-ubirw@" + versionId + ".service";
+-    method.append(rwServiceFile, "replace");
++    method.append("obmc-flash-bmc-ubirw.service", "replace");
+     bus.call_noreply(method);
+ 
+-    std::string roServiceFile =
+-        "obmc-flash-bmc-ubiro@" + versionId + ".service";
++    auto roServiceFile = "obmc-flash-bmc-ubiro@" + versionId + ".service";
+     method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
+                                  SYSTEMD_INTERFACE, "StartUnit");
+     method.append(roServiceFile, "replace");
+@@ -40,7 +37,7 @@ void Activation::onStateChanges(sdbusplus::message::message& msg)
+     // Read the msg and populate each variable
+     msg.read(newStateID, newStateObjPath, newStateUnit, newStateResult);
+ 
+-    auto rwServiceFile = "obmc-flash-bmc-ubirw@" + versionId + ".service";
++    auto rwServiceFile = "obmc-flash-bmc-ubirw.service";
+     auto roServiceFile = "obmc-flash-bmc-ubiro@" + versionId + ".service";
+     auto ubootVarsServiceFile =
+         "obmc-flash-bmc-updateubootvars@" + versionId + ".service";
+-- 
+2.17.1
+

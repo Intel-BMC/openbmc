@@ -17,7 +17,6 @@ SRC_URI += " \
         file://0022-Add-AST2500-eSPI-driver.patch \
         file://0026-Add-support-for-new-PECI-commands.patch \
         file://0028-Add-AST2500-JTAG-driver.patch \
-        file://0029-i2c-aspeed-Improve-driver-to-support-multi-master-us.patch \
         file://0030-Add-dump-debug-code-into-I2C-drivers.patch \
         file://0031-Add-high-speed-baud-rate-support-for-UART.patch \
         file://0032-misc-aspeed-Add-Aspeed-UART-routing-control-driver.patch \
@@ -34,5 +33,16 @@ SRC_URI += " \
         file://0047-misc-Block-error-printing-on-probe-defer-case-in-Asp.patch \
         file://0048-ARM-dts-aspeed-Set-default-status-of-LPC-BT-as-disab.patch \
         file://0049-Suppress-excessive-HID-gadget-error-logs.patch \
-        file://0050-media-platform-Fix-a-kernel-warning-on-clk-control.patch \
+        file://0051-Add-AST2500-JTAG-device.patch \
+        file://0052-drivers-jtag-Add-JTAG-core-driver.patch \
+        file://0053-Add-Aspeed-SoC-24xx-and-25xx-families-JTAG.patch \
+        file://0054-Documentation-jtag-Add-bindings-for-Aspeed-SoC.patch \
+        file://0055-Documentation-jtag-Add-ABI-documentation.patch \
+        file://0056-Documentation-jtag-Add-JTAG-core-driver-ioctl-number.patch \
+        file://0057-drivers-jtag-Add-JTAG-core-driver-Maintainers.patch \
+        file://0058-i2c-aspeed-add-general-call-support.patch \
+        file://0059-media-aspeed-remove-source-buffer-allocation-before-.patch \
+        file://0060-media-aspeed-use-different-delays-for-triggering-VE-.patch \
+        file://0061-media-aspeed-fix-an-incorrect-timeout-checking-in-mo.patch \
+        file://0062-media-aspeed-add-a-workaround-to-fix-a-silicon-bug.patch \
         "

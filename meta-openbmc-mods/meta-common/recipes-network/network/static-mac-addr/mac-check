@@ -1,0 +1,78 @@
+#!/bin/sh
+# Copyright 2018 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+read_hw_mac() {
+	local iface="$1"
+	cat /sys/class/net/"$iface"/address
+}
+
+set_hw_mac() {
+	local iface="$1"
+	local mac="$2"
+	ip link show dev "$iface" | grep -q "${iface}:.*\<UP\>" 2>/dev/null
+	local up=$?
+	[[ $up -eq 0 ]] && ip link set dev "$iface" down
+	ip link set dev "$iface" address "$mac"
+	[[ $up -eq 0 ]] && ip link set dev "$iface" up
+}
+
+SOFS_MNT=/var/sofs
+read_sofs_mac() {
+	local iface="$1"
+	cat "${SOFS_MNT}/factory-settings/network/mac/${iface}" 2>/dev/null
+}
+
+read_fw_env_mac() {
+	local envname="$1"
+	fw_printenv "$envname" 2>/dev/null | sed "s/^$envname=//"
+}
+
+set_fw_env_mac() {
+	local envname="$1"
+	local mac="$2"
+	fw_setenv "$envname" "$mac"
+}
+
+mac_check() {
+	local iface="$1"
+	local envname="$2"
+
+	# read current HW MAC addr
+	local hw_mac=$(read_hw_mac "$iface")
+
+	# read saved sofs MAC addr
+	local sofs_mac=$(read_sofs_mac "$iface")
+
+	# if set and not the same as HW addr, set HW addr
+	if [ -n "$sofs_mac" ] && [ "$hw_mac" != "$sofs_mac" ]; then
+		set_hw_mac "$iface" "$sofs_mac"
+		hw_mac="$sofs_mac"
+	fi
+
+	# read saved fw_env MAC addr
+	local fw_env_mac=$(read_fw_env_mac "$envname")
+
+	# save to fw_env if not the same as HW addr
+	if [ -z "$fw_env_mac" ] || [ "$fw_env_mac" != "$hw_mac" ]; then
+		set_fw_env_mac "$envname" "$hw_mac"
+	fi
+}
+
+while read IFACE UBDEV; do
+	mac_check "$IFACE" "$UBDEV"
+done <<-END_CONF
+	eth0 eth1addr
+	eth1 ethaddr
+END_CONF

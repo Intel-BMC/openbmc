@@ -1,22 +1,22 @@
-From 066ecddebc29a87b05f8c66491eec19bb27d1d33 Mon Sep 17 00:00:00 2001
+From 068b816b3c9bf75dcd2a808fc81c67a32fbe29ea Mon Sep 17 00:00:00 2001
 From: David Cobbley <david.j.cobbley@linux.intel.com>
 Date: Wed, 6 Jun 2018 10:11:58 -0700
-Subject: [PATCH 3/3] Modify Dbus for IPv6.
+Subject: [PATCH] Modify Dbus for IPv6.
 
 Add additional interfaces for IPv6 use.
 ---
- .../Network/EthernetInterface.interface.yaml           | 18 ++++++++++++++++++
- xyz/openbmc_project/Network/IP.interface.yaml          |  4 ++++
- 2 files changed, 22 insertions(+)
+ .../Network/EthernetInterface.interface.yaml            | 17 ++++++++++++++++-
+ xyz/openbmc_project/Network/IP.interface.yaml           |  4 ++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
-index fc744fc..fd19e27 100644
+index 744ac77..6b7cd9a 100644
 --- a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
 +++ b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
-@@ -37,3 +37,21 @@ properties:
-           Implementation of this Dbus-interface is required to implement this property.
-           This property supports read/write operation.
-           Configure the NTP servers on the system during write operation.
+@@ -42,6 +42,14 @@ properties:
+       description: >
+           This indicates link local auto configuration on this ethernet
+           interface and configured on this ethernet interface.
 +    - name: IPv6AcceptRA
 +      type: boolean
 +      description: >
@@ -25,8 +25,14 @@ index fc744fc..fd19e27 100644
 +      type: enum[self.IPAllowed]
 +      description: >
 +          The type of IP connection is allowed on this channel
-+
-+enumerations:
+ 
+ enumerations:
+     - name: LinkLocalConf
+@@ -52,4 +60,11 @@ enumerations:
+         - name: v4
+         - name: v6
+         - name: none
+-
 +    - name: IPAllowed
 +      description: >
 +          Determines whether the system allows both IPv6 & IPv4, or disables on

@@ -1,4 +1,4 @@
-SRCREV = "93dc2c8e7c710fd65d269ef0bf684fb7a433a602"
+SRCREV = "8dbb395364629673a1f1dde81b1cf7d8041b0662"
 SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 DEPENDS_append = " i2c-tools"

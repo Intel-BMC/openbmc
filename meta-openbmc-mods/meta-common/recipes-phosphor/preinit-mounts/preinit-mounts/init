@@ -53,9 +53,11 @@ NV_MTD_NUM="$(mtdnum_by_name ${NV_MTD})"
 
 nvrw() {
     local p="$1"
+    # Clear the work dir doing overlay mount
+    rm -rf "${RWFS_MNT}${p}.work"
     mkdir -p "${RWFS_MNT}${p}" "${RWFS_MNT}${p}.work"
     local mname=$(echo "rwnv${p}" | sed 's,/,,g')
-    local opts="lowerdir=${p},upperdir=${RWFS_MNT}${p},workdir=${RWFS_MNT}${p}.work"
+    local opts="lowerdir=${p},upperdir=${RWFS_MNT}${p},workdir=${RWFS_MNT}${p}.work,sync"
     mount -t overlay -o "$opts" "$mname" "$p"
 }
 
@@ -142,8 +144,29 @@ fi
 # work around bug where /etc/machine-id will be mounted with a temporary file
 # if rootfs is read-only and the file is empty
 MACHINE_ID=/etc/machine-id
-if [ ! -s "$MACHINE_ID" ]; then
+generate_machine_id() {
     systemd-machine-id-setup
+    cp -pf "$MACHINE_ID" "${MACHINE_ID}_bkup"
+}
+
+if [ ! -s "$MACHINE_ID" ]; then
+    # work around - Bug: Overlay fs fails for machine-id due to
+    # origin mismatch. Clean it up, from overlay fs before re-creating
+    # the same.
+    if [ -e "$RWFS_MNT$MACHINE_ID" ]; then
+        umount "/etc"
+        rm -f "$RWFS_MNT$MACHINE_ID"
+        nvrw "/etc"
+        # Restore the machine-id from backup, else generate it.
+        if [ -s "${MACHINE_ID}_bkup" ]; then
+            cp -pf "${MACHINE_ID}_bkup" "${MACHINE_ID}"
+        else
+            generate_machine_id
+        fi
+        echo "Remounted /etc for machine-id origin mismatch"
+    else
+        generate_machine_id
+    fi
 fi
 
 # mount persistent NV filesystem, where immortal settings live

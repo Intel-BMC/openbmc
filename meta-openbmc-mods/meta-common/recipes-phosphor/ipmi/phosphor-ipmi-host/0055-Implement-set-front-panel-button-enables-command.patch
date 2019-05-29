@@ -29,12 +29,12 @@ index 4b42b3c..1a5b805 100644
  static constexpr uint8_t chassisCapAddrMask = 0xfe;
 +static constexpr uint8_t disableResetButton = 0x2;
 +static constexpr uint8_t disablePowerButton = 0x1;
- 
- typedef struct
- {
+ static constexpr const char* powerButtonIntf =
+     "xyz.openbmc_project.Chassis.Buttons.Power";
+ static constexpr const char* powerButtonPath =
 @@ -140,6 +142,19 @@ struct GetPOHCountResponse
-     uint8_t counterReading[4]; ///< Counter reading
- } __attribute__((packed));
+     uint8_t front_panel_button_cap_status;
+ } __attribute__((packed)) ipmi_get_chassis_status_t;
  
 +typedef struct
 +{
@@ -52,17 +52,8 @@ index 4b42b3c..1a5b805 100644
  // Phosphor Host State manager
  namespace State = sdbusplus::xyz::openbmc_project::State::server;
  
-@@ -948,6 +963,8 @@ ipmi_ret_t ipmi_get_chassis_status(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
- 
-     //  Front Panel Button Capabilities and disable/enable status(Optional)
-     //  set to 0,  for we don't support them.
-+    // TODO, it is tracked by an issue:
-+    // https://github.com/openbmc/phosphor-host-ipmid/issues/122
-     chassis_status.front_panel_button_cap_status = 0;
- 
-     // Pack the actual response
 @@ -1721,6 +1738,82 @@ ipmi_ret_t ipmi_chassis_set_power_restore_policy(
-     return IPMI_CC_OK;
+     return ipmi::responseSuccess(power_policy::allSupport);
  }
  
 +ipmi_ret_t ipmiSetFrontPanelButtonEnables(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
@@ -161,7 +152,7 @@ index 49b5ef8..f4a6bff 100644
 --- a/chassishandler.hpp
 +++ b/chassishandler.hpp
 @@ -19,6 +19,7 @@ enum ipmi_netfn_chassis_cmds
-     // Get capability bits
+     IPMI_CMD_GET_SYS_RESTART_CAUSE = 0x07,
      IPMI_CMD_SET_SYS_BOOT_OPTIONS = 0x08,
      IPMI_CMD_GET_SYS_BOOT_OPTIONS = 0x09,
 +    IPMI_CMD_SET_FRONT_PANEL_BUTTON_ENABLES = 0x0A,
@@ -173,13 +164,13 @@ index e5cd0b5..d96d9ed 100644
 --- a/host-ipmid-whitelist.conf
 +++ b/host-ipmid-whitelist.conf
 @@ -6,6 +6,7 @@
- 0x00:0x06    //<Chassis>:<Set Power Restore Policy>
+ 0x00:0x07    //<Chassis>:<Get System Restart Cause>
  0x00:0x08    //<Chassis>:<Set System Boot Options>
  0x00:0x09    //<Chassis>:<Get System Boot Options>
 +0x00:0x0A    //<Chassis>:<Set Front Panel Button Enables>
  0x00:0x0F    //<Chassis>:<Get POH Counter Command>
+ 0x04:0x02    //<Sensor/Event>:<Platform event>
  0x04:0x2D    //<Sensor/Event>:<Get Sensor Reading>
- 0x04:0x2F    //<Sensor/Event>:<Get Sensor Type>
 -- 
 2.19.1
 

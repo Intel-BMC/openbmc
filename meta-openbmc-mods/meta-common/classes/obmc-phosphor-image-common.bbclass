@@ -31,6 +31,10 @@ IMAGE_INSTALL_append = " \
         post-code-manager \
         preinit-mounts \
         mtd-utils-ubifs \
+        special-mode-mgr \
+        rsyslog \
+        rsyslog-policy \
+        static-mac-addr \
         "
 
 # this package was flagged as a security risk

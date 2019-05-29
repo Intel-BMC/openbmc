@@ -1,8 +1,14 @@
 SUMMARY = "Chassis Power Control service for Intel based platform"
 DESCRIPTION = "Chassis Power Control service for Intel based platfrom"
 
-SRC_URI = "git://git@github.com/Intel-BMC/intel-chassis-control.git;protocol=ssh"
-SRCREV = "feb401242a38d8fb9301dc8e3cb50d7a9c2b4cd1"
+SRC_URI = "git://github.com/Intel-BMC/intel-chassis-control.git;protocol=ssh"
+SRCREV = "7cbb2153afedf3b7d3fa7856f0a306138c4b4297"
+
+SRC_URI += "file://intel-wait-power-on.sh \
+            file://intel-wait-power-off.sh \
+            file://intel-wait-host-on.sh \
+            file://intel-wait-host-off.sh \
+           "
 
 S = "${WORKDIR}/git/services/chassis/"
 
@@ -43,6 +49,7 @@ SYSTEMD_SERVICE_${PN} += " \
         obmc-host-start@.target \
         obmc-host-startmin@.target \
         obmc-host-stop@.target \
+        obmc-host-shutdown@.target \
         obmc-host-reboot@.target \
         obmc-chassis-poweroff@.target \
         obmc-chassis-poweron@.target \
@@ -79,6 +86,18 @@ START_INSTFMT = "intel-power-start@{0}.service"
 START_FMT = "../${START_TMPL}:${START_TGTFMT}.requires/${START_INSTFMT}"
 SYSTEMD_SERVICE_${PN} += "${START_TMPL}"
 
+ON_TMPL = "intel-wait-power-on@.service"
+ON_TGTFMT = "obmc-chassis-poweron@{0}.target"
+ON_INSTFMT = "intel-wait-power-on@{0}.service"
+ON_FMT = "../${ON_TMPL}:${ON_TGTFMT}.requires/${ON_INSTFMT}"
+SYSTEMD_SERVICE_${PN} += "${ON_TMPL}"
+
+OFF_TMPL = "intel-wait-power-off@.service"
+OFF_TGTFMT = "obmc-chassis-poweroff@{0}.target"
+OFF_INSTFMT = "intel-wait-power-off@{0}.service"
+OFF_FMT = "../${OFF_TMPL}:${OFF_TGTFMT}.requires/${OFF_INSTFMT}"
+SYSTEMD_SERVICE_${PN} += "${OFF_TMPL}"
+
 STOP_TMPL = "intel-power-stop@.service"
 STOP_TGTFMT = "obmc-chassis-poweroff@{0}.target"
 STOP_INSTFMT = "intel-power-stop@{0}.service"
@@ -98,12 +117,29 @@ SYSTEMD_LINK_${PN} += "${@compose_list(d, 'STOP_FMT',  'OBMC_CHASSIS_INSTANCES')
 SYSTEMD_LINK_${PN} += "${@compose_list(d, 'WARM_RESET_FMT',  'OBMC_CHASSIS_INSTANCES')}"
 SYSTEMD_LINK_${PN} += "${@compose_list(d, 'WARM_RESET_LINK_FMT', 'OBMC_CHASSIS_INSTANCES')}"
 
+SYSTEMD_LINK_${PN} += "${@compose_list(d, 'ON_FMT', 'OBMC_CHASSIS_INSTANCES')}"
+SYSTEMD_LINK_${PN} += "${@compose_list(d, 'OFF_FMT',  'OBMC_CHASSIS_INSTANCES')}"
+
 #The main control target requires these power targets
 START_TMPL_CTRL = "obmc-chassis-poweron@.target"
 START_TGTFMT_CTRL = "obmc-host-startmin@{0}.target"
 START_INSTFMT_CTRL = "obmc-chassis-poweron@{0}.target"
 START_FMT_CTRL = "../${START_TMPL_CTRL}:${START_TGTFMT_CTRL}.requires/${START_INSTFMT_CTRL}"
 SYSTEMD_LINK_${PN} += "${@compose_list(d, 'START_FMT_CTRL', 'OBMC_CHASSIS_INSTANCES')}"
+
+HOSTON_TMPL_CTRL = "intel-wait-host-on@.service"
+START_TGTFMT_CTRL = "obmc-host-startmin@{0}.target"
+HOSTON_INSTFMT_CTRL = "intel-wait-host-on@{0}.service"
+HOSTON_FMT_CTRL = "../${HOSTON_TMPL_CTRL}:${START_TGTFMT_CTRL}.requires/${HOSTON_INSTFMT_CTRL}"
+SYSTEMD_LINK_${PN} += "${@compose_list(d, 'HOSTON_FMT_CTRL', 'OBMC_CHASSIS_INSTANCES')}"
+SYSTEMD_SERVICE_${PN} += "${HOSTON_TMPL_CTRL}"
+
+HOSTOFF_TMPL_CTRL = "intel-wait-host-off@.service"
+HOSTSTOP_TGTFMT_CTRL = "obmc-host-stop@{0}.target"
+HOSTOFF_INSTFMT_CTRL = "intel-wait-host-off@{0}.service"
+HOSTOFF_FMT_CTRL = "../${HOSTOFF_TMPL_CTRL}:${HOSTSTOP_TGTFMT_CTRL}.requires/${HOSTOFF_INSTFMT_CTRL}"
+SYSTEMD_LINK_${PN} += "${@compose_list(d, 'HOSTOFF_FMT_CTRL', 'OBMC_CHASSIS_INSTANCES')}"
+SYSTEMD_SERVICE_${PN} += "${HOSTOFF_TMPL_CTRL}"
 
 # Chassis off requires host off
 STOP_TMPL_CTRL = "obmc-host-stop@.target"
@@ -118,6 +154,14 @@ HARD_OFF_TGTFMT_CTRL = "obmc-chassis-hard-poweroff@{0}.target"
 HARD_OFF_INSTFMT_CTRL = "obmc-chassis-poweroff@{0}.target"
 HARD_OFF_FMT_CTRL = "../${HARD_OFF_TMPL_CTRL}:${HARD_OFF_TGTFMT_CTRL}.requires/${HARD_OFF_INSTFMT_CTRL}"
 SYSTEMD_LINK_${PN} += "${@compose_list_zip(d, 'HARD_OFF_FMT_CTRL', 'OBMC_CHASSIS_INSTANCES')}"
+
+# Hard power off requires the forceoff flag service
+FORCE_OFF_TMPL_CTRL = "intel-power-forceoff@.service"
+HARD_OFF_TGTFMT_CTRL = "obmc-chassis-hard-poweroff@{0}.target"
+FORCE_OFF_INSTFMT_CTRL = "intel-power-forceoff@{0}.service"
+FORCE_OFF_FMT_CTRL = "../${FORCE_OFF_TMPL_CTRL}:${HARD_OFF_TGTFMT_CTRL}.requires/${FORCE_OFF_INSTFMT_CTRL}"
+SYSTEMD_LINK_${PN} += "${@compose_list_zip(d, 'FORCE_OFF_FMT_CTRL', 'OBMC_CHASSIS_INSTANCES')}"
+SYSTEMD_SERVICE_${PN} += "${FORCE_OFF_TMPL_CTRL}"
 
 # Host soft reboot to run the shutdown target
 HOST_SHUTDOWN_TMPL = "obmc-host-shutdown@.target"
@@ -179,6 +223,7 @@ DEPENDS += " \
     autoconf-archive-native \
     boost \
     i2c-tools \
+    libgpiod \
     systemd \
     sdbusplus \
     sdbusplus-native \
@@ -191,6 +236,7 @@ RDEPENDS_${PN} += " \
     sdbusplus \
     phosphor-dbus-interfaces \
     phosphor-logging \
+    bash \
     "
 
 EXTRA_OECMAKE = " -DENABLE_GTEST=OFF -DCMAKE_SKIP_RPATH=ON"
@@ -199,3 +245,11 @@ EXTRA_OECMAKE = " -DENABLE_GTEST=OFF -DCMAKE_SKIP_RPATH=ON"
 CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
 CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
+
+do_install_append() {
+    install -d ${D}${bindir}
+    install -m 0755 ${WORKDIR}/intel-wait-power-on.sh ${D}/${bindir}/intel-wait-power-on.sh
+    install -m 0755 ${WORKDIR}/intel-wait-power-off.sh ${D}/${bindir}/intel-wait-power-off.sh
+    install -m 0755 ${WORKDIR}/intel-wait-host-on.sh ${D}/${bindir}/intel-wait-host-on.sh
+    install -m 0755 ${WORKDIR}/intel-wait-host-off.sh ${D}/${bindir}/intel-wait-host-off.sh
+}

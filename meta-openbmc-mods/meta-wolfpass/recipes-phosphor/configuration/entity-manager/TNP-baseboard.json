@@ -1,38 +1,6 @@
 {
     "Exposes": [
         {
-            "Address": "0x4A",
-            "Bus": 6,
-            "Name": "BMC Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
             "Index": 0,
             "Name": "Baseboard 12 Volt",
             "PowerState": "On",
@@ -64,56 +32,6 @@
                 }
             ],
             "Type": "ADC"
-        },
-        {
-            "Name": "CPU 1 Fan Connector",
-            "Pwm": 7,
-            "Status": "disabled",
-            "Tachs": [
-                13
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Name": "CPU 2 Fan Connector",
-            "Pwm": 8,
-            "Status": "disabled",
-            "Tachs": [
-                14
-            ],
-            "Type": "IntelFanConnector"
-        },
-        {
-            "Address": "0x49",
-            "Bus": 6,
-            "Name": "Left Rear Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
         },
         {
             "Index": 4,
@@ -594,177 +512,6 @@
                 }
             ],
             "Type": "ADC"
-        },
-        {
-            "Address": "0x4D",
-            "Bus": 6,
-            "Name": "Right Rear Board Temp",
-            "Name1": "Right Rear TMP421 Internal Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP421"
-        },
-        {
-            "Address": "0x48",
-            "Bus": 6,
-            "Name": "Voltage Regulator 1 Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
-            "Address": "0x4B",
-            "Bus": 6,
-            "Name": "Voltage Regulator 2 Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
-            "Address": "0x30",
-            "Bus": 0,
-            "CpuID": 1,
-            "Name": "Skylake CPU 1",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99
-                },
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89
-                }
-            ],
-            "Type": "SkylakeCPU"
-        },
-        {
-            "Address": "0x31",
-            "Bus": 0,
-            "CpuID": 2,
-            "Name": "Skylake CPU 2",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99
-                },
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89
-                }
-            ],
-            "Type": "SkylakeCPU"
-        },
-        {
-            "Direction": "Input",
-            "Index": 32,
-            "Name": "Reset Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Out",
-            "Index": 33,
-            "Name": "Reset Out",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Both",
-            "Index": 34,
-            "Name": "Power Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Both",
-            "Index": 35,
-            "Name": "Power Up",
-            "Polarity": "Low",
-            "Type": "Gpio"
         },
         {
             "Direction": "Input",
@@ -1600,6 +1347,38 @@
             "Type": "Gpio"
         },
         {
+            "Direction": "Input",
+            "Index": 27,
+            "Name": "Node ID GPIO 0",
+            "Polarity": "High",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 26,
+            "Name": "Node ID GPIO 1",
+            "Polarity": "High",
+            "Type": "Gpio"
+        },
+        {
+            "Name": "CPU 1 Fan Connector",
+            "Pwm": 7,
+            "Status": "disabled",
+            "Tachs": [
+                13
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "CPU 2 Fan Connector",
+            "Pwm": 8,
+            "Status": "disabled",
+            "Tachs": [
+                14
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
             "Address": "0x8",
             "Class": "METemp",
             "Name": "SSB Temp",
@@ -1921,6 +1700,16 @@
             "Type": "IpmbSensor"
         },
         {
+            "BindGpioNodeID": "Node ID GPIO 0",
+            "Name": "Multi Node ID 0",
+            "Type": "MultiNode"
+        },
+        {
+            "BindGpioNodeID": "Node ID GPIO 1",
+            "Name": "Multi Node ID 1",
+            "Type": "MultiNode"
+        },
+        {
             "Address": "0x71",
             "Bus": 2,
             "ChannelNames": [
@@ -1933,33 +1722,120 @@
             "Type": "PCA9543Mux"
         },
         {
-            "Direction": "Input",
-            "Index": 27,
-            "Name": "Node ID GPIO 0",
-            "Polarity": "High",
-            "Type": "Gpio"
+            "Address": "0x30",
+            "Bus": 0,
+            "CpuID": 1,
+            "Name": "Xeon CPU 1",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 99
+                },
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 89
+                }
+            ],
+            "Type": "XeonCPU"
         },
         {
-            "Direction": "Input",
-            "Index": 26,
-            "Name": "Node ID GPIO 1",
-            "Polarity": "High",
-            "Type": "Gpio"
+            "Address": "0x31",
+            "Bus": 0,
+            "CpuID": 2,
+            "Name": "Xeon CPU 2",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 99
+                },
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 89
+                }
+            ],
+            "Type": "XeonCPU"
         },
         {
-            "BindGpioNodeID": "Node ID GPIO 0",
-            "Name": "Multi Node ID 0",
-            "Type": "MultiNode"
+            "Address": "0x4E",
+            "Bus": 6,
+            "Name": "Exit Air Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
         },
         {
-            "BindGpioNodeID": "Node ID GPIO 1",
-            "Name": "Multi Node ID 1",
-            "Type": "MultiNode"
+            "Address": "0x4B",
+            "Bus": 6,
+            "Name": "Inlet Air Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
         }
     ],
     "Name": "TNP Baseboard",
     "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*TNP'})",
     "Type": "Board",
+    "ProductId": 153,
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",
         "Model": "$PRODUCT_PRODUCT_NAME",
