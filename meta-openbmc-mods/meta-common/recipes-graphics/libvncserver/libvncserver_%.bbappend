@@ -1,20 +1,7 @@
-PACKAGECONFIG_remove = "gcrypt gnutls png sdl"
+FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
 
-do_install_append() {
-    rm -rf ${D}${libdir}/libvncclient*
-}
-
-# Use the latest to support obmc-ikvm
-DEPENDS += "openssl lzo"
-
+# Use the latest to support obmc-ikvm properly
 #SRC_URI = "git://github.com/LibVNC/libvncserver"
-SRCREV = "f007b685b6c4201b445029ac3d459de38d30d94c"
-S = "${WORKDIR}/git"
+SRCREV = "f12b14f275f019673b3ace8fa4d46c8a79beb388"
 
-# Remove x11 and gtk+ that cause big image size
-# Actually, these aren't needed to support obmc-ikvm
-REQUIRED_DISTRO_FEATURES_remove = "x11"
-DEPENDS_remove = "gtk+"
-RDEPENDS_${PN}_remove = "gtk+"
-
-FULL_OPTIMIZATION = "-Os -flto -fno-fat-lto-objects"
+SRC_URI += "file://0001-rfbserver-add-a-hooking-function-to-deliver-rfbFrame.patch"

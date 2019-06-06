@@ -1,0 +1,5 @@
+[Unit]
+Description=Power%i Host Off
+Wants=multi-user.target
+RefuseManualStop=yes
+OnFailureJobMode=flush

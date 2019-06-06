@@ -1,0 +1,54 @@
+From 6d7c437f4d111ed183627c11e9bfc77ad2abc752 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Thu, 9 May 2019 15:33:55 -0700
+Subject: [PATCH] rfbserver: add a hooking function to deliver
+ rfbFramebufferUpdateRequest messages.
+
+This commit adds a hooking function to deliver
+rfbFramebufferUpdateRequest messages from clients to the frame
+producer for a case the producer needs to handle the messages for
+flow control or etc.
+---
+ libvncserver/rfbserver.c | 2 ++
+ rfb/rfb.h                | 5 +++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/libvncserver/rfbserver.c b/libvncserver/rfbserver.c
+index 42209cf29a0d..3a546f2ed330 100644
+--- a/libvncserver/rfbserver.c
++++ b/libvncserver/rfbserver.c
+@@ -2381,6 +2381,8 @@ rfbProcessClientNormalMessage(rfbClientPtr cl)
+ 		return;
+         }
+  
++        if (cl->clientFURHook)
++            cl->clientFURHook(cl, &msg.fur);
+         
+ 	tmpRegion =
+ 	  sraRgnCreateRect(msg.fur.x,
+diff --git a/rfb/rfb.h b/rfb/rfb.h
+index 2a5600e25375..1a2294428288 100644
+--- a/rfb/rfb.h
++++ b/rfb/rfb.h
+@@ -412,6 +412,8 @@ typedef struct sraRegion* sraRegionPtr;
+  */
+ 
+ typedef void (*ClientGoneHookPtr)(struct _rfbClientRec* cl);
++typedef void (*ClientFURHookPtr)(struct _rfbClientRec* cl,
++                                 rfbFramebufferUpdateRequestMsg* furMsg);
+ 
+ typedef struct _rfbFileTransferData {
+   int fd;
+@@ -457,6 +459,9 @@ typedef struct _rfbClientRec {
+     void* clientData;
+     ClientGoneHookPtr clientGoneHook;
+ 
++    /** clientFURHook is called when a client requests a frame buffer update. */
++    ClientFURHookPtr clientFURHook;
++
+     SOCKET sock;
+     char *host;
+ 
+-- 
+2.7.4
+

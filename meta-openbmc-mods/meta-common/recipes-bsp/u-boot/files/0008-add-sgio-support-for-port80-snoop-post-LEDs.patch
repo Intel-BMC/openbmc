@@ -1,7 +1,7 @@
-From cf43453a75880cf53ea7bbf5859706f2a7cae292 Mon Sep 17 00:00:00 2001
+From c3b44c02392d33cfec85056fd323d93fdc6e523f Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 12:09:52 -0800
-Subject: [PATCH 3/7] add sgio support for port80 snoop post LEDs
+Subject: [PATCH] add sgio support for port80 snoop post LEDs
 
 This ties together the port 80 snooping to the SGPIO output that
 ultimately drives the POST code LEDs.
@@ -10,15 +10,15 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Change-Id: Iaa1b91cd40f4b6323dba0598da373cb631459e66
 ---
  arch/arm/include/asm/arch-aspeed/ast_scu.h |  1 +
- arch/arm/mach-aspeed/ast-scu.c             |  8 ++
- board/aspeed/ast-g5/ast-g5-intel.c         | 96 ++++++++++++++++++++++
+ arch/arm/mach-aspeed/ast-scu.c             |  8 +++
+ board/aspeed/ast-g5/ast-g5-intel.c         | 96 ++++++++++++++++++++++++++++++
  3 files changed, 105 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-index 98e63351f1..c10e6a9d4b 100644
+index 06825ce..369c4e3 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-@@ -44,6 +44,7 @@ extern u32 ast_scu_get_vga_memsize(void);
+@@ -45,6 +45,7 @@ extern u32 ast_scu_get_vga_memsize(void);
  extern void ast_scu_init_eth(u8 num);
  extern void ast_scu_multi_func_eth(u8 num);
  extern void ast_scu_multi_func_romcs(u8 num);
@@ -27,10 +27,10 @@ index 98e63351f1..c10e6a9d4b 100644
  void ast_config_uart5_clk(void);
  
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index c83931ed54..63e9c7c167 100644
+index d27f3d3..3a9ba05 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
-@@ -407,6 +407,14 @@ void ast_scu_multi_func_romcs(u8 num)
+@@ -449,6 +449,14 @@ void ast_scu_multi_func_romcs(u8 num)
  		      SCU_FUN_PIN_ROMCS(num), AST_SCU_FUN_PIN_CTRL3);
  }
  
@@ -46,7 +46,7 @@ index c83931ed54..63e9c7c167 100644
  {
  	int i;
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index e79235c8d0..fca4d91115 100644
+index e79235c..c2a8b33 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -8,9 +8,105 @@
@@ -136,7 +136,7 @@ index e79235c8d0..fca4d91115 100644
 +
 +	/* enable lpc snoop #0 and SIOGIO */
 +	value = readl(AST_LPC_BASE + HICR5) & ~(HICR5_UNKVAL_MASK);
-+	value |= HICR5_EN_SIOGIO | HICR5_EN_SNP0W | HICR5_ENINT_SNP0W;
++	value |= HICR5_EN_SIOGIO | HICR5_EN_SNP0W;
 +	writel(value, AST_LPC_BASE + HICR5);
 +
 +
@@ -156,5 +156,5 @@ index e79235c8d0..fca4d91115 100644
 +	sgpio_init();
  }
 -- 
-2.17.1
+2.7.4
 

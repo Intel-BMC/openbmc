@@ -1,3 +1,7 @@
+#
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
 import subprocess
 import multiprocessing
 import traceback
@@ -78,12 +82,12 @@ def prune_suffix(var, suffixes, d):
     # See if var ends with any of the suffixes listed and
     # remove it if found
     for suffix in suffixes:
-        if var.endswith(suffix):
-            var = var.replace(suffix, "")
+        if suffix and var.endswith(suffix):
+            var = var[:-len(suffix)]
 
     prefix = d.getVar("MLPREFIX")
     if prefix and var.startswith(prefix):
-        var = var.replace(prefix, "")
+        var = var[len(prefix):]
 
     return var
 
@@ -324,7 +328,12 @@ def multiprocess_launch(target, items, d, extraargs=None):
     if errors:
         msg = ""
         for (e, tb) in errors:
-            msg = msg + str(e) + ": " + str(tb) + "\n"
+            if isinstance(e, subprocess.CalledProcessError) and e.output:
+                msg = msg + str(e) + "\n"
+                msg = msg + "Subprocess output:"
+                msg = msg + e.output.decode("utf-8", errors="ignore")
+            else:
+                msg = msg + str(e) + ": " + str(tb) + "\n"
         bb.fatal("Fatal errors occurred in subprocesses:\n%s" % msg)
     return results
 

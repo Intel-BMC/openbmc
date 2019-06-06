@@ -7,6 +7,5 @@ After=mapper-wait@-xyz-openbmc_project-Chassis-Control-Chassis%i.service
 Conflicts=obmc-chassis-poweron@%i.target
 Conflicts=obmc-chassis-reset@%i.target
 Conflicts=obmc-host-shutdown@%i.target
-Conflicts=xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service
 RefuseManualStop=yes
 

@@ -1,0 +1,21 @@
+[Unit]
+Description=Wait for Host%i to turn off
+Wants=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+After=mapper-wait@-xyz-openbmc_project-Chassis-Control-Power%i.service
+#After=obmc-chassis-poweroff@%i.target
+Before=intel-wait-power-off@%i.service
+After=intel-power-stop@%i.service
+Conflicts=obmc-chassis-poweron@%i.target
+ConditionPathExists=/run/openbmc/host@%i-on
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/intel-wait-host-off.sh
+ExecStartPost=/bin/sh -c "rm -rf /run/openbmc/host@%i-on"
+
+SyslogIdentifier=intel-wait-host-off
+TimeoutSec=30
+
+[Install]
+RequiredBy=obmc-host-stop@%i.target

@@ -1,43 +1,93 @@
-From 973865687325c6563fd6b729a3a220661066f635 Mon Sep 17 00:00:00 2001
+From 3c95de833eba73b3585941ade42ad1775e723280 Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
-Date: Wed, 3 Apr 2019 15:55:04 +0800
+Date: Tue, 7 May 2019 08:03:56 +0800
 Subject: [PATCH] Move Get SOL config parameter to host-ipmid
 
 Move Get SOL config parameter command from net-ipmid to host-ipmid.
 
-Tested By:
+Tested:
 Run command ipmitool sol info
 Set in progress                 : set-complete
 Enabled                         : true
 Force Encryption                : false
 Force Authentication            : false
-Privilege Level                 : USER
-Character Accumulate Level (ms) : 100
-Character Send Threshold        : 1
-Retry Count                     : 3
-Retry Interval (ms)             : 100
+Privilege Level                 : ADMINISTRATOR
+Character Accumulate Level (ms) : 60
+Character Send Threshold        : 96
+Retry Count                     : 6
+Retry Interval (ms)             : 200
 Volatile Bit Rate (kbps)        : IPMI-Over-Serial-Setting
-Non-Volatile Bit Rate (kbps)    : IPMI-Over-Serial-Setting
+Non-Volatile Bit Rate (kbps)    : 115.2
 Payload Channel                 : 14 (0x0e)
 Payload Port                    : 623
 
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
 ---
- transporthandler.cpp | 139 ++++++++++++++++++++++++++++++++++++++++++++++++---
- transporthandler.hpp |  26 +++++++++-
- 2 files changed, 156 insertions(+), 9 deletions(-)
+ host-ipmid-whitelist.conf |   1 +
+ transporthandler.cpp      | 198 ++++++++++++++++++++++++++++++++++++++++++++--
+ transporthandler.hpp      |  27 ++++++-
+ 3 files changed, 217 insertions(+), 9 deletions(-)
 
+diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
+index 2ce44c6..383b412 100644
+--- a/host-ipmid-whitelist.conf
++++ b/host-ipmid-whitelist.conf
+@@ -43,6 +43,7 @@
+ 0x0A:0x49    //<Storage>:<Set SEL Time>
+ 0x0C:0x02    //<Transport>:<Get LAN Configuration Parameters>
+ 0x0C:0x21    //<Transport>:<Set SOL Configuration Parameters>
++0x0C:0x22    //<Transport>:<Get SOL Configuration Parameters>
+ 0x2C:0x00    //<Group Extension>:<Group Extension Command>
+ 0x2C:0x01    //<Group Extension>:<Get DCMI Capabilities>
+ 0x2C:0x02    //<Group Extension>:<Get Power Reading>
 diff --git a/transporthandler.cpp b/transporthandler.cpp
-index 2111acf..b18f522 100644
+index 850172d..0c1223a 100644
 --- a/transporthandler.cpp
 +++ b/transporthandler.cpp
-@@ -1715,11 +1715,133 @@ void initializeSOLInProgress()
+@@ -38,6 +38,8 @@ static const std::array<std::string, 3> ipAddressEnablesType = {
+ 
+ constexpr const char* solInterface = "xyz.openbmc_project.Ipmi.SOL";
+ constexpr const char* solPath = "/xyz/openbmc_project/ipmi/sol";
++constexpr const char* consoleInterface = "xyz.openbmc_project.console";
++constexpr const char* consolePath = "/xyz/openbmc_project/console";
+ 
+ std::map<int, std::unique_ptr<struct ChannelConfig_t>> channelConfig;
+ 
+@@ -1668,6 +1670,26 @@ static int setSOLParameter(std::string property, const ipmi::Value& value)
+     return 0;
+ }
+ 
++static int getSOLBaudRate(ipmi::Value& value)
++{
++    auto dbus = getSdBus();
++
++    try
++    {
++        value =
++            ipmi::getDbusProperty(*dbus, "xyz.openbmc_project.console",
++                                  consolePath, consoleInterface, "baudrate");
++    }
++    catch (sdbusplus::exception_t&)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "Error getting sol baud rate");
++        return -1;
++    }
++
++    return 0;
++}
++
+ static int getSOLParameter(std::string property, ipmi::Value& value)
+ {
+     auto dbus = getSdBus();
+@@ -1711,11 +1733,170 @@ void initializeSOLInProgress()
      }
  }
  
 -ipmi_ret_t setConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
 -                         ipmi_request_t request, ipmi_response_t response,
 -                         ipmi_data_len_t dataLen, ipmi_context_t context)
++static const constexpr uint8_t retryCountMask = 0x07;
 +//    For getsetSOLConfParams, there are still three tings TODO:
 +//    1. session less channel number request has to return error.
 +//    2. convert 0xE channel number.
@@ -45,8 +95,7 @@ index 2111acf..b18f522 100644
 +ipmi_ret_t getSOLConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
 +                            ipmi_request_t request, ipmi_response_t response,
 +                            ipmi_data_len_t dataLen, ipmi_context_t context)
- {
--    auto reqData = reinterpret_cast<const SetConfParamsRequest*>(request);
++{
 +    auto reqData = reinterpret_cast<const GetSOLConfParamsRequest*>(request);
 +    std::vector<uint8_t> outPayload;
 +
@@ -134,7 +183,7 @@ index 2111acf..b18f522 100644
 +            {
 +                return IPMI_CC_UNSPECIFIED_ERROR;
 +            }
-+            outPayload.push_back(std::get<uint8_t>(value) & 0x03);
++            outPayload.push_back(std::get<uint8_t>(value) & retryCountMask);
 +
 +            if (getSOLParameter("RetryIntervalMS", value) < 0)
 +            {
@@ -151,6 +200,42 @@ index 2111acf..b18f522 100644
 +                      std::back_inserter(outPayload));
 +            break;
 +        }
++        case sol::Parameter::nvbitrate:
++        {
++            if (getSOLBaudRate(value) < 0)
++            {
++                return IPMI_CC_UNSPECIFIED_ERROR;
++            }
++            uint8_t bitRate = 0;
++            uint32_t* pBaudRate = std::get_if<uint32_t>(&value);
++            if (!pBaudRate)
++            {
++                phosphor::logging::log<phosphor::logging::level::ERR>(
++                    "Failed to get valid baud rate from D-Bus interface");
++            }
++            switch (*pBaudRate)
++            {
++                case 9600:
++                    bitRate = 0x06;
++                    break;
++                case 19200:
++                    bitRate = 0x07;
++                    break;
++                case 38400:
++                    bitRate = 0x08;
++                    break;
++                case 57600:
++                    bitRate = 0x09;
++                    break;
++                case 115200:
++                    bitRate = 0x0a;
++                    break;
++                default:
++                    break;
++            }
++            outPayload.push_back(bitRate);
++            break;
++        }
 +        default:
 +            return IPMI_CC_PARM_NOT_SUPPORTED;
 +    }
@@ -164,12 +249,13 @@ index 2111acf..b18f522 100644
 +ipmi_ret_t setSOLConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
 +                            ipmi_request_t request, ipmi_response_t response,
 +                            ipmi_data_len_t dataLen, ipmi_context_t context)
-+{
+ {
+-    auto reqData = reinterpret_cast<const SetConfParamsRequest*>(request);
 +    auto reqData = reinterpret_cast<const SetSOLConfParamsRequest*>(request);
  
      // Check request length first
      switch (static_cast<sol::Parameter>(reqData->paramSelector))
-@@ -1728,7 +1850,7 @@ ipmi_ret_t setConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -1724,7 +1905,7 @@ ipmi_ret_t setConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
          case sol::Parameter::enable:
          case sol::Parameter::authentication:
          {
@@ -178,7 +264,7 @@ index 2111acf..b18f522 100644
              {
                  *dataLen = 0;
                  return IPMI_CC_REQ_DATA_LEN_INVALID;
-@@ -1738,7 +1860,7 @@ ipmi_ret_t setConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -1734,7 +1915,7 @@ ipmi_ret_t setConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
          case sol::Parameter::accumulate:
          case sol::Parameter::retry:
          {
@@ -187,7 +273,7 @@ index 2111acf..b18f522 100644
              {
                  *dataLen = 0;
                  return IPMI_CC_REQ_DATA_LEN_INVALID;
-@@ -1869,7 +1991,10 @@ void register_netfn_transport_functions()
+@@ -1865,7 +2046,10 @@ void register_netfn_transport_functions()
                             ipmi_transport_get_lan, PRIVILEGE_OPERATOR);
  
      ipmi_register_callback(NETFUN_TRANSPORT, IPMI_CMD_SET_SOL_CONF_PARAMS, NULL,
@@ -200,10 +286,18 @@ index 2111acf..b18f522 100644
      // Initialize dbus property progress to 0 every time sol manager restart.
      initializeSOLInProgress();
 diff --git a/transporthandler.hpp b/transporthandler.hpp
-index 3b5e9e1..7132cff 100644
+index 3b5e9e1..a21862b 100644
 --- a/transporthandler.hpp
 +++ b/transporthandler.hpp
-@@ -257,7 +257,7 @@ struct Retry
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <ipmid/types.hpp>
++#include <map>
+ #include <string>
+ // IPMI commands for Transport net functions.
+ enum ipmi_netfn_storage_cmds
+@@ -257,7 +258,7 @@ struct Retry
      uint8_t interval; //!< SOL retry interval.
  } __attribute__((packed));
  
@@ -212,7 +306,7 @@ index 3b5e9e1..7132cff 100644
  {
  #if BYTE_ORDER == LITTLE_ENDIAN
      uint8_t channelNumber : 4; //!< Channel number.
-@@ -279,7 +279,29 @@ struct SetConfParamsRequest
+@@ -279,7 +280,29 @@ struct SetConfParamsRequest
      };
  } __attribute__((packed));
  
@@ -244,5 +338,5 @@ index 3b5e9e1..7132cff 100644
 +static constexpr uint16_t ipmiStdPort = 623;
 +static constexpr uint8_t solParameterRevision = 0x11;
 -- 
-2.16.2
+2.7.4
 

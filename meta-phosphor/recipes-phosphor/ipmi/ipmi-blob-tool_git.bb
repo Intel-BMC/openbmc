@@ -10,6 +10,8 @@ inherit autotools pkgconfig
 
 DEPENDS += "autoconf-archive-native"
 
+EXTRA_OECONF = "--disable-tests"
+
 S = "${WORKDIR}/git"
 SRC_URI = "git://github.com/openbmc/ipmi-blob-tool"
-SRCREV = "06561460bded9bf42398d987ac87bcec170740aa"
+SRCREV = "444746495ad3f951cb093c7144b7cb9218b8599f"

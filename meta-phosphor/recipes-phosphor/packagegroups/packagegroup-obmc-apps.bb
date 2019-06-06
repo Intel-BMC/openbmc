@@ -33,11 +33,13 @@ RDEPENDS_${PN}-bmc-state-mgmt = " \
 SUMMARY_${PN}-chassis-state-mgmt = "Chassis state management"
 RDEPENDS_${PN}-chassis-state-mgmt = " \
         ${VIRTUAL-RUNTIME_obmc-chassis-state-manager} \
+        obmc-phosphor-power \
         "
 
 SUMMARY_${PN}-extras = "Extra features"
 RDEPENDS_${PN}-extras = " \
         bmcweb \
+        obmc-ikvm \
         phosphor-dbus-monitor \
         phosphor-systemd-policy \
         dbus-broker \
@@ -50,6 +52,7 @@ RDEPENDS_${PN}-extrasdev = " \
 
 SUMMARY_${PN}-extrasdevtools = "Development tools"
 RDEPENDS_${PN}-extrasdevtools = " \
+        libgpiod \
         "
 
 # Use the fan control package group for applications
@@ -98,11 +101,7 @@ RDEPENDS_${PN}-sensors = " \
         ${VIRTUAL-RUNTIME_obmc-sensors-hwmon} \
         "
 
-# These packages are not required with UBI enabled
-${PN}-software-extras = " \
-        obmc-flash-bmc \
-        obmc-mgr-download \
-        "
+${PN}-software-extras = ""
 
 ${PN}-software-extras_df-obmc-ubi-fs = " \
         phosphor-image-signing \

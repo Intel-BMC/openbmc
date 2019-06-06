@@ -1,0 +1,44 @@
+From b6b3051c8078267153712ed8cf514373924fd07a Mon Sep 17 00:00:00 2001
+From: Jennifer Lee <jennifer1.lee@intel.com>
+Date: Mon, 16 Jul 2018 19:15:04 -0700
+Subject: [PATCH 2/6] Redfish firmware activation  -- Modified flash.cpp to
+ call to customized flash service
+
+Signed-off-by: Jennifer Lee <jennifer1.lee@intel.com>
+Change-Id: I81c3185e9c4c2ee907feeb53620faa22723c04d4
+---
+ ubi/flash.cpp | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/ubi/flash.cpp b/ubi/flash.cpp
+index ffa9348..5af2a17 100644
+--- a/ubi/flash.cpp
++++ b/ubi/flash.cpp
+@@ -15,10 +15,13 @@ void Activation::flashWrite()
+ {
+     auto method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
+                                       SYSTEMD_INTERFACE, "StartUnit");
+-    method.append("obmc-flash-bmc-ubirw.service", "replace");
++    std::string rwServiceFile =
++        "obmc-flash-bmc-ubirw@" + versionId + ".service";
++    method.append(rwServiceFile, "replace");
+     bus.call_noreply(method);
+ 
+-    auto roServiceFile = "obmc-flash-bmc-ubiro@" + versionId + ".service";
++    std::string roServiceFile =
++        "obmc-flash-bmc-ubiro@" + versionId + ".service";
+     method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
+                                  SYSTEMD_INTERFACE, "StartUnit");
+     method.append(roServiceFile, "replace");
+@@ -37,7 +40,7 @@ void Activation::onStateChanges(sdbusplus::message::message& msg)
+     // Read the msg and populate each variable
+     msg.read(newStateID, newStateObjPath, newStateUnit, newStateResult);
+ 
+-    auto rwServiceFile = "obmc-flash-bmc-ubirw.service";
++    auto rwServiceFile = "obmc-flash-bmc-ubirw@" + versionId + ".service";
+     auto roServiceFile = "obmc-flash-bmc-ubiro@" + versionId + ".service";
+     auto ubootVarsServiceFile =
+         "obmc-flash-bmc-updateubootvars@" + versionId + ".service";
+-- 
+2.17.1
+

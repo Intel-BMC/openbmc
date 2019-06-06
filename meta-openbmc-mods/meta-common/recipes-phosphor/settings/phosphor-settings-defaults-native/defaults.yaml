@@ -150,11 +150,11 @@
           ResetErrorOccurrenceCounts:
               Default: 0
 
-/xyz/openbmc_project/control/shutdown_policy_config:
-    - Interface: xyz.openbmc_project.Control.ShutdownPolicy
+/com/intel/control/ocotshutdown_policy_config:
+    - Interface: com.intel.Control.OCOTShutdownPolicy
       Properties:
-          Policy:
-              Default: 0
+          OCOTPolicy:
+              Default: OCOTShutdownPolicy::Policy::NoShutdownOnOCOT
 
 /xyz/openbmc_project/control/chassis_capabilities_config:
     - Interface: xyz.openbmc_project.Control.ChassisCapabilities
@@ -198,12 +198,12 @@
           ForceAuthentication:
               Default: 'true'
           Privilege:
-              Default: 2
+              Default: 4
           AccumulateIntervalMS:
-              Default: 20
+              Default: 12
           Threshold:
-              Default: 1
+              Default: 96
           RetryCount:
-              Default: 7
+              Default: 6
           RetryIntervalMS:
-              Default: 10
+              Default: 20

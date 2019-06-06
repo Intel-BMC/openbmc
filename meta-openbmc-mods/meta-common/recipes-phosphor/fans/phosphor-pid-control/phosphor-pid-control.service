@@ -1,5 +1,7 @@
 [Unit]
 Description=Phosphor-Pid-Control Margin-based Fan Control Daemon
+After=xyz.openbmc_project.EntityManager
+After=xyz.openbmc_project.ObjectMapper
 
 [Service]
 Restart=always

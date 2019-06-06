@@ -2,6 +2,18 @@
     {
         "Exposes": [
             {
+                "Address": "$address",
+                "Bus": "$bus",
+                "Name": "FCXXPDBASSMBL Fru",
+                "Type": "24C01"
+            },
+            {
+                "Address": "0x18",
+                "Bus": "$bus",
+                "Name": "Multi Node Presence Detector",
+                "Type": "MultiNode"
+            },
+            {
                 "Address": "0x48",
                 "Bus": "$bus",
                 "Name": "PDB Temp1",
@@ -64,18 +76,6 @@
                     }
                 ],
                 "Type": "TMP75"
-            },
-            {
-                "Address": "0x18",
-                "Bus": "$bus",
-                "Name": "Multi Node Presence Detector",
-                "Type": "MultiNode"
-            },
-            {
-                "Address": "$address",
-                "Bus": "$bus",
-                "Name": "FCXXPDBASSMBL Fru",
-                "Type": "24C01"
             }
         ],
         "Name": "FCXXPDBASSMBL PDB",

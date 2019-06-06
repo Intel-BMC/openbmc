@@ -1,0 +1,336 @@
+From a36f181163974b2da0a954fc97a89fb2cdbd7287 Mon Sep 17 00:00:00 2001
+From: Cheng C Yang <cheng.c.yang@intel.com>
+Date: Tue, 30 Apr 2019 05:35:31 +0800
+Subject: [PATCH] Remove Get SOL Config Command from Netipmid
+
+Since Get SOL Config Parameter command already exists in host-ipmid, and
+can be shared to net channel, remove this command from net-ipmid.
+
+Tested:
+Run ipmitool -I lanplus -H xxx -U root -P 0penBmc sol info, the command
+returns the same result as ipmitool sol info as below.
+Info: SOL parameter 'Nonvolatile Bitrate (5)' not supported
+Info: SOL parameter 'Volatile Bitrate (6)' not supported
+Info: SOL parameter 'Payload Channel (7)' not supported - defaulting to 0x0e
+Set in progress                 : set-complete
+Enabled                         : true
+Force Encryption                : true
+Force Authentication            : true
+Privilege Level                 : USER
+Character Accumulate Level (ms) : 100
+Character Send Threshold        : 1
+Retry Count                     : 3
+Retry Interval (ms)             : 100
+Volatile Bit Rate (kbps)        : IPMI-Over-Serial-Setting
+Non-Volatile Bit Rate (kbps)    : IPMI-Over-Serial-Setting
+Payload Channel                 : 14 (0x0e)
+Payload Port                    : 623
+
+Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
+---
+ command/sol_cmds.cpp |  91 ----------------------------
+ command/sol_cmds.hpp | 168 ---------------------------------------------------
+ sol_module.cpp       |   6 --
+ 3 files changed, 265 deletions(-)
+
+diff --git a/command/sol_cmds.cpp b/command/sol_cmds.cpp
+index 804b5ea..8b2d041 100644
+--- a/command/sol_cmds.cpp
++++ b/command/sol_cmds.cpp
+@@ -65,97 +65,6 @@ void activating(uint8_t payloadInstance, uint32_t sessionID)
+                                           outPayload);
+ }
+ 
+-std::vector<uint8_t> getConfParams(const std::vector<uint8_t>& inPayload,
+-                                   const message::Handler& handler)
+-{
+-    std::vector<uint8_t> outPayload(sizeof(GetConfParamsResponse));
+-    auto request =
+-        reinterpret_cast<const GetConfParamsRequest*>(inPayload.data());
+-    auto response = reinterpret_cast<GetConfParamsResponse*>(outPayload.data());
+-    response->completionCode = IPMI_CC_OK;
+-    response->paramRev = parameterRevision;
+-
+-    if (request->getParamRev)
+-    {
+-        return outPayload;
+-    }
+-
+-    switch (static_cast<Parameter>(request->paramSelector))
+-    {
+-        case Parameter::PROGRESS:
+-        {
+-            outPayload.push_back(
+-                std::get<sol::Manager&>(singletonPool).progress);
+-            break;
+-        }
+-        case Parameter::ENABLE:
+-        {
+-            outPayload.push_back(std::get<sol::Manager&>(singletonPool).enable);
+-            break;
+-        }
+-        case Parameter::AUTHENTICATION:
+-        {
+-            Auth value{0};
+-
+-            value.encrypt = std::get<sol::Manager&>(singletonPool).forceEncrypt;
+-            value.auth = std::get<sol::Manager&>(singletonPool).forceAuth;
+-            value.privilege = static_cast<uint8_t>(
+-                std::get<sol::Manager&>(singletonPool).solMinPrivilege);
+-            auto buffer = reinterpret_cast<const uint8_t*>(&value);
+-
+-            std::copy_n(buffer, sizeof(value), std::back_inserter(outPayload));
+-            break;
+-        }
+-        case Parameter::ACCUMULATE:
+-        {
+-            Accumulate value{0};
+-
+-            value.interval = std::get<sol::Manager&>(singletonPool)
+-                                 .accumulateInterval.count() /
+-                             sol::accIntervalFactor;
+-            value.threshold =
+-                std::get<sol::Manager&>(singletonPool).sendThreshold;
+-            auto buffer = reinterpret_cast<const uint8_t*>(&value);
+-
+-            std::copy_n(buffer, sizeof(value), std::back_inserter(outPayload));
+-            break;
+-        }
+-        case Parameter::RETRY:
+-        {
+-            Retry value{0};
+-
+-            value.count = std::get<sol::Manager&>(singletonPool).retryCount;
+-            value.interval =
+-                std::get<sol::Manager&>(singletonPool).retryInterval.count() /
+-                sol::retryIntervalFactor;
+-            auto buffer = reinterpret_cast<const uint8_t*>(&value);
+-
+-            std::copy_n(buffer, sizeof(value), std::back_inserter(outPayload));
+-            break;
+-        }
+-        case Parameter::PORT:
+-        {
+-            auto port = endian::to_ipmi<uint16_t>(IPMI_STD_PORT);
+-            auto buffer = reinterpret_cast<const uint8_t*>(&port);
+-
+-            std::copy_n(buffer, sizeof(port), std::back_inserter(outPayload));
+-            break;
+-        }
+-        case Parameter::CHANNEL:
+-        {
+-            outPayload.push_back(
+-                std::get<sol::Manager&>(singletonPool).channel);
+-            break;
+-        }
+-        case Parameter::NVBITRATE:
+-        case Parameter::VBITRATE:
+-        default:
+-            response->completionCode = ipmiCCParamNotSupported;
+-    }
+-
+-    return outPayload;
+-}
+-
+ } // namespace command
+ 
+ } // namespace sol
+diff --git a/command/sol_cmds.hpp b/command/sol_cmds.hpp
+index 182b73e..10cbf25 100644
+--- a/command/sol_cmds.hpp
++++ b/command/sol_cmds.hpp
+@@ -62,174 +62,6 @@ struct ActivatingRequest
+  */
+ void activating(uint8_t payloadInstance, uint32_t sessionID);
+ 
+-/** @enum Parameter
+- *
+- *  SOL parameters are volatile, they are initialized by the SOL manager.
+- *  They can be read using Get SOL configuration parameters command and updated
+- *  using Set SOL configuration parameters command.
+- */
+-enum class Parameter
+-{
+-    PROGRESS,       //!< Set In Progress.
+-    ENABLE,         //!< SOL Enable.
+-    AUTHENTICATION, //!< SOL Authentication.
+-    ACCUMULATE,     //!< Character Accumulate Interval & Send Threshold.
+-    RETRY,          //!< SOL Retry.
+-    NVBITRATE,      //!< SOL non-volatile bit rate.
+-    VBITRATE,       //!< SOL volatile bit rate.
+-    CHANNEL,        //!< SOL payload channel.
+-    PORT,           //!< SOL payload port.
+-};
+-
+-constexpr uint8_t progressMask = 0x03;
+-constexpr uint8_t enableMask = 0x01;
+-
+-/** @struct Auth
+- *
+- *  SOL authentication parameter.
+- */
+-struct Auth
+-{
+-#if BYTE_ORDER == LITTLE_ENDIAN
+-    uint8_t privilege : 4; //!< SOL privilege level.
+-    uint8_t reserved : 2;  //!< Reserved.
+-    uint8_t auth : 1;      //!< Force SOL payload Authentication.
+-    uint8_t encrypt : 1;   //!< Force SOL payload encryption.
+-#endif
+-
+-#if BYTE_ORDER == BIG_ENDIAN
+-    uint8_t encrypt : 1;   //!< Force SOL payload encryption.
+-    uint8_t auth : 1;      //!< Force SOL payload Authentication.
+-    uint8_t reserved : 2;  //!< Reserved.
+-    uint8_t privilege : 4; //!< SOL privilege level.
+-#endif
+-} __attribute__((packed));
+-
+-/** @struct Accumulate
+- *
+- *  Character accumulate interval & Character send threshold.
+- */
+-struct Accumulate
+-{
+-    uint8_t interval;  //!< Character accumulate interval.
+-    uint8_t threshold; //!< Character send threshold.
+-} __attribute__((packed));
+-
+-constexpr uint8_t retryCountMask = 0x07;
+-
+-/** @struct Retry
+- *
+- *  SOL retry count and interval.
+- */
+-struct Retry
+-{
+-#if BYTE_ORDER == LITTLE_ENDIAN
+-    uint8_t count : 3;    //!< SOL retry count.
+-    uint8_t reserved : 5; //!< Reserved.
+-#endif
+-
+-#if BYTE_ORDER == BIG_ENDIAN
+-    uint8_t reserved : 5; //!< Reserved.
+-    uint8_t count : 3;    //!< SOL retry count.
+-#endif
+-
+-    uint8_t interval; //!< SOL retry interval.
+-} __attribute__((packed));
+-
+-constexpr uint8_t ipmiCCParamNotSupported = 0x80;
+-constexpr uint8_t ipmiCCInvalidSetInProgress = 0x81;
+-constexpr uint8_t ipmiCCWriteReadParameter = 0x82;
+-constexpr uint8_t ipmiCCReadWriteParameter = 0x83;
+-constexpr uint8_t parameterRevision = 0x11;
+-
+-/** @struct SetConfParamsRequest
+- *
+- *  IPMI payload for Set SOL configuration parameters command request.
+- */
+-struct SetConfParamsRequest
+-{
+-#if BYTE_ORDER == LITTLE_ENDIAN
+-    uint8_t channelNumber : 4; //!< Channel number.
+-    uint8_t reserved : 4;      //!< Reserved.
+-#endif
+-
+-#if BYTE_ORDER == BIG_ENDIAN
+-    uint8_t reserved : 4;      //!< Reserved.
+-    uint8_t channelNumber : 4; //!< Channel number.
+-#endif
+-
+-    uint8_t paramSelector; //!< Parameter selector.
+-    union
+-    {
+-        uint8_t value;         //!< Represents one byte SOL parameters.
+-        struct Accumulate acc; //!< Character accumulate values.
+-        struct Retry retry;    //!< Retry values.
+-        struct Auth auth;      //!< Authentication parameters.
+-    };
+-} __attribute__((packed));
+-
+-/** @struct SetConfParamsResponse
+- *
+- *  IPMI payload for Set SOL configuration parameters command response.
+- */
+-struct SetConfParamsResponse
+-{
+-    uint8_t completionCode; //!< Completion code.
+-} __attribute__((packed));
+-
+-/** @brief Set SOL configuration parameters command.
+- *
+- *  @param[in] inPayload - Request data for the command.
+- *  @param[in] handler - Reference to the message handler.
+- *
+- *  @return Response data for the command.
+- */
+-std::vector<uint8_t> setConfParams(const std::vector<uint8_t>& inPayload,
+-                                   const message::Handler& handler);
+-
+-/** @struct GetConfParamsRequest
+- *
+- *  IPMI payload for Get SOL configuration parameters command request.
+- */
+-struct GetConfParamsRequest
+-{
+-#if BYTE_ORDER == LITTLE_ENDIAN
+-    uint8_t channelNum : 4;  //!< Channel number.
+-    uint8_t reserved : 3;    //!< Reserved.
+-    uint8_t getParamRev : 1; //!< Get parameter or Get parameter revision
+-#endif
+-
+-#if BYTE_ORDER == BIG_ENDIAN
+-    uint8_t getParamRev : 1; //!< Get parameter or Get parameter revision
+-    uint8_t reserved : 3;    //!< Reserved.
+-    uint8_t channelNum : 4;  //!< Channel number.
+-#endif
+-
+-    uint8_t paramSelector; //!< Parameter selector.
+-    uint8_t setSelector;   //!< Set selector.
+-    uint8_t blockSelector; //!< Block selector.
+-} __attribute__((packed));
+-
+-/** @struct GetConfParamsResponse
+- *
+- *  IPMI payload for Get SOL configuration parameters command response.
+- */
+-struct GetConfParamsResponse
+-{
+-    uint8_t completionCode; //!< Completion code.
+-    uint8_t paramRev;       //!< Parameter revision.
+-} __attribute__((packed));
+-
+-/** @brief Get SOL configuration parameters command.
+- *
+- *  @param[in] inPayload - Request data for the command.
+- *  @param[in] handler - Reference to the message handler.
+- *
+- *  @return Response data for the command.
+- */
+-std::vector<uint8_t> getConfParams(const std::vector<uint8_t>& inPayload,
+-                                   const message::Handler& handler);
+-
+ } // namespace command
+ 
+ } // namespace sol
+diff --git a/sol_module.cpp b/sol_module.cpp
+index 2b1fb46..6da82c0 100644
+--- a/sol_module.cpp
++++ b/sol_module.cpp
+@@ -42,12 +42,6 @@ void registerCommands()
+          &getPayloadInfo,
+          session::Privilege::USER,
+          false},
+-        // Get SOL Configuration Parameters
+-        {{(static_cast<uint32_t>(message::PayloadType::IPMI) << 16) |
+-          static_cast<uint16_t>(::command::NetFns::TRANSPORT) | 0x22},
+-         &getConfParams,
+-         session::Privilege::USER,
+-         false},
+     };
+ 
+     for (const auto& iter : commands)
+-- 
+2.7.4
+

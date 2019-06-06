@@ -1,4 +1,4 @@
-From 95bae3d3051ee13627e5ef92bb9d60cfb5731118 Mon Sep 17 00:00:00 2001
+From ef2e1d9d2e8c97daf806f4da74738a84de054116 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 11 Feb 2019 17:02:35 -0800
 Subject: [PATCH] Add Aspeed PWM driver which uses FTTMR010 timer IP
@@ -10,21 +10,18 @@ structure changes only for Aspeed SoCs.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/boot/dts/aspeed-g5.dtsi     |   2 +-
- drivers/clocksource/timer-fttmr010.c |  25 ++
- drivers/pwm/Kconfig                  |   9 +
- drivers/pwm/Makefile                 |   1 +
- drivers/pwm/pwm-fttmr010.c           | 465 +++++++++++++++++++++++++++++++++++
- include/clocksource/timer-fttmr010.h |  17 ++
- 6 files changed, 514 insertions(+), 5 deletions(-)
+ arch/arm/boot/dts/aspeed-g5.dtsi |   2 +-
+ drivers/pwm/Kconfig              |   9 +
+ drivers/pwm/Makefile             |   1 +
+ drivers/pwm/pwm-fttmr010.c       | 437 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 448 insertions(+), 1 deletion(-)
  create mode 100644 drivers/pwm/pwm-fttmr010.c
- create mode 100644 include/clocksource/timer-fttmr010.h
 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index d5783eaf30ae..992de63d7a19 100644
+index 8a7c4257b917..c24197232385 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -301,7 +301,7 @@
+@@ -300,7 +300,7 @@
  
  			timer: timer@1e782000 {
  				/* This timer is a Faraday FTTMR010 derivative */
@@ -33,109 +30,6 @@ index d5783eaf30ae..992de63d7a19 100644
  				reg = <0x1e782000 0x90>;
  				interrupts = <16 17 18 35 36 37 38 39>;
  				clocks = <&syscon ASPEED_CLK_APB>;
-diff --git a/drivers/clocksource/timer-fttmr010.c b/drivers/clocksource/timer-fttmr010.c
-index fadff7915dd9..49a790924360 100644
---- a/drivers/clocksource/timer-fttmr010.c
-+++ b/drivers/clocksource/timer-fttmr010.c
-@@ -20,6 +20,8 @@
- #include <linux/bitops.h>
- #include <linux/delay.h>
- 
-+#include <clocksource/timer-fttmr010.h>
-+
- /*
-  * Register definitions common for all the timer variants.
-  */
-@@ -91,6 +93,9 @@
- #define TIMER_3_INT_OVERFLOW	BIT(8)
- #define TIMER_INT_ALL_MASK	0x1ff
- 
-+DEFINE_SPINLOCK(timer_fttmr010_lock);
-+EXPORT_SYMBOL(timer_fttmr010_lock);
-+
- struct fttmr010 {
- 	void __iomem *base;
- 	unsigned int tick_rate;
-@@ -137,8 +142,11 @@ static int fttmr010_timer_set_next_event(unsigned long cycles,
- 				       struct clock_event_device *evt)
- {
- 	struct fttmr010 *fttmr010 = to_fttmr010(evt);
-+	unsigned long flags;
- 	u32 cr;
- 
-+	spin_lock_irqsave(&timer_fttmr010_lock, flags);
-+
- 	/* Stop */
- 	cr = readl(fttmr010->base + TIMER_CR);
- 	cr &= ~fttmr010->t1_enable_val;
-@@ -161,27 +169,37 @@ static int fttmr010_timer_set_next_event(unsigned long cycles,
- 	cr |= fttmr010->t1_enable_val;
- 	writel(cr, fttmr010->base + TIMER_CR);
- 
-+	spin_unlock_irqrestore(&timer_fttmr010_lock, flags);
-+
- 	return 0;
- }
- 
- static int fttmr010_timer_shutdown(struct clock_event_device *evt)
- {
- 	struct fttmr010 *fttmr010 = to_fttmr010(evt);
-+	unsigned long flags;
- 	u32 cr;
- 
-+	spin_lock_irqsave(&timer_fttmr010_lock, flags);
-+
- 	/* Stop */
- 	cr = readl(fttmr010->base + TIMER_CR);
- 	cr &= ~fttmr010->t1_enable_val;
- 	writel(cr, fttmr010->base + TIMER_CR);
- 
-+	spin_unlock_irqrestore(&timer_fttmr010_lock, flags);
-+
- 	return 0;
- }
- 
- static int fttmr010_timer_set_oneshot(struct clock_event_device *evt)
- {
- 	struct fttmr010 *fttmr010 = to_fttmr010(evt);
-+	unsigned long flags;
- 	u32 cr;
- 
-+	spin_lock_irqsave(&timer_fttmr010_lock, flags);
-+
- 	/* Stop */
- 	cr = readl(fttmr010->base + TIMER_CR);
- 	cr &= ~fttmr010->t1_enable_val;
-@@ -201,6 +219,8 @@ static int fttmr010_timer_set_oneshot(struct clock_event_device *evt)
- 		writel(cr, fttmr010->base + TIMER_INTR_MASK);
- 	}
- 
-+	spin_unlock_irqrestore(&timer_fttmr010_lock, flags);
-+
- 	return 0;
- }
- 
-@@ -208,8 +228,11 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
- {
- 	struct fttmr010 *fttmr010 = to_fttmr010(evt);
- 	u32 period = DIV_ROUND_CLOSEST(fttmr010->tick_rate, HZ);
-+	unsigned long flags;
- 	u32 cr;
- 
-+	spin_lock_irqsave(&timer_fttmr010_lock, flags);
-+
- 	/* Stop */
- 	cr = readl(fttmr010->base + TIMER_CR);
- 	cr &= ~fttmr010->t1_enable_val;
-@@ -235,6 +258,8 @@ static int fttmr010_timer_set_periodic(struct clock_event_device *evt)
- 	cr |= fttmr010->t1_enable_val;
- 	writel(cr, fttmr010->base + TIMER_CR);
- 
-+	spin_unlock_irqrestore(&timer_fttmr010_lock, flags);
-+
- 	return 0;
- }
- 
 diff --git a/drivers/pwm/Kconfig b/drivers/pwm/Kconfig
 index a8f47df0655a..92a8fbebe2d9 100644
 --- a/drivers/pwm/Kconfig
@@ -170,10 +64,10 @@ index 9c676a0dadf5..13b7b20ad5ab 100644
  obj-$(CONFIG_PWM_IMX)		+= pwm-imx.o
 diff --git a/drivers/pwm/pwm-fttmr010.c b/drivers/pwm/pwm-fttmr010.c
 new file mode 100644
-index 000000000000..459ace3eba6a
+index 000000000000..32e508c962dc
 --- /dev/null
 +++ b/drivers/pwm/pwm-fttmr010.c
-@@ -0,0 +1,465 @@
+@@ -0,0 +1,437 @@
 +// SPDX-License-Identifier: GPL-2.0
 +// Copyright (c) 2019 Intel Corporation
 +
@@ -184,9 +78,6 @@ index 000000000000..459ace3eba6a
 +#include <linux/of.h>
 +#include <linux/platform_device.h>
 +#include <linux/pwm.h>
-+
-+/* For timer_fttmr010_lock */
-+#include <clocksource/timer-fttmr010.h>
 +
 +#define TIMER_CR			0x30
 +
@@ -265,21 +156,6 @@ index 000000000000..459ace3eba6a
 +	u32				clk_tick_ns;
 +};
 +
-+#if !defined(CONFIG_FTTMR010_TIMER)
-+/*
-+ * Timer block is shared between timer-fttmr010 and pwm-fttmr010 drivers
-+ * and some registers need access synchronization. If both drivers are
-+ * compiled in, the spinlock is defined in the clocksource driver,
-+ * otherwise following definition is used.
-+ *
-+ * Currently we do not need any more complex synchronization method
-+ * because all the supported SoCs contain only one instance of the Timer
-+ * IP. Once this changes, both drivers will need to be modified to
-+ * properly synchronize accesses to particular instances.
-+ */
-+static DEFINE_SPINLOCK(timer_fttmr010_lock);
-+#endif
-+
 +static inline
 +struct pwm_fttmr010 *to_pwm_fttmr010(struct pwm_chip *chip)
 +{
@@ -319,8 +195,6 @@ index 000000000000..459ace3eba6a
 +	ulong flags;
 +	u32 cr;
 +
-+	spin_lock_irqsave(&timer_fttmr010_lock, flags);
-+
 +	cr = readl(priv->base + TIMER_CR);
 +
 +	switch (pwm->hwpwm) {
@@ -339,9 +213,6 @@ index 000000000000..459ace3eba6a
 +	}
 +
 +	writel(cr, priv->base + TIMER_CR);
-+
-+	spin_unlock_irqrestore(&timer_fttmr010_lock, flags);
-+
 +	priv->disabled_mask &= ~BIT(pwm->hwpwm);
 +
 +	return 0;
@@ -352,8 +223,6 @@ index 000000000000..459ace3eba6a
 +	struct pwm_fttmr010 *priv = to_pwm_fttmr010(chip);
 +	ulong flags;
 +	u32 cr;
-+
-+	spin_lock_irqsave(&timer_fttmr010_lock, flags);
 +
 +	cr = readl(priv->base + TIMER_CR);
 +
@@ -373,9 +242,6 @@ index 000000000000..459ace3eba6a
 +	}
 +
 +	writel(cr, priv->base + TIMER_CR);
-+
-+	spin_unlock_irqrestore(&timer_fttmr010_lock, flags);
-+
 +	priv->disabled_mask |= BIT(pwm->hwpwm);
 +}
 +
@@ -639,29 +505,6 @@ index 000000000000..459ace3eba6a
 +MODULE_AUTHOR("Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>");
 +MODULE_DESCRIPTION("FTTMR010 PWM Driver for timer pulse outputs");
 +MODULE_LICENSE("GPL v2");
-diff --git a/include/clocksource/timer-fttmr010.h b/include/clocksource/timer-fttmr010.h
-new file mode 100644
-index 000000000000..d8d6a2f14130
---- /dev/null
-+++ b/include/clocksource/timer-fttmr010.h
-@@ -0,0 +1,17 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+
-+#ifndef __CLOCKSOURCE_TIMER_FTTMR010_H
-+#define __CLOCKSOURCE_TIMER_FTTMR010_H
-+
-+#include <linux/spinlock.h>
-+
-+/*
-+ * Following declaration must be in an ifdef due to this symbol being static
-+ * in timer-fttmr010 driver if the clocksource driver is not compiled in and the
-+ * spinlock is not shared between both drivers.
-+ */
-+#ifdef CONFIG_FTTMR010_TIMER
-+extern spinlock_t timer_fttmr010_lock;
-+#endif
-+
-+#endif /* __CLOCKSOURCE_TIMER_FTTMR010_H */
 -- 
 2.7.4
 

@@ -1,0 +1,82 @@
+From af3a7d07b801c22a03350897c2186b1ee9507ff2 Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Sun, 14 Apr 2019 11:14:09 +0800
+Subject: [PATCH] Add restart cause support
+
+Add restart cause support for watchdog expiration, to support
+Get system restart cause command defined in IPMI spec
+
+Tested:
+Set a hard reset watchdog:
+ipmitool raw 0x06 0x24 0x5 0x1 0x0 0x0 0x64 0x00
+
+Start the timer:
+ipmitool mc watchdog reset
+
+Wait for 10 seconds, host will be restart, query the restart cause:
+Ipmitool chassis restart_cause
+System restart cause: watchdog expired
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ watchdog.cpp | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+diff --git a/watchdog.cpp b/watchdog.cpp
+index 008cde5..7f1ec05 100644
+--- a/watchdog.cpp
++++ b/watchdog.cpp
+@@ -7,6 +7,7 @@
+ #include <phosphor-logging/log.hpp>
+ #include <sdbusplus/exception.hpp>
+ #include <xyz/openbmc_project/Common/error.hpp>
++#include <xyz/openbmc_project/State/Host/server.hpp>
+ 
+ namespace phosphor
+ {
+@@ -24,6 +25,12 @@ constexpr auto SYSTEMD_SERVICE = "org.freedesktop.systemd1";
+ constexpr auto SYSTEMD_ROOT = "/org/freedesktop/systemd1";
+ constexpr auto SYSTEMD_INTERFACE = "org.freedesktop.systemd1.Manager";
+ 
++// host state manager service
++static constexpr const char* hostService = "xyz.openbmc_project.State.Host";
++static constexpr const char* hostPath = "/xyz/openbmc_project/state/host0";
++static constexpr const char* hostInterface = "xyz.openbmc_project.State.Host";
++static constexpr const char* dbusPropIf = "org.freedesktop.DBus.Properties";
++
+ void Watchdog::resetTimeRemaining(bool enableWatchdog)
+ {
+     timeRemaining(interval());
+@@ -139,6 +146,29 @@ void Watchdog::timeOutHandler()
+                             entry("ERROR=%s", e.what()));
+             commit<InternalFailure>();
+         }
++
++        // set restart cause for watchdog HardReset & PowerCycle actions
++        if ((action == Watchdog::Action::HardReset) ||
++            (action == Watchdog::Action::PowerCycle))
++        {
++            sdbusplus::message::variant<std::string> property =
++                convertForMessage(
++                    (sdbusplus::xyz::openbmc_project::State::server::Host::
++                         RestartCause::WatchdogTimer));
++            try
++            {
++                auto method = bus.new_method_call(hostService, hostPath,
++                                                  dbusPropIf, "Set");
++                method.append(hostInterface, "HostRestartCause", property);
++                bus.call(method);
++            }
++            catch (sdbusplus::exception_t& e)
++            {
++                log<level::ERR>("Failed to set HostRestartCause property",
++                                entry("ERROR=%s", e.what()));
++                commit<InternalFailure>();
++            }
++        }
+     }
+ 
+     tryFallbackOrDisable();
+-- 
+2.7.4
+

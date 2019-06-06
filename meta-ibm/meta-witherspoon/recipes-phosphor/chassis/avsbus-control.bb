@@ -8,18 +8,16 @@ inherit obmc-phosphor-systemd
 RDEPENDS_${PN} += "i2c-tools"
 
 S = "${WORKDIR}"
-SRC_URI += "file://power-workarounds.sh \
+
+SRC_URI += "file://avsbus-disable.sh \
             file://avsbus-enable.sh \
-            file://avsbus-disable.sh"
+            file://power-workarounds.sh"
 
 do_install() {
         install -d ${D}${bindir}
-        install -m 0755 ${WORKDIR}/power-workarounds.sh \
-            ${D}${bindir}/power-workarounds.sh
-        install -m 0755 ${WORKDIR}/avsbus-disable.sh \
-            ${D}${bindir}/avsbus-disable.sh
-        install -m 0755 ${WORKDIR}/avsbus-enable.sh \
-            ${D}${bindir}/avsbus-enable.sh
+        install -m 0755 ${S}/avsbus-disable.sh ${D}${bindir}/avsbus-disable.sh
+        install -m 0755 ${S}/avsbus-enable.sh ${D}${bindir}/avsbus-enable.sh
+        install -m 0755 ${S}/power-workarounds.sh ${D}${bindir}/power-workarounds.sh
 }
 
 TMPL_EN= "avsbus-enable@.service"

@@ -144,14 +144,14 @@ index e65ea63..8b1aa47 100644
 +++ b/app/watchdog_service.cpp
 @@ -83,6 +83,9 @@ WatchdogService::Properties WatchdogService::getProperties()
          wd_prop.timerUse = Watchdog::convertTimerUseFromString(
-             get<std::string>(properties.at("CurrentTimerUse")));
+             std::get<std::string>(properties.at("CurrentTimerUse")));
  
 +        wd_prop.expiredTimerUse = Watchdog::convertTimerUseFromString(
-+            get<std::string>(properties.at("ExpiredTimerUse")));
++            std::get<std::string>(properties.at("ExpiredTimerUse")));
 +
-         wd_prop.interval = get<uint64_t>(properties.at("Interval"));
-         wd_prop.timeRemaining = get<uint64_t>(properties.at("TimeRemaining"));
-         return wd_prop;
+         wd_prop.interval = std::get<uint64_t>(properties.at("Interval"));
+         wd_prop.timeRemaining =
+             std::get<uint64_t>(properties.at("TimeRemaining"));
 @@ -187,6 +190,11 @@ void WatchdogService::setTimerUse(TimerUse timerUse)
      setProperty("CurrentTimerUse", convertForMessage(timerUse));
  }

@@ -1,0 +1,119 @@
+From 336d0e9163a027b2b35ed240c2995f06684637b8 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Thu, 9 May 2019 16:26:53 -0700
+Subject: [PATCH] Add flow control to prevent buffer over run
+
+This service uses direct frame update with bypassing image
+compression and invalidating logic in libvncserver to achieve
+better performance by using of H/W compressed JPEG frames as those
+come from the video engine driver.
+
+This behavior helps quick frame update using very small amount of
+CPU resources but it causes a side effect which crashes bmcweb
+by OOM killer due to a buffer over run issue. Usually, this issue
+happens often in a slow speed connection because this service
+keeps sending all frames without any handshaking with clients so
+a session buffer in the bmcweb gets bigger and bigger since the
+low speed connection can't send all stream data on time.
+
+To fix this issue, this commit adds flow control logic to make
+frame updating handshakes with client so that it'll send frames
+only when it recieved client frame update messages. All other
+frames when the client doesn't request will be dropped out to
+prevent the buffer over run issue.
+
+Tested:
+bmcweb didn't keep increasing its KVM session buffer.
+KVM worked well with showing good refresh speed.
+
+resolves https://github.com/openbmc/bmcweb/issues/80
+
+Change-Id: I6b09a711137d15a38fce59adada9bf3d00afde86
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ ikvm_server.cpp | 19 +++++++++++++++++++
+ ikvm_server.hpp | 10 ++++++++++
+ 2 files changed, 29 insertions(+)
+
+diff --git a/ikvm_server.cpp b/ikvm_server.cpp
+index 35310da292be..363eab7e000d 100644
+--- a/ikvm_server.cpp
++++ b/ikvm_server.cpp
+@@ -119,6 +119,12 @@ void Server::sendFrame()
+             continue;
+         }
+ 
++        if (!cd->needUpdate)
++        {
++            continue;
++        }
++        cd->needUpdate = false;
++
+         if (cl->enableLastRectEncoding)
+         {
+             fu->nRects = 0xFFFF;
+@@ -149,6 +155,18 @@ void Server::sendFrame()
+     rfbReleaseClientIterator(it);
+ }
+ 
++void Server::clientFUR(rfbClientPtr cl, rfbFramebufferUpdateRequestMsg* furMsg)
++{
++    ClientData* cd = (ClientData*)cl->clientData;
++
++    if (!cd)
++        return;
++
++    // Ignore the furMsg info. This service uses full frame update always.
++
++    cd->needUpdate = true;
++}
++
+ void Server::clientGone(rfbClientPtr cl)
+ {
+     Server* server = (Server*)cl->screen->screenData;
+@@ -170,6 +188,7 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
+     cl->clientData =
+         new ClientData(server->video.getFrameRate(), &server->input);
+     cl->clientGoneHook = clientGone;
++    cl->clientFURHook = clientFUR;
+     if (!server->numClients++)
+     {
+         server->pendingResize = false;
+diff --git a/ikvm_server.hpp b/ikvm_server.hpp
+index b8062017b8ca..e51e57a19722 100644
+--- a/ikvm_server.hpp
++++ b/ikvm_server.hpp
+@@ -32,6 +32,7 @@ class Server
+          */
+         ClientData(int s, Input* i) : skipFrame(s), input(i)
+         {
++            needUpdate = false;
+         }
+         ~ClientData() = default;
+         ClientData(const ClientData&) = default;
+@@ -41,6 +42,7 @@ class Server
+ 
+         int skipFrame;
+         Input* input;
++        bool needUpdate;
+     };
+ 
+     /*
+@@ -85,6 +87,14 @@ class Server
+ 
+   private:
+     /*
++     * @brief Handler for a client frame update message
++     *
++     * @param[in] cl - Handle to the client object
++     * @param[in] furMsg - Pointer of the FUR message
++     */
++    static void clientFUR(rfbClientPtr cl,
++                          rfbFramebufferUpdateRequestMsg* furMsg);
++    /*
+      * @brief Handler for a client disconnecting
+      *
+      * @param[in] cl - Handle to the client object
+-- 
+2.7.4
+

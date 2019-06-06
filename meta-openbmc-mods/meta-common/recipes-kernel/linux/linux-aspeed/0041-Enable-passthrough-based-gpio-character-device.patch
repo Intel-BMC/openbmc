@@ -198,10 +198,10 @@ index d1adfdf50fb3..4f9fdd25c6d7 100644
 +	val = !!val;
 +	if (test_bit(FLAG_PASS_THROUGH, &desc->flags)) {
 +		if (val)
-+			gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
++			gpio_set_config(gc, gpio_chip_hwgpio(desc),
 +						PIN_CONFIG_PASS_THROUGH_ENABLE);
 +		else
-+			gpio_set_drive_single_ended(gc, gpio_chip_hwgpio(desc),
++			gpio_set_config(gc, gpio_chip_hwgpio(desc),
 +						PIN_CONFIG_PASS_THROUGH_DISABLE);
 +	} else {
 +		gpiod_err(desc,

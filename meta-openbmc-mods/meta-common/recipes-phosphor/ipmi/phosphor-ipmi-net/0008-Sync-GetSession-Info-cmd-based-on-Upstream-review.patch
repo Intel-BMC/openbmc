@@ -256,54 +256,24 @@ diff --git a/socket_channel.hpp b/socket_channel.hpp
 index 349701e..8b64740 100644
 --- a/socket_channel.hpp
 +++ b/socket_channel.hpp
-@@ -52,33 +52,34 @@ class Channel
-     }
- 
-     /**
--     * @brief Fetch the port number of the remote peer
--     *
--     * Returns the port number of the remote peer
-+     * @brief Fetch the IP address of the remote peer
+@@ -107,14 +107,15 @@ class Channel
       *
--     * @return Port number
-+     * Returns the IP address of the remote peer which is connected to this
-+     * socket
-      *
-+     * @return IP address of the remote peer
-      */
--    auto getPort() const
-+    std::uint32_t getRemoteAddressInBytes() const
-     {
--        return endpoint.port();
-+        const boost::asio::ip::address& addr = endpoint.address();
-+        if (addr.is_v4())
-+        {
-+            return addr.to_v4().to_uint();
-+        }
-+        return 0;
-     }
- 
-     /**
--     * @brief Return the binary representation of the remote IPv4 address
-+     * @brief Fetch the port number of the remote peer
-      *
--     * getSessionInfo needs to return the remote IPv4 addresses of each session
-+     * Returns the port number of the remote peer
-+     *
-+     * @return Port number
-      *
--     * @return A uint32_t representation of the remote IPv4 address
+      * @return A uint32_t representation of the remote IPv4 address
       */
 -    std::uint32_t getRemoteAddressInbytes()
-+    auto getPort() const
++    uint32_t getRemoteAddressInBytes() const
      {
 -        const boost::asio::ip::address& addr = endpoint.address();
 -        if (addr.is_v4())
--        {
++        uint32_t v4addr = 0;
++        if (sockAddrSize == sizeof(sockaddr_in))
+         {
 -            return addr.to_v4().to_uint();
--        }
++            auto saddr = reinterpret_cast<const sockaddr_in*>(&remoteSockAddr);
++            v4addr = ntohl(saddr->sin_addr.s_addr);
+         }
 -        return 0;
-+        return endpoint.port();
++        return v4addr;
      }
  
      /**

@@ -10,15 +10,15 @@ SRC_URI = "http://pagesperso-orange.fr/sebastien.godard/sysstat-${PV}.tar.xz \
           "
 
 UPSTREAM_CHECK_URI = "http://sebastien.godard.pagesperso-orange.fr/download.html"
-UPSTREAM_CHECK_REGEX = "(?P<pver>\d+(\.\d+)+)\.tar"
 
 DEPENDS += "base-passwd"
 
 # autotools-brokensep as this package doesn't use automake
-inherit autotools-brokensep gettext systemd
+inherit autotools-brokensep gettext systemd upstream-version-is-even
 
 PACKAGECONFIG ??= ""
 PACKAGECONFIG[lm-sensors] = "--enable-sensors,--disable-sensors,lmsensors,lmsensors-libsensors"
+PACKAGECONFIG[cron] = "--enable-install-cron --enable-copy-only,--disable-install-cron --disable-copy-only"
 
 EXTRA_OECONF += "--disable-stripping"
 
@@ -59,7 +59,6 @@ pkg_postinst_${PN} () {
         fi
 }
 
-
-FILES_${PN} += "${libdir}/sa"
+FILES_${PN} += "${libdir}/sa ${systemd_system_unitdir}"
 
 TARGET_CC_ARCH += "${LDFLAGS}"

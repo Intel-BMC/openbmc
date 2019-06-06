@@ -1,0 +1,121 @@
+From 6b4e1b3672433c0d7d392404e19d114ae25e0eb2 Mon Sep 17 00:00:00 2001
+From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Date: Wed, 24 Apr 2019 22:35:43 +0530
+Subject: [PATCH] Manufacturing mode physical presence detection
+
+Support for physical presence of manufacturing mode added.
+Front panel power button press for 8 seconds will be detected
+and marked as special mode for manufacturing request
+
+Tested:
+1. Verified by holding the power button when u-boot boots for
+8 seconds, and confirmed that bootargs passed to linux has
+special=mfg string
+2. Verified in normal condition special=mfg string is not passed.
+
+Change-Id: Id7e7c7e7860c7ef3ae8e3a7a7cfda7ff506c0f2b
+Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+---
+ board/aspeed/ast-g5/ast-g5-gpio.h  |  2 +-
+ board/aspeed/ast-g5/ast-g5-intel.c | 39 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/board/aspeed/ast-g5/ast-g5-gpio.h b/board/aspeed/ast-g5/ast-g5-gpio.h
+index a820c0f..ed2499f 100644
+--- a/board/aspeed/ast-g5/ast-g5-gpio.h
++++ b/board/aspeed/ast-g5/ast-g5-gpio.h
+@@ -72,7 +72,7 @@
+ #define AMB_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_5)
+ #define FORCE_BMC_UPDATE_PORT_PIN PORT_PIN(GPIO_PORT_D, GPIO_PIN_0)
+ #define TPM_EN_PULSE_PORT_PIN PORT_PIN(GPIO_PORT_D, GPIO_PIN_6)
+-
++#define FP_PWR_BTN_PORT_PIN PORT_PIN(GPIO_PORT_E, GPIO_PIN_2)
+ 
+ // GPIO Configuration Register bits
+ #define GPCFG_EVENT_TO_SMI (1 << 7) // 1 == enabled
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 881ab89..86b422f 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -24,6 +24,7 @@ enum gpio_names {
+ 	GPIO_AMBER_LED,
+ 	GPIO_FF_UPD_JUMPER,
+ 	GPIO_ENABLE_TPM_PULSE,
++	GPIO_FP_PWR_BTN,
+ };
+ 
+ #define GPIO_CFG_DEFAULT (GPCFG_ACTIVE_HIGH | GPCFG_LEVEL_TRIG)
+@@ -55,6 +56,10 @@ static const GPIOValue gpio_table[] = {
+ 	/* Enable Pulse -- pin D6 */
+ 	[GPIO_ENABLE_TPM_PULSE] = {TPM_EN_PULSE_PORT_PIN, GPCFG_OUTPUT_EN, 0,
+ 				   GPIO_DEBOUNCE_NONE},
++	/* Front Panel Power Button -- pin E2 */
++	[GPIO_FP_PWR_BTN] = {FP_PWR_BTN_PORT_PIN, GPIO_CFG_DEFAULT, 0,
++				   GPIO_DEBOUNCE_8MS},
++
+ };
+ 
+ #define LPC_SNOOP_ADDR 0x80
+@@ -313,12 +318,35 @@ static inline void ast_scu_write(uint32_t val, uint32_t reg)
+ #endif
+ }
+ 
++static bool is_mfg_mode_phy_req(void)
++{
++	/*
++	 * Assume mfg mode physical request is made, if power button
++	 * is pressed continously for 8 seconds, indicate the
++	 * same in bootargs
++	 */
++	const uint32_t delay_in_ms = 100;
++	const uint32_t read_count = ((8 * 1000) / delay_in_ms);
++	for (uint32_t count = 0; count < read_count; ++count) {
++		if (!gpio_get_value(GPIO_FP_PWR_BTN))
++			return false;
++
++		mdelay(delay_in_ms);
++	}
++	debug("is_mfg_mode_phy_req : detected mfg mode request\n");
++
++	return true;
++}
++
+ void ast_g5_intel_late_init(void)
+ {
+ 	char *cmdline = NULL;
+ 	char *cmdline_new = NULL;
+ 	char buf[32];
+ 	u32 rest = 0;
++	const char *special_mfg_str = " special=mfg";
++	const u32 special_str_size = strlen(special_mfg_str);
++	u32 buf_count = 0;
+ 
+ 	/* By default host serail A and B use normal speed */
+ 	uint32_t host_serial_cfg = 0;
+@@ -367,14 +395,21 @@ void ast_g5_intel_late_init(void)
+ 		return;
+ 	}
+ 
+-	cmdline_new = malloc(strlen(cmdline) + strlen(buf) + 1);
++	cmdline_new = malloc(strlen(cmdline) + strlen(buf) +
++				special_str_size + 1);
+ 	if (!cmdline_new) {
+ 		printf("Cannot malloc memory!\n");
+ 		return;
+ 	}
+ 
+ 	/* append the reset status into kernel command line */
+-	snprintf(cmdline_new, strlen(cmdline) + strlen(buf) + 1, "%s%s", cmdline, buf);
++	buf_count = snprintf(cmdline_new, strlen(cmdline) + strlen(buf) + 1,
++			     "%s%s", cmdline, buf);
++
++	if (is_mfg_mode_phy_req())
++		snprintf(cmdline_new + buf_count - 1, special_str_size + 1,
++			 "%s", special_mfg_str);
++
+ 	setenv("bootargs", cmdline_new);
+ 	free(cmdline_new);
+ }
+-- 
+2.7.4
+

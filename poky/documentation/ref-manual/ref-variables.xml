@@ -931,20 +931,21 @@
 
         <glossentry id='var-BB_GENERATE_MIRROR_TARBALLS'><glossterm>BB_GENERATE_MIRROR_TARBALLS</glossterm>
             <info>
-                BB_GENERATE_MIRROR_TARBALLS[doc] = "Causes tarballs of the Git repositories to be placed in the DL_DIR directory."
+                BB_GENERATE_MIRROR_TARBALLS[doc] = "Causes tarballs of the source control repositories to be placed in the DL_DIR directory."
             </info>
             <glossdef>
                 <para role="glossdeffirst">
 <!--                <para role="glossdeffirst"><imagedata fileref="figures/define-generic.png" /> -->
-                    Causes tarballs of the Git repositories, including the
-                    Git metadata, to be placed in the
+                    Causes tarballs of the source control repositories
+                    (e.g. Git repositories), including metadata, to be placed
+                    in the
                     <link linkend='var-DL_DIR'><filename>DL_DIR</filename></link>
                     directory.
                 </para>
 
                 <para>
                     For performance reasons, creating and placing tarballs of
-                    the Git repositories is not the default action by the
+                    these repositories is not the default action by the
                     OpenEmbedded build system.
                     <literallayout class='monospaced'>
      BB_GENERATE_MIRROR_TARBALLS = "1"
@@ -952,6 +953,13 @@
                     Set this variable in your <filename>local.conf</filename>
                     file in the
                     <link linkend='build-directory'>Build Directory</link>.
+                </para>
+
+                <para>
+                    Once you have the tarballs containing your source files,
+                    you can clean up your <filename>DL_DIR</filename>
+                    directory by deleting any Git or other source control
+                    work directories.
                 </para>
             </glossdef>
         </glossentry>
@@ -11301,7 +11309,7 @@
                     Here are two examples:
                     <literallayout class='monospaced'>
      PREFERRED_VERSION_python = "3.4.0"
-     PREFERRED_VERSION_linux-yocto = "4.12%"
+     PREFERRED_VERSION_linux-yocto = "5.0%"
                     </literallayout>
                     <note><title>Important</title>
                         The use of the "<filename>%</filename>" character
@@ -11347,14 +11355,14 @@
                     to set a machine-specific override.
                     Here is an example:
                     <literallayout class='monospaced'>
-     PREFERRED_VERSION_linux-yocto_qemux86 = "4.12%"
+     PREFERRED_VERSION_linux-yocto_qemux86 = "5.0%"
                     </literallayout>
                     Although not recommended, worst case, you can also use the
                     "forcevariable" override, which is the strongest override
                     possible.
                     Here is an example:
                     <literallayout class='monospaced'>
-     PREFERRED_VERSION_linux-yocto_forcevariable = "4.12%"
+     PREFERRED_VERSION_linux-yocto_forcevariable = "5.0%"
                     </literallayout>
                     <note>
                         The <filename>_forcevariable</filename> override is
@@ -12601,7 +12609,7 @@
                     is set to "minimal" to keep the SDK reasonably small
                     but you still want to provide a usable toolchain.
                     For example, suppose you want to use the toolchain from an
-                    IDE (e.g. Eclipse) or from other tools and you do not
+                    IDE or from other tools and you do not
                     want to perform additional steps to install the toolchain.
                 </para>
 
@@ -13714,6 +13722,9 @@
                             a secure shell.</para></listitem>
                         <listitem><para><emphasis><filename>svn://</filename> -</emphasis> Fetches files from
                             a Subversion (<filename>svn</filename>) revision control repository.</para></listitem>
+                        <listitem><para><emphasis><filename>npm://</filename> -</emphasis> Fetches JavaScript
+                            modules from a registry.
+                            </para></listitem>
                     </itemizedlist>
                 </para>
 

@@ -1,19 +1,19 @@
-From 23a7407c3f1bab7c01b93eeced4e137601ac1c94 Mon Sep 17 00:00:00 2001
+From d1d221aedb9b366e3477f253386b1cf829c56193 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@intel.com>
 Date: Wed, 4 Apr 2018 13:52:39 -0700
 Subject: [PATCH] Add support for new PECI commands
 
 Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
 ---
- drivers/peci/peci-core.c        | 223 ++++++++++++++++++++++++++++++++++++++++
- include/uapi/linux/peci-ioctl.h | 102 ++++++++++++++++++
- 2 files changed, 325 insertions(+)
+ drivers/peci/peci-core.c        | 226 ++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/peci-ioctl.h | 104 ++++++++++++++++++
+ 2 files changed, 330 insertions(+)
 
 diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
-index 14048a13ef8a..2f7e795158ce 100644
+index e282f9ef383b..9af11accc1d4 100644
 --- a/drivers/peci/peci-core.c
 +++ b/drivers/peci/peci-core.c
-@@ -344,6 +344,9 @@ static int peci_scan_cmd_mask(struct peci_adapter *adapter)
+@@ -345,6 +345,9 @@ static int peci_scan_cmd_mask(struct peci_adapter *adapter)
  	adapter->cmd_mask |= BIT(PECI_CMD_GET_TEMP);
  	adapter->cmd_mask |= BIT(PECI_CMD_GET_DIB);
  	adapter->cmd_mask |= BIT(PECI_CMD_PING);
@@ -23,7 +23,7 @@ index 14048a13ef8a..2f7e795158ce 100644
  
  out:
  	peci_put_xfer_msg(msg);
-@@ -686,6 +689,223 @@ static int peci_cmd_wr_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
+@@ -693,6 +696,226 @@ static int peci_cmd_wr_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
  	return ret;
  }
  
@@ -157,6 +157,7 @@ index 14048a13ef8a..2f7e795158ce 100644
 +	if (!ret)
 +		memcpy(umsg->data, &msg->rx_buf[1], umsg->rx_len);
 +
++	umsg->cc = msg->rx_buf[0];
 +	peci_put_xfer_msg(msg);
 +
 +	return ret;
@@ -197,6 +198,7 @@ index 14048a13ef8a..2f7e795158ce 100644
 +	if (!ret)
 +		memcpy(umsg->data, &msg->rx_buf[1], umsg->rx_len);
 +
++	umsg->cc = msg->rx_buf[0];
 +	peci_put_xfer_msg(msg);
 +
 +	return ret;
@@ -239,6 +241,7 @@ index 14048a13ef8a..2f7e795158ce 100644
 +	if (!ret)
 +		memcpy(umsg->data, &msg->rx_buf[1], umsg->rx_len);
 +
++	umsg->cc = msg->rx_buf[0];
 +	peci_put_xfer_msg(msg);
 +
 +	return ret;
@@ -247,7 +250,7 @@ index 14048a13ef8a..2f7e795158ce 100644
  typedef int (*peci_cmd_fn_type)(struct peci_adapter *, void *);
  
  static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
-@@ -701,6 +921,9 @@ static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
+@@ -708,6 +931,9 @@ static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
  	peci_cmd_wr_pci_cfg,
  	peci_cmd_rd_pci_cfg_local,
  	peci_cmd_wr_pci_cfg_local,
@@ -258,10 +261,10 @@ index 14048a13ef8a..2f7e795158ce 100644
  
  /**
 diff --git a/include/uapi/linux/peci-ioctl.h b/include/uapi/linux/peci-ioctl.h
-index 8467b2fbee1f..090b02c4de49 100644
+index 4c28abe2c17a..e67b0735f606 100644
 --- a/include/uapi/linux/peci-ioctl.h
 +++ b/include/uapi/linux/peci-ioctl.h
-@@ -70,6 +70,9 @@ enum peci_cmd {
+@@ -72,6 +72,9 @@ enum peci_cmd {
  	PECI_CMD_WR_PCI_CFG,
  	PECI_CMD_RD_PCI_CFG_LOCAL,
  	PECI_CMD_WR_PCI_CFG_LOCAL,
@@ -271,7 +274,7 @@ index 8467b2fbee1f..090b02c4de49 100644
  	PECI_CMD_MAX
  };
  
-@@ -420,6 +423,93 @@ struct peci_wr_pci_cfg_local_msg {
+@@ -439,6 +442,95 @@ struct peci_wr_pci_cfg_local_msg {
  	__u32	value;
  } __attribute__((__packed__));
  
@@ -311,7 +314,8 @@ index 8467b2fbee1f..090b02c4de49 100644
 +		} mmio;
 +	} params;
 +	__u8	rx_len;
-+	__u8	padding[3];
++	__u8	cc;
++	__u8	padding[2];
 +	__u8	data[8];
 +} __attribute__((__packed__));
 +
@@ -333,8 +337,8 @@ index 8467b2fbee1f..090b02c4de49 100644
 +#define PECI_CRASHDUMP_NUM_AGENTS	0x01
 +#define PECI_CRASHDUMP_AGENT_DATA	0x02
 +
++	__u8	cc;
 +	__u8	param0;
-+	__u8	padding;
 +	__u16	param1;
 +	__u8	param2;
 +	__u8	rx_len;
@@ -344,11 +348,11 @@ index 8467b2fbee1f..090b02c4de49 100644
 +struct peci_crashdump_get_frame_msg {
 +#define PECI_CRASHDUMP_DISC_WRITE_LEN		9
 +#define PECI_CRASHDUMP_DISC_READ_LEN_BASE	1
-+#define PECI_CRASHDUMP_DISC_VERSION		1
++#define PECI_CRASHDUMP_DISC_VERSION		0
 +#define PECI_CRASHDUMP_DISC_OPCODE		1
 +#define PECI_CRASHDUMP_GET_FRAME_WRITE_LEN	10
 +#define PECI_CRASHDUMP_GET_FRAME_READ_LEN_BASE	1
-+#define PECI_CRASHDUMP_GET_FRAME_VERSION	3
++#define PECI_CRASHDUMP_GET_FRAME_VERSION	0
 +#define PECI_CRASHDUMP_GET_FRAME_OPCODE		3
 +#define PECI_CRASHDUMP_CMD			0x71
 +
@@ -358,14 +362,15 @@ index 8467b2fbee1f..090b02c4de49 100644
 +	__u16	param1;
 +	__u16	param2;
 +	__u8	rx_len;
-+	__u8	padding1[3];
++	__u8	cc;
++	__u8	padding1[2];
 +	__u8	data[16];
 +} __attribute__((__packed__));
 +
  #define PECI_IOC_BASE  0xb7
  
  #define PECI_IOC_XFER \
-@@ -460,4 +550,16 @@ struct peci_wr_pci_cfg_local_msg {
+@@ -479,4 +571,16 @@ struct peci_wr_pci_cfg_local_msg {
  	_IOWR(PECI_IOC_BASE, PECI_CMD_WR_PCI_CFG_LOCAL, \
  	      struct peci_wr_pci_cfg_local_msg)
  

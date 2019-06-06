@@ -1,4 +1,4 @@
-From c14e31ebc35e0bb7b843d84683f9f2698c9c08d7 Mon Sep 17 00:00:00 2001
+From 6d5a372e0cf98de4d97a88d2cd42a00b7a8f034f Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Sun, 16 Sep 2018 21:32:38 +0800
 Subject: [PATCH] Implement IPMI Commmand - Get Host Restart Cause.
@@ -25,16 +25,16 @@ Change-Id: Id3b32e271b85b5fc4c69d5ca40227f8f9c08ce48
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- chassishandler.cpp        | 54 +++++++++++++++++++++++++++++++++++++++++++++++
- chassishandler.hpp          |  1 +
+ chassishandler.cpp        | 54 +++++++++++++++++++++++++++++++++++++++
+ chassishandler.hpp        |  1 +
  host-ipmid-whitelist.conf |  1 +
  3 files changed, 56 insertions(+)
 
 diff --git a/chassishandler.cpp b/chassishandler.cpp
-index 77af2dc..2a29755 100644
+index d20b220..8a8cb26 100644
 --- a/chassishandler.cpp
 +++ b/chassishandler.cpp
-@@ -107,6 +107,11 @@ static constexpr auto chassisPOHStateIntf =
+@@ -90,6 +90,11 @@ static constexpr auto chassisPOHStateIntf =
      "xyz.openbmc_project.State.PowerOnHours";
  static constexpr auto pOHCounterProperty = "POHCounter";
  static constexpr auto match = "chassis0";
@@ -46,7 +46,7 @@ index 77af2dc..2a29755 100644
  const static constexpr char chassisCapIntf[] =
      "xyz.openbmc_project.Control.ChassisCapabilities";
  const static constexpr char chassisCapFlagsProp[] = "CapabilitiesFlags";
-@@ -324,6 +329,13 @@ struct set_sys_boot_options_t
+@@ -176,6 +181,13 @@ struct set_sys_boot_options_t
      uint8_t data[SIZE_BOOT_OPTION];
  } __attribute__((packed));
  
@@ -60,7 +60,7 @@ index 77af2dc..2a29755 100644
  int getHostNetworkData(get_sys_boot_options_response_t* respptr)
  {
      ipmi::PropertyMap properties;
-@@ -1598,6 +1610,44 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -1584,6 +1596,44 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
      return rc;
  }
  
@@ -102,20 +102,20 @@ index 77af2dc..2a29755 100644
 +    return rc;
 +}
 +
- ipmi_ret_t ipmiGetPOHCounter(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-                              ipmi_request_t request, ipmi_response_t response,
-                              ipmi_data_len_t data_len, ipmi_context_t context)
+ /** @brief implements Get POH counter command
+  *  @parameter
+  *   -  none
 @@ -1739,4 +1789,8 @@ void register_netfn_chassis_functions()
-     ipmi_register_callback(NETFUN_CHASSIS, IPMI_CMD_SET_RESTORE_POLICY, NULL,
-                            ipmi_chassis_set_power_restore_policy,
-                            PRIVILEGE_OPERATOR);
+                           ipmi::chassis::cmdSetPowerRestorePolicy,
+                           ipmi::Privilege::Operator,
+                           ipmiChassisSetPowerRestorePolicy);
 +
 +    // <get Host Restart Cause>
 +    ipmi_register_callback(NETFUN_CHASSIS, IPMI_CMD_GET_SYS_RESTART_CAUSE, NULL,
 +                           ipmi_chassis_get_sys_restart_cause, PRIVILEGE_USER);
  }
 diff --git a/chassishandler.hpp b/chassishandler.hpp
-index 0c6d5a2..e37c4f1 100644
+index 49b5ef8..2c42b11 100644
 --- a/chassishandler.hpp
 +++ b/chassishandler.hpp
 @@ -17,6 +17,7 @@ enum ipmi_netfn_chassis_cmds
@@ -127,10 +127,10 @@ index 0c6d5a2..e37c4f1 100644
      IPMI_CMD_GET_SYS_BOOT_OPTIONS = 0x09,
      IPMI_CMD_GET_POH_COUNTER = 0x0F,
 diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
-index db54a49..827e2dc 100644
+index c1fca1d..94232de 100644
 --- a/host-ipmid-whitelist.conf
 +++ b/host-ipmid-whitelist.conf
-@@ -3,6 +3,7 @@
+@@ -4,6 +4,7 @@
  0x00:0x02    //<Chassis>:<Chassis Control>
  0x00:0x05    //<Chassis>:<Set Chassis Capabilities>
  0x00:0x06    //<Chassis>:<Set Power Restore Policy>
@@ -139,5 +139,5 @@ index db54a49..827e2dc 100644
  0x00:0x09    //<Chassis>:<Get System Boot Options>
  0x00:0x0F    //<Chassis>:<Get POH Counter Command>
 -- 
-2.7.4
+2.17.1
 

@@ -1,0 +1,49 @@
+From aa8f405609038693481bad4393d58f0c665569a6 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Tue, 21 May 2019 16:00:28 -0700
+Subject: [PATCH 1/4] media: aspeed: remove source buffer allocation before
+ mode detection
+
+Mode detection doesn't require source buffer allocation so this
+commit removes that.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ drivers/media/platform/aspeed-video.c | 21 ---------------------
+ 1 file changed, 21 deletions(-)
+
+diff --git a/drivers/media/platform/aspeed-video.c b/drivers/media/platform/aspeed-video.c
+index 1bb863b32836..ee1f87a08c7c 100644
+--- a/drivers/media/platform/aspeed-video.c
++++ b/drivers/media/platform/aspeed-video.c
+@@ -733,27 +733,6 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
+ 	det->height = MIN_HEIGHT;
+ 	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
+ 
+-	/*
+-	 * Since we need max buffer size for detection, free the second source
+-	 * buffer first.
+-	 */
+-	if (video->srcs[1].size)
+-		aspeed_video_free_buf(video, &video->srcs[1]);
+-
+-	if (video->srcs[0].size < VE_MAX_SRC_BUFFER_SIZE) {
+-		if (video->srcs[0].size)
+-			aspeed_video_free_buf(video, &video->srcs[0]);
+-
+-		if (!aspeed_video_alloc_buf(video, &video->srcs[0],
+-					    VE_MAX_SRC_BUFFER_SIZE)) {
+-			dev_err(video->dev,
+-				"Failed to allocate source buffers\n");
+-			return;
+-		}
+-	}
+-
+-	aspeed_video_write(video, VE_SRC0_ADDR, video->srcs[0].dma);
+-
+ 	do {
+ 		if (tries) {
+ 			set_current_state(TASK_INTERRUPTIBLE);
+-- 
+2.21.0
+

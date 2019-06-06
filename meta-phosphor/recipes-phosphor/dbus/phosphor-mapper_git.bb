@@ -7,7 +7,6 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=fa818a259cbed7ce8bc2a22d35a464fc"
 
 inherit autotools pkgconfig
-inherit obmc-phosphor-python-autotools
 inherit obmc-phosphor-dbus-service
 inherit obmc-phosphor-systemd
 inherit phosphor-mapperdir
@@ -25,17 +24,9 @@ SYSTEMD_SERVICE_${PN} += " \
         mapper-wait@.service \
         mapper-subtree-remove@.service \
         "
-RDEPENDS_${PN} += " \
-        python-argparse \
-        python-xml \
-        python-dbus \
-        python-pygobject \
-        pyphosphor-dbus \
-        pyphosphor-utils \
-        "
 SRC_URI += "git://github.com/openbmc/phosphor-objmgr"
 
-SRCREV = "7f838376084fb8f5c00b8926013891cb58389033"
+SRCREV = "5eddf44006cf9ad5b9a5c103adc1682fc835f932"
 
 S = "${WORKDIR}/git"
 

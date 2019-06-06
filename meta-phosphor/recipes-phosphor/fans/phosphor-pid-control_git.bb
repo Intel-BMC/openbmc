@@ -13,7 +13,7 @@ inherit obmc-phosphor-ipmiprovider-symlink
 
 S = "${WORKDIR}/git"
 SRC_URI = "git://github.com/openbmc/phosphor-pid-control"
-SRCREV = "5782ab81367e22e87d719c9fef6e85ecdc6cf95e"
+SRCREV = "375f7098c232d38adcaab99b2f3ee561ded8c256"
 
 # Each platform will need a service file that starts
 # at an appropriate time per system.  For instance, if
@@ -24,10 +24,10 @@ DEPENDS += "autoconf-archive-native"
 DEPENDS += "sdbusplus"
 DEPENDS += "phosphor-dbus-interfaces"
 DEPENDS += "phosphor-logging"
-DEPENDS += "phosphor-dbus-interfaces"
 DEPENDS += "libevdev"
 DEPENDS += "nlohmann-json"
 DEPENDS += "cli11"
+DEPENDS += "boost"
 
 # We depend on this to be built first so we can build our providers.
 DEPENDS += "phosphor-ipmi-host"
