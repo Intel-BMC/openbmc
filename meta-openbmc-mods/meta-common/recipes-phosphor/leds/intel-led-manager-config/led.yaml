@@ -34,6 +34,10 @@ enclosure_identify:
     identify:
         Action: 'On'
 
+enclosure_identify_blink:
+    identify:
+        Action: 'Blink'
+
 cpu0_fault:
     cpu0fault:
         Action: 'On'

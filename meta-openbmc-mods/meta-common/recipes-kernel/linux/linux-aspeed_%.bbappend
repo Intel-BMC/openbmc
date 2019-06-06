@@ -43,6 +43,5 @@ SRC_URI += " \
         file://0058-i2c-aspeed-add-general-call-support.patch \
         file://0059-media-aspeed-remove-source-buffer-allocation-before-.patch \
         file://0060-media-aspeed-use-different-delays-for-triggering-VE-.patch \
-        file://0061-media-aspeed-fix-an-incorrect-timeout-checking-in-mo.patch \
         file://0062-media-aspeed-add-a-workaround-to-fix-a-silicon-bug.patch \
         "

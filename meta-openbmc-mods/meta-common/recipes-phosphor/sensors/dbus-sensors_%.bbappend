@@ -1,7 +1,7 @@
-SRCREV = "8dbb395364629673a1f1dde81b1cf7d8041b0662"
+SRCREV = "930fcde3c8776c02f2a3d969d05608e2155eb159"
 SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
-DEPENDS_append = " i2c-tools"
+DEPENDS_append = " libgpiod"
 
 #todo(cheng) remove this when synced upstream
 SYSTEMD_SERVICE_${PN} += " xyz.openbmc_project.psusensor.service"

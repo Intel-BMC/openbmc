@@ -1,7 +1,7 @@
 SUMMARY = "BMC Self Test service"
 DESCRIPTION = "BMC Self Test service for subsystem diagnosis failure info"
 
-SRC_URI = "git://github.com/Intel-BMC/intel-self-test;protocol=ssh"
+SRC_URI = "git://git@github.com/Intel-BMC/intel-self-test;protocol=ssh"
 
 PV = "1.0+git${SRCPV}"
 SRCREV = "d039998ad2c55aeae4191af30e15bbd3032508c1"

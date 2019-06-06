@@ -1,0 +1,214 @@
+From f11928c6b39052c679c9300e9d836837ef60be06 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Mon, 3 Jun 2019 17:01:47 -0700
+Subject: [PATCH] Update IPMI Chassis Control command
+
+This change updates the IPMI Chassis Control command to use the new
+chassis state transitions. This allows each chassis control action
+to more closely follow the behavior defined in the IPMI spec.
+
+Tested:
+Ran each IPMI chassis control command to confirm the expected
+behavior:
+ipmitool power on: system is powered-on
+ipmitool power off: system is forced off
+ipmitool power cycle: system is forced off then powered-on
+ipmitool power reset: system is hard reset
+ipmitool power soft: soft power-off requested from system software
+
+Change-Id: Ic9fba3ca4abd9a758eb88f1e6ee09f7ca64ff80a
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ chassishandler.cpp | 138 +++++++++++++++++++++--------------------------------
+ 1 file changed, 54 insertions(+), 84 deletions(-)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index e4e842d..d71b95f 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -31,6 +31,7 @@
+ #include <xyz/openbmc_project/Control/Boot/Mode/server.hpp>
+ #include <xyz/openbmc_project/Control/Boot/Source/server.hpp>
+ #include <xyz/openbmc_project/Control/Power/RestorePolicy/server.hpp>
++#include <xyz/openbmc_project/State/Chassis/server.hpp>
+ #include <xyz/openbmc_project/State/Host/server.hpp>
+ #include <xyz/openbmc_project/State/PowerOnHours/server.hpp>
+ 
+@@ -712,59 +713,63 @@ ipmi_ret_t ipmi_set_chassis_cap(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+ //------------------------------------------
+ // Calls into Host State Manager Dbus object
+ //------------------------------------------
+-int initiate_state_transition(State::Host::Transition transition)
++int initiateHostStateTransition(State::Host::Transition transition)
+ {
+     // OpenBMC Host State Manager dbus framework
+-    constexpr auto HOST_STATE_MANAGER_ROOT = "/xyz/openbmc_project/state/host0";
+-    constexpr auto HOST_STATE_MANAGER_IFACE = "xyz.openbmc_project.State.Host";
+-    constexpr auto DBUS_PROPERTY_IFACE = "org.freedesktop.DBus.Properties";
+-    constexpr auto PROPERTY = "RequestedHostTransition";
++    constexpr auto hostStatePath = "/xyz/openbmc_project/state/host0";
++    constexpr auto hostStateIntf = "xyz.openbmc_project.State.Host";
+ 
+-    // sd_bus error
+-    int rc = 0;
+-    char* busname = NULL;
++    auto service = ipmi::getService(*getSdBus(), hostStateIntf, hostStatePath);
+ 
+-    // SD Bus error report mechanism.
+-    sd_bus_error bus_error = SD_BUS_ERROR_NULL;
++    // Convert to string equivalent of the passed in transition enum.
++    auto request = State::convertForMessage(transition);
+ 
+-    // Gets a hook onto either a SYSTEM or SESSION bus
+-    sd_bus* bus_type = ipmid_get_sd_bus_connection();
+-    rc = mapper_get_service(bus_type, HOST_STATE_MANAGER_ROOT, &busname);
+-    if (rc < 0)
++    try
++    {
++        ipmi::setDbusProperty(*getSdBus(), service, hostStatePath,
++                              hostStateIntf, "RequestedHostTransition",
++                              request);
++    }
++    catch (std::exception& e)
+     {
+         log<level::ERR>(
+-            "Failed to get bus name",
+-            entry("ERRNO=0x%X, OBJPATH=%s", -rc, HOST_STATE_MANAGER_ROOT));
+-        return rc;
++            "Failed to initiate transition",
++            entry("EXCEPTION=%s, REQUEST=%s", e.what(), request.c_str()));
++        return -1;
+     }
++    return 0;
++}
++
++//------------------------------------------
++// Calls into Chassis State Manager Dbus object
++//------------------------------------------
++int initiateChassisStateTransition(State::Chassis::Transition transition)
++{
++    // OpenBMC Chassis State Manager dbus framework
++    constexpr auto chassisStatePath = "/xyz/openbmc_project/state/chassis0";
++    constexpr auto chassisStateIntf = "xyz.openbmc_project.State.Chassis";
++
++    auto service =
++        ipmi::getService(*getSdBus(), chassisStateIntf, chassisStatePath);
+ 
+     // Convert to string equivalent of the passed in transition enum.
+     auto request = State::convertForMessage(transition);
+ 
+-    rc = sd_bus_call_method(bus_type,                // On the system bus
+-                            busname,                 // Service to contact
+-                            HOST_STATE_MANAGER_ROOT, // Object path
+-                            DBUS_PROPERTY_IFACE,     // Interface name
+-                            "Set",                   // Method to be called
+-                            &bus_error,              // object to return error
+-                            nullptr,                 // Response buffer if any
+-                            "ssv",                   // Takes 3 arguments
+-                            HOST_STATE_MANAGER_IFACE, PROPERTY, "s",
+-                            request.c_str());
+-    if (rc < 0)
++    try
+     {
+-        log<level::ERR>("Failed to initiate transition",
+-                        entry("ERRNO=0x%X, REQUEST=%s", -rc, request.c_str()));
++        ipmi::setDbusProperty(*getSdBus(), service, chassisStatePath,
++                              chassisStateIntf, "RequestedPowerTransition",
++                              request);
+     }
+-    else
++    catch (std::exception& e)
+     {
+-        log<level::INFO>("Transition request initiated successfully");
++        log<level::ERR>(
++            "Failed to initiate transition",
++            entry("EXCEPTION=%s, REQUEST=%s", e.what(), request.c_str()));
++        return -1;
+     }
+ 
+-    sd_bus_error_free(&bus_error);
+-    free(busname);
+-
+-    return rc;
++    return 0;
+ }
+ 
+ namespace power_policy
+@@ -1138,61 +1143,26 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
+     switch (chassisControl)
+     {
+         case CMD_POWER_ON:
+-            rc = initiate_state_transition(State::Host::Transition::On);
++            rc = initiateHostStateTransition(State::Host::Transition::On);
+             break;
+         case CMD_POWER_OFF:
+-            // This path would be hit in 2 conditions.
+-            // 1: When user asks for power off using ipmi chassis command 0x04
+-            // 2: Host asking for power off post shutting down.
+-
+-            // If it's a host requested power off, then need to nudge Softoff
+-            // application that it needs to stop the watchdog timer if running.
+-            // If it is a user requested power off, then this is not really
+-            // needed. But then we need to differentiate between user and host
+-            // calling this same command
+-
+-            // For now, we are going ahead with trying to nudge the soft off and
+-            // interpret the failure to do so as a non softoff case
+-            rc = stop_soft_off_timer();
+-
+-            // Only request the Off transition if the soft power off
+-            // application is not running
+-            if (rc < 0)
+-            {
+-                // First create a file to indicate to the soft off application
+-                // that it should not run. Not doing this will result in State
+-                // manager doing a default soft power off when asked for power
+-                // off.
+-                indicate_no_softoff_needed();
+-
+-                // Now request the shutdown
+-                rc = initiate_state_transition(State::Host::Transition::Off);
+-            }
+-            else
+-            {
+-                log<level::INFO>("Soft off is running, so let shutdown target "
+-                                 "stop the host");
+-            }
++            rc =
++                initiateChassisStateTransition(State::Chassis::Transition::Off);
+             break;
+-
+         case CMD_HARD_RESET:
++            rc = initiateChassisStateTransition(
++                State::Chassis::Transition::Reset);
++            break;
+         case CMD_POWER_CYCLE:
+-            // SPEC has a section that says certain implementations can trigger
+-            // PowerOn if power is Off when a command to power cycle is
+-            // requested
+-
+-            // First create a file to indicate to the soft off application
+-            // that it should not run since this is a direct user initiated
+-            // power reboot request (i.e. a reboot request that is not
+-            // originating via a soft power off SMS request)
+-            indicate_no_softoff_needed();
+-
+-            rc = initiate_state_transition(State::Host::Transition::Reboot);
++            rc = initiateChassisStateTransition(
++                State::Chassis::Transition::PowerCycle);
+             break;
+-
+         case CMD_SOFT_OFF_VIA_OVER_TEMP:
+-            // Request Host State Manager to do a soft power off
+-            rc = initiate_state_transition(State::Host::Transition::Off);
++            rc = initiateHostStateTransition(State::Host::Transition::Off);
++            break;
++        case CMD_PULSE_DIAGNOSTIC_INTR:
++            rc =
++                initiateHostStateTransition(State::Host::Transition::Interrupt);
+             break;
+ 
+         default:
+-- 
+2.7.4
+

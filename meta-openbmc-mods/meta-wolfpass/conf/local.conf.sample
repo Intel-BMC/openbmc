@@ -1,4 +1,4 @@
-MACHINE ??= "wolfpass"
+MACHINE ??= "intel-ast2500"
 #DL_DIR ?= "/~YoctoDownloads"
 #SSTATE_DIR ?= "/~YoctoSstate-cache"
 DISTRO ?= "openbmc-phosphor"
@@ -17,9 +17,6 @@ BB_DISKMON_DIRS = "\
     ABORT,${SSTATE_DIR},100M,1K \
     ABORT,/tmp,10M,1K"
 CONF_VERSION = "3"
-INHERIT += "extrausers"
-
-EXTRA_USERS_PARAMS_append_pn-intel-platforms = " \
-  usermod -p '\$1\$UGMqyqdG\$FZiylVFmRRfl9Z0Ue8G7e/' root; \
-  "
 #BB_NUMBER_THREADS = "70"
+
+#INHERIT += "cve-check"

@@ -3,12 +3,11 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 #SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "fdb8389df74f9f0d6428252a75c33f6abf6d8481"
+SRCREV = "ea1c401c4bac43d6070bf7d515df08f8bf57c0a2"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0009-IPv6-Network-changes.patch \
             file://0010-fix-get-system-GUID-ipmi-command.patch \
-            file://0012-ipmi-set-get-boot-options.patch \
             file://0013-ipmi-add-set-bios-id-to-whitelist.patch \
             file://0021-Implement-IPMI-Commmand-Get-Host-Restart-Cause.patch \
             file://0039-ipmi-add-oem-command-get-AIC-FRU-to-whitelist.patch \
@@ -20,6 +19,8 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0057-Add-timer-use-actions-support.patch \
             file://0059-Move-Set-SOL-config-parameter-to-host-ipmid.patch \
             file://0060-Move-Get-SOL-config-parameter-to-host-ipmid.patch \
+            file://0061-Use-xyz.openbmc_project.State.Chassis-for-IPMI-chass.patch \
+            file://0062-Update-IPMI-Chassis-Control-command.patch \
             "
 
 # remove the softpoweroff service since we do not need it
