@@ -10,8 +10,8 @@ inherit cmake
 LICENSE = "CLOSED"
 LIC_FILES_CHKSUM = ""
 
-SRC_URI = "git://github.com/Intel-BMC/at-scale-debug;protocol=ssh"
-SRCREV = "acf016bebe2cada610eb4aab7b97fdcd03e2200d"
+SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
+SRCREV = "0536b8cc3591a310ab36d145540811c728f8ef60"
 
 S = "${WORKDIR}/git/crashdump"
 PACKAGES += "libpeci"

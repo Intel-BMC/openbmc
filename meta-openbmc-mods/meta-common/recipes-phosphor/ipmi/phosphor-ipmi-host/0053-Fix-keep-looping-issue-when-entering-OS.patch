@@ -1,4 +1,4 @@
-From 9ed3fd11047f8c360b7d808946939ef280813811 Mon Sep 17 00:00:00 2001
+From ad93a6e17310d92ef07b8d367b23c93793562d0f Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@linux.intel.com>
 Date: Wed, 23 Jan 2019 17:02:40 +0800
 Subject: [PATCH] Fix keep looping issue when entering OS
@@ -20,19 +20,19 @@ correctly through KCS channel.
  1 file changed, 18 insertions(+), 6 deletions(-)
 
 diff --git a/host-cmd-manager.cpp b/host-cmd-manager.cpp
-index 0a61e63..6e50684 100644
+index f3aba7f..465eb81 100644
 --- a/host-cmd-manager.cpp
 +++ b/host-cmd-manager.cpp
 @@ -26,6 +26,8 @@ constexpr auto MAPPER_INTERFACE = "xyz.openbmc_project.ObjectMapper";
  constexpr auto HOST_STATE_PATH = "/xyz/openbmc_project/state/host0";
  constexpr auto HOST_STATE_INTERFACE = "xyz.openbmc_project.State.Host";
  constexpr auto HOST_TRANS_PROP = "RequestedHostTransition";
-+constexpr const char* IPMI_PATH = "/org/openbmc/HostIpmi/1";
-+constexpr const char* IPMI_INTERFACE = "org.openbmc.HostIpmi";
++constexpr const char* IPMI_PATH = "/xyz/openbmc_project/Ipmi/Channel/ipmi_kcs3";
++constexpr const char* IPMI_INTERFACE = "xyz.openbmc_project.Ipmi.Channel.SMS";
  
  // For throwing exceptions
  using namespace phosphor::logging;
-@@ -107,6 +109,20 @@ void Manager::clearQueue()
+@@ -106,6 +108,20 @@ void Manager::clearQueue()
          // `false` indicating Failure
          std::get<CallBack>(command)(ipmiCmdData, false);
      }
@@ -53,7 +53,7 @@ index 0a61e63..6e50684 100644
  }
  
  // Called for alerting the host
-@@ -116,9 +132,6 @@ void Manager::checkQueueAndAlertHost()
+@@ -115,9 +131,6 @@ void Manager::checkQueueAndAlertHost()
      {
          log<level::DEBUG>("Asserting SMS Attention");
  
@@ -63,7 +63,7 @@ index 0a61e63..6e50684 100644
          auto host = ::ipmi::getService(this->bus, IPMI_INTERFACE, IPMI_PATH);
  
          // Start the timer for this transaction
-@@ -132,9 +145,8 @@ void Manager::checkQueueAndAlertHost()
+@@ -131,9 +144,8 @@ void Manager::checkQueueAndAlertHost()
              return;
          }
  
@@ -76,5 +76,5 @@ index 0a61e63..6e50684 100644
  
          if (reply.is_method_error())
 -- 
-2.16.2
+2.7.4
 

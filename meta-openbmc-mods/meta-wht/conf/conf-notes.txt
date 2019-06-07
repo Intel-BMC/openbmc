@@ -1,0 +1,5 @@
+Common targets are:
+    intel-platforms
+    obmc-phosphor-image
+    virtual/kernel
+    phosphor-ipmi-host

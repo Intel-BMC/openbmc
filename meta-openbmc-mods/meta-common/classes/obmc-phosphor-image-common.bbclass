@@ -19,7 +19,6 @@ IMAGE_INSTALL_append = " \
         phosphor-host-postd \
         smbios-mdrv1 \
         phosphor-certificate-manager \
-        set-passthrough \
         phosphor-sel-logger \
         gpiodaemon \
         smbios-mdrv2 \
