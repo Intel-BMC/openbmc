@@ -39,6 +39,7 @@ RDEPENDS_${PN}-chassis-state-mgmt = " \
 SUMMARY_${PN}-extras = "Extra features"
 RDEPENDS_${PN}-extras = " \
         bmcweb \
+        phosphor-bmcweb-cert-config \
         obmc-ikvm \
         phosphor-dbus-monitor \
         phosphor-systemd-policy \
@@ -52,7 +53,7 @@ RDEPENDS_${PN}-extrasdev = " \
 
 SUMMARY_${PN}-extrasdevtools = "Development tools"
 RDEPENDS_${PN}-extrasdevtools = " \
-        libgpiod \
+        libgpiod-tools \
         "
 
 # Use the fan control package group for applications
