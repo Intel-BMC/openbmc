@@ -3,7 +3,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 #SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "ea1c401c4bac43d6070bf7d515df08f8bf57c0a2"
+SRCREV = "0b979b61c12ffe6ab8a27acf8ad2a0165d687195"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0009-IPv6-Network-changes.patch \
@@ -21,6 +21,7 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0060-Move-Get-SOL-config-parameter-to-host-ipmid.patch \
             file://0061-Use-xyz.openbmc_project.State.Chassis-for-IPMI-chass.patch \
             file://0062-Update-IPMI-Chassis-Control-command.patch \
+            file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
             "
 
 # remove the softpoweroff service since we do not need it

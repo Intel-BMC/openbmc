@@ -1,6 +1,6 @@
 From 0b8b93851bb79e70e91159f310afd4b56084977f Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
-Date: Mon, 6 May 2019 10:05:51 -0800
+Date: Fri, 7 Jun 2019 07:37:39 -0800
 Subject: [PATCH v29 1/6] drivers: jtag: Add JTAG core driver
 
 JTAG class driver provide infrastructure to support hardware/software
@@ -58,6 +58,9 @@ Comments pointed by Steven Filary <steven.a.filary@intel.com>
   the driver is not in use to allow other HW to own the JTAG bus. Remove SCU
   register accesses. This register controls the JTAG controller mode
   (master/slave).
+- Fix static analysis issues
+- Add support for multichain. Set tap state and xfer operations now include
+  two tap state arguments: current state and end state.
 
 v27->v28
 Comments pointed by Steven Filary <steven.a.filary@intel.com>
@@ -253,10 +256,10 @@ Comments pointed by Tobias Klauser <tklauser@distanz.ch>
  drivers/Makefile          |   1 +
  drivers/jtag/Kconfig      |  17 +++
  drivers/jtag/Makefile     |   1 +
- drivers/jtag/jtag.c       | 314 ++++++++++++++++++++++++++++++++++++++++++++++
+ drivers/jtag/jtag.c       | 321 ++++++++++++++++++++++++++++++++++++++++++++++
  include/linux/jtag.h      |  47 +++++++
- include/uapi/linux/jtag.h | 208 ++++++++++++++++++++++++++++++
- 7 files changed, 589 insertions(+)
+ include/uapi/linux/jtag.h | 214 ++++++++++++++++++++++++++++++
+ 7 files changed, 602 insertions(+)
  create mode 100644 drivers/jtag/Kconfig
  create mode 100644 drivers/jtag/Makefile
  create mode 100644 drivers/jtag/jtag.c
@@ -317,7 +320,7 @@ new file mode 100644
 index 0000000..47503a1
 --- /dev/null
 +++ b/drivers/jtag/jtag.c
-@@ -0,0 +1,314 @@
+@@ -0,0 +1,321 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// Copyright (c) 2018 Mellanox Technologies. All rights reserved.
 +// Copyright (c) 2018 Oleksandr Shamray <oleksandrs@mellanox.com>
@@ -353,7 +356,7 @@ index 0000000..47503a1
 +static long jtag_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 +{
 +	struct jtag *jtag = file->private_data;
-+	struct jtag_end_tap_state endstate;
++	struct jtag_tap_state tapstate;
 +	struct jtag_xfer xfer;
 +	struct bitbang_packet bitbang;
 +	struct tck_bitbang *bitbang_data;
@@ -392,17 +395,20 @@ index 0000000..47503a1
 +		break;
 +
 +	case JTAG_SIOCSTATE:
-+		if (copy_from_user(&endstate, (const void __user *)arg,
-+				   sizeof(struct jtag_end_tap_state)))
++		if (copy_from_user(&tapstate, (const void __user *)arg,
++				   sizeof(struct jtag_tap_state)))
 +			return -EFAULT;
 +
-+		if (endstate.endstate > JTAG_STATE_UPDATEIR)
++		if (tapstate.from > JTAG_STATE_CURRENT)
 +			return -EINVAL;
 +
-+		if (endstate.reset > JTAG_FORCE_RESET)
++		if (tapstate.endstate > JTAG_STATE_CURRENT)
 +			return -EINVAL;
 +
-+		err = jtag->ops->status_set(jtag, &endstate);
++		if (tapstate.reset > JTAG_FORCE_RESET)
++			return -EINVAL;
++
++		err = jtag->ops->status_set(jtag, &tapstate);
 +		break;
 +
 +	case JTAG_IOCXFER:
@@ -419,7 +425,10 @@ index 0000000..47503a1
 +		if (xfer.direction > JTAG_READ_WRITE_XFER)
 +			return -EINVAL;
 +
-+		if (xfer.endstate > JTAG_STATE_UPDATEIR)
++		if (xfer.from > JTAG_STATE_CURRENT)
++			return -EINVAL;
++
++		if (xfer.endstate > JTAG_STATE_CURRENT)
 +			return -EINVAL;
 +
 +		data_size = DIV_ROUND_UP(xfer.length, BITS_PER_BYTE);
@@ -607,7 +616,8 @@ index 0000000..47503a1
 +	struct jtag **ptr;
 +	int ret;
 +
-+	ptr = devres_alloc(devm_jtag_unregister, sizeof(*ptr), GFP_KERNEL);
++	ptr = devres_alloc(devm_jtag_unregister, sizeof(struct jtag *),
++			   GFP_KERNEL);
 +	if (!ptr)
 +		return -ENOMEM;
 +
@@ -669,7 +679,7 @@ index 0000000..4153c90
 +	int (*freq_get)(struct jtag *jtag, u32 *freq);
 +	int (*freq_set)(struct jtag *jtag, u32 freq);
 +	int (*status_get)(struct jtag *jtag, u32 *state);
-+	int (*status_set)(struct jtag *jtag, struct jtag_end_tap_state *endst);
++	int (*status_set)(struct jtag *jtag, struct jtag_tap_state *endst);
 +	int (*xfer)(struct jtag *jtag, struct jtag_xfer *xfer, u8 *xfer_data);
 +	int (*mode_set)(struct jtag *jtag, struct jtag_mode *jtag_mode);
 +	int (*bitbang)(struct jtag *jtag, struct bitbang_packet *bitbang,
@@ -690,7 +700,7 @@ new file mode 100644
 index 0000000..3f9e195
 --- /dev/null
 +++ b/include/uapi/linux/jtag.h
-@@ -0,0 +1,208 @@
+@@ -0,0 +1,214 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/* Copyright (c) 2018 Mellanox Technologies. All rights reserved. */
 +/* Copyright (c) 2018 Oleksandr Shamray <oleksandrs@mellanox.com> */
@@ -732,7 +742,7 @@ index 0000000..3f9e195
 +#define  JTAG_XFER_SW_MODE 0
 +
 +/**
-+ * enum jtag_endstate:
++ * enum jtag_tapstate:
 + *
 + * @JTAG_STATE_TLRESET: JTAG state machine Test Logic Reset state
 + * @JTAG_STATE_IDLE: JTAG state machine IDLE state
@@ -750,8 +760,9 @@ index 0000000..3f9e195
 + * @JTAG_STATE_PAUSEIR: JTAG state machine PAUSE_IR state
 + * @JTAG_STATE_EXIT2IR: JTAG state machine EXIT-2 IR state
 + * @JTAG_STATE_UPDATEIR: JTAG state machine UPDATE IR state
++ * @JTAG_STATE_CURRENT: JTAG current state, saved by driver
 + */
-+enum jtag_endstate {
++enum jtag_tapstate {
 +	JTAG_STATE_TLRESET,
 +	JTAG_STATE_IDLE,
 +	JTAG_STATE_SELECTDR,
@@ -767,7 +778,8 @@ index 0000000..3f9e195
 +	JTAG_STATE_EXIT1IR,
 +	JTAG_STATE_PAUSEIR,
 +	JTAG_STATE_EXIT2IR,
-+	JTAG_STATE_UPDATEIR
++	JTAG_STATE_UPDATEIR,
++	JTAG_STATE_CURRENT
 +};
 +
 +/**
@@ -806,7 +818,7 @@ index 0000000..3f9e195
 +};
 +
 +/**
-+ * struct jtag_end_tap_state - forces JTAG state machine to go into a TAPC
++ * struct jtag_tap_state - forces JTAG state machine to go into a TAPC
 + * state
 + *
 + * @reset: 0 - run IDLE/PAUSE from current state
@@ -816,8 +828,9 @@ index 0000000..3f9e195
 + *
 + * Structure provide interface to JTAG device for JTAG set state execution.
 + */
-+struct jtag_end_tap_state {
++struct jtag_tap_state {
 +	__u8	reset;
++	__u8	from;
 +	__u8	endstate;
 +	__u8	tck;
 +};
@@ -827,15 +840,18 @@ index 0000000..3f9e195
 + *
 + * @type: transfer type
 + * @direction: xfer direction
-+ * @length: xfer bits len
++ * @from: xfer current state
++ * @endstate: xfer end state
++ * @padding: xfer padding
++ * @length: xfer bits length
 + * @tdio : xfer data array
-+ * @endir: xfer end state
 + *
 + * Structure provide interface to JTAG device for JTAG SDR/SIR xfer execution.
 + */
 +struct jtag_xfer {
 +	__u8	type;
 +	__u8	direction;
++	__u8	from;
 +	__u8	endstate;
 +	__u8	padding;
 +	__u32	length;
@@ -890,11 +906,11 @@ index 0000000..3f9e195
 +/* ioctl interface */
 +#define __JTAG_IOCTL_MAGIC	0xb2
 +
-+#define JTAG_SIOCSTATE	_IOW(__JTAG_IOCTL_MAGIC, 0, struct jtag_end_tap_state)
++#define JTAG_SIOCSTATE	_IOW(__JTAG_IOCTL_MAGIC, 0, struct jtag_tap_state)
 +#define JTAG_SIOCFREQ	_IOW(__JTAG_IOCTL_MAGIC, 1, unsigned int)
 +#define JTAG_GIOCFREQ	_IOR(__JTAG_IOCTL_MAGIC, 2, unsigned int)
 +#define JTAG_IOCXFER	_IOWR(__JTAG_IOCTL_MAGIC, 3, struct jtag_xfer)
-+#define JTAG_GIOCSTATUS _IOWR(__JTAG_IOCTL_MAGIC, 4, enum jtag_endstate)
++#define JTAG_GIOCSTATUS _IOWR(__JTAG_IOCTL_MAGIC, 4, enum jtag_tapstate)
 +#define JTAG_SIOCMODE	_IOW(__JTAG_IOCTL_MAGIC, 5, unsigned int)
 +#define JTAG_IOCBITBANG	_IOW(__JTAG_IOCTL_MAGIC, 6, unsigned int)
 +

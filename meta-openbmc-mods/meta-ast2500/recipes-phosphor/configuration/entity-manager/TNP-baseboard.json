@@ -225,6 +225,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 8,
             "Name": "PVCCIN_CPU1",
             "PowerState": "On",
@@ -258,6 +259,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 9,
             "Name": "PVCCIN_CPU2",
             "PowerState": "On",
@@ -291,6 +293,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 14,
             "Name": "PVCCIO_CPU1",
             "PowerState": "On",
@@ -323,6 +326,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 15,
             "Name": "PVCCIO_CPU2",
             "PowerState": "On",
@@ -355,6 +359,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 10,
             "Name": "PVDQ_ABCD_CPU1",
             "PowerState": "On",
@@ -387,6 +392,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 12,
             "Name": "PVDQ_ABCD_CPU2",
             "PowerState": "On",
@@ -419,6 +425,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 11,
             "Name": "PVDQ_EFGH_CPU1",
             "PowerState": "On",
@@ -451,6 +458,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 13,
             "Name": "PVDQ_EFGH_CPU2",
             "PowerState": "On",
@@ -1679,14 +1687,12 @@
             "Type": "IpmbSensor"
         },
         {
-            "BindGpioNodeID": "Node ID GPIO 0",
-            "Name": "Multi Node ID 0",
-            "Type": "MultiNode"
-        },
-        {
-            "BindGpioNodeID": "Node ID GPIO 1",
-            "Name": "Multi Node ID 1",
-            "Type": "MultiNode"
+            "GpioPins": [
+                27,
+                26
+            ],
+            "Name": "Multi Node ID",
+            "Type": "MultiNodeID"
         },
         {
             "Address": "0x71",
@@ -1699,52 +1705,6 @@
             ],
             "Name": "M.2 Mux",
             "Type": "PCA9543Mux"
-        },
-        {
-            "Address": "0x30",
-            "Bus": 0,
-            "CpuID": 1,
-            "Name": "Xeon CPU 1",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99
-                },
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89
-                }
-            ],
-            "Type": "XeonCPU"
-        },
-        {
-            "Address": "0x31",
-            "Bus": 0,
-            "CpuID": 2,
-            "Name": "Xeon CPU 2",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99
-                },
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89
-                }
-            ],
-            "Type": "XeonCPU"
         },
         {
             "Address": "0x4E",
@@ -1809,12 +1769,58 @@
                 }
             ],
             "Type": "TMP75"
+        },
+        {
+            "Address": "0x30",
+            "Bus": 0,
+            "CpuID": 1,
+            "Name": "CPU 1",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 99
+                },
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 89
+                }
+            ],
+            "Type": "XeonCPU"
+        },
+        {
+            "Address": "0x31",
+            "Bus": 0,
+            "CpuID": 2,
+            "Name": "CPU 2",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 99
+                },
+                {
+                    "Direction": "greater than",
+                    "Label": "DIMM",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 89
+                }
+            ],
+            "Type": "XeonCPU"
         }
     ],
     "Name": "TNP Baseboard",
     "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*TNP'})",
-    "Type": "Board",
     "ProductId": 153,
+    "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",
         "Model": "$PRODUCT_PRODUCT_NAME",

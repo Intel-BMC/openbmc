@@ -11,7 +11,7 @@
                 "Address": "0x18",
                 "Bus": "$bus",
                 "Name": "Multi Node Presence Detector",
-                "Type": "MultiNode"
+                "Type": "MultiNodePresence"
             },
             {
                 "Address": "0x48",

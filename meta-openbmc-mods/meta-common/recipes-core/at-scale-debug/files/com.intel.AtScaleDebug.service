@@ -1,6 +1,6 @@
 [Unit]
 Description=Intel BMC At Scale Debug
-Requires=com.intel.AtScaleDebugJtagTest.service network-online.target
+Requires=network-online.target
 
 [Service]
 Restart=always
@@ -10,4 +10,4 @@ Type=simple
 SyslogIdentifier=asd
 
 [Install]
-WantedBy=obmc-host-start@0.target
+WantedBy=multi-user.target
