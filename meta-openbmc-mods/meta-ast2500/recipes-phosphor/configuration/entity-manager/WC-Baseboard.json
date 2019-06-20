@@ -195,6 +195,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 8,
             "Name": "PVCCIN_CPU1",
             "PowerState": "On",
@@ -228,6 +229,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 9,
             "Name": "PVCCIN_CPU2",
             "PowerState": "On",
@@ -261,6 +263,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 14,
             "Name": "PVCCIO_CPU1",
             "PowerState": "On",
@@ -293,6 +296,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 15,
             "Name": "PVCCIO_CPU2",
             "PowerState": "On",
@@ -325,6 +329,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 10,
             "Name": "PVDQ_ABC_CPU1",
             "PowerState": "On",
@@ -357,6 +362,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 12,
             "Name": "PVDQ_ABC_CPU2",
             "PowerState": "On",
@@ -389,6 +395,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 1,
             "Index": 11,
             "Name": "PVDQ_DEF_CPU1",
             "PowerState": "On",
@@ -421,6 +428,7 @@
             "Type": "ADC"
         },
         {
+            "CPURequired": 2,
             "Index": 13,
             "Name": "PVDQ_DEF_CPU2",
             "PowerState": "On",

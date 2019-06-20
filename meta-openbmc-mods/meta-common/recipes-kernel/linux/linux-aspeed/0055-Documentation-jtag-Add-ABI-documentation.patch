@@ -86,8 +86,8 @@ Comments pointed by Pavel Machek <pavel@ucw.cz>
 ---
  Documentation/ABI/testing/jtag-dev |  23 +++++++
  Documentation/jtag/overview        |  27 ++++++++
- Documentation/jtag/transactions    | 138 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 188 insertions(+)
+ Documentation/jtag/transactions    | 145 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 195 insertions(+)
  create mode 100644 Documentation/ABI/testing/jtag-dev
  create mode 100644 Documentation/jtag/overview
  create mode 100644 Documentation/jtag/transactions
@@ -159,7 +159,7 @@ new file mode 100644
 index 0000000..76fd0b1
 --- /dev/null
 +++ b/Documentation/jtag/transactions
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,145 @@
 +The JTAG API
 +=============
 +
@@ -204,8 +204,9 @@ index 0000000..76fd0b1
 +------
 +Force JTAG state machine to go into a TAPC state
 +
-+struct jtag_end_tap_state {
++struct jtag_tap_state {
 +	__u8	reset;
++	__u8	from;
 +	__u8	endstate;
 +	__u8	tck;
 +};
@@ -217,21 +218,22 @@ index 0000000..76fd0b1
 +tck: clock counter
 +
 +Example:
-+	struct jtag_end_tap_state end_state;
++	struct jtag_tap_state tap_state;
 +
-+	end_state.endstate = JTAG_STATE_IDLE;
-+	end_state.reset = 0;
-+	end_state.tck = data_p->tck;
++	tap_state.from = JTAG_STATE_TLRESET;
++	tap_state.endstate = JTAG_STATE_IDLE;
++	tap_state.reset = 0;
++	tap_state.tck = data_p->tck;
 +	usleep(25 * 1000);
-+	ioctl(jtag_fd, JTAG_SIOCSTATE, &end_state);
++	ioctl(jtag_fd, JTAG_SIOCSTATE, &tap_state);
 +
 +JTAG_GIOCSTATUS
 +------
 +Get JTAG TAPC machine state
 +
 +	unsigned int jtag_fd;
-+	jtag_endstate endstate;
-+	ioctl(jtag_fd, JTAG_GIOCSTATUS, &endstate);
++	jtag_tapstate tapstate;
++	ioctl(jtag_fd, JTAG_GIOCSTATUS, &tapstate);
 +
 +JTAG_IOCXFER
 +------
@@ -240,6 +242,7 @@ index 0000000..76fd0b1
 +struct jtag_xfer {
 +	__u8	type;
 +	__u8	direction;
++	__u8	from;
 +	__u8	endstate;
 +	__u8	padding;
 +	__u32	length;
@@ -250,8 +253,11 @@ index 0000000..76fd0b1
 +direction: xfer direction - JTAG_READ_XFER/JTAG_WRITE_XFER/JTAG_READ_WRITE_XFER
 +length: xfer data length in bits
 +tdio : xfer data array
++from: xfer from state can be current JTAG tap state saved by the driver
++      JTAG_STATE_CURRENT or in a multichain environment any state listed in 
++      jtag_tapstate struct saved by your multichain controller software.
 +endstate: xfer end state after transaction finish
-+	   can be: any state listed in jtag_endstate struct
++	   can be: any state listed in jtag_tapstate struct
 +
 +Example:
 +	struct jtag_xfer xfer;
@@ -261,6 +267,7 @@ index 0000000..76fd0b1
 +	xfer.type = JTAG_SDR_XFER;
 +	xfer.tdio = (__u64)buf;
 +	xfer.length = buf_len;
++	xfer.from = JTAG_STATE_TLRESET;
 +	xfer.endstate = JTAG_STATE_IDLE;
 +
 +	if (is_read)
@@ -300,4 +307,3 @@ index 0000000..76fd0b1
 +	tdo1 = bitbang_data[1].tdo;
 -- 
 2.7.4
-

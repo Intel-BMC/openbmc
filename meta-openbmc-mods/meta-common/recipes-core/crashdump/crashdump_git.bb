@@ -11,7 +11,7 @@ LICENSE = "CLOSED"
 LIC_FILES_CHKSUM = ""
 
 SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
-SRCREV = "0536b8cc3591a310ab36d145540811c728f8ef60"
+SRCREV = "3369d2e81f7e5e4bcb5d9e14bcecea7ae5da07fb"
 
 S = "${WORKDIR}/git/crashdump"
 PACKAGES += "libpeci"

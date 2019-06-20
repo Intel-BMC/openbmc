@@ -8,7 +8,6 @@ IMAGE_INSTALL_append = " \
         dtoverlay \
         entity-manager \
         ipmitool \
-        ipmi-providers \
         intel-ipmi-oem \
         phosphor-ipmi-ipmb \
         phosphor-node-manager-proxy \

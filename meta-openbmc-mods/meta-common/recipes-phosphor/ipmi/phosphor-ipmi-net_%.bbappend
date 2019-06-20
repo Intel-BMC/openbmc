@@ -3,7 +3,7 @@ inherit useradd
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 #SRC_URI += "git://github.com/openbmc/phosphor-net-ipmid"
-#SRCREV = "052b7cf37411a1bb69af1e6ce541a16021fffa9f"
+#SRCREV = "b31e969504645f653b58b676d56b01d632dc395c"
 
 USERADD_PACKAGES = "${PN}"
 # add a group called ipmi

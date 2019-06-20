@@ -41,7 +41,6 @@ SRC_URI += " \
         file://0056-Documentation-jtag-Add-JTAG-core-driver-ioctl-number.patch \
         file://0057-drivers-jtag-Add-JTAG-core-driver-Maintainers.patch \
         file://0058-i2c-aspeed-add-general-call-support.patch \
-        file://0059-media-aspeed-remove-source-buffer-allocation-before-.patch \
-        file://0060-media-aspeed-use-different-delays-for-triggering-VE-.patch \
-        file://0062-media-aspeed-add-a-workaround-to-fix-a-silicon-bug.patch \
+        file://0065-i2c-aspeed-fix-master-pending-state-handling.patch \
+        file://0066-i2c-aspeed-add-buffer-mode-transfer-support.patch \
         "

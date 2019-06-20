@@ -19,9 +19,6 @@ SRC_URI_append_intel-ast2500 = " \
     file://0013-aspeed-Add-Pwm-Driver.patch \
     file://0014-Keep-interrupts-enabled-until-last-second.patch \
     file://0015-Rewrite-memmove-to-optimize-on-word-transfers.patch \
-    file://0016-Add-support-for-128MB-Macronix-spi-flash-MX66L1G45G.patch \
-    file://0017-Enable-Macronix-and-Micron-SPI-support.patch \
-    file://0018-Add-support-for-Macronix-and-Micron-1Gbits-SPI-flash.patch \
     file://0019-u-boot-full-platform-reset-espi-oob-ready.patch \
     file://0020-Enable-PCIe-L1-support.patch \
     file://0020-Add-system-reset-status-support.patch \
@@ -33,11 +30,21 @@ SRC_URI_append_intel-ast2500 = " \
     file://0026-Aspeed-I2C-support-in-U-Boot.patch \
     file://0027-CPLD-u-boot-commands-support-for-PFR.patch \
     file://0028-Enabling-uart1-uart2-in-u-boot-for-BIOS-messages.patch \
+    file://0029-FFUJ-FW-IPMI-commands-and-flash-support-in-u-boot.patch \
     "
 SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('IMAGE_TYPE', 'pfr', 'file://0022-u-boot-env-change-for-PFR-image.patch', '', d)}"
 
 require recipes-core/os-release/version-vars.inc
 
-BUILD_CFLAGS_append =  " -DVER_MAJOR=${IPMI_MAJOR} -DVER_MINOR=${IPMI_MINOR}"
-BUILD_CFLAGS_append += " -DVER_AUX13=${IPMI_AUX13} -DVER_AUX14=${IPMI_AUX14}"
-BUILD_CFLAGS_append += " -DVER_AUX15=${IPMI_AUX15} -DVER_AUX16=${IPMI_AUX16}"
+python do_version () {
+    with open(d.expand('${S}/board/aspeed/ast-g5/intel-version.h'), 'w') as f:
+        f.write(d.expand('#define VER_MAJOR ${IPMI_MAJOR}\n'))
+        f.write(d.expand('#define VER_MINOR ${IPMI_MINOR}\n'))
+        f.write(d.expand('#define VER_AUX13 ${IPMI_AUX13}\n'))
+        f.write(d.expand('#define VER_AUX14 ${IPMI_AUX14}\n'))
+        f.write(d.expand('#define VER_AUX15 ${IPMI_AUX15}\n'))
+        f.write(d.expand('#define VER_AUX16 ${IPMI_AUX16}\n'))
+}
+
+do_version[vardepsexclude] = "IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16 PRODUCT_GENERATION VERSION VERSION_ID BUILD_ID"
+addtask do_version after do_configure before do_compile

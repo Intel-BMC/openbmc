@@ -1,5 +1,5 @@
 SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git"
-SRCREV = "57b878d048f929643276f1bf7fdf750abc4bde8b"
+SRCREV = "1f0e2ce6e1cb78a59a0015b160816b71156b03c6"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -18,4 +18,5 @@ SRC_URI += "file://0002-Modify-Dbus-for-IPv6.patch \
             file://0021-Add-interface-suppot-for-provisioning-modes.patch \
             file://0022-Add-chassis-power-cycle-and-reset-to-Chassis-State.patch \
             file://0023-Add-host-interrupt-to-the-Host-State.patch \
+            file://0024-Add-the-pre-timeout-interrupt-defined-in-IPMI-spec.patch \
             "
