@@ -1,25 +1,26 @@
-From 83d67b5b3cbffcefda5efdc0060b9e30f44c9aca Mon Sep 17 00:00:00 2001
+From 320cf189fd017e3578b6949ff640213d7bddb20c Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Fri, 16 Nov 2018 14:44:49 -0800
-Subject: [PATCH 6/7] Add basic timer support for Aspeed g5 in U-Boot
+Subject: [PATCH] Add basic timer support for Aspeed g5 in U-Boot
 
 Timers will be used for timing events and making blinky LEDs. This just
 adds the API and infrastructure.
 
 Change-Id: I8ff03b26070b43a47fb970ddf6124d6c3f29b058
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
 ---
  board/aspeed/ast-g5/Makefile       |  1 +
  board/aspeed/ast-g5/ast-g5-intel.c |  1 +
- board/aspeed/ast-g5/ast-g5-timer.c | 66 ++++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5-timer.h | 27 ++++++++++++
+ board/aspeed/ast-g5/ast-g5-timer.c | 66 ++++++++++++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-timer.h | 27 ++++++++++++++++
  board/aspeed/ast-g5/ast-g5.h       |  1 +
  5 files changed, 96 insertions(+)
  create mode 100644 board/aspeed/ast-g5/ast-g5-timer.c
  create mode 100644 board/aspeed/ast-g5/ast-g5-timer.h
 
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index 2970ae5741..90224333c4 100644
+index 2970ae5..9022433 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -3,3 +3,4 @@ obj-y += ast-g5-intel.o
@@ -28,7 +29,7 @@ index 2970ae5741..90224333c4 100644
  obj-y += ast-g5-gpio.o
 +obj-y += ast-g5-timer.o
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 58ad6a55b8..23bf4e4352 100644
+index 144765a..6e45cb4 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -15,6 +15,7 @@
@@ -41,7 +42,7 @@ index 58ad6a55b8..23bf4e4352 100644
  enum gpio_names {
 diff --git a/board/aspeed/ast-g5/ast-g5-timer.c b/board/aspeed/ast-g5/ast-g5-timer.c
 new file mode 100644
-index 0000000000..56157222d9
+index 0000000..5615722
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-timer.c
 @@ -0,0 +1,66 @@
@@ -113,7 +114,7 @@ index 0000000000..56157222d9
 +}
 diff --git a/board/aspeed/ast-g5/ast-g5-timer.h b/board/aspeed/ast-g5/ast-g5-timer.h
 new file mode 100644
-index 0000000000..4b1ac28a9f
+index 0000000..4b1ac28
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-timer.h
 @@ -0,0 +1,27 @@
@@ -145,7 +146,7 @@ index 0000000000..4b1ac28a9f
 +
 +#endif /* __AST_G5_TIMER_H__ */
 diff --git a/board/aspeed/ast-g5/ast-g5.h b/board/aspeed/ast-g5/ast-g5.h
-index 908db1477b..28fe5eafcb 100644
+index 908db14..28fe5ea 100644
 --- a/board/aspeed/ast-g5/ast-g5.h
 +++ b/board/aspeed/ast-g5/ast-g5.h
 @@ -4,5 +4,6 @@
@@ -155,6 +156,3 @@ index 908db1477b..28fe5eafcb 100644
 +#include "ast-g5-timer.h"
  
  #endif /* _AST_G5_H_ */
--- 
-2.17.1
-

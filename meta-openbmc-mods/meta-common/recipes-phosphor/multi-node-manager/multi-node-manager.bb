@@ -2,7 +2,7 @@ SUMMARY = "Multi node manager"
 DESCRIPTION = "Daemon to handle chassis level shared resources on multi-node platform"
 
 SRC_URI = "git://git@github.com/Intel-BMC/multi-node-manager.git;protocol=ssh"
-SRCREV = "6a4cd36c0d46df11bdcd3b897bcc9c87e549a076"
+SRCREV = "34d959285a3ca12c4bfefa4040d82d571c78843b"
 
 PV = "0.1+git${SRCPV}"
 

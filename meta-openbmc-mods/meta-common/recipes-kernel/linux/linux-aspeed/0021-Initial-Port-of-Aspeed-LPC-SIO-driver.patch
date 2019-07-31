@@ -1,4 +1,4 @@
-From 7d5cd323d3b05a00f8b8a6eb38a5a1ec7925660a Mon Sep 17 00:00:00 2001
+From 3d1ddeb903f6eaeb06ddc1d6cfbed6374ef31f36 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@intel.com>
 Date: Mon, 13 Nov 2017 16:29:44 +0800
 Subject: [PATCH] Aspeed LPC SIO driver
@@ -8,24 +8,24 @@ Add lpc sio device driver for AST2500/2400
 Signed-off-by: Yong Li <yong.b.li@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- .../devicetree/bindings/misc/aspeed-sio.txt        |  18 +
+ .../bindings/soc/aspeed/aspeed-lpc-sio.txt         |  17 +
  arch/arm/boot/dts/aspeed-g4.dtsi                   |   7 +
  arch/arm/boot/dts/aspeed-g5.dtsi                   |   7 +
- drivers/misc/Kconfig                               |   9 +
- drivers/misc/Makefile                              |   1 +
- drivers/misc/aspeed-lpc-sio.c                      | 450 +++++++++++++++++++++
+ drivers/soc/aspeed/Kconfig                         |   7 +
+ drivers/soc/aspeed/Makefile                        |   1 +
+ drivers/soc/aspeed/aspeed-lpc-sio.c                | 450 +++++++++++++++++++++
  include/uapi/linux/aspeed-lpc-sio.h                |  44 ++
- 7 files changed, 536 insertions(+)
- create mode 100644 Documentation/devicetree/bindings/misc/aspeed-sio.txt
- create mode 100644 drivers/misc/aspeed-lpc-sio.c
+ 7 files changed, 533 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/soc/aspeed/aspeed-lpc-sio.txt
+ create mode 100644 drivers/soc/aspeed/aspeed-lpc-sio.c
  create mode 100644 include/uapi/linux/aspeed-lpc-sio.h
 
-diff --git a/Documentation/devicetree/bindings/misc/aspeed-sio.txt b/Documentation/devicetree/bindings/misc/aspeed-sio.txt
+diff --git a/Documentation/devicetree/bindings/soc/aspeed/aspeed-lpc-sio.txt b/Documentation/devicetree/bindings/soc/aspeed/aspeed-lpc-sio.txt
 new file mode 100644
-index 000000000000..3530c2b02f5c
+index 000000000000..c74ea3a4e5ac
 --- /dev/null
-+++ b/Documentation/devicetree/bindings/misc/aspeed-sio.txt
-@@ -0,0 +1,18 @@
++++ b/Documentation/devicetree/bindings/soc/aspeed/aspeed-lpc-sio.txt
+@@ -0,0 +1,17 @@
 +* Aspeed LPC SIO driver.
 +
 +Required properties:
@@ -43,12 +43,11 @@ index 000000000000..3530c2b02f5c
 +        clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
 +	status = "disabled";
 +};
-+
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index e8bcfc90bf7c..a87fd5ee1c84 100644
+index 07758c9b900b..3df43f925848 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -340,6 +340,13 @@
+@@ -345,6 +345,13 @@
  						compatible = "aspeed,bmc-misc";
  					};
  
@@ -63,10 +62,10 @@ index e8bcfc90bf7c..a87fd5ee1c84 100644
  						compatible = "aspeed,ast2400-mbox";
  						reg = <0x180 0x5c>;
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index e5c0ba0f87c8..a568699c28f4 100644
+index 2387e2d1ff9e..2d6f730a7101 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -451,6 +451,13 @@
+@@ -474,6 +474,13 @@
  						compatible = "aspeed,bmc-misc";
  					};
  
@@ -80,40 +79,40 @@ index e5c0ba0f87c8..a568699c28f4 100644
  					mbox: mbox@180 {
  						compatible = "aspeed,ast2500-mbox";
  						reg = <0x180 0x5c>;
-diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index 00d1c547ece7..3ffb18f915e8 100644
---- a/drivers/misc/Kconfig
-+++ b/drivers/misc/Kconfig
-@@ -493,6 +493,15 @@ config ASPEED_LPC_CTRL
- 	  ioctl()s, the driver also provides a read/write interface to a BMC ram
- 	  region where the host LPC read/write region can be buffered.
+diff --git a/drivers/soc/aspeed/Kconfig b/drivers/soc/aspeed/Kconfig
+index a4be8e566bc7..285c19042c65 100644
+--- a/drivers/soc/aspeed/Kconfig
++++ b/drivers/soc/aspeed/Kconfig
+@@ -28,6 +28,13 @@ config ASPEED_LPC_MBOX
+ 	  Expose the ASPEED LPC MBOX registers found on Aspeed SOCs (AST2400
+ 	  and AST2500) to userspace.
  
 +config ASPEED_LPC_SIO
-+	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
 +	tristate "Aspeed ast2400/2500 HOST LPC SIO support"
++	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
 +	help
-+	  Provides a driver to control the LPC SIO interface
-+          on ASPEED platform
-+          through
-+	  ioctl()s.
++	  Provides a driver to control the LPC SIO interface on ASPEED platform
++	  through ioctl()s.
 +
  config ASPEED_LPC_SNOOP
  	tristate "Aspeed ast2500 HOST LPC snoop support"
- 	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
-diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index 768278b059c3..de2d5c6d186c 100644
---- a/drivers/misc/Makefile
-+++ b/drivers/misc/Makefile
-@@ -53,6 +53,7 @@ obj-$(CONFIG_GENWQE)		+= genwqe/
- obj-$(CONFIG_ECHO)		+= echo/
- obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
- obj-$(CONFIG_CXL_BASE)		+= cxl/
-+obj-$(CONFIG_ASPEED_LPC_SIO)	+= aspeed-lpc-sio.o
+ 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
+diff --git a/drivers/soc/aspeed/Makefile b/drivers/soc/aspeed/Makefile
+index f3ff29b874ed..2e547cc47e62 100644
+--- a/drivers/soc/aspeed/Makefile
++++ b/drivers/soc/aspeed/Makefile
+@@ -2,5 +2,6 @@
+ obj-$(CONFIG_ASPEED_BMC_MISC)	+= aspeed-bmc-misc.o
  obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
- obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
  obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o
++obj-$(CONFIG_ASPEED_LPC_SIO)	+= aspeed-lpc-sio.o
+ obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
+ obj-$(CONFIG_ASPEED_P2A_CTRL)	+= aspeed-p2a-ctrl.o
+diff --git a/drivers/soc/aspeed/aspeed-lpc-sio.c b/drivers/soc/aspeed/aspeed-lpc-sio.c
+new file mode 100644
+index 000000000000..c717a3182320
 --- /dev/null
-+++ b/drivers/misc/aspeed-lpc-sio.c
++++ b/drivers/soc/aspeed/aspeed-lpc-sio.c
 @@ -0,0 +1,450 @@
 +// SPDX-License-Identifier: GPL-2.0
 +// Copyright (C) 2012-2017 ASPEED Technology Inc.

@@ -18,3 +18,6 @@ BB_DISKMON_DIRS = "\
     ABORT,/tmp,10M,1K"
 CONF_VERSION = "3"
 #BB_NUMBER_THREADS = "70"
+
+FULL_OPTIMIZATION = "-Os -pipe ${DEBUG_FLAGS}"
+require conf/distro/include/security_flags.inc

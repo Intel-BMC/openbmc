@@ -1,6 +1,6 @@
-From 6b9aaf0304aed06e4b5ac53e7c163089568d4171 Mon Sep 17 00:00:00 2001
+From 97c21a556702a0d65096b30c07ef23f15cb6a7d9 Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
-Date: Sat, 23 Mar 2019 04:03:07 +0800
+Date: Wed, 3 Jul 2019 07:39:47 +0800
 Subject: [PATCH] Add dbus interface for sol commands
 
 Add dbus interface for sol config parameters so that after move set/get
@@ -25,22 +25,24 @@ to 0 and other properties will not reset to default value.
 
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
 ---
- command/payload_cmds.cpp |   1 +
- command/sol_cmds.cpp     |  84 ---------------------------------
- sol/sol_manager.cpp      | 119 +++++++++++++++++++++++++++++++++++++++++++++++
+ command/payload_cmds.cpp |   3 ++
+ command/sol_cmds.cpp     |  84 -------------------------------
+ sol/sol_manager.cpp      | 125 +++++++++++++++++++++++++++++++++++++++++++++++
  sol/sol_manager.hpp      |   1 +
  sol_module.cpp           |   6 ---
- 5 files changed, 121 insertions(+), 90 deletions(-)
+ 5 files changed, 129 insertions(+), 90 deletions(-)
 
 diff --git a/command/payload_cmds.cpp b/command/payload_cmds.cpp
-index 3b5b4f8..570cdff 100644
+index c32a510..17167a7 100644
 --- a/command/payload_cmds.cpp
 +++ b/command/payload_cmds.cpp
-@@ -34,6 +34,7 @@ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
+@@ -34,6 +34,9 @@ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
          return outPayload;
      }
  
-+    std::get<sol::Manager&>(singletonPool).updateSOLParameter();
++    std::get<sol::Manager&>(singletonPool)
++        .updateSOLParameter(ipmi::convertCurrentChannelNum(
++            ipmi::currentChNum, getInterfaceIndex()));
      if (!std::get<sol::Manager&>(singletonPool).enable)
      {
          response->completionCode = IPMI_CC_PAYLOAD_TYPE_DISABLED;
@@ -140,7 +142,7 @@ index a8fa410..804b5ea 100644
                                     const message::Handler& handler)
  {
 diff --git a/sol/sol_manager.cpp b/sol/sol_manager.cpp
-index 2046fe4..de36723 100644
+index 2046fe4..eedd28a 100644
 --- a/sol/sol_manager.cpp
 +++ b/sol/sol_manager.cpp
 @@ -12,7 +12,13 @@
@@ -152,12 +154,12 @@ index 2046fe4..de36723 100644
 +#include <sdbusplus/message/types.hpp>
 +
 +constexpr const char* solInterface = "xyz.openbmc_project.Ipmi.SOL";
-+constexpr const char* solPath = "/xyz/openbmc_project/ipmi/sol";
++constexpr const char* solPath = "/xyz/openbmc_project/ipmi/sol/";
 +constexpr const char* PROP_INTF = "org.freedesktop.DBus.Properties";
  
  namespace sol
  {
-@@ -93,6 +99,119 @@ void Manager::stopHostConsole()
+@@ -93,6 +99,125 @@ void Manager::stopHostConsole()
      }
  }
  
@@ -221,17 +223,19 @@ index 2046fe4..de36723 100644
 +    return properties;
 +}
 +
-+void Manager::updateSOLParameter()
++void Manager::updateSOLParameter(uint8_t channelNum)
 +{
 +    std::variant<uint8_t, bool> value;
 +    sdbusplus::bus::bus dbus(ipmid_get_sd_bus_connection());
 +    static std::string solService{};
 +    ipmi::PropertyMap properties;
++    std::string ethdevice = ipmi::getChannelName(channelNum);
++    std::string solPathWitheEthName = solPath + ethdevice;
 +    if (solService.empty())
 +    {
 +        try
 +        {
-+            solService = getService(dbus, solInterface, solPath);
++            solService = getService(dbus, solInterface, solPathWitheEthName);
 +        }
 +        catch (const std::runtime_error& e)
 +        {
@@ -243,8 +247,8 @@ index 2046fe4..de36723 100644
 +    }
 +    try
 +    {
-+        properties =
-+            getAllDbusProperties(dbus, solService, solPath, solInterface);
++        properties = getAllDbusProperties(dbus, solService, solPathWitheEthName,
++                                          solInterface);
 +    }
 +    catch (const std::runtime_error&)
 +    {
@@ -257,8 +261,12 @@ index 2046fe4..de36723 100644
 +
 +    enable = std::get<bool>(properties["Enable"]);
 +
++    forceEncrypt = std::get<bool>(properties["ForceEncryption"]);
++
++    forceAuth = std::get<bool>(properties["ForceAuthentication"]);
++
 +    solMinPrivilege = static_cast<session::Privilege>(
-+        std::get<uint8_t>(properties["Authentication"]));
++        std::get<uint8_t>(properties["Privilege"]));
 +
 +    accumulateInterval =
 +        std::get<uint8_t>((properties["AccumulateIntervalMS"])) *
@@ -278,14 +286,14 @@ index 2046fe4..de36723 100644
                                     session::SessionID sessionID)
  {
 diff --git a/sol/sol_manager.hpp b/sol/sol_manager.hpp
-index 5d96890..b7eb89e 100644
+index 5d96890..00da9fb 100644
 --- a/sol/sol_manager.hpp
 +++ b/sol/sol_manager.hpp
 @@ -248,6 +248,7 @@ class Manager
       *  @return 0 on success and errno on failure.
       */
      int writeConsoleSocket(const std::vector<uint8_t>& input) const;
-+    void updateSOLParameter(void);
++    void updateSOLParameter(uint8_t channelNum);
  
    private:
      SOLPayloadMap payloadMap;
@@ -307,5 +315,5 @@ index 8200e74..2b1fb46 100644
          {{(static_cast<uint32_t>(message::PayloadType::IPMI) << 16) |
            static_cast<uint16_t>(::command::NetFns::TRANSPORT) | 0x22},
 -- 
-2.16.2
+2.7.4
 

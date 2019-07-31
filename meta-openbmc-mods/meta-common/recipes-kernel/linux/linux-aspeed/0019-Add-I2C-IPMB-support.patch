@@ -1,4 +1,4 @@
-From 59e2471d9bf64fa7d539520ef66cf5f33c0b0e55 Mon Sep 17 00:00:00 2001
+From f588865f8180a6370ac639bdfc186ffc5b926246 Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Tue, 13 Feb 2018 14:28:12 +0800
 Subject: [PATCH] i2c: slave-mqueue: add mqueue driver to receive ipmi message
@@ -14,20 +14,20 @@ will exposes these messages to userspace by sysfs bin file.
 
 Signed-off-by: Haiyue Wang <haiyue.wang@linux.intel.com>
 ---
- Documentation/i2c/slave-mqueue-backend.rst | 125 +++++++++++++++++
+ Documentation/i2c/slave-mqueue-backend.rst | 124 +++++++++++++++++
  drivers/i2c/Kconfig                        |  23 +++
  drivers/i2c/Makefile                       |   1 +
  drivers/i2c/i2c-slave-mqueue.c             | 217 +++++++++++++++++++++++++++++
- 4 files changed, 366 insertions(+)
+ 4 files changed, 365 insertions(+)
  create mode 100644 Documentation/i2c/slave-mqueue-backend.rst
  create mode 100644 drivers/i2c/i2c-slave-mqueue.c
 
 diff --git a/Documentation/i2c/slave-mqueue-backend.rst b/Documentation/i2c/slave-mqueue-backend.rst
 new file mode 100644
-index 000000000000..3966cf0ab8da
+index 000000000000..2d0d06d8df9d
 --- /dev/null
 +++ b/Documentation/i2c/slave-mqueue-backend.rst
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,124 @@
 +.. SPDX-License-Identifier: GPL-2.0
 +
 +=====================================
@@ -152,12 +152,11 @@ index 000000000000..3966cf0ab8da
 +  [10203.974044856] : 20 18 c8 2c 80 01 53
 +  [10204.220734634] : 20 18 c8 2c 80 01 53
 +  [10204.468461664] : 20 18 c8 2c 80 01 53
-+
 diff --git a/drivers/i2c/Kconfig b/drivers/i2c/Kconfig
-index efc3354d60ae..04fb851f2c82 100644
+index abedd55a1264..49a2379876c6 100644
 --- a/drivers/i2c/Kconfig
 +++ b/drivers/i2c/Kconfig
-@@ -118,6 +118,29 @@ if I2C_SLAVE
+@@ -119,6 +119,29 @@ if I2C_SLAVE
  config I2C_SLAVE_EEPROM
  	tristate "I2C eeprom slave driver"
  

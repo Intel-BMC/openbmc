@@ -42,7 +42,7 @@ python() {
         gen = 'unknown'
 
     corebase = d.getVar('COREBASE', True)
-    mibase = os.path.join(corebase, 'meta-openbmc-mods')
+    mibase = os.path.join(corebase, 'openbmc-meta-intel')
     obmc_vers = irun_git(d, corebase, 'describe --dirty --long')
     if obmc_vers is None:
         raise bb.build.FuncFailed("Missing version tag for openbmc-openbmc")
@@ -53,7 +53,7 @@ python() {
                          'describe --long --abbrev=6 ' +
                          '--match \'{}-[0-9]*\.[0-9]*\''.format(gen))
 
-    # Until tags in meta-openbmc-mods, interim measure keep builds working.
+    # Until tags in openbmc-meta-intel, interim measure keep builds working.
     if meta_vers.startswith('fatal:'):
         meta_vers = '{}-0.0-0'.format(gen)
 

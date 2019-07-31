@@ -1,4 +1,4 @@
-From f4c13be7b95899d6eca3fa7ae38224bc9c7d7902 Mon Sep 17 00:00:00 2001
+From 38c04788647a95e3951674eb802f1f99ecdde164 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 29 Jun 2018 11:00:02 -0700
 Subject: [PATCH] Add dump debug code into I2C drivers
@@ -15,15 +15,15 @@ echo 1 > /sys/module/i2c_slave_mqueue/parameters/dump_debug
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- drivers/i2c/busses/i2c-aspeed.c | 25 +++++++++++++++++++++++++
- drivers/i2c/i2c-slave-mqueue.c  | 22 ++++++++++++++++++++++
- 2 files changed, 47 insertions(+)
+ drivers/i2c/busses/i2c-aspeed.c | 26 ++++++++++++++++++++++++++
+ drivers/i2c/i2c-slave-mqueue.c  | 24 ++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 6c8b38fd6e64..77dbd37b7b51 100644
+index fa66951b05d0..434b753def3b 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
-@@ -166,6 +166,19 @@ struct aspeed_i2c_bus {
+@@ -163,6 +163,21 @@ struct aspeed_i2c_bus {
  #endif /* CONFIG_I2C_SLAVE */
  };
  
@@ -31,19 +31,21 @@ index 6c8b38fd6e64..77dbd37b7b51 100644
 +static int dump_debug_bus_id __read_mostly;
 +
 +#define I2C_HEX_DUMP(bus, addr, flags, buf, len) \
-+	if (dump_debug && bus->adap.nr == dump_debug_bus_id) { \
-+		char dump_info[100] = {0,}; \
-+		snprintf(dump_info, sizeof(dump_info), \
-+			 "%s (bus_id:%d, addr:0x%02x, flags:0x%02x): ", \
-+			 __func__, bus->adap.nr, addr, flags); \
-+		print_hex_dump(KERN_ERR, dump_info, DUMP_PREFIX_NONE, 16, 1, \
-+			       buf, len, true); \
-+	}
++	do { \
++		if (dump_debug && (bus)->adap.nr == dump_debug_bus_id) { \
++			char dump_info[100] = {0,}; \
++			snprintf(dump_info, sizeof(dump_info), \
++				 "bus_id:%d, addr:0x%02x, flags:0x%02x: ", \
++				 (bus)->adap.nr, addr, flags); \
++			print_hex_dump(KERN_ERR, dump_info, DUMP_PREFIX_NONE, \
++				       16, 1, buf, len, true); \
++		} \
++	} while (0)
 +
  static int aspeed_i2c_reset(struct aspeed_i2c_bus *bus);
  
  static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
-@@ -655,6 +668,7 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
+@@ -652,6 +667,7 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
  {
  	struct aspeed_i2c_bus *bus = i2c_get_adapdata(adap);
  	unsigned long time_left, flags;
@@ -51,7 +53,7 @@ index 6c8b38fd6e64..77dbd37b7b51 100644
  
  	spin_lock_irqsave(&bus->lock, flags);
  	bus->cmd_err = 0;
-@@ -697,6 +711,11 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
+@@ -694,6 +710,11 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
  		return -ETIMEDOUT;
  	}
  
@@ -63,21 +65,20 @@ index 6c8b38fd6e64..77dbd37b7b51 100644
  	return bus->master_xfer_result;
  }
  
-@@ -1064,6 +1083,12 @@ static struct platform_driver aspeed_i2c_bus_driver = {
+@@ -1061,6 +1082,11 @@ static struct platform_driver aspeed_i2c_bus_driver = {
  };
  module_platform_driver(aspeed_i2c_bus_driver);
  
-+module_param_named(dump_debug, dump_debug, bool, S_IRUGO | S_IWUSR);
++module_param_named(dump_debug, dump_debug, bool, 0644);
 +MODULE_PARM_DESC(dump_debug, "debug flag for dump printing");
-+module_param_named(dump_debug_bus_id, dump_debug_bus_id, int,
-+		   S_IRUGO | S_IWUSR);
++module_param_named(dump_debug_bus_id, dump_debug_bus_id, int, 0644);
 +MODULE_PARM_DESC(dump_debug_bus_id, "bus id for dump debug printing");
 +
  MODULE_AUTHOR("Brendan Higgins <brendanhiggins@google.com>");
  MODULE_DESCRIPTION("Aspeed I2C Bus Driver");
  MODULE_LICENSE("GPL v2");
 diff --git a/drivers/i2c/i2c-slave-mqueue.c b/drivers/i2c/i2c-slave-mqueue.c
-index 6014bca0ff2a..4548088e1922 100644
+index 6014bca0ff2a..2c7a6038409c 100644
 --- a/drivers/i2c/i2c-slave-mqueue.c
 +++ b/drivers/i2c/i2c-slave-mqueue.c
 @@ -21,6 +21,7 @@ struct mq_msg {
@@ -88,7 +89,7 @@ index 6014bca0ff2a..4548088e1922 100644
  
  	spinlock_t		lock; /* spinlock for queue index handling */
  	int			in;
-@@ -31,6 +32,18 @@ struct mq_queue {
+@@ -31,6 +32,21 @@ struct mq_queue {
  	struct mq_msg		*queue;
  };
  
@@ -96,18 +97,21 @@ index 6014bca0ff2a..4548088e1922 100644
 +static int dump_debug_bus_id __read_mostly;
 +
 +#define I2C_HEX_DUMP(client, buf, len) \
-+	if (dump_debug && client->adapter->nr == dump_debug_bus_id) { \
-+		char dump_info[100] = {0,}; \
-+		snprintf(dump_info, sizeof(dump_info), \
-+			 "%s (bus_id:%d): ", __func__, client->adapter->nr); \
-+		print_hex_dump(KERN_ERR, dump_info, DUMP_PREFIX_NONE, 16, 1, \
-+			       buf, len, true); \
-+	}
++	do { \
++		if (dump_debug && \
++		    (client)->adapter->nr == dump_debug_bus_id) { \
++			char dump_info[100] = {0,}; \
++			snprintf(dump_info, sizeof(dump_info), \
++				 "bus_id:%d: ", (client)->adapter->nr); \
++			print_hex_dump(KERN_ERR, dump_info, DUMP_PREFIX_NONE, \
++				       16, 1, buf, len, true); \
++		} \
++	} while (0)
 +
  static int i2c_slave_mqueue_callback(struct i2c_client *client,
  				     enum i2c_slave_event event, u8 *val)
  {
-@@ -101,6 +114,7 @@ static ssize_t i2c_slave_mqueue_bin_read(struct file *filp,
+@@ -101,6 +117,7 @@ static ssize_t i2c_slave_mqueue_bin_read(struct file *filp,
  		if (msg->len <= count) {
  			ret = msg->len;
  			memcpy(buf, msg->buf, ret);
@@ -115,7 +119,7 @@ index 6014bca0ff2a..4548088e1922 100644
  		} else {
  			ret = -EOVERFLOW; /* Drop this HUGE one. */
  		}
-@@ -131,6 +145,8 @@ static int i2c_slave_mqueue_probe(struct i2c_client *client,
+@@ -131,6 +148,8 @@ static int i2c_slave_mqueue_probe(struct i2c_client *client,
  
  	BUILD_BUG_ON(!is_power_of_2(MQ_QUEUE_SIZE));
  
@@ -124,14 +128,13 @@ index 6014bca0ff2a..4548088e1922 100644
  	buf = devm_kmalloc_array(dev, MQ_QUEUE_SIZE, MQ_MSGBUF_SIZE,
  				 GFP_KERNEL);
  	if (!buf)
-@@ -212,6 +228,12 @@ static struct i2c_driver i2c_slave_mqueue_driver = {
+@@ -212,6 +231,11 @@ static struct i2c_driver i2c_slave_mqueue_driver = {
  };
  module_i2c_driver(i2c_slave_mqueue_driver);
  
-+module_param_named(dump_debug, dump_debug, bool, S_IRUGO | S_IWUSR);
++module_param_named(dump_debug, dump_debug, bool, 0644);
 +MODULE_PARM_DESC(dump_debug, "debug flag for dump printing");
-+module_param_named(dump_debug_bus_id, dump_debug_bus_id, int,
-+		   S_IRUGO | S_IWUSR);
++module_param_named(dump_debug_bus_id, dump_debug_bus_id, int, 0644);
 +MODULE_PARM_DESC(dump_debug_bus_id, "bus id for dump debug printing");
 +
  MODULE_LICENSE("GPL v2");

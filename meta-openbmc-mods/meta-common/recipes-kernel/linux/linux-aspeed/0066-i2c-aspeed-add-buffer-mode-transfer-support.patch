@@ -1,4 +1,4 @@
-From efb710a6b3a39f28b988af717eefc1b72c4c43bd Mon Sep 17 00:00:00 2001
+From 36128aacdc8b642b9ee080e493abbc00de345f1d Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Tue, 11 Jun 2019 15:07:08 -0700
 Subject: [PATCH] i2c: aspeed: add buffer mode transfer support
@@ -15,7 +15,7 @@ It has 2 KBytes (256 Bytes x 8 pages) of I2C SRAM buffer pool from
 buffer pool manipulation. To simplify implementation for supporting
 both AST2400 and AST2500, it assigns each 128 Bytes per bus without
 using buffer pool manipulation so total 1792 Bytes of I2C SRAM
-buffer will used.
+buffer will be used.
 
 AST2500:
 It has 16 Bytes of individual I2C SRAM buffer per each bus and its
@@ -30,329 +30,452 @@ It provides buffer based master and slave data transfer.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/boot/dts/aspeed-g4.dtsi    |  42 ++++--
- arch/arm/boot/dts/aspeed-g5.dtsi    |  42 ++++--
- drivers/i2c/busses/i2c-aspeed.c     | 262 ++++++++++++++++++++++++++++++++----
- drivers/irqchip/irq-aspeed-i2c-ic.c |   8 ++
- 4 files changed, 301 insertions(+), 53 deletions(-)
+ .../devicetree/bindings/i2c/i2c-aspeed.txt         |  40 ++-
+ arch/arm/boot/dts/aspeed-g4.dtsi                   |  47 ++--
+ arch/arm/boot/dts/aspeed-g5.dtsi                   |  47 ++--
+ drivers/i2c/busses/i2c-aspeed.c                    | 294 ++++++++++++++++++---
+ 4 files changed, 349 insertions(+), 79 deletions(-)
 
+diff --git a/Documentation/devicetree/bindings/i2c/i2c-aspeed.txt b/Documentation/devicetree/bindings/i2c/i2c-aspeed.txt
+index 724ee9f35c10..e1a0ae7a8c08 100644
+--- a/Documentation/devicetree/bindings/i2c/i2c-aspeed.txt
++++ b/Documentation/devicetree/bindings/i2c/i2c-aspeed.txt
+@@ -3,7 +3,10 @@ Device tree configuration for the I2C busses on the AST24XX and AST25XX SoCs.
+ Required Properties:
+ - #address-cells	: should be 1
+ - #size-cells		: should be 0
+-- reg			: address offset and range of bus
++- reg			: Address offset and range of bus registers.
++			  An additional SRAM buffer address offset and range is
++			  optional in case of enabling I2C dedicated SRAM for
++			  buffer mode transfer support.
+ - compatible		: should be "aspeed,ast2400-i2c-bus"
+ 			  or "aspeed,ast2500-i2c-bus"
+ - clocks		: root clock of bus, should reference the APB
+@@ -29,12 +32,21 @@ i2c {
+ 	#size-cells = <1>;
+ 	ranges = <0 0x1e78a000 0x1000>;
+ 
+-	i2c_ic: interrupt-controller@0 {
+-		#interrupt-cells = <1>;
+-		compatible = "aspeed,ast2400-i2c-ic";
++	i2c_gr: i2c-global-regs@0 {
++		compatible = "aspeed,ast2500-i2c-gr", "syscon";
+ 		reg = <0x0 0x40>;
+-		interrupts = <12>;
+-		interrupt-controller;
++
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges = <0x0 0x0 0x40>;
++
++		i2c_ic: interrupt-controller@0 {
++			#interrupt-cells = <1>;
++			compatible = "aspeed,ast2500-i2c-ic";
++			reg = <0x0 0x4>;
++			interrupts = <12>;
++			interrupt-controller;
++		};
+ 	};
+ 
+ 	i2c0: i2c-bus@40 {
+@@ -42,11 +54,25 @@ i2c {
+ 		#size-cells = <0>;
+ 		#interrupt-cells = <1>;
+ 		reg = <0x40 0x40>;
+-		compatible = "aspeed,ast2400-i2c-bus";
++		compatible = "aspeed,ast2500-i2c-bus";
+ 		clocks = <&syscon ASPEED_CLK_APB>;
+ 		resets = <&syscon ASPEED_RESET_I2C>;
+ 		bus-frequency = <100000>;
+ 		interrupts = <0>;
+ 		interrupt-parent = <&i2c_ic>;
+ 	};
++
++	/* buffer mode transfer enabled */
++	i2c1: i2c-bus@80 {
++		#address-cells = <1>;
++		#size-cells = <0>;
++		#interrupt-cells = <1>;
++		reg = <0x80 0x40>, <0x210 0x10>;
++		compatible = "aspeed,ast2500-i2c-bus";
++		clocks = <&syscon ASPEED_CLK_APB>;
++		resets = <&syscon ASPEED_RESET_I2C>;
++		bus-frequency = <100000>;
++		interrupts = <1>;
++		interrupt-parent = <&i2c_ic>;
++	};
+ };
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 47a5029f5bdb..c1c125add9fa 100644
+index 47a5029f5bdb..052b1b6b4dc7 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -482,7 +482,8 @@
+@@ -469,12 +469,21 @@
+ };
+ 
+ &i2c {
+-	i2c_ic: interrupt-controller@0 {
+-		#interrupt-cells = <1>;
+-		compatible = "aspeed,ast2400-i2c-ic";
++	i2c_gr: i2c-global-regs@0 {
++		compatible = "aspeed,ast2400-i2c-gr", "syscon";
+ 		reg = <0x0 0x40>;
+-		interrupts = <12>;
+-		interrupt-controller;
++
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges = <0x0 0x0 0x40>;
++
++		i2c_ic: interrupt-controller@0 {
++			#interrupt-cells = <1>;
++			compatible = "aspeed,ast2400-i2c-ic";
++			reg = <0x0 0x4>;
++			interrupts = <12>;
++			interrupt-controller;
++		};
+ 	};
+ 
+ 	i2c0: i2c-bus@40 {
+@@ -482,7 +491,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x40 0x40>;
 +		reg = <0x40 0x40>, <0x800 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -498,7 +499,8 @@
+@@ -498,7 +507,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x80 0x40>;
 +		reg = <0x80 0x40>, <0x880 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -514,7 +516,8 @@
+@@ -514,7 +523,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0xc0 0x40>;
 +		reg = <0xc0 0x40>, <0x900 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -531,7 +534,8 @@
+@@ -531,7 +540,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x100 0x40>;
 +		reg = <0x100 0x40>, <0x980 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -548,7 +552,8 @@
+@@ -548,7 +557,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x140 0x40>;
 +		reg = <0x140 0x40>, <0xa00 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -565,7 +570,8 @@
+@@ -565,7 +574,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x180 0x40>;
 +		reg = <0x180 0x40>, <0xa80 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -582,7 +588,8 @@
+@@ -582,7 +591,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x1c0 0x40>;
 +		reg = <0x1c0 0x40>, <0xb00 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -599,7 +606,8 @@
+@@ -599,7 +608,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x300 0x40>;
 +		reg = <0x300 0x40>, <0xb80 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -616,7 +624,8 @@
+@@ -616,7 +625,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x340 0x40>;
 +		reg = <0x340 0x40>, <0xc00 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -633,7 +642,8 @@
+@@ -633,7 +642,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x380 0x40>;
 +		reg = <0x380 0x40>, <0xc80 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -650,7 +660,8 @@
+@@ -650,7 +659,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x3c0 0x40>;
 +		reg = <0x3c0 0x40>, <0xd00 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -667,7 +678,8 @@
+@@ -667,7 +676,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x400 0x40>;
 +		reg = <0x400 0x40>, <0xd80 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -684,7 +696,8 @@
+@@ -684,7 +693,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x440 0x40>;
 +		reg = <0x440 0x40>, <0xe00 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -701,7 +714,8 @@
+@@ -701,7 +710,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x480 0x40>;
 +		reg = <0x480 0x40>, <0xe80 0x80>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 9d5ed9499b1f..662249bc15f9 100644
+index 89a9febf6f14..2d2173d598e4 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -599,7 +599,8 @@
+@@ -586,12 +586,21 @@
+ };
+ 
+ &i2c {
+-	i2c_ic: interrupt-controller@0 {
+-		#interrupt-cells = <1>;
+-		compatible = "aspeed,ast2500-i2c-ic";
++	i2c_gr: i2c-global-regs@0 {
++		compatible = "aspeed,ast2500-i2c-gr", "syscon";
+ 		reg = <0x0 0x40>;
+-		interrupts = <12>;
+-		interrupt-controller;
++
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges = <0x0 0x0 0x40>;
++
++		i2c_ic: interrupt-controller@0 {
++			#interrupt-cells = <1>;
++			compatible = "aspeed,ast2500-i2c-ic";
++			reg = <0x0 0x4>;
++			interrupts = <12>;
++			interrupt-controller;
++		};
+ 	};
+ 
+ 	i2c0: i2c-bus@40 {
+@@ -599,7 +608,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x40 0x40>;
 +		reg = <0x40 0x40>, <0x200 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -615,7 +616,8 @@
+@@ -615,7 +624,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x80 0x40>;
 +		reg = <0x80 0x40>, <0x210 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -631,7 +633,8 @@
+@@ -631,7 +640,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0xc0 0x40>;
 +		reg = <0xc0 0x40>, <0x220 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -648,7 +651,8 @@
+@@ -648,7 +657,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x100 0x40>;
 +		reg = <0x100 0x40>, <0x230 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -665,7 +669,8 @@
+@@ -665,7 +674,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x140 0x40>;
 +		reg = <0x140 0x40>, <0x240 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -682,7 +687,8 @@
+@@ -682,7 +691,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x180 0x40>;
 +		reg = <0x180 0x40>, <0x250 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -699,7 +705,8 @@
+@@ -699,7 +708,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x1c0 0x40>;
 +		reg = <0x1c0 0x40>, <0x260 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -716,7 +723,8 @@
+@@ -716,7 +725,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x300 0x40>;
 +		reg = <0x300 0x40>, <0x270 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -733,7 +741,8 @@
+@@ -733,7 +742,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x340 0x40>;
 +		reg = <0x340 0x40>, <0x280 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -750,7 +759,8 @@
+@@ -750,7 +759,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x380 0x40>;
 +		reg = <0x380 0x40>, <0x290 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -767,7 +777,8 @@
+@@ -767,7 +776,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x3c0 0x40>;
 +		reg = <0x3c0 0x40>, <0x2a0 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -784,7 +795,8 @@
+@@ -784,7 +793,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x400 0x40>;
 +		reg = <0x400 0x40>, <0x2b0 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -801,7 +813,8 @@
+@@ -801,7 +810,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x440 0x40>;
 +		reg = <0x440 0x40>, <0x2c0 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -818,7 +831,8 @@
+@@ -818,7 +827,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
 -		reg = <0x480 0x40>;
 +		reg = <0x480 0x40>, <0x2d0 0x10>;
-+		reg-names = "bus-regs", "buf";
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 64bc68eaa88f..b21a4c87853e 100644
+index d8143c24d3a7..b721fb1d6d4c 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
-@@ -10,6 +10,7 @@
-  *  published by the Free Software Foundation.
+@@ -7,6 +7,7 @@
+  *  Copyright 2017 Google, Inc.
   */
  
 +#include <linux/bitfield.h>
  #include <linux/clk.h>
  #include <linux/completion.h>
  #include <linux/err.h>
-@@ -38,6 +39,7 @@
+@@ -19,15 +20,24 @@
+ #include <linux/irqchip/chained_irq.h>
+ #include <linux/irqdomain.h>
+ #include <linux/kernel.h>
++#include <linux/mfd/syscon.h>
+ #include <linux/module.h>
+ #include <linux/of_address.h>
+ #include <linux/of_irq.h>
+ #include <linux/of_platform.h>
+ #include <linux/platform_device.h>
++#include <linux/regmap.h>
+ #include <linux/reset.h>
+ #include <linux/slab.h>
+ 
+-/* I2C Register */
++/* I2C Global Registers */
++/* 0x00 : I2CG Interrupt Status Register  */
++/* 0x08 : I2CG Interrupt Target Assignment  */
++/* 0x0c : I2CG Global Control Register (AST2500)  */
++#define ASPEED_I2CG_GLOBAL_CTRL_REG			0x0c
++#define  ASPEED_I2CG_SRAM_BUFFER_EN			BIT(0)
++
++/* I2C Bus Registers */
+ #define ASPEED_I2C_FUN_CTRL_REG				0x00
+ #define ASPEED_I2C_AC_TIMING_REG1			0x04
+ #define ASPEED_I2C_AC_TIMING_REG2			0x08
+@@ -35,14 +45,12 @@
  #define ASPEED_I2C_INTR_STS_REG				0x10
  #define ASPEED_I2C_CMD_REG				0x14
  #define ASPEED_I2C_DEV_ADDR_REG				0x18
 +#define ASPEED_I2C_BUF_CTRL_REG				0x1c
  #define ASPEED_I2C_BYTE_BUF_REG				0x20
  
- /* Global Register Definition */
-@@ -46,6 +48,7 @@
- 
+-/* Global Register Definition */
+-/* 0x00 : I2C Interrupt Status Register  */
+-/* 0x08 : I2C Interrupt Target Assignment  */
+-
  /* Device Register Definition */
  /* 0x00 : I2CD Function Control Register  */
 +#define ASPEED_I2CD_BUFFER_PAGE_SEL_MASK		GENMASK(22, 20)
  #define ASPEED_I2CD_MULTI_MASTER_DIS			BIT(15)
  #define ASPEED_I2CD_SDA_DRIVE_1T_EN			BIT(8)
  #define ASPEED_I2CD_M_SDA_DRIVE_1T_EN			BIT(7)
-@@ -107,6 +110,8 @@
+@@ -104,6 +112,8 @@
  #define ASPEED_I2CD_BUS_RECOVER_CMD			BIT(11)
  
  /* Command Bit */
@@ -361,7 +484,7 @@ index 64bc68eaa88f..b21a4c87853e 100644
  #define ASPEED_I2CD_M_STOP_CMD				BIT(5)
  #define ASPEED_I2CD_M_S_RX_CMD_LAST			BIT(4)
  #define ASPEED_I2CD_M_RX_CMD				BIT(3)
-@@ -117,6 +122,13 @@
+@@ -114,6 +124,13 @@
  /* 0x18 : I2CD Slave Device Address Register   */
  #define ASPEED_I2CD_DEV_ADDR_MASK			GENMASK(6, 0)
  
@@ -375,11 +498,11 @@ index 64bc68eaa88f..b21a4c87853e 100644
  enum aspeed_i2c_master_state {
  	ASPEED_I2C_MASTER_INACTIVE,
  	ASPEED_I2C_MASTER_PENDING,
-@@ -164,6 +176,11 @@ struct aspeed_i2c_bus {
+@@ -161,6 +178,11 @@ struct aspeed_i2c_bus {
  	int				master_xfer_result;
  	/* Multi-master */
  	bool				multi_master;
-+	/* Buffer/DMA mode */
++	/* Buffer mode */
 +	void __iomem			*buf_base;
 +	size_t				buf_size;
 +	u8				buf_offset;
@@ -387,7 +510,7 @@ index 64bc68eaa88f..b21a4c87853e 100644
  #if IS_ENABLED(CONFIG_I2C_SLAVE)
  	struct i2c_client		*slave;
  	enum aspeed_i2c_slave_state	slave_state;
-@@ -260,6 +277,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -259,6 +281,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  {
  	u32 command, irq_handled = 0;
  	struct i2c_client *slave = bus->slave;
@@ -395,39 +518,42 @@ index 64bc68eaa88f..b21a4c87853e 100644
  	u8 value;
  
  	if (!slave)
-@@ -288,7 +306,11 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -287,7 +310,12 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  
  	/* Slave was sent something. */
  	if (irq_status & ASPEED_I2CD_INTR_RX_DONE) {
 -		value = readl(bus->base + ASPEED_I2C_BYTE_BUF_REG) >> 8;
 +		if (bus->buf_base &&
-+		    bus->slave_state == ASPEED_I2C_SLAVE_WRITE_RECEIVED)
++		    bus->slave_state == ASPEED_I2C_SLAVE_WRITE_RECEIVED &&
++		    !(irq_status & ASPEED_I2CD_INTR_NORMAL_STOP))
 +			value = readb(bus->buf_base);
 +		else
 +			value = readl(bus->base + ASPEED_I2C_BYTE_BUF_REG) >> 8;
  		/* Handle address frame. */
  		if (bus->slave_state == ASPEED_I2C_SLAVE_START) {
  			if (value & 0x1)
-@@ -318,6 +340,18 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -317,6 +345,20 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  
  	/* Slave was asked to stop. */
  	if (irq_status & ASPEED_I2CD_INTR_NORMAL_STOP) {
-+		if (bus->buf_base &&
-+		    bus->slave_state == ASPEED_I2C_SLAVE_WRITE_RECEIVED) {
-+			len = FIELD_GET(ASPEED_I2CD_BUF_RX_COUNT_MASK,
-+					readl(bus->base +
-+					      ASPEED_I2C_BUF_CTRL_REG));
-+			for (i = 0; i < len; i++) {
-+				value = readb(bus->buf_base + i);
-+				i2c_slave_event(slave,
-+						I2C_SLAVE_WRITE_RECEIVED,
-+						&value);
++		if (bus->slave_state == ASPEED_I2C_SLAVE_WRITE_RECEIVED &&
++		    irq_status & ASPEED_I2CD_INTR_RX_DONE) {
++			if (bus->buf_base) {
++				len = FIELD_GET(ASPEED_I2CD_BUF_RX_COUNT_MASK,
++						readl(bus->base +
++						      ASPEED_I2C_BUF_CTRL_REG));
++				for (i = 0; i < len; i++) {
++					value = readb(bus->buf_base + i);
++					i2c_slave_event(slave,
++							I2C_SLAVE_WRITE_RECEIVED,
++							&value);
++				}
 +			}
 +		}
  		irq_handled |= ASPEED_I2CD_INTR_NORMAL_STOP;
  		bus->slave_state = ASPEED_I2C_SLAVE_STOP;
  	}
-@@ -350,6 +384,15 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -349,9 +391,36 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  	case ASPEED_I2C_SLAVE_WRITE_REQUESTED:
  		bus->slave_state = ASPEED_I2C_SLAVE_WRITE_RECEIVED;
  		i2c_slave_event(slave, I2C_SLAVE_WRITE_REQUESTED, &value);
@@ -440,10 +566,6 @@ index 64bc68eaa88f..b21a4c87853e 100644
 +			writel(ASPEED_I2CD_RX_BUFF_ENABLE,
 +			       bus->base + ASPEED_I2C_CMD_REG);
 +		}
- 		break;
- 	case ASPEED_I2C_SLAVE_GCALL_REQUESTED:
- 		bus->slave_state = ASPEED_I2C_SLAVE_WRITE_RECEIVED;
-@@ -357,6 +400,24 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		break;
  	case ASPEED_I2C_SLAVE_WRITE_RECEIVED:
  		i2c_slave_event(slave, I2C_SLAVE_WRITE_RECEIVED, &value);
@@ -466,9 +588,9 @@ index 64bc68eaa88f..b21a4c87853e 100644
 +			       bus->base + ASPEED_I2C_CMD_REG);
 +		}
  		break;
- 	case ASPEED_I2C_SLAVE_STOP:
- 		i2c_slave_event(slave, I2C_SLAVE_STOP, &value);
-@@ -383,6 +444,8 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
+ 	case ASPEED_I2C_SLAVE_GCALL_REQUESTED:
+ 		bus->slave_state = ASPEED_I2C_SLAVE_WRITE_RECEIVED;
+@@ -382,6 +451,8 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
  	u32 command = ASPEED_I2CD_M_START_CMD | ASPEED_I2CD_M_TX_CMD;
  	struct i2c_msg *msg = &bus->msgs[bus->msgs_index];
  	u8 slave_addr = i2c_8bit_addr_from_msg(msg);
@@ -477,7 +599,7 @@ index 64bc68eaa88f..b21a4c87853e 100644
  
  #if IS_ENABLED(CONFIG_I2C_SLAVE)
  	/*
-@@ -401,12 +464,66 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
+@@ -400,12 +471,66 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
  
  	if (msg->flags & I2C_M_RD) {
  		command |= ASPEED_I2CD_M_RX_CMD;
@@ -486,11 +608,7 @@ index 64bc68eaa88f..b21a4c87853e 100644
 -			command |= ASPEED_I2CD_M_S_RX_CMD_LAST;
 +
 +		if (bus->buf_base && !(msg->flags & I2C_M_RECV_LEN)) {
-+			command |= ASPEED_I2CD_TX_BUFF_ENABLE |
-+				   ASPEED_I2CD_RX_BUFF_ENABLE;
-+
-+			wbuf[0] = slave_addr;
-+			writel(*(u32 *)wbuf, bus->buf_base);
++			command |= ASPEED_I2CD_RX_BUFF_ENABLE;
 +
 +			if (msg->len > bus->buf_size) {
 +				len = bus->buf_size;
@@ -501,7 +619,6 @@ index 64bc68eaa88f..b21a4c87853e 100644
 +
 +			writel(FIELD_PREP(ASPEED_I2CD_BUF_RX_SIZE_MASK,
 +					  len - 1) |
-+			       FIELD_PREP(ASPEED_I2CD_BUF_TX_COUNT_MASK, 0) |
 +			       FIELD_PREP(ASPEED_I2CD_BUF_OFFSET_MASK,
 +					  bus->buf_offset),
 +			       bus->base + ASPEED_I2C_BUF_CTRL_REG);
@@ -521,6 +638,11 @@ index 64bc68eaa88f..b21a4c87853e 100644
 +			else
 +				len = msg->len + 1;
 +
++			/*
++			 * Yeah, it looks clumsy but byte writings on a remapped
++			 * I2C SRAM cause corruptions so use this way to make
++			 * dword writings.
++			 */
 +			wbuf[0] = slave_addr;
 +			for (i = 1; i < len; i++) {
 +				wbuf[i % 4] = msg->buf[i - 1];
@@ -548,22 +670,7 @@ index 64bc68eaa88f..b21a4c87853e 100644
  	writel(command, bus->base + ASPEED_I2C_CMD_REG);
  }
  
-@@ -441,12 +558,22 @@ static int aspeed_i2c_is_irq_error(u32 irq_status)
- 	return 0;
- }
- 
-+static inline int aspeed_i2c_is_tx_error(struct aspeed_i2c_bus *bus)
-+{
-+	if (FIELD_GET(ASPEED_I2CD_BUF_TX_COUNT_MASK,
-+		      readl(bus->base + ASPEED_I2C_BUF_CTRL_REG)) !=
-+	    bus->buf_size - 1)
-+		return -EIO;
-+
-+	return 0;
-+}
-+
- static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
- {
+@@ -445,7 +570,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  	u32 irq_handled = 0, command = 0;
  	struct i2c_msg *msg;
  	u8 recv_byte;
@@ -572,16 +679,17 @@ index 64bc68eaa88f..b21a4c87853e 100644
  
  	if (irq_status & ASPEED_I2CD_INTR_BUS_RECOVER_DONE) {
  		bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
-@@ -559,11 +686,46 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -558,11 +683,43 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		/* fall through */
  	case ASPEED_I2C_MASTER_TX_FIRST:
  		if (bus->buf_index < msg->len) {
++			command = ASPEED_I2CD_M_TX_CMD;
++
 +			if (bus->buf_base) {
 +				u8 wbuf[4];
 +				int i;
 +
-+				if (unlikely(aspeed_i2c_is_tx_error(bus)))
-+					goto error_and_stop;
++				command |= ASPEED_I2CD_TX_BUFF_ENABLE;
 +
 +				if (msg->len - bus->buf_index > bus->buf_size)
 +					len = bus->buf_size;
@@ -606,15 +714,11 @@ index 64bc68eaa88f..b21a4c87853e 100644
 +				       FIELD_PREP(ASPEED_I2CD_BUF_OFFSET_MASK,
 +						  bus->buf_offset),
 +				       bus->base + ASPEED_I2C_BUF_CTRL_REG);
-+				writel(ASPEED_I2CD_TX_BUFF_ENABLE |
-+				       ASPEED_I2CD_M_TX_CMD,
-+				       bus->base + ASPEED_I2C_CMD_REG);
 +			} else {
 +				writel(msg->buf[bus->buf_index++],
 +				       bus->base + ASPEED_I2C_BYTE_BUF_REG);
-+				writel(ASPEED_I2CD_M_TX_CMD,
-+				       bus->base + ASPEED_I2C_CMD_REG);
 +			}
++			writel(command, bus->base + ASPEED_I2C_CMD_REG);
  			bus->master_state = ASPEED_I2C_MASTER_TX;
 -			writel(msg->buf[bus->buf_index++],
 -			       bus->base + ASPEED_I2C_BYTE_BUF_REG);
@@ -623,7 +727,7 @@ index 64bc68eaa88f..b21a4c87853e 100644
  		} else {
  			aspeed_i2c_next_msg_or_stop(bus);
  		}
-@@ -580,25 +742,57 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -579,25 +736,56 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		}
  		irq_handled |= ASPEED_I2CD_INTR_RX_DONE;
  
@@ -687,7 +791,6 @@ index 64bc68eaa88f..b21a4c87853e 100644
 +				       FIELD_PREP(ASPEED_I2CD_BUF_OFFSET_MASK,
 +						  bus->buf_offset),
 +				       bus->base + ASPEED_I2C_BUF_CTRL_REG);
-+
 +			} else {
 +				if (bus->buf_index + 1 == msg->len)
 +					command |= ASPEED_I2CD_M_S_RX_CMD_LAST;
@@ -695,7 +798,7 @@ index 64bc68eaa88f..b21a4c87853e 100644
  			writel(command, bus->base + ASPEED_I2C_CMD_REG);
  		} else {
  			aspeed_i2c_next_msg_or_stop(bus);
-@@ -948,6 +1142,9 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
+@@ -947,6 +1135,9 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
  	if (ret < 0)
  		return ret;
  
@@ -705,11 +808,13 @@ index 64bc68eaa88f..b21a4c87853e 100644
  	if (of_property_read_bool(pdev->dev.of_node, "multi-master"))
  		bus->multi_master = true;
  	else
-@@ -1010,17 +1207,32 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+@@ -1007,16 +1198,15 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ {
+ 	const struct of_device_id *match;
  	struct aspeed_i2c_bus *bus;
++	bool sram_enabled = true;
  	struct clk *parent_clk;
- 	struct resource *res;
-+	void __iomem *gc_reg;
+-	struct resource *res;
  	int irq, ret;
  
  	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
@@ -717,54 +822,65 @@ index 64bc68eaa88f..b21a4c87853e 100644
  		return -ENOMEM;
  
 -	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "bus-regs");
- 	bus->base = devm_ioremap_resource(&pdev->dev, res);
+-	bus->base = devm_ioremap_resource(&pdev->dev, res);
++	bus->base = devm_platform_ioremap_resource(pdev, 0);
  	if (IS_ERR(bus->base))
  		return PTR_ERR(bus->base);
  
-+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "buf");
-+	bus->buf_base = devm_ioremap_resource(&pdev->dev, res);
-+	if (IS_ERR(bus->buf_base) || resource_size(res) < 2) {
-+		bus->buf_base = NULL;
-+	} else {
-+		bus->buf_size = resource_size(res);
-+		if (of_device_is_compatible(pdev->dev.of_node,
-+					    "aspeed,ast2400-i2c-bus")) {
-+			bus->buf_page = (res->start >> 8) & GENMASK(3, 0) - 8;
-+			bus->buf_offset = (res->start >> 2) &
-+					  ASPEED_I2CD_BUF_OFFSET_MASK;
+@@ -1050,6 +1240,42 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ 		bus->get_clk_reg_val = (u32 (*)(struct device *, u32))
+ 				match->data;
+ 
++	/* Enable I2C SRAM in case of AST2500 */
++	if (of_device_is_compatible(pdev->dev.of_node,
++				    "aspeed,ast2500-i2c-bus")) {
++		struct regmap *gr_regmap = syscon_regmap_lookup_by_compatible(
++			"aspeed,ast2500-i2c-gr");
++		if (IS_ERR(gr_regmap))
++			ret = PTR_ERR(gr_regmap);
++		else
++			ret = regmap_update_bits(gr_regmap,
++						 ASPEED_I2CG_GLOBAL_CTRL_REG,
++						 ASPEED_I2CG_SRAM_BUFFER_EN,
++						 ASPEED_I2CG_SRAM_BUFFER_EN);
++
++		if (ret)
++			sram_enabled = false;
++	}
++
++	if (sram_enabled) {
++		struct resource *res = platform_get_resource(pdev,
++							     IORESOURCE_MEM, 1);
++
++		bus->buf_base = devm_ioremap_resource(&pdev->dev, res);
++		if (IS_ERR(bus->buf_base) || resource_size(res) < 2) {
++			bus->buf_base = NULL;
++		} else {
++			bus->buf_size = resource_size(res);
++			if (of_device_is_compatible(pdev->dev.of_node,
++						    "aspeed,ast2400-i2c-bus")) {
++				bus->buf_page = ((res->start >> 8) &
++						 GENMASK(3, 0)) - 8;
++				bus->buf_offset = (res->start >> 2) &
++						  ASPEED_I2CD_BUF_OFFSET_MASK;
++			}
 +		}
 +	}
 +
- 	parent_clk = devm_clk_get(&pdev->dev, NULL);
- 	if (IS_ERR(parent_clk))
- 		return PTR_ERR(parent_clk);
-diff --git a/drivers/irqchip/irq-aspeed-i2c-ic.c b/drivers/irqchip/irq-aspeed-i2c-ic.c
-index f20200af0992..99985b22a9fa 100644
---- a/drivers/irqchip/irq-aspeed-i2c-ic.c
-+++ b/drivers/irqchip/irq-aspeed-i2c-ic.c
-@@ -18,6 +18,9 @@
- #include <linux/of_irq.h>
- #include <linux/io.h>
+ 	/* Initialize the I2C adapter */
+ 	spin_lock_init(&bus->lock);
+ 	init_completion(&bus->cmd_complete);
+@@ -1085,8 +1311,8 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
  
-+/* I2C Global Control Register (AST2500) */
-+#define ASPEED_I2C_GLOBAL_CTRL_REG	0xc
-+#define  ASPEED_I2C_SRAM_BUFFER_EN	BIT(0)
+ 	platform_set_drvdata(pdev, bus);
  
- #define ASPEED_I2C_IC_NUM_BUS 14
- 
-@@ -100,6 +103,11 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
- 	irq_set_chained_handler_and_data(i2c_ic->parent_irq,
- 					 aspeed_i2c_ic_irq_handler, i2c_ic);
- 
-+	/* Enable I2C SRAM buffer in case of AST2500 */
-+	if (of_device_is_compatible(node, "aspeed,ast2500-i2c-ic"))
-+		writel(ASPEED_I2C_SRAM_BUFFER_EN,
-+		       i2c_ic->base + ASPEED_I2C_GLOBAL_CTRL_REG);
-+
- 	pr_info("i2c controller registered, irq %d\n", i2c_ic->parent_irq);
+-	dev_info(bus->dev, "i2c bus %d registered, irq %d\n",
+-		 bus->adap.nr, irq);
++	dev_info(bus->dev, "i2c bus %d registered (%s mode), irq %d\n",
++		 bus->adap.nr, bus->buf_base ? "buffer" : "byte", irq);
  
  	return 0;
+ }
 -- 
 2.7.4
 

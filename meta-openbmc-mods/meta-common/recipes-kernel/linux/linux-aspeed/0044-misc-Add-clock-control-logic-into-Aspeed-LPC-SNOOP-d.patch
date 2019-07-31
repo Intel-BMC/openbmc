@@ -1,4 +1,4 @@
-From 1ebca05f5cb04162e124e59cac701291f23d9091 Mon Sep 17 00:00:00 2001
+From a5bbf0f5943d3a6be6e58a4b78d6d18694ceb859 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:27:48 -0700
 Subject: [PATCH] misc: Add clock control logic into Aspeed LPC SNOOP driver
@@ -16,16 +16,16 @@ SNOOP driver.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/boot/dts/aspeed-g4.dtsi |  1 +
- arch/arm/boot/dts/aspeed-g5.dtsi |  1 +
- drivers/misc/aspeed-lpc-snoop.c  | 30 +++++++++++++++++++++++++++---
+ arch/arm/boot/dts/aspeed-g4.dtsi      |  1 +
+ arch/arm/boot/dts/aspeed-g5.dtsi      |  1 +
+ drivers/soc/aspeed/aspeed-lpc-snoop.c | 30 +++++++++++++++++++++++++++---
  3 files changed, 29 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 3a7e31f3de07..bedfb77c0158 100644
+index c2388bb7c678..70aca75d65e0 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -316,6 +316,7 @@
+@@ -320,6 +320,7 @@
  						compatible = "aspeed,ast2400-lpc-snoop";
  						reg = <0x0 0x80>;
  						interrupts = <8>;
@@ -34,10 +34,10 @@ index 3a7e31f3de07..bedfb77c0158 100644
  					};
  
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index a6720bc952b0..a26e8b3c09bf 100644
+index 88b318fd287b..f4a5d06f1000 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -451,6 +451,7 @@
+@@ -453,6 +453,7 @@
  						compatible = "aspeed,ast2500-lpc-snoop";
  						reg = <0x0 0x80>;
  						interrupts = <8>;
@@ -45,11 +45,11 @@ index a6720bc952b0..a26e8b3c09bf 100644
  						status = "disabled";
  					};
  
-diff --git a/drivers/misc/aspeed-lpc-snoop.c b/drivers/misc/aspeed-lpc-snoop.c
-index 2feb4347d67f..39a0471f0b8f 100644
---- a/drivers/misc/aspeed-lpc-snoop.c
-+++ b/drivers/misc/aspeed-lpc-snoop.c
-@@ -15,6 +15,7 @@
+diff --git a/drivers/soc/aspeed/aspeed-lpc-snoop.c b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+index 48f7ac238861..96ea52db25be 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-snoop.c
++++ b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+@@ -11,6 +11,7 @@
   */
  
  #include <linux/bitops.h>
@@ -57,7 +57,7 @@ index 2feb4347d67f..39a0471f0b8f 100644
  #include <linux/interrupt.h>
  #include <linux/fs.h>
  #include <linux/kfifo.h>
-@@ -71,6 +72,7 @@ struct aspeed_lpc_snoop_channel {
+@@ -67,6 +68,7 @@ struct aspeed_lpc_snoop_channel {
  struct aspeed_lpc_snoop {
  	struct regmap		*regmap;
  	int			irq;
@@ -65,7 +65,7 @@ index 2feb4347d67f..39a0471f0b8f 100644
  	struct aspeed_lpc_snoop_channel chan[NUM_SNOOP_CHANNELS];
  };
  
-@@ -286,22 +288,42 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
+@@ -282,22 +284,42 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
  		return -ENODEV;
  	}
  
@@ -111,7 +111,7 @@ index 2feb4347d67f..39a0471f0b8f 100644
  	return rc;
  }
  
-@@ -313,6 +335,8 @@ static int aspeed_lpc_snoop_remove(struct platform_device *pdev)
+@@ -309,6 +331,8 @@ static int aspeed_lpc_snoop_remove(struct platform_device *pdev)
  	aspeed_lpc_disable_snoop(lpc_snoop, 0);
  	aspeed_lpc_disable_snoop(lpc_snoop, 1);
  

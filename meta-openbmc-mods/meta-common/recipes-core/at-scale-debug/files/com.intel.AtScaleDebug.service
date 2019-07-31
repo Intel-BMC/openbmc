@@ -5,7 +5,7 @@ Requires=network-online.target
 [Service]
 Restart=always
 RestartSec=30
-ExecStart={bindir}/asd -k /home/root/server.pem
+ExecStart={bindir}/asd
 Type=simple
 SyslogIdentifier=asd
 

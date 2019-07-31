@@ -1,4 +1,4 @@
-From 4762687044ec864719ca14d8efa3dccdc3807e70 Mon Sep 17 00:00:00 2001
+From 108b39883e73f822b8f03e0d3fe3818b85b29b41 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:57:08 -0700
 Subject: [PATCH] misc: Block error printing on probe defer case in Aspeed LPC
@@ -10,14 +10,14 @@ out an error message because the probing will be re-visited.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- drivers/misc/aspeed-lpc-ctrl.c | 7 +++++--
+ drivers/soc/aspeed/aspeed-lpc-ctrl.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/misc/aspeed-lpc-ctrl.c b/drivers/misc/aspeed-lpc-ctrl.c
-index a024f8042259..c0818c7b0ffb 100644
---- a/drivers/misc/aspeed-lpc-ctrl.c
-+++ b/drivers/misc/aspeed-lpc-ctrl.c
-@@ -239,8 +239,10 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
+diff --git a/drivers/soc/aspeed/aspeed-lpc-ctrl.c b/drivers/soc/aspeed/aspeed-lpc-ctrl.c
+index 01ed21e8bfee..ae08419834a3 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-ctrl.c
++++ b/drivers/soc/aspeed/aspeed-lpc-ctrl.c
+@@ -252,8 +252,10 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
  
  	lpc_ctrl->clk = devm_clk_get(dev, NULL);
  	if (IS_ERR(lpc_ctrl->clk)) {
@@ -30,7 +30,7 @@ index a024f8042259..c0818c7b0ffb 100644
  	}
  	rc = clk_prepare_enable(lpc_ctrl->clk);
  	if (rc) {
-@@ -264,6 +266,7 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
+@@ -275,6 +277,7 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
  
  err:
  	clk_disable_unprepare(lpc_ctrl->clk);

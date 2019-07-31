@@ -1,4 +1,4 @@
 
 #SRC_URI += "git://github.com/openbmc/sdbusplus"
-SRCREV = "f8bbf17c3db879359b0984b40250e4db3d274be1"
+SRCREV = "4212292bcf136d04b38ba5116aa568b0fa312798"
 

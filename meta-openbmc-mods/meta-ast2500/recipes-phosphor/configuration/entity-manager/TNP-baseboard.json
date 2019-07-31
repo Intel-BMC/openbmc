@@ -193,6 +193,12 @@
             "Type": "ADC"
         },
         {
+            "BridgeGpio": [
+                {
+                    "Name": "P3VBAT_BRIDGE_EN",
+                    "Polarity": "High"
+                }
+            ],
             "Index": 7,
             "Name": "P3VBAT",
             "ScaleFactor": 0.3333,
@@ -558,30 +564,9 @@
         },
         {
             "Direction": "Input",
-            "Index": 49,
-            "Name": "Cpu Caterr",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 48,
-            "Name": "Cpu Err2",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
             "Index": 63,
             "Name": "PU 240VA Status",
             "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Out",
-            "Index": 208,
-            "Name": "P3v3bat BridgeEn",
-            "Polarity": "High",
             "Type": "Gpio"
         },
         {
@@ -1687,6 +1672,39 @@
             "Type": "IpmbSensor"
         },
         {
+            "Address": "0x20",
+            "Bus": 10,
+            "Class": "NodePower",
+            "Name": "Node Power",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 255
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 250
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "MP5920"
+        },
+        {
             "GpioPins": [
                 27,
                 26
@@ -1818,7 +1836,11 @@
         }
     ],
     "Name": "TNP Baseboard",
-    "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*TNP'})",
+    "Probe": [
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'D50TNP1SB'})",
+        "OR",
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*TNP'})"
+    ],
     "ProductId": 153,
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {

@@ -1,0 +1,63 @@
+{
+	"image-parts": [{
+			"name": "u-boot",
+			"index": 0,
+			"offset": "0",
+			"size": "0x80000",
+			"prot_mask": 31,
+			"pfm": 1,
+			"hash": 1,
+			"compress": 1
+		},
+		{
+			"name": "pfm",
+			"index": 1,
+			"offset": "0x80000",
+			"size": "0x20000",
+			"prot_mask": 31,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		},
+		{
+			"name": "u-boot-env",
+			"index": 2,
+			"offset": "0xa0000",
+			"size": "0x20000",
+			"prot_mask": 29,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		},
+		{
+			"name": "sofs",
+			"index": 3,
+			"offset": "0xc0000",
+			"size": "0x200000",
+			"prot_mask": 29,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		},
+		{
+			"name": "rwfs",
+			"index": 4,
+			"offset": "0x2c0000",
+			"size": "0x840000",
+			"prot_mask": 29,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		},
+		{
+			"name": "fit-image-a",
+			"index": 5,
+			"offset": "0xb00000",
+			"size": "0x1f00000",
+			"prot_mask": 31,
+			"pfm": 1,
+			"hash": 1,
+			"compress": 1
+		}
+	]
+}

@@ -1,4 +1,4 @@
-From 9537923d6e6a793cb2bf3c1daacd12562263bc0a Mon Sep 17 00:00:00 2001
+From 56faf4c5a3957012f3a3a8467b3dfde760093784 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Fri, 3 May 2019 16:12:39 -0700
 Subject: [PATCH] Enable pass-through on GPIOE1 and GPIOE3 free
@@ -20,10 +20,10 @@ Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
  3 files changed, 64 insertions(+)
 
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-index 187abd7..beb0729 100644
+index e20e2a259141..fbc9a68bd88c 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-@@ -2498,6 +2498,7 @@ static const struct pinmux_ops aspeed_g5_pinmux_ops = {
+@@ -2605,6 +2605,7 @@ static const struct pinmux_ops aspeed_g5_pinmux_ops = {
  	.get_function_groups = aspeed_pinmux_get_fn_groups,
  	.set_mux = aspeed_pinmux_set_mux,
  	.gpio_request_enable = aspeed_gpio_request_enable,
@@ -32,11 +32,11 @@ index 187abd7..beb0729 100644
  };
  
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed.c b/drivers/pinctrl/aspeed/pinctrl-aspeed.c
-index eb87ab7..f06d752 100644
+index 18f46177b4af..6feea140b438 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed.c
-@@ -538,6 +538,66 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
- 	return aspeed_sig_expr_enable(expr, pdata->maps);
+@@ -356,6 +356,66 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
+ 	return aspeed_sig_expr_enable(&pdata->pinmux, expr);
  }
  
 +void aspeed_gpio_disable_free(struct pinctrl_dev *pctldev,
@@ -68,11 +68,11 @@ index eb87ab7..f06d752 100644
 +		return;
 +
 +	/* Disable any functions of higher priority than GPIO just in case */
-+	while (funcs = *prios) {
++	while ((funcs = *prios)) {
 +		if (aspeed_gpio_in_exprs(funcs))
 +			break;
 +
-+		ret = aspeed_disable_sig(funcs, pdata->maps);
++		ret = aspeed_disable_sig(&pdata->pinmux, funcs);
 +		if (ret)
 +			return;
 +
@@ -96,17 +96,17 @@ index eb87ab7..f06d752 100644
 +	prios--;
 +	funcs = *prios;
 +	expr = *funcs;
-+	aspeed_sig_expr_enable(expr, pdata->maps);
++	aspeed_sig_expr_enable(&pdata->pinmux, expr);
 +}
 +
  int aspeed_pinctrl_probe(struct platform_device *pdev,
  			 struct pinctrl_desc *pdesc,
  			 struct aspeed_pinctrl_data *pdata)
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed.h b/drivers/pinctrl/aspeed/pinctrl-aspeed.h
-index d4d7f03..0037b11 100644
+index 11cc0eb6666b..735162ebb855 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed.h
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed.h
-@@ -595,6 +595,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
+@@ -64,6 +64,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
  int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
  		struct pinctrl_gpio_range *range,
  		unsigned int offset);

@@ -1,4 +1,4 @@
-From ddfbe1364c6ecf77f06990e6550dfe5a3791e6bf Mon Sep 17 00:00:00 2001
+From 9a71adc7aecbfdf066ba54c763c2ecd8fb09d3cd Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Wed, 6 Feb 2019 15:59:34 +0530
 Subject: [PATCH] Selecting 128MB for PFR
@@ -13,10 +13,10 @@ Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-index 8aba46cdce46..6959a06d04e2 100644
+index 4815104459f1..df02bb1aaf36 100644
 --- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -90,7 +90,7 @@
+@@ -89,7 +89,7 @@
  	flash@0 {
  		status = "okay";
  		m25p,fast-read;

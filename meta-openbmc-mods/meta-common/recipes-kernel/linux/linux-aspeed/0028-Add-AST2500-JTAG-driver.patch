@@ -1,12 +1,14 @@
-From 43470f186979483ba6c1e6374c7ea3a129622862 Mon Sep 17 00:00:00 2001
+From a4413fe3ba94906243b632e0b9e0e9a91620dd22 Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
-Date: Mon, 1 Mar 2019 11:46:09 -0700
+Date: Fri, 1 Mar 2019 11:46:09 -0700
 Subject: [PATCH] Update AST2500d JTAG driver. Step 1
 
 Update AST2500d JTAG driver. Remove Legacy driver but keep headers.
 
 Signed-off-by: Corona, Ernesto <ernesto.corona@intel.com>
 ---
+ include/uapi/linux/jtag_drv.h | 73 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)
  create mode 100644 include/uapi/linux/jtag_drv.h
 
 diff --git a/include/uapi/linux/jtag_drv.h b/include/uapi/linux/jtag_drv.h

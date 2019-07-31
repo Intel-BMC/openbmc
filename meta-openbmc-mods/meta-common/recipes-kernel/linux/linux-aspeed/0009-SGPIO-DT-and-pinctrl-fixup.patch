@@ -1,4 +1,4 @@
-From 2f895fe17cd72124b2a04af306f9349e5da90a6c Mon Sep 17 00:00:00 2001
+From 1059e64f4fc5af65f2afdc209761342fe44e3498 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Wed, 16 May 2018 10:03:14 -0700
 Subject: [PATCH] SGPIO DT and pinctrl fixup
@@ -15,10 +15,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  4 files changed, 54 insertions(+), 60 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 3990aed25ee6..19f721118b52 100644
+index fd857be397bf..00848693f455 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -203,6 +203,18 @@
+@@ -207,6 +207,18 @@
  				#interrupt-cells = <2>;
  			};
  
@@ -37,7 +37,7 @@ index 3990aed25ee6..19f721118b52 100644
  			timer: timer@1e782000 {
  				/* This timer is a Faraday FTTMR010 derivative */
  				compatible = "aspeed,ast2400-timer";
-@@ -1183,44 +1195,14 @@
+@@ -1180,44 +1192,14 @@
  		groups = "SD2";
  	};
  
@@ -89,10 +89,10 @@ index 3990aed25ee6..19f721118b52 100644
  
  	pinctrl_sioonctrl_default: sioonctrl_default {
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 0c74adf739d2..d4c99b82f7bd 100644
+index db82f47339aa..8406da6f62a5 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -276,6 +276,9 @@
+@@ -298,6 +298,9 @@
  				reg = <0x1e780200 0x0100>;
  				interrupts = <40>;
  				interrupt-controller;
@@ -102,7 +102,7 @@ index 0c74adf739d2..d4c99b82f7bd 100644
  			};
  
  			rtc: rtc@1e781000 {
-@@ -1388,6 +1391,11 @@
+@@ -1403,6 +1406,11 @@
  		groups = "SDA2";
  	};
  
@@ -115,10 +115,10 @@ index 0c74adf739d2..d4c99b82f7bd 100644
  		function = "SGPS1";
  		groups = "SGPS1";
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
-index 05b153034517..353af05b8602 100644
+index 384396cbb22d..a78ed8c33e96 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
-@@ -401,16 +401,22 @@ SSSF_PIN_DECL(E16, GPIOF6, TXD4, SIG_DESC_SET(SCU80, 30));
+@@ -423,16 +423,22 @@ SSSF_PIN_DECL(E16, GPIOF6, TXD4, SIG_DESC_SET(SCU80, 30));
  SSSF_PIN_DECL(C17, GPIOF7, RXD4, SIG_DESC_SET(SCU80, 31));
  
  #define A14 48
@@ -145,7 +145,7 @@ index 05b153034517..353af05b8602 100644
  
  #define B13 52
  SIG_EXPR_LIST_DECL_SINGLE(OSCCLK, OSCCLK, SIG_DESC_SET(SCU2C, 1));
-@@ -576,16 +582,22 @@ FUNC_GROUP_DECL(SPI1PASSTHRU, C22, G18, D19, C20, B22, G19, C18, E20);
+@@ -598,16 +604,22 @@ FUNC_GROUP_DECL(SPI1PASSTHRU, C22, G18, D19, C20, B22, G19, C18, E20);
  FUNC_GROUP_DECL(VGABIOS_ROM, B22, G19, C18, E20);
  
  #define J5 72
@@ -172,7 +172,7 @@ index 05b153034517..353af05b8602 100644
  
  #define T4 76
  SSSF_PIN_DECL(T4, GPIOJ4, VGAHS, SIG_DESC_SET(SCU84, 12));
-@@ -2083,14 +2095,8 @@ static const struct aspeed_pin_group aspeed_g4_groups[] = {
+@@ -2105,14 +2117,8 @@ static const struct aspeed_pin_group aspeed_g4_groups[] = {
  	ASPEED_PINCTRL_GROUP(SALT4),
  	ASPEED_PINCTRL_GROUP(SD1),
  	ASPEED_PINCTRL_GROUP(SD2),
@@ -189,7 +189,7 @@ index 05b153034517..353af05b8602 100644
  	ASPEED_PINCTRL_GROUP(SIOONCTRL),
  	ASPEED_PINCTRL_GROUP(SIOPBI),
  	ASPEED_PINCTRL_GROUP(SIOPBO),
-@@ -2238,14 +2244,8 @@ static const struct aspeed_pin_function aspeed_g4_functions[] = {
+@@ -2260,14 +2266,8 @@ static const struct aspeed_pin_function aspeed_g4_functions[] = {
  	ASPEED_PINCTRL_FUNC(SALT4),
  	ASPEED_PINCTRL_FUNC(SD1),
  	ASPEED_PINCTRL_FUNC(SD2),
@@ -207,10 +207,10 @@ index 05b153034517..353af05b8602 100644
  	ASPEED_PINCTRL_FUNC(SIOPBI),
  	ASPEED_PINCTRL_FUNC(SIOPBO),
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-index 4230e1038a88..13f749e35001 100644
+index 6f151e7c8d81..c088f010c554 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-@@ -577,6 +577,8 @@ SS_PIN_DECL(N3, GPIOJ2, SGPMO);
+@@ -599,6 +599,8 @@ SS_PIN_DECL(N3, GPIOJ2, SGPMO);
  SIG_EXPR_LIST_DECL_SINGLE(SGPMI, SGPM, SIG_DESC_SET(SCU84, 11));
  SS_PIN_DECL(N4, GPIOJ3, SGPMI);
  
@@ -219,7 +219,7 @@ index 4230e1038a88..13f749e35001 100644
  #define N5 76
  SIG_EXPR_LIST_DECL_SINGLE(VGAHS, VGAHS, SIG_DESC_SET(SCU84, 12));
  SIG_EXPR_LIST_DECL_SINGLE(DASHN5, DASHN5, SIG_DESC_SET(SCU94, 8));
-@@ -2127,6 +2129,7 @@ static const struct aspeed_pin_group aspeed_g5_groups[] = {
+@@ -2149,6 +2151,7 @@ static const struct aspeed_pin_group aspeed_g5_groups[] = {
  	ASPEED_PINCTRL_GROUP(SD2),
  	ASPEED_PINCTRL_GROUP(SDA1),
  	ASPEED_PINCTRL_GROUP(SDA2),
@@ -227,7 +227,7 @@ index 4230e1038a88..13f749e35001 100644
  	ASPEED_PINCTRL_GROUP(SGPS1),
  	ASPEED_PINCTRL_GROUP(SGPS2),
  	ASPEED_PINCTRL_GROUP(SIOONCTRL),
-@@ -2296,6 +2299,7 @@ static const struct aspeed_pin_function aspeed_g5_functions[] = {
+@@ -2318,6 +2321,7 @@ static const struct aspeed_pin_function aspeed_g5_functions[] = {
  	ASPEED_PINCTRL_FUNC(SD2),
  	ASPEED_PINCTRL_FUNC(SDA1),
  	ASPEED_PINCTRL_FUNC(SDA2),

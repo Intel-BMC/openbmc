@@ -1,4 +1,4 @@
-From bd4a64d7ea394d0b418d491699853112229f098e Mon Sep 17 00:00:00 2001
+From 513ff559cd6fedd29412fb59b6f436f617620511 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 21 May 2019 00:53:04 +0530
 Subject: [PATCH] FFUJ: FW IPMI commands and flash support in u-boot
@@ -28,6 +28,7 @@ Tested:
    image transfer via KCS and flashing.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
 ---
  arch/arm/include/asm/arch-aspeed/ast-g5-intel.h |   1 +
  board/aspeed/ast-g5/Makefile                    |   2 +
@@ -1258,14 +1259,11 @@ index d66c0fa..45a600e 100644
  #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
  		int prev = disable_ctrlc(1);	/* disable Control C checking */
 diff --git a/configs/ast_g5_phy_defconfig b/configs/ast_g5_phy_defconfig
-index 47d9563..f070494 100644
+index 1b96ab7..5965a9b 100644
 --- a/configs/ast_g5_phy_defconfig
 +++ b/configs/ast_g5_phy_defconfig
-@@ -17,3 +17,4 @@ CONFIG_SYS_NS16550=y
+@@ -15,3 +15,4 @@ CONFIG_SYS_NS16550=y
  CONFIG_USE_IRQ=y
  CONFIG_CMD_I2C=y
  CONFIG_SYS_I2C_AST=y
 +CONFIG_LIB_RAND=y
--- 
-2.7.4
-

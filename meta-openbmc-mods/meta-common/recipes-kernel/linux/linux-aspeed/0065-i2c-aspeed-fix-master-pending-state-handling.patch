@@ -1,4 +1,4 @@
-From 50221ac92816333efcf961c5f22f8b9ffdccb31b Mon Sep 17 00:00:00 2001
+From 4a05d2506e7cb7fb3ad323a16861f09279b4da39 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Tue, 11 Jun 2019 14:59:53 -0700
 Subject: [PATCH] i2c: aspeed: fix master pending state handling
@@ -15,10 +15,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index f96160e01a69..64bc68eaa88f 100644
+index 8f26060bd685..d8143c24d3a7 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
-@@ -384,18 +384,19 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
+@@ -383,18 +383,19 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
  	struct i2c_msg *msg = &bus->msgs[bus->msgs_index];
  	u8 slave_addr = i2c_8bit_addr_from_msg(msg);
  
@@ -41,7 +41,7 @@ index f96160e01a69..64bc68eaa88f 100644
  	bus->buf_index = 0;
  
  	if (msg->flags & I2C_M_RD) {
-@@ -480,7 +481,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -479,7 +480,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		if (bus->slave_state != ASPEED_I2C_SLAVE_INACTIVE)
  			goto out_no_complete;
  

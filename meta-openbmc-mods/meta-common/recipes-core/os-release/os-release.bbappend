@@ -15,7 +15,7 @@ python do_compile_append () {
         corebase = d.getVar('COREBASE', True)
         f.write('\n# Build Configuration Details\n')
         repo_status(d, f, corebase, '')
-        repo_status(d, f, os.path.join(corebase, 'meta-openbmc-mods'), '--tags')
+        repo_status(d, f, os.path.join(corebase, 'openbmc-meta-intel'), '--tags')
         appends_dir = os.path.join(d.getVar('TOPDIR', True), 'workspace', 'appends')
 
         for fn in glob.glob(os.path.join(appends_dir, '*.bbappend')):

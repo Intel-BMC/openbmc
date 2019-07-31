@@ -1,0 +1,29 @@
+diff --git a/app/watchdog.cpp b/app/watchdog.cpp
+index 2938d23..bc5df29 100644
+--- a/app/watchdog.cpp
++++ b/app/watchdog.cpp
+@@ -445,23 +445,21 @@ ipmi_ret_t ipmi_app_watchdog_get(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                     wdTimerUseToIpmiTimerUse(wd_prop.expiredTimerUse));
+         }
+ 
++        res.expire_flags = timerUseExpirationFlags;
+         if (wd_prop.enabled)
+         {
+             res.timer_use |= wd_running;
+             res.present_countdown = htole16(wd_prop.timeRemaining / 100);
+-            res.expire_flags = 0;
+         }
+         else
+         {
+             if (wd_prop.expiredTimerUse == WatchdogService::TimerUse::Reserved)
+             {
+                 res.present_countdown = res.initial_countdown;
+-                res.expire_flags = 0;
+             }
+             else
+             {
+                 res.present_countdown = 0;
+-                res.expire_flags = timerUseExpirationFlags;
+             }
+         }
+ 
