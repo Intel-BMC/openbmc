@@ -23,6 +23,7 @@ DEPENDS += "virtual/phosphor-logging-callouts"
 DEPENDS += "phosphor-logging-error-logs-native"
 DEPENDS += "phosphor-logging-native"
 DEPENDS += "libcereal"
+DEPENDS += "sdeventplus"
 
 PACKAGE_BEFORE_PN = "${PN}-test"
 FILES_${PN}-test = "${bindir}/*-test"
@@ -53,7 +54,7 @@ FILES_phosphor-rsyslog-config += " \
 "
 
 SRC_URI += "git://github.com/openbmc/phosphor-logging"
-SRCREV = "0a0b5ea558adeb109a3ac52e55ad720e188adb90"
+SRCREV = "0a2c1a23327ac720b19eb1b12521d8fde95de2d5"
 
 S = "${WORKDIR}/git"
 
@@ -64,6 +65,7 @@ DEPENDS_remove_class-native = " \
         sdbus++ \
         systemd \
         libcereal \
+        sdeventplus \
         "
 
 # Do not DEPEND on the specified packages for native SDK build
@@ -74,6 +76,7 @@ DEPENDS_remove_class-nativesdk = " \
         libcereal \
         systemd \
         phosphor-dbus-interfaces \
+        sdeventplus \
         "
 
 PACKAGECONFIG ??= "metadata-processing install_scripts"

@@ -1,0 +1,10 @@
+[Match]
+Name=en* eth*
+KernelCommandLine=!nfsroot
+
+[Network]
+DHCP=yes
+
+[DHCP]
+RouteMetric=10
+ClientIdentifier=mac

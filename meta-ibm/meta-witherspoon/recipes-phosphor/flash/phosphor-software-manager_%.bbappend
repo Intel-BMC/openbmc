@@ -1,9 +1,9 @@
-BMC_RW_MTD = "bmc"
-BMC_RO_MTD = "alt-bmc+bmc"
-BMC_KERNEL_MTD = "bmc"
+BMC_RW_MTD_ibm-ac-server = "bmc"
+BMC_RO_MTD_ibm-ac-server = "alt-bmc+bmc"
+BMC_KERNEL_MTD_ibm-ac-server = "bmc"
 
-# Enable signature verification by DISTRO_FEATURE obmc-ubi-fs
-PACKAGECONFIG_append_df-obmc-ubi-fs = " verify_signature"
+# Enable signature verification
+PACKAGECONFIG_append_ibm-ac-server = " verify_signature"
 
 # Enable sync of persistent files to the alternate BMC chip
-PACKAGECONFIG_append_df-obmc-ubi-fs = " sync_bmc_files"
+PACKAGECONFIG_append_ibm-ac-server = " sync_bmc_files"

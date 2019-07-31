@@ -24,6 +24,7 @@ PTESTS_FAST = "\
     kbd-ptest \
     libconvert-asn1-perl-ptest \
     liberror-perl-ptest \
+    libmodule-build-perl-ptest \
     libpcre-ptest \
     libtimedate-perl-ptest \
     libtest-needs-perl-ptest \
@@ -65,6 +66,7 @@ PTESTS_SLOW = "\
     gstreamer1.0-ptest \
     libevent-ptest \
     lttng-tools-ptest \
+    mdadm-ptest \
     openssh-ptest \
     openssl-ptest \
     perl-ptest \

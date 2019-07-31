@@ -6,14 +6,15 @@ PV = "0.1+git${SRCPV}"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
-inherit flto-automake pkgconfig
+inherit autotools pkgconfig
 
 inherit phosphor-pid-control
 inherit obmc-phosphor-ipmiprovider-symlink
+inherit systemd
 
 S = "${WORKDIR}/git"
 SRC_URI = "git://github.com/openbmc/phosphor-pid-control"
-SRCREV = "2192a6daefe48055e063861b3a33a6c2d91ddf40"
+SRCREV = "a7ec8350d17b70153cebe666d3fbe88bddd02a1a"
 
 # Each platform will need a service file that starts
 # at an appropriate time per system.  For instance, if
@@ -31,6 +32,14 @@ DEPENDS += "boost"
 
 # We depend on this to be built first so we can build our providers.
 DEPENDS += "phosphor-ipmi-host"
+
+SERVICE_FILE = "phosphor-pid-control.service"
+SYSTEMD_PACKAGES = "${PN}"
+SYSTEMD_SERVICE_${PN} = "${SERVICE_FILE}"
+
+EXTRA_OECONF = " \
+  SYSTEMD_TARGET="multi-user.target" \
+       "
 
 FILES_${PN} = "${bindir}/swampd ${bindir}/setsensor"
 
