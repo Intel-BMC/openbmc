@@ -1,4 +1,4 @@
-From 7baa65c9bf638265874838401e27a7b6179559ff Mon Sep 17 00:00:00 2001
+From 01c8d6a5146cd39c2286f659e21f1a1042aa741a Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Wed, 2 Jan 2019 15:06:43 +0800
 Subject: [PATCH] Add high speed baud rate support for UART
@@ -19,7 +19,7 @@ Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
  2 files changed, 37 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/clk/clk-aspeed.c b/drivers/clk/clk-aspeed.c
-index 5961367..3bbb4fb 100644
+index 42b4df6ba249..97c27820db3e 100644
 --- a/drivers/clk/clk-aspeed.c
 +++ b/drivers/clk/clk-aspeed.c
 @@ -14,7 +14,9 @@
@@ -46,7 +46,7 @@ index 5961367..3bbb4fb 100644
  #define ASPEED_STRAP		0x70
  #define  CLKIN_25MHZ_EN		BIT(23)
  #define  AST2400_CLK_SOURCE_SEL	BIT(18)
-@@ -425,7 +433,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+@@ -446,7 +454,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
  	struct aspeed_reset *ar;
  	struct regmap *map;
  	struct clk_hw *hw;
@@ -55,7 +55,7 @@ index 5961367..3bbb4fb 100644
  	int i, ret;
  
  	map = syscon_node_to_regmap(dev->of_node);
-@@ -460,15 +468,23 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+@@ -481,15 +489,23 @@ static int aspeed_clk_probe(struct platform_device *pdev)
  	/* UART clock div13 setting */
  	regmap_read(map, ASPEED_MISC_CTRL, &val);
  	if (val & UART_DIV13_EN)
@@ -82,8 +82,8 @@ index 5961367..3bbb4fb 100644
  	/*
  	 * Memory controller (M-PLL) PLL. This clock is configured by the
  	 * bootloader, and is exposed to Linux as a read-only clock rate.
-@@ -534,9 +550,22 @@ static int aspeed_clk_probe(struct platform_device *pdev)
- 	 *   Video Engine (ECLK) mux and clock divider
+@@ -570,9 +586,22 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+ 	 *   UART[1..5] clock source mux
  	 */
  
 +	/* Get the uart clock source configuration from SCU4C*/
@@ -105,7 +105,7 @@ index 5961367..3bbb4fb 100644
  
  		/* Special case: the USB port 1 clock (bit 14) is always
  		 * working the opposite way from the other ones.
-@@ -544,7 +573,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+@@ -580,7 +609,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
  		gate_flags = (gd->clock_idx == 14) ? 0 : CLK_GATE_SET_TO_DISABLE;
  		hw = aspeed_clk_hw_register_gate(dev,
  				gd->name,
@@ -115,7 +115,7 @@ index 5961367..3bbb4fb 100644
  				map,
  				gd->clock_idx,
 diff --git a/include/dt-bindings/clock/aspeed-clock.h b/include/dt-bindings/clock/aspeed-clock.h
-index f437386..3358795 100644
+index f43738607d77..335879505a72 100644
 --- a/include/dt-bindings/clock/aspeed-clock.h
 +++ b/include/dt-bindings/clock/aspeed-clock.h
 @@ -39,6 +39,8 @@

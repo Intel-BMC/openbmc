@@ -2,7 +2,7 @@ SUMMARY = "Intel IPMI Providers"
 DESCRIPTION = "IPMI Provider Libraries"
 
 SRC_URI = "git://git@github.com/Intel-BMC/intel-ipmi-providers;protocol=ssh"
-SRCREV = "3f8aa7959d2e8475e50743d32ff178257aafc1e7"
+SRCREV = "b2c6184269e3bdf601c38f716ac7ee73379af71b"
 
 S = "${WORKDIR}/git"
 PV = "0.1+git${SRCPV}"

@@ -1,6 +1,6 @@
-From c2d57900820475b50affd171f4dc423a278887ae Mon Sep 17 00:00:00 2001
+From d4c55bd4eeb6d9290025fa353d1787f18bca6ade Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
-Date: Wed, 10 Mar 2019 11:47:40 -0800
+Date: Sun, 10 Mar 2019 11:47:40 -0800
 Subject: [PATCH v29 4/6] Documentation: jtag: Add ABI documentation
 
 Added document that describe the ABI for JTAG class driver
@@ -84,8 +84,8 @@ v6->v7
 Comments pointed by Pavel Machek <pavel@ucw.cz>
 - Added jtag-cdev documentation to Documentation/ABI/testing folder
 ---
- Documentation/ABI/testing/jtag-dev |  23 +++++++
- Documentation/jtag/overview        |  27 ++++++++
+ Documentation/ABI/testing/jtag-dev |  23 ++++++
+ Documentation/jtag/overview        |  27 +++++++
  Documentation/jtag/transactions    | 145 +++++++++++++++++++++++++++++++++++++
  3 files changed, 195 insertions(+)
  create mode 100644 Documentation/ABI/testing/jtag-dev
@@ -94,7 +94,7 @@ Comments pointed by Pavel Machek <pavel@ucw.cz>
 
 diff --git a/Documentation/ABI/testing/jtag-dev b/Documentation/ABI/testing/jtag-dev
 new file mode 100644
-index 0000000..423baab
+index 000000000000..423baab18761
 --- /dev/null
 +++ b/Documentation/ABI/testing/jtag-dev
 @@ -0,0 +1,23 @@
@@ -123,7 +123,7 @@ index 0000000..423baab
 +		userspace tools which wants to access to JTAG bus
 diff --git a/Documentation/jtag/overview b/Documentation/jtag/overview
 new file mode 100644
-index 0000000..6a5ec33
+index 000000000000..6a5ec335e313
 --- /dev/null
 +++ b/Documentation/jtag/overview
 @@ -0,0 +1,27 @@
@@ -156,7 +156,7 @@ index 0000000..6a5ec33
 +User: close -> /dev/jatgX -> JTAG core driver -> JTAG hardware specific driver
 diff --git a/Documentation/jtag/transactions b/Documentation/jtag/transactions
 new file mode 100644
-index 0000000..76fd0b1
+index 000000000000..f5d4a1ded6cf
 --- /dev/null
 +++ b/Documentation/jtag/transactions
 @@ -0,0 +1,145 @@
@@ -254,7 +254,7 @@ index 0000000..76fd0b1
 +length: xfer data length in bits
 +tdio : xfer data array
 +from: xfer from state can be current JTAG tap state saved by the driver
-+      JTAG_STATE_CURRENT or in a multichain environment any state listed in 
++      JTAG_STATE_CURRENT or in a multichain environment any state listed in
 +      jtag_tapstate struct saved by your multichain controller software.
 +endstate: xfer end state after transaction finish
 +	   can be: any state listed in jtag_tapstate struct
@@ -307,3 +307,4 @@ index 0000000..76fd0b1
 +	tdo1 = bitbang_data[1].tdo;
 -- 
 2.7.4
+

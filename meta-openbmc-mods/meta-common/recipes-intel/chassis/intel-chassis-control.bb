@@ -2,7 +2,7 @@ SUMMARY = "Chassis Power Control service for Intel based platform"
 DESCRIPTION = "Chassis Power Control service for Intel based platfrom"
 
 SRC_URI = "git://git@github.com/Intel-BMC/intel-chassis-control.git;protocol=ssh"
-SRCREV = "d98b80a3ce937abe6282b7b9011b47e8b2f162be"
+SRCREV = "8d7026c078d79d5e60e7938e4e5f08bb7966ebbd"
 
 S = "${WORKDIR}/git/services/chassis/"
 
@@ -22,8 +22,3 @@ DEPENDS += " \
     sdbusplus \
     phosphor-logging \
     "
-
-# linux-libc-headers guides this way to include custom uapi headers
-CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
-CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
-do_configure[depends] += "virtual/kernel:do_shared_workdir"

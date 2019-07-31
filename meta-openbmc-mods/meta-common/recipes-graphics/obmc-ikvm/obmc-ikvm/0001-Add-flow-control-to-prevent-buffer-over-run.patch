@@ -1,4 +1,4 @@
-From 336d0e9163a027b2b35ed240c2995f06684637b8 Mon Sep 17 00:00:00 2001
+From 88337ce8246a453cd3c6e60e96aead43549a5e1d Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
 Date: Thu, 9 May 2019 16:26:53 -0700
 Subject: [PATCH] Add flow control to prevent buffer over run
@@ -31,12 +31,12 @@ resolves https://github.com/openbmc/bmcweb/issues/80
 Change-Id: I6b09a711137d15a38fce59adada9bf3d00afde86
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
 ---
- ikvm_server.cpp | 19 +++++++++++++++++++
- ikvm_server.hpp | 10 ++++++++++
- 2 files changed, 29 insertions(+)
+ ikvm_server.cpp | 20 ++++++++++++++++++++
+ ikvm_server.hpp | 11 +++++++++++
+ 2 files changed, 31 insertions(+)
 
 diff --git a/ikvm_server.cpp b/ikvm_server.cpp
-index 35310da292be..363eab7e000d 100644
+index 35310da292be..dfafe3a82e64 100644
 --- a/ikvm_server.cpp
 +++ b/ikvm_server.cpp
 @@ -119,6 +119,12 @@ void Server::sendFrame()
@@ -52,13 +52,14 @@ index 35310da292be..363eab7e000d 100644
          if (cl->enableLastRectEncoding)
          {
              fu->nRects = 0xFFFF;
-@@ -149,6 +155,18 @@ void Server::sendFrame()
+@@ -149,6 +155,19 @@ void Server::sendFrame()
      rfbReleaseClientIterator(it);
  }
  
-+void Server::clientFUR(rfbClientPtr cl, rfbFramebufferUpdateRequestMsg* furMsg)
++void Server::clientFramebufferUpdateRequest(
++    rfbClientPtr cl, rfbFramebufferUpdateRequestMsg *furMsg)
 +{
-+    ClientData* cd = (ClientData*)cl->clientData;
++    ClientData *cd = (ClientData *)cl->clientData;
 +
 +    if (!cd)
 +        return;
@@ -71,16 +72,16 @@ index 35310da292be..363eab7e000d 100644
  void Server::clientGone(rfbClientPtr cl)
  {
      Server* server = (Server*)cl->screen->screenData;
-@@ -170,6 +188,7 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
+@@ -170,6 +189,7 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
      cl->clientData =
          new ClientData(server->video.getFrameRate(), &server->input);
      cl->clientGoneHook = clientGone;
-+    cl->clientFURHook = clientFUR;
++    cl->clientFramebufferUpdateRequestHook = clientFramebufferUpdateRequest;
      if (!server->numClients++)
      {
          server->pendingResize = false;
 diff --git a/ikvm_server.hpp b/ikvm_server.hpp
-index b8062017b8ca..e51e57a19722 100644
+index b8062017b8ca..ebe4ad2b287e 100644
 --- a/ikvm_server.hpp
 +++ b/ikvm_server.hpp
 @@ -32,6 +32,7 @@ class Server
@@ -99,7 +100,7 @@ index b8062017b8ca..e51e57a19722 100644
      };
  
      /*
-@@ -85,6 +87,14 @@ class Server
+@@ -85,6 +87,15 @@ class Server
  
    private:
      /*
@@ -108,8 +109,9 @@ index b8062017b8ca..e51e57a19722 100644
 +     * @param[in] cl - Handle to the client object
 +     * @param[in] furMsg - Pointer of the FUR message
 +     */
-+    static void clientFUR(rfbClientPtr cl,
-+                          rfbFramebufferUpdateRequestMsg* furMsg);
++    static void
++    clientFramebufferUpdateRequest(rfbClientPtr cl,
++                                   rfbFramebufferUpdateRequestMsg *furMsg);
 +    /*
       * @brief Handler for a client disconnecting
       *

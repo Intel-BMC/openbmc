@@ -1,7 +1,7 @@
-From 89728d8c255204c8d9ec46a1dc0d412b04708f22 Mon Sep 17 00:00:00 2001
+From 0fbd5fe6fa08f709b64bdbad6440ea77b422fc4b Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Fri, 16 Nov 2018 09:58:01 -0800
-Subject: [PATCH 4/7] Add basic GPIO support
+Subject: [PATCH] Add basic GPIO support
 
 Add a table of well-known gpios (such as FP LEDs and FF UPD jumper) and
 initialize them at boot.
@@ -10,18 +10,19 @@ Add a mechanism to get/set well known gpios from command line.
 
 Change-Id: I4136a5ccb048b3604f13b17ea0c18a4bc596c249
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
 ---
  board/aspeed/ast-g5/Makefile       |   1 +
- board/aspeed/ast-g5/ast-g5-gpio.c  | 195 +++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5-gpio.h  | 102 +++++++++++++++
- board/aspeed/ast-g5/ast-g5-intel.c |  42 +++++++
+ board/aspeed/ast-g5/ast-g5-gpio.c  | 195 +++++++++++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-gpio.h  | 102 +++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c |  42 ++++++++
  board/aspeed/ast-g5/ast-g5.h       |   1 +
  5 files changed, 341 insertions(+)
  create mode 100644 board/aspeed/ast-g5/ast-g5-gpio.c
  create mode 100644 board/aspeed/ast-g5/ast-g5-gpio.h
 
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index 58e0c648f4..2970ae5741 100644
+index 58e0c64..2970ae5 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -2,3 +2,4 @@ obj-y += ast-g5.o
@@ -31,7 +32,7 @@ index 58e0c648f4..2970ae5741 100644
 +obj-y += ast-g5-gpio.o
 diff --git a/board/aspeed/ast-g5/ast-g5-gpio.c b/board/aspeed/ast-g5/ast-g5-gpio.c
 new file mode 100644
-index 0000000000..d596c15914
+index 0000000..d596c15
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-gpio.c
 @@ -0,0 +1,195 @@
@@ -232,7 +233,7 @@ index 0000000000..d596c15914
 +		"");
 diff --git a/board/aspeed/ast-g5/ast-g5-gpio.h b/board/aspeed/ast-g5/ast-g5-gpio.h
 new file mode 100644
-index 0000000000..a820c0fcad
+index 0000000..a820c0f
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-gpio.h
 @@ -0,0 +1,102 @@
@@ -339,7 +340,7 @@ index 0000000000..a820c0fcad
 +
 +#endif /* __HW_GPIO_H__ */
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index fca4d91115..252a05dd73 100644
+index c2a8b33..069e7a3 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -14,6 +14,47 @@
@@ -399,7 +400,7 @@ index fca4d91115..252a05dd73 100644
  	sgpio_init();
  }
 diff --git a/board/aspeed/ast-g5/ast-g5.h b/board/aspeed/ast-g5/ast-g5.h
-index 9fd10eccb3..908db1477b 100644
+index 9fd10ec..908db14 100644
 --- a/board/aspeed/ast-g5/ast-g5.h
 +++ b/board/aspeed/ast-g5/ast-g5.h
 @@ -3,5 +3,6 @@
@@ -409,6 +410,3 @@ index 9fd10eccb3..908db1477b 100644
 +#include "ast-g5-gpio.h"
  
  #endif /* _AST_G5_H_ */
--- 
-2.17.1
-

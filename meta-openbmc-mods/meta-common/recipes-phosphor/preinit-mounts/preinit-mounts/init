@@ -18,10 +18,23 @@
 # provide a couple of places in the RO root filesystem
 # that can be made RW with an overlayfs
 
+log() {
+    [ -c /dev/kmsg ] && echo "init: $@" > /dev/kmsg
+    echo "init: $@"
+}
+
 # start with /proc and /tmp mounted
 [ -e /proc/mounts ] || mount -t proc proc /proc
 grep -q /tmp /proc/mounts || mount -t tmpfs -o rw,nosuid,nodev tmp /tmp
 grep -q /sys /proc/mounts || mount -t sysfs -o rw,nosuid,nodev,noexec sys /sys
+
+if grep -q debug-init /proc/cmdline; then
+    exec > /tmp/init.log 2>&1
+    set -x
+else
+    # silent bob
+    exec >/dev/null 2>&1
+fi
 
 # list of things that need to be rw at boot
 NV_OVERLAYS="/etc /var /home"
@@ -61,85 +74,99 @@ nvrw() {
     mount -t overlay -o "$opts" "$mname" "$p"
 }
 
-targetted_clean() {
-    local LOG_TAG="restore-defaults"
-    # Do not delete server certificates for the web server or ssh
-    echo "removing targetted contents:"
-    cd "${RWFS_MNT}/etc"
-    for file in *; do
-        case $file in
-            # The only files that stay are here:
-            CA|RestoreDefaultConfiguration|dropbear|sdr|server.pem);;
-            # All else get removed.
-            *)  echo "remove $file"
-                rm -rf $file;;
-        esac
-    done
+targeted_clean() {
+    log "restore-defaults: targeted_clean"
+    # Do not delete FRU info, ssh/ssl certs, or machine-id
+    (
+        cd "${RWFS_MNT}/etc"
+        find . ! -regex '.*\(/ssl\|/dropbear\|/machine-id\(_bkup\)\?\|/fru\).*' -exec rm -rf {} +
+    )
     # nothing should be in the workdir, but clear it just in case
     rm -rf "${RWFS_MNT}/etc.work"
 
-    # Log files remaining - but not to stdout.
-    echo "Files remaining: $(ls)"
+    # clean everything out of /home
+    rm -rf "${RWFS_MNT}/home" "${RWFS_MNT}/home.work"
 
     # clean everything out of /var
     rm -rf "${RWFS_MNT}/var" "${RWFS_MNT}/var.work"
+
+    echo "Files remaining: $(find $RWFS_MNT/)"
+    sync
 }
 
 full_clean() {
+    log "restore-defaults: full_clean"
     local OVL=''
     for OVL in $NV_OVERLAYS; do
         rm -rf "${RWFS_MNT}${OVL}" "${RWFS_MNT}${OVL}.work"
     done
+    sync
+}
+# attach a UBI device to the MTD device
+prepare_ubi_volume() {
+    local nv_num="$1"
+    local mtd="/dev/mtd${nv_num}"
+    local ubi="/dev/ubi${nv_num}"
+    if [ ! -e $ubi ]; then
+        if ! ubiattach -m "$nv_num" -d "$nv_num"; then
+            # the attach failed, so format the MTD device and try again
+            log "Warning! Failed to attach $ubi to $mtd."
+            log "UBI-formatting $mtd to attach again. Data on this device will be lost."
+            ubiformat -y "$mtd"
+            ubiattach -m "$nv_num" -d "$nv_num"
+        fi
+    fi
+
+    # make a UBI volume on the UBI device
+    local vol="${ubi}_0"
+    if [ ! -e $vol ]; then
+        ubimkvol "$ubi" -N "$mtd" -m
+    fi
 }
 
-# check for full factory reset: if so, ubiformat $NV_MTD_DEV
-bootflags="0x$(sed -n 's/^.*bootflags=\([0-9a-f]*\).*$/\1/p' /proc/cmdline)"
-bootflags=$((bootflags + 0))
-let "restore_op = $bootflags & 0x3"
-if [ $restore_op -eq 3 ]; then
-    ubiformat -y "$NV_MTD_DEV"
-fi
-
-# attach a UBI device to the MTD device
-NV_UBI_DEV="/dev/ubi${NV_MTD_NUM}"
-if [ ! -e $NV_UBI_DEV ]; then
-    if ! ubiattach -m "$NV_MTD_NUM" -d "$NV_MTD_NUM"; then
-        # the attach failed, so format the MTD device and try again
-        echo "Warning! Failed to attach $NV_UBI_DEV to $NV_MTD_DEV."
-        echo "UBI-formatting $NV_MTD_DEV to attach again. Data on this device will be lost."
-        ubiformat -y "$NV_MTD_DEV"
-        ubiattach -m "$NV_MTD_NUM" -d "$NV_MTD_NUM"
+reformat_ubi_volume() {
+    local nv_num="$1"
+    local mnt="$2"
+    local ubi="/dev/ubi${nv_num}"
+    local vol="${ubi}_0"
+    # unmount the volume to reformat it
+    umount -f "$mnt"
+    ubidetach -m $nv_num
+    ubiformat -y "$ubi"
+    prepare_ubi_volume $nv_num
+    # remount the UBIFS on the UBI volume
+    mount -t ubifs "$vol" "$mnt"
+    if [ $? -ne 0 ]; then
+        log "Failed to mount reformatted NV volume; system unstable"
     fi
-fi
-
-# make a UBI volume on the UBI device
-NV_UBI_VOL="${NV_UBI_DEV}_0"
-if [ ! -e $NV_UBI_VOL ]; then
-    ubimkvol "$NV_UBI_DEV" -N "$NV_MTD" -m
-fi
+}
 
 # mount a UBIFS on the UBI volume
-mount -t ubifs "$NV_UBI_VOL" "$RWFS_MNT"
+prepare_ubi_volume $NV_MTD_NUM
+mount -t ubifs "/dev/ubi${NV_MTD_NUM}_0" "$RWFS_MNT"
+if [ $? -ne 0 ]; then
+    log "Failed to mount NV volume; attempting recovery"
+    reformat_ubi_volume $NV_MTD_NUM $RWFS_MNT
+fi
 
+# check for full factory reset: if so, ubiformat $NV_MTD_DEV
+RESTORE_FLAG=$RWFS_MNT/.restore_op
+restore_op=$(cat $RESTORE_FLAG) # read from NV
+restore_op=${restore_op:-0}     # set default value 0
+restore_op=$((restore_op & 3))  # mask off 2 bits
 if [ $restore_op -eq 1 ]; then
-    targetted_clean
+    targeted_clean
 elif [ $restore_op -eq 2 ]; then
     full_clean
+elif [ $restore_op -eq 3 ]; then
+    log "restore-defaults: reformat"
+    reformat_ubi_volume $NV_MTD_NUM $RWFS_MNT
 fi
+rm -f $RESTORE_FLAG
 
 for FS in $NV_OVERLAYS; do
     nvrw "$FS"
 done
-
-# make sure that /etc/fw_env.config mirrors our current uboot environment
-UENV_MTD_INFO=$(grep UENV /proc/mtd)
-if [ -n "$UENV_MTD_INFO" ]; then
-    UENV_MTD_INFO=$(echo "$UENV_MTD_INFO" | sed 's,^\([^:]*\): \([0-9a-f]*\) \([0-9a-f]*\) .*,/dev/\1 0 0x\2 0x\3,')
-    if ! grep -q "^${UENV_MTD_INFO}$" /etc/fw_env.config; then
-        echo "${UENV_MTD_INFO}" > /etc/fw_env.config
-        echo "Updated fw_env.config"
-    fi
-fi
 
 # work around bug where /etc/machine-id will be mounted with a temporary file
 # if rootfs is read-only and the file is empty
@@ -163,41 +190,28 @@ if [ ! -s "$MACHINE_ID" ]; then
         else
             generate_machine_id
         fi
-        echo "Remounted /etc for machine-id origin mismatch"
+        log "Remounted /etc for machine-id origin mismatch"
     else
         generate_machine_id
     fi
 fi
 
 # mount persistent NV filesystem, where immortal settings live
+SOFS_MNT=/var/sofs
 if ! grep -q sofs /proc/mounts; then
-    mkdir -p /var/sofs
+    mkdir -p $SOFS_MNT
     SOFS_MTD=sofs
-    SOFS_MTD_DEV="$(mtd_by_name ${SOFS_MTD})"
     SOFS_MTD_NUM="$(mtdnum_by_name ${SOFS_MTD})"
-    SOFS_UBI_DEV="/dev/ubi${SOFS_MTD_NUM}"
-
-    # attach a UBI device to the MTD device
-    if [ ! -e $SOFS_UBI_DEV ]; then
-        if ! ubiattach -m "$SOFS_MTD_NUM" -d "$SOFS_MTD_NUM"; then
-            # the attach failed, so format the MTD device and try again
-            echo "Warning! Failed to attach $SOFS_UBI_DEV to $SOFS_MTD_DEV."
-            echo "UBI-formatting $SOFS_MTD_DEV to attach again. Data on this device will be lost."
-            ubiformat -y "$SOFS_MTD_DEV"
-            ubiattach -m "$SOFS_MTD_NUM" -d "$SOFS_MTD_NUM"
-        fi
-    fi
-
-    # make a UBI volume on the UBI device
-    SOFS_UBI_VOL="${SOFS_UBI_DEV}_0"
-    if [ ! -e $SOFS_UBI_VOL ]; then
-        ubimkvol "$SOFS_UBI_DEV" -N "$SOFS_MTD" -m
-    fi
 
     # mount a UBIFS on the UBI volume
-    mount -t ubifs "$SOFS_UBI_VOL" /var/sofs
+    prepare_ubi_volume $SOFS_MTD_NUM
+    mount -t ubifs "/dev/ubi${SOFS_MTD_NUM}_0" "$SOFS_MNT"
+    if [ $? -ne 0 ]; then
+        log "Failed to mount SOFS volume; attempting recovery"
+        reformat_ubi_volume $SOFS_MTD_NUM $SOFS_MNT
+    fi
 fi
 
-echo "Finished mounting non-volatile overlays"
+log "Finished mounting non-volatile overlays"
 
 exec /lib/systemd/systemd

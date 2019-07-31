@@ -1,4 +1,4 @@
-From 9c27803dd432c7a9fc57dd3e16f0fd724919575e Mon Sep 17 00:00:00 2001
+From 2dec2c142e48a35e6c7de00c6a35e963de7447e0 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 7 Jan 2019 09:56:10 -0800
 Subject: [PATCH] Update PECI drivers to sync with linux upstreaming version
@@ -93,10 +93,10 @@ index 821a9258f2e6..a3a3e465c888 100644
 +temp[6-*]_crit_hyst	Provides the hysteresis value from Tcontrol to Tjmax of
  			the core.
 diff --git a/drivers/hwmon/Kconfig b/drivers/hwmon/Kconfig
-index 18cd3b17f660..0bd06a938526 100644
+index c0623fa5ba41..7399c3cef30c 100644
 --- a/drivers/hwmon/Kconfig
 +++ b/drivers/hwmon/Kconfig
-@@ -1321,7 +1321,7 @@ config SENSORS_PECI_CPUTEMP
+@@ -1333,7 +1333,7 @@ config SENSORS_PECI_CPUTEMP
  	  the PECI Client Command Suite via the processor PECI client.
  	  Check Documentation/hwmon/peci-cputemp for details.
  
@@ -105,7 +105,7 @@ index 18cd3b17f660..0bd06a938526 100644
  	  will be called peci-cputemp.
  
  config SENSORS_PECI_DIMMTEMP
-@@ -1335,7 +1335,7 @@ config SENSORS_PECI_DIMMTEMP
+@@ -1347,7 +1347,7 @@ config SENSORS_PECI_DIMMTEMP
  	  Suite via the processor PECI client.
  	  Check Documentation/hwmon/peci-dimmtemp for details.
  
@@ -673,10 +673,10 @@ index 6ca1855a86bb..ce6b470eae63 100644
  
  /**
 diff --git a/drivers/mfd/Kconfig b/drivers/mfd/Kconfig
-index 9af5730ad7ba..28087e9cd4da 100644
+index 75dbcc7da87c..6f7ee4dd08f6 100644
 --- a/drivers/mfd/Kconfig
 +++ b/drivers/mfd/Kconfig
-@@ -606,7 +606,7 @@ config MFD_INTEL_MSIC
+@@ -616,7 +616,7 @@ config MFD_INTEL_MSIC
  	  devices used in Intel Medfield platforms.
  
  config MFD_INTEL_PECI_CLIENT
@@ -685,7 +685,7 @@ index 9af5730ad7ba..28087e9cd4da 100644
  	depends on (PECI || COMPILE_TEST)
  	select MFD_CORE
  	help
-@@ -619,6 +619,9 @@ config MFD_INTEL_PECI_CLIENT
+@@ -629,6 +629,9 @@ config MFD_INTEL_PECI_CLIENT
  	  Additional drivers must be enabled in order to use the functionality
  	  of the device.
  

@@ -1,4 +1,4 @@
-From 0b8b93851bb79e70e91159f310afd4b56084977f Mon Sep 17 00:00:00 2001
+From 520416545a47cffe66815f31bc1465eab8864554 Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Fri, 7 Jun 2019 07:37:39 -0800
 Subject: [PATCH v29 1/6] drivers: jtag: Add JTAG core driver
@@ -258,7 +258,7 @@ Comments pointed by Tobias Klauser <tklauser@distanz.ch>
  drivers/jtag/Makefile     |   1 +
  drivers/jtag/jtag.c       | 321 ++++++++++++++++++++++++++++++++++++++++++++++
  include/linux/jtag.h      |  47 +++++++
- include/uapi/linux/jtag.h | 214 ++++++++++++++++++++++++++++++
+ include/uapi/linux/jtag.h | 214 +++++++++++++++++++++++++++++++
  7 files changed, 602 insertions(+)
  create mode 100644 drivers/jtag/Kconfig
  create mode 100644 drivers/jtag/Makefile
@@ -267,27 +267,27 @@ Comments pointed by Tobias Klauser <tklauser@distanz.ch>
  create mode 100644 include/uapi/linux/jtag.h
 
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 4f9f990..0102bae 100644
+index 339ac306ded6..fb970bbe6b03 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
-@@ -228,4 +228,5 @@ source "drivers/siox/Kconfig"
+@@ -234,4 +234,5 @@ source "drivers/counter/Kconfig"
  
- source "drivers/slimbus/Kconfig"
+ source "drivers/peci/Kconfig"
  
 +source "drivers/jtag/Kconfig"
  endmenu
 diff --git a/drivers/Makefile b/drivers/Makefile
-index e1ce029..6d756c2 100644
+index 18d91cd5ac0f..b4d21c963923 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
-@@ -186,3 +186,4 @@ obj-$(CONFIG_MULTIPLEXER)	+= mux/
- obj-$(CONFIG_SIOX)		+= siox/
- obj-$(CONFIG_GNSS)		+= gnss/
+@@ -189,3 +189,4 @@ obj-$(CONFIG_GNSS)		+= gnss/
+ obj-$(CONFIG_INTERCONNECT)	+= interconnect/
+ obj-$(CONFIG_COUNTER)		+= counter/
  obj-$(CONFIG_PECI)		+= peci/
-+obj-$(CONFIG_JTAG)		+= jtag/
++obj-$(CONFIG_JTAG_ASPEED)	+= jtag/
 diff --git a/drivers/jtag/Kconfig b/drivers/jtag/Kconfig
 new file mode 100644
-index 0000000..47771fc
+index 000000000000..47771fcd3c5b
 --- /dev/null
 +++ b/drivers/jtag/Kconfig
 @@ -0,0 +1,17 @@
@@ -310,14 +310,14 @@ index 0000000..47771fc
 +	  be called jtag.
 diff --git a/drivers/jtag/Makefile b/drivers/jtag/Makefile
 new file mode 100644
-index 0000000..af37493
+index 000000000000..af374939a9e6
 --- /dev/null
 +++ b/drivers/jtag/Makefile
 @@ -0,0 +1 @@
 +obj-$(CONFIG_JTAG)		+= jtag.o
 diff --git a/drivers/jtag/jtag.c b/drivers/jtag/jtag.c
 new file mode 100644
-index 0000000..47503a1
+index 000000000000..39a4d88a9c21
 --- /dev/null
 +++ b/drivers/jtag/jtag.c
 @@ -0,0 +1,321 @@
@@ -644,7 +644,7 @@ index 0000000..47503a1
 +MODULE_LICENSE("GPL v2");
 diff --git a/include/linux/jtag.h b/include/linux/jtag.h
 new file mode 100644
-index 0000000..4153c90
+index 000000000000..fab12dc4fc5e
 --- /dev/null
 +++ b/include/linux/jtag.h
 @@ -0,0 +1,47 @@
@@ -697,7 +697,7 @@ index 0000000..4153c90
 +#endif /* __LINUX_JTAG_H */
 diff --git a/include/uapi/linux/jtag.h b/include/uapi/linux/jtag.h
 new file mode 100644
-index 0000000..3f9e195
+index 000000000000..315e59577a17
 --- /dev/null
 +++ b/include/uapi/linux/jtag.h
 @@ -0,0 +1,214 @@

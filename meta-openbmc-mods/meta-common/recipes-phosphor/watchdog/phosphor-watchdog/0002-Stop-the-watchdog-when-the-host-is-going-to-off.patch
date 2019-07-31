@@ -1,0 +1,118 @@
+From b05da90d7023199e23daf8fbb49455138332f241 Mon Sep 17 00:00:00 2001
+From: Ren Yu <yux.ren@intel.com>
+Date: Wed, 24 Jul 2019 16:21:13 +0800
+Subject: [PATCH] Stop the watchdog when the host is going to off
+
+After the host is off, check the WDT status, if it is running,
+needs to stop it
+
+Tested:
+Set a watchdog with a long time expiration(Timer action is none,
+Timer Use is OEM and Initial Countdown is 435.1 second).
+    ipmitool raw 0x06 0x24 0x05 0x00 0x00 0x00 0xff 0x10
+Get the watchdog.
+    ipmitool mc watchdog get
+Start the watchdog.
+    ipmitool mc watchdog reset
+Host off.
+    ipmitool chassis power off
+Get the watchdog.
+    ipmitool mc watchdog get
+Check the watchdog status, expect watchdog is stoped.
+
+Signed-off-by: Ren Yu <yux.ren@intel.com>
+---
+ watchdog.cpp | 21 +++++++++++++++++++++
+ watchdog.hpp | 23 ++++++++++++++++++++++-
+ 2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/watchdog.cpp b/watchdog.cpp
+index 4c8e480..fa58ef4 100644
+--- a/watchdog.cpp
++++ b/watchdog.cpp
+@@ -21,6 +21,10 @@ using namespace phosphor::logging;
+ using sdbusplus::exception::SdBusError;
+ using sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
+ 
++const static constexpr char* currentPowerState = "CurrentPowerState";
++const static constexpr char* powerStatusOff =
++    "xyz.openbmc_project.State.Chassis.PowerState.Off";
++
+ const static constexpr char* powerActionHardReset =
+     "xyz.openbmc_project.State.Watchdog.Action.HardReset";
+ const static constexpr char* powerActionOff =
+@@ -60,6 +64,23 @@ static constexpr const char* interface = "xyz.openbmc_project.State.Chassis";
+ static constexpr const char* request = "RequestedPowerTransition";
+ } // namespace chassis
+ 
++void Watchdog::powerStateChangedHandler(
++    const std::map<std::string, std::variant<std::string>>& props)
++{
++    const auto iter = props.find(currentPowerState);
++    if (iter != props.end())
++    {
++        const std::string* powerState = std::get_if<std::string>(&iter->second);
++        if (powerState && (*powerState == powerStatusOff))
++        {
++            if (timerEnabled())
++            {
++                enabled(false);
++            }
++        }
++    }
++}
++
+ void Watchdog::resetTimeRemaining(bool enableWatchdog)
+ {
+     timeRemaining(interval());
+diff --git a/watchdog.hpp b/watchdog.hpp
+index 7de9bb3..dcbecd1 100644
+--- a/watchdog.hpp
++++ b/watchdog.hpp
+@@ -68,7 +68,18 @@ class Watchdog : public WatchdogInherits
+         WatchdogInherits(bus, objPath),
+         bus(bus), actionTargetMap(std::move(actionTargetMap)),
+         fallback(std::move(fallback)), minInterval(minInterval),
+-        timer(event, std::bind(&Watchdog::timeOutHandler, this))
++        timer(event, std::bind(&Watchdog::timeOutHandler, this)),
++        powerStateChangedSignal(
++            bus,
++            sdbusplus::bus::match::rules::propertiesChanged(
++                "/xyz/openbmc_project/state/chassis0",
++                "xyz.openbmc_project.State.Chassis"),
++            [this](sdbusplus::message::message& msg) {
++                std::string objectName;
++                std::map<std::string, std::variant<std::string>> props;
++                msg.read(objectName, props);
++                powerStateChangedHandler(props);
++            })
+     {
+         // We set the watchdog interval with the default value.
+         interval(interval());
+@@ -77,6 +88,12 @@ class Watchdog : public WatchdogInherits
+         tryFallbackOrDisable();
+     }
+ 
++    /** @brief Disable watchdog when power status change meet
++     *         the specific requirement
++     */
++    void powerStateChangedHandler(
++        const std::map<std::string, std::variant<std::string>>& props);
++
+     /** @brief Resets the TimeRemaining to the configured Interval
+      *         Optionally enables the watchdog.
+      *
+@@ -165,6 +182,10 @@ class Watchdog : public WatchdogInherits
+     /** @brief Contained timer object */
+     sdeventplus::utility::Timer<sdeventplus::ClockId::Monotonic> timer;
+ 
++    /** @brief Optional Callback handler when power status change meet
++     * the specific requirement */
++    sdbusplus::bus::match_t powerStateChangedSignal;
++
+     /** @brief Optional Callback handler on timer expirartion */
+     void timeOutHandler();
+ 
+-- 
+2.7.4
+

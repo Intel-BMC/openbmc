@@ -13,6 +13,8 @@ VIRTUAL-RUNTIME_obmc-inventory-manager = "entity-manager"
 VIRTUAL-RUNTIME_obmc-led-monitor = ""
 VIRTUAL-RUNTIME_obmc-host-state-manager = "intel-chassis-control"
 VIRTUAL-RUNTIME_obmc-chassis-state-manager = "intel-chassis-control"
+VIRTUAL-RUNTIME_obmc-discover-system-state = "intel-chassis-control"
+VIRTUAL-RUNTIME_obmc-settings-mgmt = "settings"
 
 PREFERRED_PROVIDER_virtual/obmc-host-ipmi-hw = "phosphor-ipmi-kcs"
 PREFERRED_PROVIDER_virtual/obmc-chassis-mgmt = "packagegroup-intel-apps"

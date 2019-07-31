@@ -10,14 +10,6 @@ DEPS = " ${PN}:do_image_${@d.getVar('IMAGE_BASETYPE', True).replace('-', '_')} \
               virtual/kernel:do_deploy \
               u-boot:do_populate_sysroot "
 
-python() {
-    if d.getVar('IMAGE_TYPE', True) == 'pfr':
-        d.appendVar('DEPS', ' openssl-native:do_populate_sysroot \
-                                 ${SIGNING_KEY_DEPENDS} \
-                                 ${PN}:do_copy_signing_pubkey')
-}
-
-
 # Options for the device tree compiler passed to mkimage '-D' feature:
 UBOOT_MKIMAGE_DTCOPTS ??= ""
 
@@ -478,14 +470,6 @@ python do_generate_phosphor_manifest() {
         fd.write('HashType=RSA-SHA256\n')
 }
 
-make_signatures() {
-    signature_files=""
-    for file in "$@"; do
-        openssl dgst -sha256 -sign ${SIGNING_KEY} -out "${file}.sig" $file
-        signature_files="${signature_files} ${file}.sig"
-    done
-}
-
 def get_pubkey_type(d):
     return os.listdir(get_pubkey_basedir(d))[0]
 
@@ -534,14 +518,7 @@ do_image_fitimage_rootfs() {
     # touch the required files to minimize change
     touch image-kernel image-rofs image-rwfs
 
-    if [ "${IMAGE_TYPE}" = "pfr" ]; then
-        ln -sf ${S}/publickey publickey
-        make_signatures image-u-boot image-kernel image-rofs image-rwfs image-runtime MANIFEST publickey
-        # tar up the update package
-        tar -h -cvf "${DEPLOY_DIR_IMAGE}/${PN}-image-update-${MACHINE}-${DATETIME}.tar" image-u-boot image-runtime image-kernel image-rofs image-rwfs MANIFEST publickey ${signature_files}
-    else
-        tar -h -cvf "${DEPLOY_DIR_IMAGE}/${PN}-image-update-${MACHINE}-${DATETIME}.tar" MANIFEST image-u-boot image-runtime image-kernel image-rofs image-rwfs
-    fi
+    tar -h -cvf "${DEPLOY_DIR_IMAGE}/${PN}-image-update-${MACHINE}-${DATETIME}.tar" MANIFEST image-u-boot image-runtime image-kernel image-rofs image-rwfs
     # make a symlink
     ln -sf "${PN}-image-update-${MACHINE}-${DATETIME}.tar" "${DEPLOY_DIR_IMAGE}/image-update-${MACHINE}"
     ln -sf "image-update-${MACHINE}" "${DEPLOY_DIR_IMAGE}/image-update"

@@ -1,4 +1,4 @@
-From 551b5192b1074679ca9411cdedb9137d38f7de3d Mon Sep 17 00:00:00 2001
+From f5b6d42c1710a4c1314bc0160f904aa01f501e96 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 1 May 2019 13:27:34 -0700
 Subject: [PATCH] i2c: aspeed: add general call support
@@ -28,10 +28,10 @@ index 7da7e813b2b0..724ee9f35c10 100644
  		  specified.
  - #retries	: Number of retries for master transfer.
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 0060193e1aa4..f96160e01a69 100644
+index 99bd30953531..8f26060bd685 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
-@@ -50,6 +50,7 @@
+@@ -47,6 +47,7 @@
  #define ASPEED_I2CD_SDA_DRIVE_1T_EN			BIT(8)
  #define ASPEED_I2CD_M_SDA_DRIVE_1T_EN			BIT(7)
  #define ASPEED_I2CD_M_HIGH_SPEED_EN			BIT(6)
@@ -39,7 +39,7 @@ index 0060193e1aa4..f96160e01a69 100644
  #define ASPEED_I2CD_SLAVE_EN				BIT(1)
  #define ASPEED_I2CD_MASTER_EN				BIT(0)
  
-@@ -74,6 +75,7 @@
+@@ -71,6 +72,7 @@
   */
  #define ASPEED_I2CD_INTR_SDA_DL_TIMEOUT			BIT(14)
  #define ASPEED_I2CD_INTR_BUS_RECOVER_DONE		BIT(13)
@@ -47,7 +47,7 @@ index 0060193e1aa4..f96160e01a69 100644
  #define ASPEED_I2CD_INTR_SLAVE_MATCH			BIT(7)
  #define ASPEED_I2CD_INTR_SCL_TIMEOUT			BIT(6)
  #define ASPEED_I2CD_INTR_ABNORMAL			BIT(5)
-@@ -133,6 +135,8 @@ enum aspeed_i2c_slave_state {
+@@ -130,6 +132,8 @@ enum aspeed_i2c_slave_state {
  	ASPEED_I2C_SLAVE_READ_PROCESSED,
  	ASPEED_I2C_SLAVE_WRITE_REQUESTED,
  	ASPEED_I2C_SLAVE_WRITE_RECEIVED,
@@ -56,7 +56,7 @@ index 0060193e1aa4..f96160e01a69 100644
  	ASPEED_I2C_SLAVE_STOP,
  };
  
-@@ -163,6 +167,8 @@ struct aspeed_i2c_bus {
+@@ -160,6 +164,8 @@ struct aspeed_i2c_bus {
  #if IS_ENABLED(CONFIG_I2C_SLAVE)
  	struct i2c_client		*slave;
  	enum aspeed_i2c_slave_state	slave_state;
@@ -65,7 +65,7 @@ index 0060193e1aa4..f96160e01a69 100644
  #endif /* CONFIG_I2C_SLAVE */
  };
  
-@@ -267,6 +273,12 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -266,6 +272,12 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		bus->slave_state = ASPEED_I2C_SLAVE_START;
  	}
  
@@ -78,7 +78,7 @@ index 0060193e1aa4..f96160e01a69 100644
  	/* Slave is not currently active, irq was for someone else. */
  	if (bus->slave_state == ASPEED_I2C_SLAVE_INACTIVE)
  		return irq_handled;
-@@ -285,6 +297,21 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -284,6 +296,21 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  			else
  				bus->slave_state =
  						ASPEED_I2C_SLAVE_WRITE_REQUESTED;
@@ -100,18 +100,16 @@ index 0060193e1aa4..f96160e01a69 100644
  		}
  		irq_handled |= ASPEED_I2CD_INTR_RX_DONE;
  	}
-@@ -324,6 +351,10 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
- 		bus->slave_state = ASPEED_I2C_SLAVE_WRITE_RECEIVED;
- 		i2c_slave_event(slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+@@ -326,11 +353,16 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 	case ASPEED_I2C_SLAVE_WRITE_RECEIVED:
+ 		i2c_slave_event(slave, I2C_SLAVE_WRITE_RECEIVED, &value);
  		break;
 +	case ASPEED_I2C_SLAVE_GCALL_REQUESTED:
 +		bus->slave_state = ASPEED_I2C_SLAVE_WRITE_RECEIVED;
 +		i2c_slave_event(slave, I2C_SLAVE_GCALL_REQUESTED, &value);
 +		break;
- 	case ASPEED_I2C_SLAVE_WRITE_RECEIVED:
- 		i2c_slave_event(slave, I2C_SLAVE_WRITE_RECEIVED, &value);
- 		break;
-@@ -332,6 +363,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 	case ASPEED_I2C_SLAVE_STOP:
+ 		i2c_slave_event(slave, I2C_SLAVE_STOP, &value);
  		bus->slave_state = ASPEED_I2C_SLAVE_INACTIVE;
  		break;
  	case ASPEED_I2C_SLAVE_START:
@@ -119,7 +117,7 @@ index 0060193e1aa4..f96160e01a69 100644
  		/* Slave was just started. Waiting for the next event. */;
  		break;
  	default:
-@@ -739,6 +771,8 @@ static void __aspeed_i2c_reg_slave(struct aspeed_i2c_bus *bus, u16 slave_addr)
+@@ -738,6 +770,8 @@ static void __aspeed_i2c_reg_slave(struct aspeed_i2c_bus *bus, u16 slave_addr)
  	/* Turn on slave mode. */
  	func_ctrl_reg_val = readl(bus->base + ASPEED_I2C_FUN_CTRL_REG);
  	func_ctrl_reg_val |= ASPEED_I2CD_SLAVE_EN;
@@ -128,7 +126,7 @@ index 0060193e1aa4..f96160e01a69 100644
  	writel(func_ctrl_reg_val, bus->base + ASPEED_I2C_FUN_CTRL_REG);
  }
  
-@@ -777,6 +811,8 @@ static int aspeed_i2c_unreg_slave(struct i2c_client *client)
+@@ -776,6 +810,8 @@ static int aspeed_i2c_unreg_slave(struct i2c_client *client)
  	/* Turn off slave mode. */
  	func_ctrl_reg_val = readl(bus->base + ASPEED_I2C_FUN_CTRL_REG);
  	func_ctrl_reg_val &= ~ASPEED_I2CD_SLAVE_EN;
@@ -137,7 +135,7 @@ index 0060193e1aa4..f96160e01a69 100644
  	writel(func_ctrl_reg_val, bus->base + ASPEED_I2C_FUN_CTRL_REG);
  
  	bus->slave = NULL;
-@@ -921,6 +957,9 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
+@@ -920,6 +956,9 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
  	       bus->base + ASPEED_I2C_FUN_CTRL_REG);
  
  #if IS_ENABLED(CONFIG_I2C_SLAVE)
@@ -148,10 +146,10 @@ index 0060193e1aa4..f96160e01a69 100644
  	if (bus->slave)
  		__aspeed_i2c_reg_slave(bus, bus->slave->addr);
 diff --git a/drivers/i2c/i2c-slave-mqueue.c b/drivers/i2c/i2c-slave-mqueue.c
-index 4548088e1922..a608846cb1db 100644
+index 2c7a6038409c..1d4db584b393 100644
 --- a/drivers/i2c/i2c-slave-mqueue.c
 +++ b/drivers/i2c/i2c-slave-mqueue.c
-@@ -53,10 +53,12 @@ static int i2c_slave_mqueue_callback(struct i2c_client *client,
+@@ -56,10 +56,12 @@ static int i2c_slave_mqueue_callback(struct i2c_client *client,
  
  	switch (event) {
  	case I2C_SLAVE_WRITE_REQUESTED:
@@ -166,10 +164,10 @@ index 4548088e1922..a608846cb1db 100644
  
  	case I2C_SLAVE_WRITE_RECEIVED:
 diff --git a/include/linux/i2c.h b/include/linux/i2c.h
-index e1c6b78bdaf1..03ffb70d75f2 100644
+index 3ee92c6a442d..dfdccb2acb24 100644
 --- a/include/linux/i2c.h
 +++ b/include/linux/i2c.h
-@@ -371,6 +371,7 @@ enum i2c_slave_event {
+@@ -359,6 +359,7 @@ enum i2c_slave_event {
  	I2C_SLAVE_WRITE_REQUESTED,
  	I2C_SLAVE_READ_PROCESSED,
  	I2C_SLAVE_WRITE_RECEIVED,

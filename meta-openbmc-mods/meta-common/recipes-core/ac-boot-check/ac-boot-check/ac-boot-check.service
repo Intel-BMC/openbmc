@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for AC boot
+After=settings.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ac-boot-check.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,7 @@
-From f0e3631ea3005640f988727f051106d83b5dfdaf Mon Sep 17 00:00:00 2001
+From bc6ea87d8213ecdc5ab7cced8b2fc4284fdef019 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 12:16:53 -0800
-Subject: [PATCH 7/7] Add status and ID LED support
+Subject: [PATCH] Add status and ID LED support
 
 Add status (amber and green) and ID (blue) LED support. In the
 bootloader phase, the LEDs should be blinking. When booting linux, they
@@ -9,12 +9,13 @@ should turn to a fixed state.
 
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Change-Id: Ic9595621b21000ef465ff57ed2047855296e2714
+
 ---
- board/aspeed/ast-g5/ast-g5-intel.c | 118 +++++++++++++++++++++++++++++
- 1 file changed, 118 insertions(+)
+ board/aspeed/ast-g5/ast-g5-intel.c | 110 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 110 insertions(+)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 23bf4e4352..5ff2cbd0e2 100644
+index 6e45cb4..e53f5eb 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -146,6 +146,110 @@ static void sgpio_init(void)
@@ -128,7 +129,7 @@ index 23bf4e4352..5ff2cbd0e2 100644
  int intel_force_firmware_jumper_enabled(void)
  {
  	return gpio_get_value(GPIO_FF_UPD_JUMPER);
-@@ -157,4 +269,10 @@ void ast_g5_intel(void)
+@@ -157,4 +261,10 @@ void ast_g5_intel(void)
  	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
  	espi_init();
  	sgpio_init();
@@ -139,6 +140,3 @@ index 23bf4e4352..5ff2cbd0e2 100644
 +		id_led_control(GPIO_GREEN_LED, EIDLED_On);
 +	}
  }
--- 
-2.17.1
-

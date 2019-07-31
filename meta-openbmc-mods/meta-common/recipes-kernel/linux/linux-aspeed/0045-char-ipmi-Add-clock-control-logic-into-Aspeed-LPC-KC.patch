@@ -1,4 +1,4 @@
-From 1326920183042bb91583eb56dabd29ec921f8f65 Mon Sep 17 00:00:00 2001
+From 27675470115548612cee9153903aaffffb68177b Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:36:34 -0700
 Subject: [PATCH] char: ipmi: Add clock control logic into Aspeed LPC KCS
@@ -45,10 +45,10 @@ index d98a9bf45d6c..3453eb0bf8f2 100644
          kcs_addr = <0xCA2>;
          status = "okay";
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index bedfb77c0158..a5072ed1f823 100644
+index 1c00828da913..f04006f4cd27 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -294,6 +294,33 @@
+@@ -298,6 +298,33 @@
  				lpc_bmc: lpc-bmc@0 {
  					compatible = "aspeed,ast2400-lpc-bmc";
  					reg = <0x0 0x80>;
@@ -82,7 +82,7 @@ index bedfb77c0158..a5072ed1f823 100644
  				};
  
  				lpc_host: lpc-host@80 {
-@@ -305,6 +332,14 @@
+@@ -309,6 +336,14 @@
  					#size-cells = <1>;
  					ranges = <0x0 0x80 0x1e0>;
  
@@ -98,10 +98,10 @@ index bedfb77c0158..a5072ed1f823 100644
  						compatible = "aspeed,ast2400-lpc-ctrl";
  						reg = <0x0 0x80>;
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index a26e8b3c09bf..6a2f161e7548 100644
+index f2292bdfef91..d46b9ffc79de 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -128,7 +128,7 @@
+@@ -135,7 +135,7 @@
  		};
  
  		vic: interrupt-controller@1e6c0080 {
@@ -110,7 +110,7 @@ index a26e8b3c09bf..6a2f161e7548 100644
  			interrupt-controller;
  			#interrupt-cells = <1>;
  			valid-sources = <0xfefff7ff 0x0807ffff>;
-@@ -408,18 +408,21 @@
+@@ -410,18 +410,21 @@
  						compatible = "aspeed,ast2500-kcs-bmc";
  						interrupts = <8>;
  						kcs_chan = <1>;
@@ -132,7 +132,7 @@ index a26e8b3c09bf..6a2f161e7548 100644
  						status = "disabled";
  					};
  				};
-@@ -437,6 +440,7 @@
+@@ -439,6 +442,7 @@
  						compatible = "aspeed,ast2500-kcs-bmc";
  						interrupts = <8>;
  						kcs_chan = <4>;

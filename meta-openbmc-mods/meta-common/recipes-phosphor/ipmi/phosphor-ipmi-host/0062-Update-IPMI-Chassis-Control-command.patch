@@ -1,4 +1,4 @@
-From f11928c6b39052c679c9300e9d836837ef60be06 Mon Sep 17 00:00:00 2001
+From 00fb92edcb4229eeb5b46c4eb206ba7d70e241fc Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Mon, 3 Jun 2019 17:01:47 -0700
 Subject: [PATCH] Update IPMI Chassis Control command
@@ -19,11 +19,11 @@ ipmitool power soft: soft power-off requested from system software
 Change-Id: Ic9fba3ca4abd9a758eb88f1e6ee09f7ca64ff80a
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- chassishandler.cpp | 138 +++++++++++++++++++++--------------------------------
- 1 file changed, 54 insertions(+), 84 deletions(-)
+ chassishandler.cpp | 206 ++++++++++++++---------------------------------------
+ 1 file changed, 52 insertions(+), 154 deletions(-)
 
 diff --git a/chassishandler.cpp b/chassishandler.cpp
-index e4e842d..d71b95f 100644
+index 88bf84b..ad564e2 100644
 --- a/chassishandler.cpp
 +++ b/chassishandler.cpp
 @@ -31,6 +31,7 @@
@@ -134,7 +134,84 @@ index e4e842d..d71b95f 100644
  }
  
  namespace power_policy
-@@ -1138,61 +1143,26 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
+@@ -1033,76 +1038,6 @@ ipmi::RspType<bool,    // Power is on
+         diagButtonDisableAllow, sleepButtonDisableAllow);
+ }
+ 
+-//-------------------------------------------------------------
+-// Send a command to SoftPowerOff application to stop any timer
+-//-------------------------------------------------------------
+-int stop_soft_off_timer()
+-{
+-    constexpr auto iface = "org.freedesktop.DBus.Properties";
+-    constexpr auto soft_off_iface = "xyz.openbmc_project.Ipmi.Internal."
+-                                    "SoftPowerOff";
+-
+-    constexpr auto property = "ResponseReceived";
+-    constexpr auto value = "xyz.openbmc_project.Ipmi.Internal."
+-                           "SoftPowerOff.HostResponse.HostShutdown";
+-
+-    // Get the system bus where most system services are provided.
+-    auto bus = ipmid_get_sd_bus_connection();
+-
+-    // Get the service name
+-    // TODO openbmc/openbmc#1661 - Mapper refactor
+-    //
+-    // See openbmc/openbmc#1743 for some details but high level summary is that
+-    // for now the code will directly call the soft off interface due to a
+-    // race condition with mapper usage
+-    //
+-    // char *busname = nullptr;
+-    // auto r = mapper_get_service(bus, SOFTOFF_OBJPATH, &busname);
+-    // if (r < 0)
+-    //{
+-    //    fprintf(stderr, "Failed to get %s bus name: %s\n",
+-    //            SOFTOFF_OBJPATH, -r);
+-    //    return r;
+-    //}
+-
+-    // No error object or reply expected.
+-    int rc = sd_bus_call_method(bus, SOFTOFF_BUSNAME, SOFTOFF_OBJPATH, iface,
+-                                "Set", nullptr, nullptr, "ssv", soft_off_iface,
+-                                property, "s", value);
+-    if (rc < 0)
+-    {
+-        log<level::ERR>("Failed to set property in SoftPowerOff object",
+-                        entry("ERRNO=0x%X", -rc));
+-    }
+-
+-    // TODO openbmc/openbmc#1661 - Mapper refactor
+-    // free(busname);
+-    return rc;
+-}
+-
+-//----------------------------------------------------------------------
+-// Create file to indicate there is no need for softoff notification to host
+-//----------------------------------------------------------------------
+-void indicate_no_softoff_needed()
+-{
+-    fs::path path{HOST_INBAND_REQUEST_DIR};
+-    if (!fs::is_directory(path))
+-    {
+-        fs::create_directory(path);
+-    }
+-
+-    // Add the host instance (default 0 for now) to the file name
+-    std::string file{HOST_INBAND_REQUEST_FILE};
+-    auto size = std::snprintf(nullptr, 0, file.c_str(), 0);
+-    size++; // null
+-    std::unique_ptr<char[]> buf(new char[size]);
+-    std::snprintf(buf.get(), size, file.c_str(), 0);
+-
+-    // Append file name to directory and create it
+-    path /= buf.get();
+-    std::ofstream(path.c_str());
+-}
+-
+ /** @brief Implementation of chassis control command
+  *
+  *  @param - chassisControl command byte
+@@ -1115,61 +1050,24 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
      switch (chassisControl)
      {
          case CMD_POWER_ON:
@@ -204,8 +281,6 @@ index e4e842d..d71b95f 100644
 +            rc = initiateHostStateTransition(State::Host::Transition::Off);
 +            break;
 +        case CMD_PULSE_DIAGNOSTIC_INTR:
-+            rc =
-+                initiateHostStateTransition(State::Host::Transition::Interrupt);
              break;
  
          default:

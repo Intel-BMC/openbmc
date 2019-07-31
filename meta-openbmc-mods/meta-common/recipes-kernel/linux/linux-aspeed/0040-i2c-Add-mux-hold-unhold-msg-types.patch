@@ -1,4 +1,4 @@
-From 80ea6461d77e5b415d9f83fa2f4708fc21eab09b Mon Sep 17 00:00:00 2001
+From ed13e7eb07e6cb8bdc1eb4563de30b469a9beb26 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 15 Feb 2019 16:05:09 -0800
 Subject: [PATCH] i2c: Add mux hold/unhold msg types
@@ -39,19 +39,19 @@ in downstream only.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- drivers/i2c/i2c-core-base.c  |  99 ++++++++++++++++++++++++++++++++++-----
- drivers/i2c/i2c-core-smbus.c |  17 ++++++-
+ drivers/i2c/i2c-core-base.c  |  70 +++++++++++++++++++++++++--
+ drivers/i2c/i2c-core-smbus.c |  22 +++++++--
  drivers/i2c/i2c-mux.c        | 109 +++++++++++++++++++++++++++++++++++++++----
  include/linux/i2c-mux.h      |   3 ++
  include/linux/i2c.h          |  25 ++++++++++
  include/uapi/linux/i2c.h     |   1 +
- 6 files changed, 233 insertions(+), 21 deletions(-)
+ 6 files changed, 214 insertions(+), 16 deletions(-)
 
 diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
-index 28460f6a60cc..009b0507768e 100644
+index 9e43508d4567..8a480d269542 100644
 --- a/drivers/i2c/i2c-core-base.c
 +++ b/drivers/i2c/i2c-core-base.c
-@@ -1210,6 +1210,25 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
+@@ -1299,6 +1299,25 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
  }
  EXPORT_SYMBOL_GPL(i2c_handle_smbus_host_notify);
  
@@ -77,7 +77,7 @@ index 28460f6a60cc..009b0507768e 100644
  static int i2c_register_adapter(struct i2c_adapter *adap)
  {
  	int res = -EINVAL;
-@@ -1291,6 +1310,9 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
+@@ -1381,6 +1400,9 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
  	bus_for_each_drv(&i2c_bus_type, NULL, adap, __process_new_adapter);
  	mutex_unlock(&core_lock);
  
@@ -87,7 +87,7 @@ index 28460f6a60cc..009b0507768e 100644
  	return 0;
  
  out_reg:
-@@ -1511,6 +1533,8 @@ void i2c_del_adapter(struct i2c_adapter *adap)
+@@ -1601,6 +1623,8 @@ void i2c_del_adapter(struct i2c_adapter *adap)
  	idr_remove(&i2c_adapter_idr, adap->nr);
  	mutex_unlock(&core_lock);
  
@@ -96,7 +96,7 @@ index 28460f6a60cc..009b0507768e 100644
  	/* Clear the device structure in case this adapter is ever going to be
  	   added again */
  	memset(&adap->dev, 0, sizeof(adap->dev));
-@@ -1860,7 +1884,9 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs,
+@@ -1950,7 +1974,9 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs,
   */
  int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  {
@@ -106,7 +106,7 @@ index 28460f6a60cc..009b0507768e 100644
  	int ret, try;
  
  	if (WARN_ON(!msgs || num < 1))
-@@ -1869,6 +1895,25 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+@@ -1963,6 +1989,25 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  	if (adap->quirks && i2c_check_for_quirks(adap, msgs, num))
  		return -EOPNOTSUPP;
  
@@ -132,7 +132,7 @@ index 28460f6a60cc..009b0507768e 100644
  	/*
  	 * i2c_trace_msg_key gets enabled when tracepoint i2c_transfer gets
  	 * enabled.  This is an efficient way of keeping the for-loop from
-@@ -1901,6 +1946,9 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+@@ -1999,6 +2044,9 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  		trace_i2c_result(adap, num, ret);
  	}
  
@@ -142,7 +142,7 @@ index 28460f6a60cc..009b0507768e 100644
  	return ret;
  }
  EXPORT_SYMBOL(__i2c_transfer);
-@@ -1919,6 +1967,7 @@ EXPORT_SYMBOL(__i2c_transfer);
+@@ -2017,6 +2065,7 @@ EXPORT_SYMBOL(__i2c_transfer);
   */
  int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  {
@@ -150,77 +150,50 @@ index 28460f6a60cc..009b0507768e 100644
  	int ret;
  
  	if (!adap->algo->master_xfer) {
-@@ -1942,19 +1991,47 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+@@ -2040,12 +2089,25 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  	 *    one (discarding status on the second message) or errno
  	 *    (discarding status on the first one).
  	 */
--	if (in_atomic() || irqs_disabled()) {
--		ret = i2c_trylock_bus(adap, I2C_LOCK_SEGMENT);
--		if (!ret)
--			/* I2C activity is ongoing. */
--			return -EAGAIN;
--	} else {
--		i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
--	}
- 
--	ret = __i2c_transfer(adap, msgs, num);
--	i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
-+	if (adap->algo->master_xfer) {
-+#ifdef DEBUG
-+		for (ret = 0; ret < num; ret++) {
-+			dev_dbg(&adap->dev,
-+				"master_xfer[%d] %c, addr=0x%02x, len=%d%s\n",
-+				ret, (msgs[ret].flags & I2C_M_RD) ? 'R' : 'W',
-+				msgs[ret].addr, msgs[ret].len,
-+				(msgs[ret].flags & I2C_M_RECV_LEN) ? "+" : "");
-+		}
-+#endif
-+		/*
-+		 * Do not lock a bus for delivering an unhold msg to a mux
-+		 * adpater. This is just for a single length unhold msg case.
-+		 */
-+		if (num == 1 && i2c_parent_is_i2c_adapter(adap) &&
-+		    i2c_check_hold_msg(msgs[0].flags, msgs[0].len,
-+				       (u16 *)msgs[0].buf) ==
-+				       I2C_HOLD_MSG_RESET)
-+			do_bus_lock = false;
+-	ret = __i2c_lock_bus_helper(adap);
+-	if (ret)
+-		return ret;
++	/*
++	 * Do not lock a bus for delivering an unhold msg to a mux
++	 * adpater. This is just for a single length unhold msg case.
++	 */
++	if (num == 1 && i2c_parent_is_i2c_adapter(adap) &&
++	    i2c_check_hold_msg(msgs[0].flags, msgs[0].len,
++			       (u16 *)msgs[0].buf) ==
++			       I2C_HOLD_MSG_RESET)
++		do_bus_lock = false;
 +
-+		if (do_bus_lock) {
-+			if (in_atomic() || irqs_disabled()) {
-+				ret = i2c_trylock_bus(adap, I2C_LOCK_SEGMENT);
-+				if (!ret)
-+					/* I2C activity is ongoing. */
-+					return -EAGAIN;
-+			} else {
-+				i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
-+			}
-+		}
- 
--	return ret;
-+		ret = __i2c_transfer(adap, msgs, num);
-+		if (do_bus_lock)
-+			i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
-+
-+		return ret;
-+	} else {
-+		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
-+		return -EOPNOTSUPP;
++	if (do_bus_lock) {
++		ret = __i2c_lock_bus_helper(adap);
++		if (ret)
++			return ret;
 +	}
- }
- EXPORT_SYMBOL(i2c_transfer);
  
+ 	ret = __i2c_transfer(adap, msgs, num);
+-	i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
++	if (do_bus_lock)
++		i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
+ 
+ 	return ret;
+ }
 diff --git a/drivers/i2c/i2c-core-smbus.c b/drivers/i2c/i2c-core-smbus.c
-index 9cd66cabb84f..64c58911bf21 100644
+index 3ac426a8ab5a..f7bf95101e34 100644
 --- a/drivers/i2c/i2c-core-smbus.c
 +++ b/drivers/i2c/i2c-core-smbus.c
-@@ -528,12 +528,25 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
+@@ -526,15 +526,29 @@ s32 i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
  		   unsigned short flags, char read_write,
  		   u8 command, int protocol, union i2c_smbus_data *data)
  {
 +	bool do_bus_lock = true;
  	s32 res;
  
--	i2c_lock_bus(adapter, I2C_LOCK_SEGMENT);
+-	res = __i2c_lock_bus_helper(adapter);
+-	if (res)
+-		return res;
 +	/*
 +	 * Do not lock a bus for delivering an unhold msg to a mux adpater.
 +	 * This is just for a single length unhold msg case.
@@ -231,8 +204,12 @@ index 9cd66cabb84f..64c58911bf21 100644
 +			       &data->word) == I2C_HOLD_MSG_RESET)
 +		do_bus_lock = false;
 +
-+	if (do_bus_lock)
-+		i2c_lock_bus(adapter, I2C_LOCK_SEGMENT);
++	if (do_bus_lock) {
++		res = __i2c_lock_bus_helper(adapter);
++		if (res)
++			return res;
++	}
+ 
  	res = __i2c_smbus_xfer(adapter, addr, flags, read_write,
  			       command, protocol, data);
 -	i2c_unlock_bus(adapter, I2C_LOCK_SEGMENT);
@@ -242,7 +219,7 @@ index 9cd66cabb84f..64c58911bf21 100644
  	return res;
  }
 diff --git a/drivers/i2c/i2c-mux.c b/drivers/i2c/i2c-mux.c
-index f330690b4125..4d8909a0f90a 100644
+index 603252fa1284..d3f55243e701 100644
 --- a/drivers/i2c/i2c-mux.c
 +++ b/drivers/i2c/i2c-mux.c
 @@ -26,6 +26,7 @@
@@ -430,7 +407,7 @@ index f330690b4125..4d8909a0f90a 100644
  	return muxc;
  }
  EXPORT_SYMBOL_GPL(i2c_mux_alloc);
-@@ -435,6 +526,8 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
+@@ -441,6 +532,8 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
  {
  	char symlink_name[20];
  
@@ -440,10 +417,10 @@ index f330690b4125..4d8909a0f90a 100644
  		struct i2c_adapter *adap = muxc->adapter[--muxc->num_adapters];
  		struct i2c_mux_priv *priv = adap->algo_data;
 diff --git a/include/linux/i2c-mux.h b/include/linux/i2c-mux.h
-index bd74d5706f3b..bc6f778eaf9d 100644
+index c5a977320f82..47f8763d6ed2 100644
 --- a/include/linux/i2c-mux.h
 +++ b/include/linux/i2c-mux.h
-@@ -41,6 +41,9 @@ struct i2c_mux_core {
+@@ -27,6 +27,9 @@ struct i2c_mux_core {
  	int (*select)(struct i2c_mux_core *, u32 chan_id);
  	int (*deselect)(struct i2c_mux_core *, u32 chan_id);
  
@@ -454,10 +431,10 @@ index bd74d5706f3b..bc6f778eaf9d 100644
  	int max_adapters;
  	struct i2c_adapter *adapter[0];
 diff --git a/include/linux/i2c.h b/include/linux/i2c.h
-index 65b4eaed1d96..eadde70c0d4a 100644
+index 1308126fc384..3ee92c6a442d 100644
 --- a/include/linux/i2c.h
 +++ b/include/linux/i2c.h
-@@ -692,6 +692,13 @@ struct i2c_adapter {
+@@ -699,6 +699,13 @@ struct i2c_adapter {
  	const struct i2c_adapter_quirks *quirks;
  
  	struct irq_domain *host_notify_domain;
@@ -471,7 +448,7 @@ index 65b4eaed1d96..eadde70c0d4a 100644
  };
  #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
  
-@@ -949,4 +956,22 @@ static inline struct i2c_client *i2c_acpi_new_device(struct device *dev,
+@@ -998,4 +1005,22 @@ static inline struct i2c_client *i2c_acpi_new_device(struct device *dev,
  }
  #endif /* CONFIG_ACPI */
  

@@ -1,0 +1,32 @@
+From db99abbddc9fe958353e47fcd91c741bd7a93066 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Wed, 19 Jun 2019 14:15:07 -0700
+Subject: [PATCH] Turn Off FFWUPD Jumper
+
+This disabled the jumper so we don't get stuck during
+boot.
+
+TODO: Do this the "right way", if there is one.
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ hw/gpio/aspeed_gpio.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/hw/gpio/aspeed_gpio.c b/hw/gpio/aspeed_gpio.c
+index 12d8a49666..ca6f8dd0dd 100644
+--- a/hw/gpio/aspeed_gpio.c
++++ b/hw/gpio/aspeed_gpio.c
+@@ -29,6 +29,9 @@ static uint64_t aspeed_gpio_read(void *opaque, hwaddr addr,
+         val = s->regs[addr];
+     }
+ 
++    if (addr == 0x0){
++        val |= 1 << 0x18; // ffupd jumper
++    }
+     return val;
+ }
+ 
+-- 
+2.17.1
+

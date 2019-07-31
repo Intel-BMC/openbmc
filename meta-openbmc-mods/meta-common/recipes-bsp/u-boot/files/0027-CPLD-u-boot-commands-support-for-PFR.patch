@@ -1,4 +1,4 @@
-From 35a50c959b290ba8a6f0e70a42ae952b65df8a9d Mon Sep 17 00:00:00 2001
+From cdb62eb60de0b99276ff755b896fc51c8ed2606d Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 7 May 2019 11:26:35 +0530
 Subject: [PATCH] CPLD u-boot commands support for PFR
@@ -27,6 +27,7 @@ CPLD read successful. Reg:0x00 Val:0x04
 ast#
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
 ---
  cmd/Makefile |   1 +
  cmd/cpld.c   | 244 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -47,7 +48,7 @@ index a1731be..c8ac0af 100644
  obj-$(CONFIG_CMD_IDE) += ide.o
 diff --git a/cmd/cpld.c b/cmd/cpld.c
 new file mode 100644
-index 0000000..63220cb
+index 0000000..06b2e98
 --- /dev/null
 +++ b/cmd/cpld.c
 @@ -0,0 +1,244 @@
@@ -65,8 +66,8 @@ index 0000000..63220cb
 +#include <errno.h>
 +#include <linux/compiler.h>
 +
-+#define PFR_CPLD_I2C_BUSNO		5
-+#define PFR_CPLD_SLAVE_ADDR		0x0E
++#define PFR_CPLD_I2C_BUSNO		4
++#define PFR_CPLD_SLAVE_ADDR		0xE0
 +
 +#define CPLD_READ_TIMEOUT_ATTEMPTS	5
 +

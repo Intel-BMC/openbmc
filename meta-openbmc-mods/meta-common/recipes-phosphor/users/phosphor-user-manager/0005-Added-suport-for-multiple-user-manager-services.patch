@@ -1,4 +1,4 @@
-From 726be648df955f5ae94f34391adc0e88f6956345 Mon Sep 17 00:00:00 2001
+From a519a128b9a44b1798419bf3a653d58e266c60fb Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Mon, 2 Jul 2018 19:23:25 -0700
 Subject: [PATCH] Added suport for multiple user manager services
@@ -11,20 +11,20 @@ Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.co
 ---
  Makefile.am      |   5 +-
  mainapp.cpp      |  89 ++++++-
- user_mgr.cpp     | 293 +++------------------
+ user_mgr.cpp     | 290 ++-------------------
  user_mgr.hpp     |   9 +-
  user_service.cpp | 781 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  user_service.hpp | 233 +++++++++++++++++
- 6 files changed, 1141 insertions(+), 269 deletions(-)
+ 6 files changed, 1139 insertions(+), 268 deletions(-)
  create mode 100644 user_service.cpp
  create mode 100644 user_service.hpp
 
 diff --git a/Makefile.am b/Makefile.am
-index b138aea..288b780 100644
+index 7c7271e..58916b0 100644
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -1,11 +1,12 @@
- sbin_PROGRAMS = phosphor-user-manager
+ bin_PROGRAMS = phosphor-user-manager
  
 -noinst_HEADERS = user_mgr.hpp users.hpp
 +noinst_HEADERS = user_mgr.hpp users.hpp user_service.hpp
@@ -150,7 +150,7 @@ index c9da030..03c406a 100644
      // Claim the bus now
      bus.request_name(USER_MANAGER_BUSNAME);
 diff --git a/user_mgr.cpp b/user_mgr.cpp
-index 47edf7d..32f3f4c 100644
+index 17146e6..db6e7d5 100644
 --- a/user_mgr.cpp
 +++ b/user_mgr.cpp
 @@ -14,26 +14,20 @@
@@ -540,7 +540,7 @@ index 47edf7d..32f3f4c 100644
  }
  
  DbusUserObj UserMgr::getPrivilegeMapperObject(void)
-@@ -1018,11 +784,9 @@ void UserMgr::initUserObjects(void)
+@@ -1052,11 +818,9 @@ void UserMgr::initUserObjects(void)
  {
      // All user management lock has to be based on /etc/shadow
      phosphor::user::shadow::Lock lock();
@@ -554,29 +554,26 @@ index 47edf7d..32f3f4c 100644
  
      if (!userNameList.empty())
      {
-@@ -1077,8 +841,10 @@ void UserMgr::initUserObjects(void)
+@@ -1111,7 +875,8 @@ void UserMgr::initUserObjects(void)
      }
  }
  
 -UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
--    UserMgrIface(bus, path), AccountPolicyIface(bus, path), bus(bus), path(path)
 +UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path,
 +                 UserService::ServiceType srvc) :
-+    UserMgrIface(bus, path),
-+    AccountPolicyIface(bus, path), bus(bus), path(path)
+     Ifaces(bus, path, true), bus(bus), path(path)
  {
      UserMgrIface::allPrivileges(privMgr);
-     std::sort(groupsMgr.begin(), groupsMgr.end());
-@@ -1186,6 +952,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
+@@ -1220,6 +985,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
          }
          AccountPolicyIface::accountUnlockTimeout(value32);
      }
 +    userSrvc = std::make_unique<UserService>(srvc, groupsMgr, privMgr);
      initUserObjects();
- }
  
+     // emit the signal
 diff --git a/user_mgr.hpp b/user_mgr.hpp
-index c78174d..9d9c842 100644
+index b25e9f2..c24733b 100644
 --- a/user_mgr.hpp
 +++ b/user_mgr.hpp
 @@ -21,6 +21,7 @@
@@ -596,7 +593,7 @@ index c78174d..9d9c842 100644
  using AccountPolicyIface =
      sdbusplus::xyz::openbmc_project::User::server::AccountPolicy;
  
-@@ -71,8 +70,10 @@ class UserMgr : public UserMgrIface, AccountPolicyIface
+@@ -76,8 +75,10 @@ class UserMgr : public Ifaces
       *
       *  @param[in] bus  - sdbusplus handler
       *  @param[in] path - D-Bus path
@@ -608,7 +605,7 @@ index c78174d..9d9c842 100644
  
      /** @brief create user method.
       *  This method creates a new user as requested
-@@ -181,6 +182,8 @@ class UserMgr : public UserMgrIface, AccountPolicyIface
+@@ -186,6 +187,8 @@ class UserMgr : public Ifaces
      /** @brief object path */
      const std::string path;
  

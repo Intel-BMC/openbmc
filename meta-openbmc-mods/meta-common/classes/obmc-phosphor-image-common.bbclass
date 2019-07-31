@@ -1,7 +1,6 @@
 inherit obmc-phosphor-image
 
 IMAGE_INSTALL_append = " \
-        fan-default-speed \
         bmcweb \
         dbus-broker \
         dtc \
@@ -19,7 +18,6 @@ IMAGE_INSTALL_append = " \
         smbios-mdrv1 \
         phosphor-certificate-manager \
         phosphor-sel-logger \
-        gpiodaemon \
         smbios-mdrv2 \
         obmc-ikvm \
         system-watchdog \
@@ -31,8 +29,10 @@ IMAGE_INSTALL_append = " \
         mtd-utils-ubifs \
         special-mode-mgr \
         rsyslog \
-        rsyslog-policy \
         static-mac-addr \
+        phosphor-u-boot-mgr \
+        prov-mode-mgr \
+        ac-boot-check \
         "
 
 # this package was flagged as a security risk

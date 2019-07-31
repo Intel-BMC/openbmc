@@ -1,0 +1,34 @@
+From 7854a5e094ac49bebf9b2bfdd44db2f8cdd37543 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Fri, 31 May 2019 15:05:13 -0700
+Subject: [PATCH] set idle-disconnect to true in all cases
+
+From sysfs this parameter can't be set. We want the
+muxes to clean themselves up if possible. Set this to
+true.
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ drivers/i2c/muxes/i2c-mux-pca954x.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/i2c/muxes/i2c-mux-pca954x.c b/drivers/i2c/muxes/i2c-mux-pca954x.c
+index 923aa3a5a3dc..084c10951890 100644
+--- a/drivers/i2c/muxes/i2c-mux-pca954x.c
++++ b/drivers/i2c/muxes/i2c-mux-pca954x.c
+@@ -474,8 +474,12 @@ static int pca954x_probe(struct i2c_client *client,
+ 	data->last_chan = 0;		   /* force the first selection */
+ 	data->idle_state = MUX_IDLE_AS_IS;
+ 
++#if 1 /* Forcibly set the self-disconnect flag */
++	idle_disconnect_dt = true;
++#else
+ 	idle_disconnect_dt = np &&
+ 		of_property_read_bool(np, "i2c-mux-idle-disconnect");
++#endif
+ 	if (idle_disconnect_dt)
+ 		data->idle_state = MUX_IDLE_DISCONNECT;
+ 
+-- 
+2.7.4
+

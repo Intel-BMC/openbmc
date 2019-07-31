@@ -1,4 +1,4 @@
-From dae410353f8681b58907c61eb2eb056513d86f6d Mon Sep 17 00:00:00 2001
+From 5ccf8e3e397edf195aa65e91af6e9ea16ed88882 Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Fri, 9 Nov 2018 10:24:37 +0800
 Subject: [PATCH] Implement a memory driver share memory
@@ -10,19 +10,19 @@ memory through this driver.
 
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
 ---
- .../devicetree/bindings/misc/vga-shared-memory.txt |  20 +++
- drivers/misc/Kconfig                               |  10 ++
- drivers/misc/Makefile                              |   1 +
- drivers/misc/aspeed-vga-sharedmem.c                | 164 +++++++++++++++++++++
- 4 files changed, 195 insertions(+)
- create mode 100644 Documentation/devicetree/bindings/misc/vga-shared-memory.txt
- create mode 100644 drivers/misc/aspeed-vga-sharedmem.c
+ .../bindings/soc/aspeed/aspeed-vga-sharedmem.txt   |  20 +++
+ drivers/soc/aspeed/Kconfig                         |   9 ++
+ drivers/soc/aspeed/Makefile                        |   1 +
+ drivers/soc/aspeed/aspeed-vga-sharedmem.c          | 163 +++++++++++++++++++++
+ 4 files changed, 193 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/soc/aspeed/aspeed-vga-sharedmem.txt
+ create mode 100644 drivers/soc/aspeed/aspeed-vga-sharedmem.c
 
-diff --git a/Documentation/devicetree/bindings/misc/vga-shared-memory.txt b/Documentation/devicetree/bindings/misc/vga-shared-memory.txt
+diff --git a/Documentation/devicetree/bindings/soc/aspeed/aspeed-vga-sharedmem.txt b/Documentation/devicetree/bindings/soc/aspeed/aspeed-vga-sharedmem.txt
 new file mode 100644
 index 000000000000..03f57c53e844
 --- /dev/null
-+++ b/Documentation/devicetree/bindings/misc/vga-shared-memory.txt
++++ b/Documentation/devicetree/bindings/soc/aspeed/aspeed-vga-sharedmem.txt
 @@ -0,0 +1,20 @@
 +* Aspeed VGA shared memory driver
 +
@@ -44,45 +44,40 @@ index 000000000000..03f57c53e844
 +	compatible = "aspeed,ast2500-vga-sharedmem";
 +	reg = <0x9ff00000 0x100000>;
 +};
-diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index 60f203c04b9b..2d4c6ba87e70 100644
---- a/drivers/misc/Kconfig
-+++ b/drivers/misc/Kconfig
-@@ -566,6 +566,16 @@ config ASPEED_UART_ROUTING
- 	  If you want to configure UART routing on Aspeed BMC platforms, enable
- 	  this option.
+diff --git a/drivers/soc/aspeed/Kconfig b/drivers/soc/aspeed/Kconfig
+index 285c19042c65..59f25d16d6e7 100644
+--- a/drivers/soc/aspeed/Kconfig
++++ b/drivers/soc/aspeed/Kconfig
+@@ -51,4 +51,13 @@ config ASPEED_P2A_CTRL
+ 	  ioctl()s, the driver also provides an interface for userspace mappings to
+ 	  a pre-defined region.
  
 +config ASPEED_VGA_SHAREDMEM
 +	tristate "Aspeed VGA Shared memory"
-+	depends on (ARCH_ASPEED || COMPILE_TEST)
++	depends on SOC_ASPEED
 +	help
 +	  To access VGA shared memory on Aspeed BMC, enable this option.
 +	  This driver used by ManagedDataRegionlV2 specification. In the
-+	  specification, BIOS will transfer whole SMBIOS table to VGA
-+	  memory, and BMC can get the table from VGA memory through this
-+	  driver.
++	  specification, BIOS will transfer whole SMBIOS table to VGA memory,
++	  and BMC can get the table from VGA memory through this driver.
 +
- source "drivers/misc/c2port/Kconfig"
- source "drivers/misc/eeprom/Kconfig"
- source "drivers/misc/cb710/Kconfig"
-diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index 8f70b888a9ca..30ee065491ef 100644
---- a/drivers/misc/Makefile
-+++ b/drivers/misc/Makefile
-@@ -55,6 +55,7 @@ obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpres
- obj-$(CONFIG_CXL_BASE)		+= cxl/
+ endmenu
+diff --git a/drivers/soc/aspeed/Makefile b/drivers/soc/aspeed/Makefile
+index 2e547cc47e62..ae4ef10914be 100644
+--- a/drivers/soc/aspeed/Makefile
++++ b/drivers/soc/aspeed/Makefile
+@@ -5,3 +5,4 @@ obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o
  obj-$(CONFIG_ASPEED_LPC_SIO)	+= aspeed-lpc-sio.o
- obj-$(CONFIG_ASPEED_ESPI_SLAVE)	+= aspeed-espi-slave.o
-+obj-$(CONFIG_ASPEED_VGA_SHAREDMEM) += aspeed-vga-sharedmem.o
- obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
  obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
- obj-$(CONFIG_ASPEED_UART_ROUTING) += aspeed-uart-routing.o
-diff --git a/drivers/misc/aspeed-vga-sharedmem.c b/drivers/misc/aspeed-vga-sharedmem.c
+ obj-$(CONFIG_ASPEED_P2A_CTRL)	+= aspeed-p2a-ctrl.o
++obj-$(CONFIG_ASPEED_VGA_SHAREDMEM)	+= aspeed-vga-sharedmem.o
+\ No newline at end of file
+diff --git a/drivers/soc/aspeed/aspeed-vga-sharedmem.c b/drivers/soc/aspeed/aspeed-vga-sharedmem.c
 new file mode 100644
-index 000000000000..76f60cd67d3a
+index 000000000000..cd1f5431378c
 --- /dev/null
-+++ b/drivers/misc/aspeed-vga-sharedmem.c
-@@ -0,0 +1,164 @@
++++ b/drivers/soc/aspeed/aspeed-vga-sharedmem.c
+@@ -0,0 +1,163 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (c) 2018 Intel Corporation
@@ -112,10 +107,10 @@ index 000000000000..76f60cd67d3a
 +
 +static int vga_open(struct inode *inode, struct file *file)
 +{
++	struct aspeed_vga_sharedmem *vga_sharedmem = file_sharemem(file);
++
 +	if (!capable(CAP_SYS_ADMIN))
 +		return -EPERM;
-+
-+	struct aspeed_vga_sharedmem *vga_sharedmem = file_sharemem(file);
 +
 +	if (!vga_sharedmem->mmap_enable)
 +		return -EPERM;
@@ -193,7 +188,6 @@ index 000000000000..76f60cd67d3a
 +{
 +	struct aspeed_vga_sharedmem *vga_sharedmem;
 +	struct device *dev = &pdev->dev;
-+	u32 reg[2];
 +	struct resource *rc;
 +
 +	vga_sharedmem = devm_kzalloc(dev, sizeof(*vga_sharedmem), GFP_KERNEL);

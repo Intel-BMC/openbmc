@@ -1,4 +1,4 @@
-From 2f0e14630abec2c9679d21901072648c7802f2c4 Mon Sep 17 00:00:00 2001
+From 954e7dd9ff9c5d1159f0896afa34c673061b82ea Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Tue, 11 Sep 2018 16:24:06 +0800
 Subject: [PATCH] Make sure debug uart is using 24MHz clock source
@@ -7,6 +7,7 @@ u-boot defines the uart5(debug console) as 24MHz,
 set the SCU14[28] to 0, to make sure the clock source is 24M
 
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+
 ---
  arch/arm/include/asm/arch-aspeed/ast_scu.h  | 2 ++
  arch/arm/include/asm/arch-aspeed/platform.h | 1 +
@@ -15,10 +16,10 @@ Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
  4 files changed, 17 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-index d248416..98e6335 100644
+index dcbc673..06825ce 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-@@ -45,4 +45,6 @@ extern void ast_scu_init_eth(u8 num);
+@@ -46,4 +46,6 @@ extern void ast_scu_init_eth(u8 num);
  extern void ast_scu_multi_func_eth(u8 num);
  extern void ast_scu_multi_func_romcs(u8 num);
  
@@ -26,7 +27,7 @@ index d248416..98e6335 100644
 +
  #endif
 diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
-index c9c7a81..a423052 100644
+index 1c02914..92ea33b 100644
 --- a/arch/arm/include/asm/arch-aspeed/platform.h
 +++ b/arch/arm/include/asm/arch-aspeed/platform.h
 @@ -27,6 +27,7 @@
@@ -38,10 +39,10 @@ index c9c7a81..a423052 100644
  #err "No define for platform.h"
  #endif
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index 0cc0d67..902263b 100644
+index 12de9b8..fff02dc 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
-@@ -496,3 +496,9 @@ void ast_scu_get_who_init_dram(void)
+@@ -538,3 +538,9 @@ void ast_scu_get_who_init_dram(void)
  		break;
  	}
  }
@@ -70,6 +71,3 @@ index e67a4bf..5a1fade 100644
  int board_init(void)
  {
  	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
--- 
-2.7.4
-

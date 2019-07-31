@@ -1,0 +1,198 @@
+From d15cf914ad51207021451b12863d4b7585f4666c Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Mon, 17 Jun 2019 12:00:58 -0700
+Subject: [PATCH] Move Phosphor-Watchdog to Not Use Service Files
+
+Our power control does not use service files, update it
+so that it calls properties directly.
+
+According to EPS, change the messageArgs in redfish about watchdog
+action and pre-interrupt action.
+
+Tested: used ipmi to create watchdog event and system
+was restarted.
+
+Set a watchdog (Timer action and pre-interrupt action both are none).
+    ipmitool raw 0x06 0x24 0x05 0x00 0x00 0x00 0x30 0x00
+Get the watchdog.
+    ipmitool mc watchdog get
+Start the watchdog.
+    ipmitool mc watchdog reset
+When timer expired, check messageArgs in Redfish with below url:
+https://IP/redfish/v1/Systems/system/LogServices/EventLog/Entries.
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+Signed-off-by: Ren Yu <yux.ren@intel.com>
+---
+ watchdog.cpp | 116 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 108 insertions(+), 8 deletions(-)
+
+diff --git a/watchdog.cpp b/watchdog.cpp
+index 9090760..4c8e480 100644
+--- a/watchdog.cpp
++++ b/watchdog.cpp
+@@ -1,11 +1,14 @@
+ #include "watchdog.hpp"
+ 
++#include <systemd/sd-journal.h>
++
+ #include <algorithm>
+ #include <chrono>
+ #include <phosphor-logging/elog.hpp>
+ #include <phosphor-logging/log.hpp>
+ #include <sdbusplus/exception.hpp>
+ #include <xyz/openbmc_project/Common/error.hpp>
++#include <xyz/openbmc_project/State/Host/server.hpp>
+ 
+ namespace phosphor
+ {
+@@ -18,10 +21,44 @@ using namespace phosphor::logging;
+ using sdbusplus::exception::SdBusError;
+ using sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
+ 
+-// systemd service to kick start a target.
+-constexpr auto SYSTEMD_SERVICE = "org.freedesktop.systemd1";
+-constexpr auto SYSTEMD_ROOT = "/org/freedesktop/systemd1";
+-constexpr auto SYSTEMD_INTERFACE = "org.freedesktop.systemd1.Manager";
++const static constexpr char* powerActionHardReset =
++    "xyz.openbmc_project.State.Watchdog.Action.HardReset";
++const static constexpr char* powerActionOff =
++    "xyz.openbmc_project.State.Watchdog.Action.PowerOff";
++const static constexpr char* powerActionPowerCycle =
++    "xyz.openbmc_project.State.Watchdog.Action.PowerCycle";
++const static constexpr char* powerActionNone =
++    "xyz.openbmc_project.State.Watchdog.Action.None";
++const static constexpr char* preInterruptNoAction =
++    "xyz.openbmc_project.State.Watchdog.PreTimeoutInterruptAction.None";
++
++const static constexpr char* hardResteDescription =
++    "Hard Reset - System reset due to Watchdog timeout";
++const static constexpr char* powerOffDescription =
++    "Power Down - System power down due to Watchdog timeout";
++const static constexpr char* powerCycleDescription =
++    "Power Cycle - System power cycle due to Watchdog timeout";
++const static constexpr char* timerExpiredDescription = "Timer expired";
++const static constexpr char* preInterruptDescription = "Timer interrupt";
++
++namespace restart
++{
++static constexpr const char* busName = "xyz.openbmc_project.Settings";
++static constexpr const char* path =
++    "/xyz/openbmc_project/control/host0/restart_cause";
++static constexpr const char* interface =
++    "xyz.openbmc_project.Common.RestartCause";
++static constexpr const char* property = "RestartCause";
++} // namespace restart
++
++// chassis state manager service
++namespace chassis
++{
++static constexpr const char* busName = "xyz.openbmc_project.State.Chassis";
++static constexpr const char* path = "/xyz/openbmc_project/state/chassis0";
++static constexpr const char* interface = "xyz.openbmc_project.State.Chassis";
++static constexpr const char* request = "RequestedPowerTransition";
++} // namespace chassis
+ 
+ void Watchdog::resetTimeRemaining(bool enableWatchdog)
+ {
+@@ -102,12 +139,51 @@ uint64_t Watchdog::interval(uint64_t value)
+ // Optional callback function on timer expiration
+ void Watchdog::timeOutHandler()
+ {
++    PreTimeoutInterruptAction preTimeoutInterruptAction = preTimeoutInterrupt();
+     Action action = expireAction();
++    std::string actionMessageArgs{};
++
+     if (!this->enabled())
+     {
+         action = fallback->action;
+     }
+ 
++    if (convertForMessage(action) == powerActionHardReset)
++    {
++        actionMessageArgs = hardResteDescription;
++    }
++    else if (convertForMessage(action) == powerActionOff)
++    {
++        actionMessageArgs = powerOffDescription;
++    }
++    else if (convertForMessage(action) == powerActionPowerCycle)
++    {
++        actionMessageArgs = powerCycleDescription;
++    }
++    else if (convertForMessage(action) == powerActionNone)
++    {
++        actionMessageArgs = timerExpiredDescription;
++    }
++    else
++    {
++        actionMessageArgs = "Reserved";
++    }
++
++    // Log into redfish event log
++    sd_journal_send("MESSAGE=IPMIWatchdog: Timed out ACTION=%s",
++                    convertForMessage(action).c_str(), "PRIORITY=%i", LOG_INFO,
++                    "REDFISH_MESSAGE_ID=%s", "OpenBMC.0.1.IPMIWatchdog",
++                    "REDFISH_MESSAGE_ARGS=%s", actionMessageArgs.c_str(), NULL);
++
++    if (preInterruptNoAction != convertForMessage(preTimeoutInterruptAction))
++    {
++        sd_journal_send("MESSAGE=IPMIWatchdog: Pre Timed out Interrupt=%s",
++                        convertForMessage(preTimeoutInterruptAction).c_str(),
++                        "PRIORITY=%i", LOG_INFO, "REDFISH_MESSAGE_ID=%s",
++                        "OpenBMC.0.1.IPMIWatchdog", "REDFISH_MESSAGE_ARGS=%s",
++                        preInterruptDescription, NULL);
++    }
++
+     expiredTimerUse(currentTimerUse());
+ 
+     auto target = actionTargetMap.find(action);
+@@ -128,10 +204,11 @@ void Watchdog::timeOutHandler()
+ 
+         try
+         {
+-            auto method = bus.new_method_call(SYSTEMD_SERVICE, SYSTEMD_ROOT,
+-                                              SYSTEMD_INTERFACE, "StartUnit");
+-            method.append(target->second);
+-            method.append("replace");
++            auto method =
++                bus.new_method_call(chassis::busName, chassis::path,
++                                    "org.freedesktop.DBus.Properties", "Set");
++            method.append(chassis::interface, chassis::request,
++                          std::variant<std::string>(target->second));
+ 
+             bus.call_noreply(method);
+         }
+@@ -142,6 +219,29 @@ void Watchdog::timeOutHandler()
+                             entry("ERROR=%s", e.what()));
+             commit<InternalFailure>();
+         }
++
++        // set restart cause for watchdog HardReset & PowerCycle actions
++        if ((action == Watchdog::Action::HardReset) ||
++            (action == Watchdog::Action::PowerCycle))
++        {
++            try
++            {
++                auto method = bus.new_method_call(
++                    restart::busName, restart::path,
++                    "org.freedesktop.DBus.Properties", "Set");
++                method.append(
++                    restart::interface, restart::property,
++                    std::variant<std::string>("xyz.openbmc_project.State.Host."
++                                              "RestartCause.WatchdogTimer"));
++                bus.call(method);
++            }
++            catch (sdbusplus::exception_t& e)
++            {
++                log<level::ERR>("Failed to set HostRestartCause property",
++                                entry("ERROR=%s", e.what()));
++                commit<InternalFailure>();
++            }
++        }
+     }
+ 
+     tryFallbackOrDisable();
+-- 
+2.7.4
+

@@ -2,8 +2,8 @@ inherit useradd
 
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
-#SRC_URI += "git://github.com/openbmc/phosphor-net-ipmid"
-#SRCREV = "b31e969504645f653b58b676d56b01d632dc395c"
+SRC_URI += "git://github.com/openbmc/phosphor-net-ipmid"
+SRCREV = "0a269046d0d9fcd690ccbb129ae58a3c1450b04e"
 
 USERADD_PACKAGES = "${PN}"
 # add a group called ipmi
@@ -20,10 +20,7 @@ SYSTEMD_SERVICE_${PN} += " \
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += " file://0006-Modify-dbus-namespace-of-chassis-control-for-guid.patch \
-             file://0007-Adding-support-for-GetSessionInfo-command.patch \
-             file://0008-Sync-GetSession-Info-cmd-based-on-Upstream-review.patch \
              file://0009-Add-dbus-interface-for-sol-commands.patch \
-             file://00010-Change-Authentication-Parameter.patch \
              file://0011-Remove-Get-SOL-Config-Command-from-Netipmid.patch \
            "
 
