@@ -2,6 +2,4 @@ FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
 
 # Use the latest to support obmc-ikvm properly
 #SRC_URI = "git://github.com/LibVNC/libvncserver"
-SRCREV = "f12b14f275f019673b3ace8fa4d46c8a79beb388"
-
-SRC_URI += "file://0001-rfbserver-add-a-hooking-function-to-deliver-rfbFrame.patch"
+SRCREV = "091b9eb739a95c8c969e2e6865c255b0d170f95f"

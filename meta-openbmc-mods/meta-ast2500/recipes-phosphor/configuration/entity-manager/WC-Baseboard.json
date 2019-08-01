@@ -162,7 +162,12 @@
             "Type": "ADC"
         },
         {
-            "BridgeGpio": 208,
+            "BridgeGpio": [
+                {
+                    "Name": "P3VBAT_BRIDGE_EN",
+                    "Polarity": "High"
+                }
+            ],
             "Index": 7,
             "Name": "P3VBAT",
             "ScaleFactor": 0.3333,
@@ -656,31 +661,10 @@
             "Type": "FanRedundancy"
         },
         {
-            "Direction": "Out",
-            "Index": 208,
-            "Name": "Bridge P3VBAT",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
             "Direction": "Input",
             "Index": 40,
             "Name": "NMI Input",
             "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 48,
-            "Name": "CPU ERR2",
-            "Polarity": "High",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 49,
-            "Name": "CPU CATERR",
-            "Polarity": "High",
             "Type": "Gpio"
         },
         {
@@ -1197,7 +1181,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 65.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1439,7 +1423,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 80.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1464,7 +1448,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 80.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1490,7 +1474,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 80.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1515,7 +1499,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 80.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1541,7 +1525,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 80.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1567,7 +1551,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 80.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1592,7 +1576,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 80.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1669,7 +1653,7 @@
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 75.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1686,16 +1670,18 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "VR 1 Temp"
+                "CPU1 VR Mem ABCD Temp",
+                "CPU1 VR Mem ABCD Temp",
+                "CPU1 VR P1V8"
             ],
-            "Name": "VR 1 Temp",
+            "Name": "CPU 1 VR Temp",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 85.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -1711,16 +1697,18 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "VR 2 Temp"
+                "CPU2 VR Mem ABCD Temp",
+                "CPU2 VR Mem ABCD Temp",
+                "CPU2 VR P1V8"
             ],
-            "Name": "VR 2 Temp",
+            "Name": "CPU 2 VR Temp",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
             "Outputs": [],
             "PCoefficient": -0.15,
             "PositiveHysteresis": 0.0,
-            "SetPoint": 60.0,
+            "SetPoint": 85.0,
             "SlewNeg": -1,
             "SlewPos": 0.0,
             "Type": "Pid",
@@ -2036,7 +2024,11 @@
         }
     ],
     "Name": "WC Baseboard",
-    "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*WC'})",
+    "Probe": [
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'WilsonCity'})",
+        "OR",
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*WC'})"
+    ],
     "ProductId": 145,
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
@@ -2044,5 +2036,9 @@
         "Model": "$PRODUCT_PRODUCT_NAME",
         "PartNumber": "$PRODUCT_PART_NUMBER",
         "SerialNumber": "$PRODUCT_SERIAL_NUMBER"
-    }
+    },
+    "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
+        "AssetTag": "$PRODUCT_ASSET_TAG"
+    },
+    "xyz.openbmc_project.Inventory.Item.System": {}
 }

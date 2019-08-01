@@ -1,6 +1,6 @@
-From 6b4e1b3672433c0d7d392404e19d114ae25e0eb2 Mon Sep 17 00:00:00 2001
-From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
-Date: Wed, 24 Apr 2019 22:35:43 +0530
+From 0e83d58efe5bd34430c953713285293cd0756b69 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Thu, 20 Jun 2019 18:11:43 +0530
 Subject: [PATCH] Manufacturing mode physical presence detection
 
 Support for physical presence of manufacturing mode added.
@@ -15,10 +15,12 @@ special=mfg string
 
 Change-Id: Id7e7c7e7860c7ef3ae8e3a7a7cfda7ff506c0f2b
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
 ---
  board/aspeed/ast-g5/ast-g5-gpio.h  |  2 +-
- board/aspeed/ast-g5/ast-g5-intel.c | 39 ++++++++++++++++++++++++++++++++++++--
- 2 files changed, 38 insertions(+), 3 deletions(-)
+ board/aspeed/ast-g5/ast-g5-intel.c | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-gpio.h b/board/aspeed/ast-g5/ast-g5-gpio.h
 index a820c0f..ed2499f 100644
@@ -34,7 +36,7 @@ index a820c0f..ed2499f 100644
  // GPIO Configuration Register bits
  #define GPCFG_EVENT_TO_SMI (1 << 7) // 1 == enabled
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 881ab89..86b422f 100644
+index 55afa09..812e3ef 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -24,6 +24,7 @@ enum gpio_names {
@@ -56,8 +58,8 @@ index 881ab89..86b422f 100644
  };
  
  #define LPC_SNOOP_ADDR 0x80
-@@ -313,12 +318,35 @@ static inline void ast_scu_write(uint32_t val, uint32_t reg)
- #endif
+@@ -373,6 +378,26 @@ static void update_bootargs_cmd(const char *key, const char *value)
+ 	free(buf);
  }
  
 +static bool is_mfg_mode_phy_req(void)
@@ -82,40 +84,17 @@ index 881ab89..86b422f 100644
 +
  void ast_g5_intel_late_init(void)
  {
- 	char *cmdline = NULL;
- 	char *cmdline_new = NULL;
- 	char buf[32];
- 	u32 rest = 0;
-+	const char *special_mfg_str = " special=mfg";
-+	const u32 special_str_size = strlen(special_mfg_str);
-+	u32 buf_count = 0;
+ 	char value[32];
+@@ -420,6 +445,12 @@ void ast_g5_intel_late_init(void)
+ 	ast_scu_write(0, AST_SCU_SYS_CTRL);
  
- 	/* By default host serail A and B use normal speed */
- 	uint32_t host_serial_cfg = 0;
-@@ -367,14 +395,21 @@ void ast_g5_intel_late_init(void)
- 		return;
- 	}
- 
--	cmdline_new = malloc(strlen(cmdline) + strlen(buf) + 1);
-+	cmdline_new = malloc(strlen(cmdline) + strlen(buf) +
-+				special_str_size + 1);
- 	if (!cmdline_new) {
- 		printf("Cannot malloc memory!\n");
- 		return;
- 	}
- 
- 	/* append the reset status into kernel command line */
--	snprintf(cmdline_new, strlen(cmdline) + strlen(buf) + 1, "%s%s", cmdline, buf);
-+	buf_count = snprintf(cmdline_new, strlen(cmdline) + strlen(buf) + 1,
-+			     "%s%s", cmdline, buf);
+ 	update_bootargs_cmd("resetreason", value);
 +
++	/* Update the special mode in bootargs */
 +	if (is_mfg_mode_phy_req())
-+		snprintf(cmdline_new + buf_count - 1, special_str_size + 1,
-+			 "%s", special_mfg_str);
-+
- 	setenv("bootargs", cmdline_new);
- 	free(cmdline_new);
++		update_bootargs_cmd("special", "mfg");
++	else
++		update_bootargs_cmd("special", NULL);
  }
--- 
-2.7.4
-
+ 
+ static void pwm_init(void)

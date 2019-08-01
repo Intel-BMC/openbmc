@@ -22,16 +22,16 @@ done
 
 # wp
 if (($result == 62)); then
-    cat S2600WP.fru.bin > $fruFile
+    cat WilsonPoint.fru.bin > $fruFile
 # wc
 elif (($result == 45)); then
-    cat S2600WC.fru.bin > $fruFile
+    cat WilsonCity.fru.bin > $fruFile
 # cyp
 elif (($result == 60)); then
-    cat S2600CYP.fru.bin > $fruFile
+    cat M50CYP2SB2U.fru.bin > $fruFile
 # tnp
 elif (($result == 12)); then
-    cat S2600TNP.fru.bin > $fruFile
+    cat D50TNP1SB.fru.bin > $fruFile
 # default to wft
 else
     cat S2600WFT.fru.bin > $fruFile

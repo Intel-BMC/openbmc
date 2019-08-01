@@ -1,4 +1,4 @@
-From 3437db37b2f39a69505338546d9f846338de6c88 Mon Sep 17 00:00:00 2001
+From 0f0e0a03218f6a7bdcdd78d319959e6bb974502c Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Sat, 24 Feb 2018 11:12:32 +0800
 Subject: [PATCH] eSPI: add ASPEED AST2500 eSPI driver to boot a host with PCH
@@ -18,23 +18,23 @@ Also for the host power on / off actions, from BMC side, the following VW
 
 Signed-off-by: Haiyue Wang <haiyue.wang@linux.intel.com>
 ---
- .../devicetree/bindings/misc/aspeed,espi-slave.txt |  20 ++
- Documentation/misc-devices/espi-slave.rst          | 119 +++++++
+ .../devicetree/bindings/misc/aspeed,espi-slave.txt |  19 ++
+ Documentation/misc-devices/espi-slave.rst          | 118 +++++++
  arch/arm/boot/dts/aspeed-g5.dtsi                   |   4 +
  drivers/misc/Kconfig                               |   8 +
  drivers/misc/Makefile                              |   1 +
  drivers/misc/aspeed-espi-slave.c                   | 353 +++++++++++++++++++++
- 6 files changed, 505 insertions(+)
+ 6 files changed, 503 insertions(+)
  create mode 100644 Documentation/devicetree/bindings/misc/aspeed,espi-slave.txt
  create mode 100644 Documentation/misc-devices/espi-slave.rst
  create mode 100644 drivers/misc/aspeed-espi-slave.c
 
 diff --git a/Documentation/devicetree/bindings/misc/aspeed,espi-slave.txt b/Documentation/devicetree/bindings/misc/aspeed,espi-slave.txt
 new file mode 100644
-index 000000000000..4f5d47ecc882
+index 000000000000..8660e2ffbb89
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/misc/aspeed,espi-slave.txt
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,19 @@
 +ASPEED eSPI Slave Controller
 +
 +Required properties:
@@ -54,13 +54,12 @@ index 000000000000..4f5d47ecc882
 +        interrupts = <23>;
 +        status = "disabled";
 +};
-+
 diff --git a/Documentation/misc-devices/espi-slave.rst b/Documentation/misc-devices/espi-slave.rst
 new file mode 100644
-index 000000000000..185acd71bd26
+index 000000000000..887a69a7130a
 --- /dev/null
 +++ b/Documentation/misc-devices/espi-slave.rst
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,118 @@
 +.. SPDX-License-Identifier: GPL-2.0
 +
 +==========
@@ -179,12 +178,11 @@ index 000000000000..185acd71bd26
 +`Enhanced Serial Peripheral Interface (eSPI)
 +- Interface Base Specification (for Client and Server Platforms)
 +<https://www.intel.com/content/dam/support/us/en/documents/software/chipset-software/327432-004_espi_base_specification_rev1.0.pdf>`_
-+
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index da9e903808bc..01d27e845982 100644
+index 2d6f730a7101..0e7f1d2fa08e 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -267,6 +267,7 @@
+@@ -289,6 +289,7 @@
  				clocks = <&syscon ASPEED_CLK_APB>;
  				interrupt-controller;
  				#interrupt-cells = <2>;
@@ -192,7 +190,7 @@ index da9e903808bc..01d27e845982 100644
  			};
  
  			sgpio: sgpio@1e780200 {
-@@ -361,6 +362,9 @@
+@@ -383,6 +384,9 @@
  				reg = <0x1e6ee000 0x100>;
  				interrupts = <23>;
  				status = "disabled";
@@ -203,10 +201,10 @@ index da9e903808bc..01d27e845982 100644
  
  			lpc: lpc@1e789000 {
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index d4ed3777462a..8b1fcf741411 100644
+index 9d96469fb41c..b6acddaa9421 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
-@@ -485,6 +485,14 @@ config VEXPRESS_SYSCFG
+@@ -473,6 +473,14 @@ config VEXPRESS_SYSCFG
  	  bus. System Configuration interface is one of the possible means
  	  of generating transactions on this bus.
  
@@ -218,21 +216,21 @@ index d4ed3777462a..8b1fcf741411 100644
 +	  Control Aspeed ast2500 eSPI slave controller to handle event
 +	  which needs the firmware's processing.
 +
- config ASPEED_LPC_CTRL
- 	depends on (ARCH_ASPEED || COMPILE_TEST) && REGMAP && MFD_SYSCON
- 	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
+ config PCI_ENDPOINT_TEST
+ 	depends on PCI
+ 	select CRC32
 diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index 7b018962cad3..89b051f82391 100644
+index e13de4f0798f..f91f66a15484 100644
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
-@@ -54,6 +54,7 @@ obj-$(CONFIG_ECHO)		+= echo/
+@@ -54,6 +54,7 @@ obj-$(CONFIG_GENWQE)		+= genwqe/
+ obj-$(CONFIG_ECHO)		+= echo/
  obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
  obj-$(CONFIG_CXL_BASE)		+= cxl/
- obj-$(CONFIG_ASPEED_LPC_SIO)	+= aspeed-lpc-sio.o
 +obj-$(CONFIG_ASPEED_ESPI_SLAVE)	+= aspeed-espi-slave.o
- obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
- obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
- obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o
+ obj-$(CONFIG_PCI_ENDPOINT_TEST)	+= pci_endpoint_test.o
+ obj-$(CONFIG_OCXL)		+= ocxl/
+ obj-y				+= cardreader/
 diff --git a/drivers/misc/aspeed-espi-slave.c b/drivers/misc/aspeed-espi-slave.c
 new file mode 100644
 index 000000000000..36ae867ca6f9

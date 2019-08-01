@@ -19,11 +19,13 @@ IMAGE_TYPES_MASKED += "mtd-auto"
 
 # Flash characteristics in KB unless otherwise noted
 python() {
+    types = d.getVar('IMAGE_FSTYPES', True).split()
+
     # TODO: find partition list in DTS
     d.setVar('FLASH_UBOOT_OFFSET', str(0))
-    if d.getVar('IMAGE_TYPE', True) == 'pfr':
+    if 'intel-pfr' in types:
         d.setVar('FLASH_SIZE', str(128*1024))
-        DTB_FULL_FIT_IMAGE_OFFSETS = [0x1100000]
+        DTB_FULL_FIT_IMAGE_OFFSETS = [0xb00000]
     else:
         d.setVar('FLASH_SIZE', str(64*1024))
         DTB_FULL_FIT_IMAGE_OFFSETS = [0x80000, 0x2480000]
@@ -42,7 +44,7 @@ mk_nor_image() {
 }
 
 do_generate_auto() {
-    bbdebug 1 "do_generate_auto IMAGE_TYPE=${IMAGE_TYPE} size=${FLASH_SIZE}KB (${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.auto.mtd)"
+    bbdebug 1 "do_generate_auto IMAGE_TYPES=${IMAGE_TYPES} size=${FLASH_SIZE}KB (${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.auto.mtd)"
     # Assemble the flash image
     mk_nor_image ${IMGDEPLOYDIR}/${IMAGE_NAME}.auto.mtd ${FLASH_SIZE}
     dd bs=1k conv=notrunc seek=${FLASH_UBOOT_OFFSET} \

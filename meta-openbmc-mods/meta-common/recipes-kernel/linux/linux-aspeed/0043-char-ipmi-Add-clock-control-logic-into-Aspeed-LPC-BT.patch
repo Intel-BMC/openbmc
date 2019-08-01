@@ -1,4 +1,4 @@
-From d82aacea62f2cc3f5c4f6654bd8920255edf24fd Mon Sep 17 00:00:00 2001
+From c4e7b89ee20dc28e10fae7eb0859e4fa9d3e8643 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:04:16 -0700
 Subject: [PATCH] char: ipmi: Add clock control logic into Aspeed LPC BT driver
@@ -42,29 +42,29 @@ index 028268fd99ee..d13887d60f19 100644
 +		clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
  	};
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 6e6f50a0fbab..3a7e31f3de07 100644
+index 618abeab539b..c2388bb7c678 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -333,6 +333,7 @@
+@@ -337,6 +337,7 @@
  					ibt: ibt@c0  {
  						compatible = "aspeed,ast2400-ibt-bmc";
  						reg = <0xc0 0x18>;
 +						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
  						interrupts = <8>;
+ 						status = "disabled";
  					};
- 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 4cd4a8258e42..a6720bc952b0 100644
+index 88ac8e08b6ae..88b318fd287b 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -468,6 +468,7 @@
+@@ -470,6 +470,7 @@
  					ibt: ibt@c0 {
  						compatible = "aspeed,ast2500-ibt-bmc";
  						reg = <0xc0 0x18>;
 +						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
  						interrupts = <8>;
+ 						status = "disabled";
  					};
- 
 diff --git a/drivers/char/ipmi/bt-bmc.c b/drivers/char/ipmi/bt-bmc.c
 index 40b9927c072c..a4ec9d1743d7 100644
 --- a/drivers/char/ipmi/bt-bmc.c

@@ -22,13 +22,13 @@
     }
   },
   "2" : {
-    "name" : "eth2",
-    "is_valid" : true,
+    "name" : "RESERVED",
+    "is_valid" : false,
     "active_sessions" : 0,
     "channel_info" : {
-      "medium_type" : "lan-802.3",
-      "protocol_type" : "ipmb-1.0",
-      "session_supported" : "multi-session",
+      "medium_type" : "reserved",
+      "protocol_type" : "na",
+      "session_supported" : "session-less",
       "is_ipmi" : true
     }
   },

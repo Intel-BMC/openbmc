@@ -36,8 +36,4 @@ RDEPENDS_${PN}-fans = " \
         "
 
 SUMMARY_${PN}-flash = "Intel Flash"
-RDEPENDS_${PN}-flash = " \
-        obmc-flash-bmc \
-        obmc-mgr-download \
-        obmc-control-bmc \
-        "
+RDEPENDS_${PN}-flash = ""

@@ -1,4 +1,4 @@
-From bb490aa226dcf261d3d6865be37130765ecbe9f4 Mon Sep 17 00:00:00 2001
+From 9b05a276af65dd436f30b1b2680a09821c5a81aa Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Mon, 17 Dec 2018 20:37:23 -0800
 Subject: [PATCH] u-boot: full platform reset + espi oob-ready
@@ -8,12 +8,13 @@ reset and then immediately set oob-ready so the espi master controller
 can initiate communication.
 
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
 ---
  arch/arm/mach-aspeed/platform_g5.S | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
-index 2ac1ca4721..66427b6f33 100644
+index 2ac1ca4..66427b6 100644
 --- a/arch/arm/mach-aspeed/platform_g5.S
 +++ b/arch/arm/mach-aspeed/platform_g5.S
 @@ -139,7 +139,7 @@
@@ -43,6 +44,3 @@ index 2ac1ca4721..66427b6f33 100644
      /* Enable Timer separate clear mode */
      ldr   r0, =0x1e782038
      mov   r1, #0xAE
--- 
-2.17.1
-

@@ -3,7 +3,7 @@ DESCRIPTION = "The Node Manager Proxy provides a simple interface for communicat
 with Management Engine via IPMB"
 
 SRC_URI = "git://git@github.com/Intel-BMC/node-manager;protocol=ssh"
-SRCREV = "2ab90332828614c95e0ce22c0c95285734b55b65"
+SRCREV = "06e8a1072b05d42e63cf70e2ceac7390578c051d"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"

@@ -224,6 +224,12 @@
             "Type": "ADC"
         },
         {
+            "BridgeGpio": [
+                {
+                    "Name": "P3VBAT_BRIDGE_EN",
+                    "Polarity": "High"
+                }
+            ],
             "Index": 7,
             "Name": "P3VBAT",
             "ScaleFactor": 0.3333,
@@ -656,20 +662,6 @@
             "Direction": "Input",
             "Index": 47,
             "Name": "CPU PRDY",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 48,
-            "Name": "Cpu Err2",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 49,
-            "Name": "Cpu Caterr",
             "Polarity": "Low",
             "Type": "Gpio"
         },
@@ -1150,6 +1142,90 @@
             "Type": "Gpio"
         },
         {
+            "Address": "0x71",
+            "Bus": 2,
+            "ChannelNames": [
+                "M2_Slot1",
+                "M2_Slot2",
+                "",
+                ""
+            ],
+            "Name": "M.2 Mux",
+            "Type": "PCA9543Mux"
+        },
+        {
+            "Address": "0x70",
+            "Bus": 4,
+            "ChannelNames": [
+                "U2_Slot1",
+                "U2_Slot2",
+                "U2_Slot3",
+                "U2_Slot4"
+            ],
+            "Name": "HSBP 1 Mux",
+            "Type": "PCA9546Mux"
+        },
+        {
+            "Address": "0x74",
+            "Bus": 4,
+            "ChannelNames": [
+                "U2_Slot5",
+                "U2_Slot6",
+                "U2_Slot7",
+                "U2_Slot8"
+            ],
+            "Name": "HSBP 1 Mux2",
+            "Type": "PCA9546Mux"
+        },
+        {
+            "Address": "0x77",
+            "Bus": 4,
+            "ChannelNames": [
+                "U2_Slot1",
+                "U2_Slot2",
+                "U2_Slot3",
+                "U2_Slot4"
+            ],
+            "Name": "HSBP 2 Mux",
+            "Type": "PCA9546Mux"
+        },
+        {
+            "Address": "0x73",
+            "Bus": 4,
+            "ChannelNames": [
+                "U2_Slot5",
+                "U2_Slot6",
+                "U2_Slot7",
+                "U2_Slot8"
+            ],
+            "Name": "HSBP 2 Mux2",
+            "Type": "PCA9546Mux"
+        },
+        {
+            "Address": "0x76",
+            "Bus": 4,
+            "ChannelNames": [
+                "U2_Slot1",
+                "U2_Slot2",
+                "U2_Slot3",
+                "U2_Slot4"
+            ],
+            "Name": "HSBP 3 Mux",
+            "Type": "PCA9546Mux"
+        },
+        {
+            "Address": "0x72",
+            "Bus": 4,
+            "ChannelNames": [
+                "U2_Slot5",
+                "U2_Slot6",
+                "U2_Slot7",
+                "U2_Slot8"
+            ],
+            "Name": "HSBP 3 Mux2",
+            "Type": "PCA9546Mux"
+        },
+        {
             "Address": "0x4D",
             "Bus": 6,
             "Name": "CPU0 VR Temp",
@@ -1343,9 +1419,13 @@
         }
     ],
     "Name": "CYP Baseboard",
-    "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*CYP'})",
-    "Type": "Board",
+    "Probe": [
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'M50CYP2SB2U'})",
+        "OR",
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*CYP'})"
+    ],
     "ProductId": 152,
+    "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",
         "Model": "$PRODUCT_PRODUCT_NAME",

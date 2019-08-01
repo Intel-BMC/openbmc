@@ -1,6 +1,6 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/phosphor-sel-logger.git"
-SRCREV = "c4a336fb15464b9f4a7328c02cb43285a6eb1e58"
+SRCREV = "3d300fca24b30864b3e9a4f5768cfe5e769458ae"
 
 # Enable threshold monitoring
 EXTRA_OECMAKE += "-DSEL_LOGGER_MONITOR_THRESHOLD_EVENTS=ON"

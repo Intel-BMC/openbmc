@@ -1,4 +1,4 @@
-From 3eabb52efdecfc0da896476ac5567060a6b3788a Mon Sep 17 00:00:00 2001
+From f57d473a30f208754457bdb63512c307f7499ac8 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Mon, 4 Jun 2018 13:45:42 -0700
 Subject: [PATCH] New flash map for Intel
@@ -6,18 +6,18 @@ Subject: [PATCH] New flash map for Intel
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
- .../boot/dts/openbmc-flash-layout-intel-128MB.dtsi | 52 ++++++++++++++++++++++
- .../boot/dts/openbmc-flash-layout-intel-64MB.dtsi  | 39 ++++++++++++++++
- 2 files changed, 91 insertions(+)
+ .../boot/dts/openbmc-flash-layout-intel-128MB.dtsi | 50 ++++++++++++++++++++++
+ .../boot/dts/openbmc-flash-layout-intel-64MB.dtsi  | 38 ++++++++++++++++
+ 2 files changed, 88 insertions(+)
  create mode 100644 arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
  create mode 100644 arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
 
 diff --git a/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi b/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
 new file mode 100644
-index 000000000000..23426acc30c7
+index 000000000000..0d3794423aed
 --- /dev/null
 +++ b/arch/arm/boot/dts/openbmc-flash-layout-intel-128MB.dtsi
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,50 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +// 128MB flash layout: PFR (active + tmp1/tmp2 + extra)
 +//                     image with common RW partition
@@ -48,34 +48,32 @@ index 000000000000..23426acc30c7
 +	};
 +
 +	rwfs@2c0000 {
-+		reg = <0x2c0000 0xe40000>;
++		reg = <0x2c0000 0x840000>;
 +		label = "rwfs";
 +	};
 +
-+	fit-image-a@1100000 {
-+		reg = <0x1100000 0x2500000>;
++	fit-image-a@b00000 {
++		reg = <0xb00000 0x1f00000>;
 +		label = "image-a";
 +	};
 +
-+	rc-image@3600000 {
-+		reg = <0x3600000 0x2500000>;
++	rc-image@2a00000 {
++		reg = <0x2a00000 0x2000000>;
 +		label = "rc-image";
 +	};
 +
-+	image-staging@5b00000 {
-+		reg = <0x5b00000 0x2500000>;
++	image-staging@4a00000 {
++		reg = <0x4a00000 0x3600000>;
 +		label = "image-stg";
 +	};
 +
 +};
-+
-+
 diff --git a/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi b/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
 new file mode 100644
-index 000000000000..6ae8e57087e2
+index 000000000000..092708f5021f
 --- /dev/null
 +++ b/arch/arm/boot/dts/openbmc-flash-layout-intel-64MB.dtsi
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,38 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +// 64MB flash layout: redundant image with common RW partition
 +
@@ -114,7 +112,6 @@ index 000000000000..6ae8e57087e2
 +		label = "image-b";
 +	};
 +};
-+
 -- 
 2.7.4
 

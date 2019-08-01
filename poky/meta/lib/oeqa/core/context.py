@@ -9,6 +9,7 @@ import json
 import time
 import logging
 import collections
+import unittest
 
 from oeqa.core.loader import OETestLoader
 from oeqa.core.runner import OETestRunner
@@ -45,10 +46,22 @@ class OETestContext(object):
     def skipTests(self, skips):
         if not skips:
             return
+        def skipfuncgen(skipmsg):
+            def func():
+                raise unittest.SkipTest(skipmsg)
+            return func
+        class_ids = {}
         for test in self.suites:
+            if test.__class__ not in class_ids:
+                class_ids[test.__class__] = '.'.join(test.id().split('.')[:-1])
             for skip in skips:
-                if test.id().startswith(skip):
-                    setattr(test, 'setUp', lambda: test.skipTest('Skip by the command line argument "%s"' % skip))
+                if (test.id()+'.').startswith(skip+'.'):
+                    setattr(test, 'setUp', skipfuncgen('Skip by the command line argument "%s"' % skip))
+        for tclass in class_ids:
+            cid = class_ids[tclass]
+            for skip in skips:
+                if (cid + '.').startswith(skip + '.'):
+                    setattr(tclass, 'setUpHooker', skipfuncgen('Skip by the command line argument "%s"' % skip))
 
     def loadTests(self, module_paths, modules=[], tests=[],
             modules_manifest="", modules_required=[], filters={}):

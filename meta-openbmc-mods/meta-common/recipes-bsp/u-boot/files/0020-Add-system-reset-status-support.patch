@@ -1,4 +1,4 @@
-From 06445210bfda7f9bbbb36133e6818575bd6a0cc1 Mon Sep 17 00:00:00 2001
+From 54616ade08517374200a332e50f68ee9d0fbf5c5 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Tue, 9 Apr 2019 14:42:05 +0800
 Subject: [PATCH] Add system reset status support
@@ -7,13 +7,16 @@ Will display the reset reasons and other CPU information in u-boot,
 and save the reset reasons into kernel command line,
 for applications to query.
 
+Change-Id: I87ada3ecf14368519e4d09035bb1e09fdc05469b
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
 ---
- arch/arm/include/asm/arch-aspeed/platform.h |  2 ++
- arch/arm/mach-aspeed/ast-scu.c              |  4 ++++
- board/aspeed/ast-g5/ast-g5-intel.c          | 30 +++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5.c                |  7 +++++++
- 4 files changed, 43 insertions(+)
+ arch/arm/include/asm/arch-aspeed/platform.h |  2 +
+ arch/arm/mach-aspeed/ast-scu.c              |  4 ++
+ board/aspeed/ast-g5/ast-g5-intel.c          | 73 +++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5.c                |  7 +++
+ 4 files changed, 86 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
 index 3b06e52..4e4140d 100644
@@ -51,41 +54,84 @@ index 3a9ba05..976c59b 100644
  
  u32 ast_scu_get_vga_memsize(void)
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index bcaf81e..1e8708a 100644
+index 01f8a13..e0bf9ee 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -303,6 +303,36 @@ static inline void ast_scu_write(uint32_t val, uint32_t reg)
+@@ -303,6 +303,79 @@ static inline void ast_scu_write(uint32_t val, uint32_t reg)
  #endif
  }
  
-+void ast_g5_intel_late_init(void)
-+{
-+	char *cmdline = NULL;
-+	char *cmdline_new = NULL;
-+	char buf[32];
-+	u32 rest = 0;
 +
-+	/* save and clear reset status */
-+	rest = ast_scu_read(AST_SCU_SYS_CTRL);
-+	snprintf(buf, sizeof(buf), " resetreason=0x%x", rest);
-+	ast_scu_write(0, AST_SCU_SYS_CTRL);
++static void update_bootargs_cmd(const char *key, const char *value)
++{
++	int buf_len;
++	char *buf;
++	char *cmdline;
++	char comp_key[128];
++
++	if (!key || (key[0] == '\0')) {
++		printf("%s - Empty key not allowed\n", __func__);
++		return;
++	}
 +
 +	cmdline = getenv("bootargs");
++
++	/* Allocate space for maximum possible new command line */
++	if (value)
++		buf_len = strlen(cmdline) + strlen(key) + 3 + strlen(value);
++	else
++		buf_len = strlen(cmdline) + strlen(key) + 3;
++
++	buf = malloc(buf_len);
++	if (!buf) {
++		printf("%s: out of memory\n", __func__);
++		return;
++	}
++	memset(buf, 0, buf_len);
++
 +	if (!cmdline) {
-+		printf("Get bootargs fail!\n");
++		/* lets add key-value, though bootargs are empty */
++		snprintf(buf, buf_len, "%s=%s", key, (value ? value : ""));
++		setenv("bootargs", buf);
++		free(buf);
 +		return;
 +	}
 +
-+	cmdline_new = malloc(strlen(cmdline) + strlen(buf) + 1);
-+	if (!cmdline_new) {
-+		printf("Cannot malloc memory!\n");
-+		return;
++	snprintf(comp_key, sizeof(comp_key), "%s=", key);
++	char *start = strstr(cmdline, comp_key);
++
++	/* Check for full word match. Match should be start of cmdline
++	 * or there should be space before match */
++	if (start && ((start == cmdline) || (*(start-1) == ' '))) {
++		char *end = strchr(start, ' ');
++		strncpy(buf, cmdline, (start - cmdline));
++
++		if (end)
++			snprintf(buf, buf_len, "%s%s=%s %s", buf, key,
++				 (value ? value : ""), end+1);
++		else
++			snprintf(buf, buf_len, "%s%s=%s", buf, key,
++				 (value ? value : ""));
++	} else {
++		snprintf(buf, buf_len, "%s %s=%s", cmdline, key,
++			 (value ? value : ""));
 +	}
 +
-+	/* append the reset status into kernel command line */
-+	snprintf(cmdline_new, strlen(cmdline) + strlen(buf) + 1, "%s%s", cmdline, buf);
-+	setenv("bootargs", cmdline_new);
-+	free(cmdline_new);
++	setenv("bootargs", buf);
++	free(buf);
++}
++
++void ast_g5_intel_late_init(void)
++{
++	char value[32];
++	u32 reset_reason = 0;
++
++	/* save and clear reset status */
++	reset_reason = ast_scu_read(AST_SCU_SYS_CTRL);
++	snprintf(value, sizeof(value), "0x%x", reset_reason);
++	ast_scu_write(0, AST_SCU_SYS_CTRL);
++
++	update_bootargs_cmd("resetreason", value);
 +}
 +
  static void pwm_init(void)
@@ -116,6 +162,3 @@ index d41ef9c..0953677 100644
  int dram_init(void)
  {
  	u32 vga = ast_scu_get_vga_memsize();
--- 
-2.7.4
-

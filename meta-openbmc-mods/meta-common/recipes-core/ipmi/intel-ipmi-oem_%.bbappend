@@ -1,2 +1,2 @@
 SRC_URI = "git://github.com/openbmc/intel-ipmi-oem.git"
-SRCREV = "ba9c1765f5edc2f0891e012f33b3059a0dbd7ff1"
+SRCREV = "6ae0818f82bcfc6c5568dd2107d0656da5410f61"

@@ -1,26 +1,24 @@
-From 068b816b3c9bf75dcd2a808fc81c67a32fbe29ea Mon Sep 17 00:00:00 2001
+From 62240a7ef12bb2ed3730a625ad7a809a9a6d0512 Mon Sep 17 00:00:00 2001
 From: David Cobbley <david.j.cobbley@linux.intel.com>
 Date: Wed, 6 Jun 2018 10:11:58 -0700
-Subject: [PATCH] Modify Dbus for IPv6.
+Subject: [PATCH 1/1] Modify Dbus for IPv6.
 
 Add additional interfaces for IPv6 use.
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- .../Network/EthernetInterface.interface.yaml            | 17 ++++++++++++++++-
- xyz/openbmc_project/Network/IP.interface.yaml           |  4 ++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
+ .../Network/EthernetInterface.interface.yaml        | 13 ++++++++++++-
+ xyz/openbmc_project/Network/IP.interface.yaml       |  4 ++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)
 
 diff --git a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
-index 744ac77..6b7cd9a 100644
+index 6fa1d0b..6b7cd9a 100644
 --- a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
 +++ b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
-@@ -42,6 +42,14 @@ properties:
+@@ -46,6 +46,10 @@ properties:
+       type: boolean
        description: >
-           This indicates link local auto configuration on this ethernet
-           interface and configured on this ethernet interface.
-+    - name: IPv6AcceptRA
-+      type: boolean
-+      description: >
-+          Boolean for accepting router advertisements in IPv6
+           Boolean for accepting router advertisements in IPv6
 +    - name: IPAddressEnables
 +      type: enum[self.IPAllowed]
 +      description: >
@@ -28,7 +26,7 @@ index 744ac77..6b7cd9a 100644
  
  enumerations:
      - name: LinkLocalConf
-@@ -52,4 +60,11 @@ enumerations:
+@@ -56,4 +60,11 @@ enumerations:
          - name: v4
          - name: v6
          - name: none
@@ -42,13 +40,13 @@ index 744ac77..6b7cd9a 100644
 +          - name: IPv4Only
 +          - name: IPv6Only
 diff --git a/xyz/openbmc_project/Network/IP.interface.yaml b/xyz/openbmc_project/Network/IP.interface.yaml
-index 565dcd6..2ffb016 100644
+index 5091ac9..b2442a5 100644
 --- a/xyz/openbmc_project/Network/IP.interface.yaml
 +++ b/xyz/openbmc_project/Network/IP.interface.yaml
-@@ -22,6 +22,10 @@ properties:
-       type: string
-       description: >
-           This is the IP gateway for this address.
+@@ -34,6 +34,10 @@ properties:
+       errors:
+           - xyz::openbmc_project.Common.Error.NotAllowed
+ 
 +    - name: BackupGateway
 +      type: string
 +      description: >
@@ -57,5 +55,5 @@ index 565dcd6..2ffb016 100644
        type: enum[self.Protocol]
        description: >
 -- 
-2.7.4
+2.17.1
 

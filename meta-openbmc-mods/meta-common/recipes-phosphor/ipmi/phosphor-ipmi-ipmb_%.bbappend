@@ -1,2 +1,2 @@
 SRC_URI = "git://github.com/openbmc/ipmbbridge.git"
-SRCREV = "8188d7651c23502f88f9bf850ab7e549f6463997"
+SRCREV = "bbfd00abdbc6d2f7c0389eae91cc055a1d4fe0c3"

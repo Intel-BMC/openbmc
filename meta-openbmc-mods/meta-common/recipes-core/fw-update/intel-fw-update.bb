@@ -11,12 +11,12 @@ RDEPENDS_intel-fw-update += "dosfstools parted"
 
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fecd0a2940a0d1658"
-PFR_EN = "${@bb.utils.contains('IMAGE_TYPE', 'pfr', 'pfr', '', d)}"
+PFR_EN = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr', '', d)}"
 
 SRC_URI += "file://fwupd.sh"
 SRC_URI += "file://usb-ctrl"
 
-FILES_${PN} += "${@bb.utils.contains('IMAGE_TYPE', 'pfr', '${datadir}/pfr', '', d)}"
+FILES_${PN} += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '${datadir}/pfr', '', d)}"
 
 do_install() {
         install -d ${D}${bindir}

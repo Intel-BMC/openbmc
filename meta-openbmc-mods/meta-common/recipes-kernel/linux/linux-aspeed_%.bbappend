@@ -13,6 +13,7 @@ SRC_URI += " \
         file://0009-SGPIO-DT-and-pinctrl-fixup.patch \
         file://0010-Update-PECI-drivers-to-sync-with-linux-upstreaming-v.patch \
         file://0019-Add-I2C-IPMB-support.patch \
+        file://0020-misc-aspeed-add-lpc-mbox-driver.patch \
         file://0021-Initial-Port-of-Aspeed-LPC-SIO-driver.patch \
         file://0022-Add-AST2500-eSPI-driver.patch \
         file://0026-Add-support-for-new-PECI-commands.patch \
@@ -24,14 +25,11 @@ SRC_URI += " \
         file://0035-Implement-a-memory-driver-share-memory.patch \
         file://0039-Add-Aspeed-PWM-driver-which-uses-FTTMR010-timer-IP.patch \
         file://0040-i2c-Add-mux-hold-unhold-msg-types.patch \
-        file://0041-Enable-passthrough-based-gpio-character-device.patch \
         file://0042-Add-bus-timeout-ms-and-retries-device-tree-propertie.patch \
         file://0043-char-ipmi-Add-clock-control-logic-into-Aspeed-LPC-BT.patch \
         file://0044-misc-Add-clock-control-logic-into-Aspeed-LPC-SNOOP-d.patch \
         file://0045-char-ipmi-Add-clock-control-logic-into-Aspeed-LPC-KC.patch \
-        file://0046-misc-Add-clock-control-logic-into-Aspeed-LPC-MBOX-dr.patch \
         file://0047-misc-Block-error-printing-on-probe-defer-case-in-Asp.patch \
-        file://0048-ARM-dts-aspeed-Set-default-status-of-LPC-BT-as-disab.patch \
         file://0049-Suppress-excessive-HID-gadget-error-logs.patch \
         file://0051-Add-AST2500-JTAG-device.patch \
         file://0052-drivers-jtag-Add-JTAG-core-driver.patch \
@@ -43,4 +41,7 @@ SRC_URI += " \
         file://0058-i2c-aspeed-add-general-call-support.patch \
         file://0065-i2c-aspeed-fix-master-pending-state-handling.patch \
         file://0066-i2c-aspeed-add-buffer-mode-transfer-support.patch \
+        file://0067-i2c-aspeed-add-DMA-mode-transfer-support.patch \
+        file://0001-set-idle-disconnect-to-true-in-all-cases.patch \
+        file://0068-i2c-aspeed-add-H-W-timeout-support.patch \
         "

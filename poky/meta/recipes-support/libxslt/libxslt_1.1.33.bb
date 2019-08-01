@@ -8,7 +8,9 @@ LIC_FILES_CHKSUM = "file://Copyright;md5=0cd9a07afbeb24026c9b03aecfeba458"
 SECTION = "libs"
 DEPENDS = "libxml2"
 
-SRC_URI = "http://xmlsoft.org/sources/libxslt-${PV}.tar.gz"
+SRC_URI = "http://xmlsoft.org/sources/libxslt-${PV}.tar.gz \
+           file://0001-Fix-security-framework-bypass.patch \
+"
 
 SRC_URI[md5sum] = "b3bd254a03e46d58f8ad1e4559cd2c2f"
 SRC_URI[sha256sum] = "8e36605144409df979cab43d835002f63988f3dc94d5d3537c12796db90e38c8"
@@ -21,8 +23,9 @@ BINCONFIG = "${bindir}/xslt-config"
 
 inherit autotools pkgconfig binconfig-disabled lib_package
 
-# We don't DEPEND on binutils for ansidecl.h so ensure we don't use the header
 do_configure_prepend () {
+	# We don't DEPEND on binutils for ansidecl.h so ensure we don't use the header.
+	# This can be removed when upgrading to 1.1.34.
 	sed -i -e 's/ansidecl.h//' ${S}/configure.ac
 
 	# The timestamps in the 1.1.28 tarball are messed up causing this file to

@@ -1,7 +1,7 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-#SRC_URI = "git://github.com/openbmc/phosphor-user-manager"
-SRCREV = "75b5a6fc4c0c06f43623fe0e746fd55e667dceb3"
+#SRC_URI = "git://github.com/openbmc/phosphor-user-manager;nobranch=1"
+SRCREV = "1af1223304dbf7aaecd5f238227abee95cce8b39"
 
 
 SRC_URI += " \
