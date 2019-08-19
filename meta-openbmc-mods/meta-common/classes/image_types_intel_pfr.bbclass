@@ -1,6 +1,7 @@
 
 
 inherit obmc-phosphor-full-fitimage
+DEPENDS += "obmc-intel-pfr-image-native"
 
 require recipes-core/os-release/version-vars.inc
 
@@ -38,7 +39,7 @@ do_image_pfr () {
     cd "${PFR_IMAGES_DIR}"
 
     # python script that does the creating PFM, BMC compressed and unsigned images from BMC 128MB raw binary file.
-    python ${PFR_STAGING_DIR}/pfr_image.py ${PFR_STAGING_DIR}/pfr_image-manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash}
+    python ${PFR_STAGING_DIR}/pfr_image.py ${PFR_STAGING_DIR}/pfr_manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash}
 
     # sign the PFM region
     ${PFR_STAGING_DIR}/blocksign -c ${PFR_STAGING_DIR}/pfm_config.xml -o ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm.bin

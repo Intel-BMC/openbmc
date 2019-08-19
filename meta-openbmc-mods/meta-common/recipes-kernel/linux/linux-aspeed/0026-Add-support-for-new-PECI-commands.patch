@@ -588,7 +588,7 @@ index 253fb42e38b7..405cd8edbcbf 100644
 +	      struct peci_rd_end_pt_cfg_msg)
 +
 +#define PECI_IOC_WR_END_PT_CFG \
-+	_IOWR(PECI_IOC_BASE, PECI_IOC_WR_END_PT_CFG, \
++	_IOWR(PECI_IOC_BASE, PECI_CMD_WR_END_PT_CFG, \
 +	      struct peci_wr_end_pt_cfg_msg)
 +
 +#define PECI_IOC_CRASHDUMP_DISC \

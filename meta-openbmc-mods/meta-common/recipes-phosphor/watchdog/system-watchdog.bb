@@ -11,3 +11,6 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 SYSTEMD_SERVICE_${PN} += "system-watchdog.service"
 SYSTEMD_ENVIRONMENT_FILE_${PN} += "obmc/system-watchdog/system-watchdog.conf"
 
+SYSTEMD_SERVICE_${PN} += "watchdog-reset.service"
+SYSTEMD_SERVICE_${PN} += "watchdog-clear-failures.service"
+SYSTEMD_SERVICE_${PN} += "watchdog-clear-failures.timer"

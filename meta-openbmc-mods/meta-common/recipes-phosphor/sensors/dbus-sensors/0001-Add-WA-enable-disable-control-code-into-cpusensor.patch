@@ -1,0 +1,50 @@
+From f9b4545af42fc673f81d043a8512db8ebfe58660 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Fri, 2 Aug 2019 12:02:58 -0700
+Subject: [PATCH] Add WA enable/disable control code into cpusensor
+
+This commit adds a PECI WA enable/disable control code. If 'UseWA'
+isn't in CPU configuration or the setting is 0, the WA will be
+disabled by writing 'N' on the peci_core module parameter.
+
+This is a temporary WA.
+
+Change-Id: I73ae9ac49c9382f3ebdc800c360e078418b124e9
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ src/CPUSensorMain.cpp | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
+index 2a3ff16f8294..b4085fd1038d 100644
+--- a/src/CPUSensorMain.cpp
++++ b/src/CPUSensorMain.cpp
+@@ -629,6 +629,25 @@ bool getCpuConfig(
+                     std::cout << "type: " << type << "\n";
+                 }
+ 
++                // Temporary WA
++                uint64_t useWA = 0;
++                auto findUseWA = config.second.find("UseWA");
++                if (findUseWA != config.second.end())
++                {
++                    useWA = std::visit(VariantToUnsignedIntVisitor(),
++                                       findUseWA->second);
++                }
++                if (useWA == 0)
++                {
++                    std::ofstream deviceFile(
++                        "/sys/module/peci_core/parameters/use_wa");
++                    if (deviceFile.good())
++                    {
++                        deviceFile << 'N';
++                    }
++                    deviceFile.close();
++                }
++
+                 cpuConfigs.emplace(bus, addr, name, State::OFF);
+             }
+         }
+-- 
+2.7.4
+

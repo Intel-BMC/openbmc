@@ -14,11 +14,9 @@
 # TODO: figure out if active and recovery actually have different sigs
 # TODO: build hashmap from payload manifest
 # TODO: figure out exact struct layout for PFR metadata
-
 import os, hashlib, struct, json, sys, subprocess, mmap, io, array, binascii, copy, shutil, re
 from array import array
 from binascii import unhexlify
-from six import b, print_, binary_type
 from hashlib import sha1, sha256, sha512
 from shutil import copyfile
 # Flash Map
@@ -38,18 +36,20 @@ from shutil import copyfile
 # TODO: The below defines should go to manifest files.
 # Keeping it here hard coded for now.
 # The pages to be skipped for HASH and PBC
-# Pages: 0x80 to 0xaff - starting PFM region until fit-image
+# Pages: 0x80 to 0x9f - starting PFM region until end of pfm
 # Pages: 0x2a00 to 0x7FFF - starting RC-image until end of flash
-EXCLUDE_PAGES =[[0x80, 0xaff],[0x2a00,0x7fff]]
+EXCLUDE_PAGES =[[0x80, 0x9f],[0x2a00,0x7fff]]
 
 # SPI PFM globals
 PFM_OFFSET = 0x80000
 PFM_SPI = 0x1
+PFM_I2C = 0x2
 SHA256 = 0x1
 SHA256_SIZE = 32
 PFM_DEF_SIZE = 16
 PFM_SPI_SIZE_DEF = 16 # 16 bytes of SPI PFM
 PFM_SPI_SIZE_HASH = 32 # 32 bytes of SPI region HASH
+PFM_I2C_SIZE = 40 # 40 bytes of i2c rules region in PFM
 
 PAGE_SIZE = 0x1000 # 4KB size of page
 
@@ -62,23 +62,32 @@ def load_manifest(fname):
 class pfm_spi(object):
 
     def __init__(self, prot_mask, start_addr, end_addr, hash, hash_pres):
-        self.pfm = PFM_SPI
-        self.prot_mask = prot_mask
-        self.hash_pres = hash_pres
+        self.spi_pfm = PFM_SPI
+        self.spi_prot_mask = prot_mask
+        self.spi_hash_pres = hash_pres
         if hash_pres == 1:
             self.spi_hash = hash
-        self.pfm_rsvd = 0xffffffff        #b'\xff'*4
-        self.start_addr = start_addr
-        self.end_addr = end_addr
+        self.spi_pfm_rsvd = 0xffffffff        # b'\xff'*4
+        self.spi_start_addr = start_addr
+        self.spi_end_addr = end_addr
 
+class pfm_i2c(object):
+
+    def __init__(self, bus_id, rule_id, address, cmd_map):
+        self.i2c_pfm = PFM_I2C
+        self.i2c_pfm_rsvd = 0xffffffff        # b'\xff'*4
+        self.i2c_bus_id = bus_id
+        self.i2c_rule_id = rule_id
+        self.i2c_address = address
+        self.i2c_cmd_whitelist = cmd_map
 
 class pfr_bmc_image(object):
 
-# json_file, update_file
-    def __init__(self, manifest, update_file, build_ver, build_num, build_hash):
+# json_file, firmware_file
+    def __init__(self, manifest, firmware_file, build_ver, build_num, build_hash):
 
         self.manifest = load_manifest(manifest)
-        self.update_file = update_file
+        self.firmware_file = firmware_file
         self.build_version = build_ver
         self.build_number = build_num
         self.build_hash = build_hash
@@ -111,6 +120,26 @@ class pfr_bmc_image(object):
         # fill in the calculated data
         self.hash_and_map()
 
+        self.i2c_rules = []
+        for i in self.manifest['i2c-rules']:
+            # the json should have in the order- bus-id, rule-id, address, size and cmd-whitelist
+            self.i2c_rules.append((i['bus-id'], i['rule-id'], i['address'], i['cmd-whitelist']))
+        print(self.i2c_rules)
+
+        # I2C rules PFM array
+        self.pfm_i2c_rules = []
+
+        # Generate the i2c rules
+        self.build_i2c_rules()
+
+        # Generate PFM region binary - pfm.bin
+        self.build_pfm()
+        print("PFM build done")
+
+        # Generate PBC region - pbc.bin
+        self.pbc_hdr()
+        print("PBC build done")
+
     def hash_compress_regions(self, p, upd):
 
         # JSON format as below
@@ -134,41 +163,44 @@ class pfr_bmc_image(object):
         # 1 page is 4KB
         page = start_addr >> 12
 
-        if hash_flag == 1:
-            with open(self.update_file, "rb") as f:
-                f.seek(start_addr)
-                skip = False
-                # HASH for the region
+        with open(self.firmware_file, "rb") as f:
+            f.seek(start_addr)
+            skip = False
+
+            if hash_flag == 1:
                 hash_dgst = hashlib.sha256()
-                for chunk in iter(lambda: f.read(self.page_size), b''):
-                    chunk_len = len(chunk)
-                    if chunk_len != self.page_size:
-                        chunk = b''.join([chunk, b'\xff' * (self.page_size - chunk_len)])
 
-                    for p in EXCLUDE_PAGES:
-                        if (page >= p[0]) and (page <= p[1]):
-                            print("Exclude page={}".format(page))
-                            skip = True
-                            break
+            for chunk in iter(lambda: f.read(self.page_size), b''):
+                chunk_len = len(chunk)
+                if chunk_len != self.page_size:
+                    chunk = b''.join([chunk, b'\xff' * (self.page_size - chunk_len)])
 
-                    if not skip:
-                        # add to the hash
+                for p in EXCLUDE_PAGES:
+                    if (page >= p[0]) and (page <= p[1]):
+                        #print("Exclude page={}".format(page))
+                        skip = True
+                        break
+
+                if not skip:
+                    # add to the hash
+                    if hash_flag == 1:
+                        # HASH for the region
                         self.act_dgst.update(chunk)
                         hash_dgst.update(chunk)
+
+                    if compress == 1:
                         self.pbc_erase_bitmap[page >> 3] |= 1 << (7- (page % 8)) # Big endian bit map
+                        # add to the pbc map
+                        if chunk != self.empty:
+                            #print("compressed page ={}".format(page))
+                            upd.write(chunk)
+                            self.pbc_comp_bitmap[page >> 3] |= 1 << (7- (page % 8)) # Big Endian bit map
+                            self.pbc_comp_payload += chunk_len # compressed payload bytes
 
-                        if compress == 1:
-                            # add to the pbc map
-                            if chunk != self.empty:
-                                print("compressed page ={}".format(page))
-                                upd.write(chunk)
-                                self.pbc_comp_bitmap[page >> 3] |= 1 << (7- (page % 8)) # Big Endian bit map
-                                self.pbc_comp_payload += chunk_len # compressed payload bytes
+                page += 1
 
-                    page += 1
-
-                    if (page * self.page_size) >= (size + start_addr):
-                        break
+                if (page * self.page_size) >= (size + start_addr):
+                    break
 
         if pfm_flag == 1:
            self.pfm_bytes += PFM_SPI_SIZE_DEF
@@ -185,23 +217,42 @@ class pfr_bmc_image(object):
            # append to SPI regions in PFM
            self.pfm_spi_regions.append(pfm_spi(pfm_prot_mask, start_addr, (start_addr+size), hash, hash_pres))
 
+    def add_i2c_rules(self, i):
+        bus_id = i[0]  # I2C Bus number
+        rule_id = i[1] # I2C rule number
+        addr = i[2]    # I2C device address
+        cmds = i[3]    # I2C white listed commands for which i2c write to be allowed
+        whitelist_map = bytearray(32)
+
+        self.pfm_bytes += PFM_I2C_SIZE # add upto PFM size
+
+        for c in cmds:
+            if c == "all":
+                for i in range(32):
+                    whitelist_map[i] = 0xff
+                break
+            else:
+                idx = int(c,16) / 8 # index in the 32 bytes of white list i2c cmds
+                bit = int(c,16) % 8 # bit position to set
+                whitelist_map[idx] |= (1 << bit)
+
+        # append to I2C rules in PFM
+        self.pfm_i2c_rules.append(pfm_i2c(bus_id, rule_id, addr, whitelist_map))
+
+    def build_i2c_rules(self):
+        for i in self.i2c_rules:
+            print(i[0], i[1], i[2], i[3])
+            self.add_i2c_rules(i)
+
     def hash_and_map(self):
 
         # have copy of the update file for appending with PFR meta and compression
-        copyfile(self.update_file, self.pfr_rom_file)
+        copyfile(self.firmware_file, self.pfr_rom_file)
         with open("bmc_compressed.bin", "wb+") as upd:
             for p in self.image_parts:
                 #filename, index, offset, size, protection.
                 print(p[0], p[1], p[2], p[3], p[4])
                 self.hash_compress_regions(p, upd)
-
-        # Generate PFM region binary - pfm.bin
-        self.build_pfm()
-        print("PFM build done")
-
-        # Generate PBC region - pbc.bin
-        self.pbc_hdr()
-        print("PBC build done")
 
     def pbc_hdr(self):
         '''
@@ -244,30 +295,34 @@ class pfr_bmc_image(object):
         '''
         typedef struct {
             uint32_t tag;             /* PFM_HDR_TAG above, no terminating null */
-            uint8_t sec_revision;     /* SVN- security revision of associated image data */
+            uint8_t SVN;     /* SVN- security revision of associated image data */
+            uint8_t bkc;              /* bkc */
             uint8_t pfm_ver_major;    /* PFM revision */
             uint8_t pfm_ver_minor;
+            uint8_t reserved0[4];
             uint8_t build_num;
             uint8_t build_hash[3];
-            uint8_t  reserved0;    /* reserved */
+            uint8_t  reserved1[12];       /* reserved */
             uint32_t pfm_length;      /* PFM size in bytes */
             pfm_spi  pfm_spi[2];          /* PFM SPI regions - u-boot & fit-image */
             pfm_smbus pfm_smbus[4];       /*  defined smbus rules for PSUs and HSBP */
         } __attribute__((packed)) pfm_hdr;
         '''
         names = [
-            'tag', 'sec_rev', 'pfm_ver_major', 'pfm_ver_minor', 'build_num', 'build_hash1', 'build_hash2', 'build_hash3', 'resvd0', 'pfm_len',
+            'tag', 'sec_rev', 'bkc', 'pfm_ver_major', 'pfm_ver_minor', 'resvd0', 'build_num', 'build_hash1', 'build_hash2', 'build_hash3', 'resvd1', 'pfm_len',
             ]
         parts = {
             'tag': struct.pack("<I", 0x02b3ce1d),
             'sec_rev': struct.pack('<B', self.sec_rev),
+            'bkc': struct.pack('<B', 0x01),
             'pfm_ver_major': struct.pack('<B', ((int(self.build_version) >> 8) & 0xff)),
             'pfm_ver_minor': struct.pack('<B', (int(self.build_version) & 0x00ff)),
+            'resvd0': b'\xff'* 4,
             'build_num': struct.pack('<B', int(self.build_number,16)),
-            'build_hash1': struct.pack('<B', int(self.build_hash) & 0xff),
-            'build_hash2': struct.pack('<B', (int(self.build_hash) >> 8) & 0xff),
-            'build_hash3': struct.pack('<B', (int(self.build_hash) >> 16) & 0xff),
-            'resvd0': b'\xff'* 1,
+            'build_hash1': struct.pack('<B', (int(self.build_hash) & 0xff)),
+            'build_hash2': struct.pack('<B', ((int(self.build_hash) >> 8) & 0xff)),
+            'build_hash3': struct.pack('<B', ((int(self.build_hash) >> 16) & 0xff)),
+            'resvd1': b'\xff'* 12,
             'pfm_len': ''
             }
 
@@ -280,32 +335,40 @@ class pfr_bmc_image(object):
         with open("pfm.bin", "wb+") as f:
             f.write(b''.join([parts[n] for n in names]))
             for i in self.pfm_spi_regions:
-                f.write(struct.pack('b', int(i.pfm)))
-                f.write(struct.pack('b', int(i.prot_mask)))
-                f.write(struct.pack('h', int(i.hash_pres)))
-                f.write(struct.pack('<I', int(i.pfm_rsvd)))
-                f.write(struct.pack('<I', int(i.start_addr)))
-                f.write(struct.pack('<I', int(i.end_addr)))
+                f.write(struct.pack('<B', int(i.spi_pfm)))
+                f.write(struct.pack('<B', int(i.spi_prot_mask)))
+                f.write(struct.pack('<h', int(i.spi_hash_pres)))
+                f.write(struct.pack('<I', int(i.spi_pfm_rsvd)))
+                f.write(struct.pack('<I', int(i.spi_start_addr)))
+                f.write(struct.pack('<I', int(i.spi_end_addr)))
 
-                if i.hash_pres == 1:
+                if i.spi_hash_pres == 1:
                     f.write(i.spi_hash.decode('hex'))
+
+            for r in self.pfm_i2c_rules:
+                f.write(struct.pack('<B', int(r.i2c_pfm)))
+                f.write(struct.pack('<I', int(r.i2c_pfm_rsvd)))
+                f.write(struct.pack('<B', int(r.i2c_bus_id)))
+                f.write(struct.pack('<B', int(r.i2c_rule_id)))
+                f.write(struct.pack('<B', int(r.i2c_address, 16)))
+                f.write(r.i2c_cmd_whitelist)
 
             # write the padding bytes at the end
             f.write(b'\xff' * padding_bytes)
 
 def main():
     if len(sys.argv) != 6: #< pfr_image.py manifest.json> <update.bin> <build_version> <build_number> <build_hash>
-        print('usage: {} <manifest.json> <update.bin> <build_version> <build_number> <build_hash>'.format(sys.argv[0]))
+        print('usage: {} <manifest.json> <firmware.bin> <build_version> <build_number> <build_hash>'.format(sys.argv[0]))
         return
 
     json_file = sys.argv[1]
-    update_file = sys.argv[2]
+    firmware_file = sys.argv[2]
     build_ver = sys.argv[3]
     build_num = sys.argv[4]
     build_hash = sys.argv[5]
 
     # function to generate BMC PFM, PBC header and BMC compressed image
-    pfr_bmc_image(json_file, update_file, build_ver, build_num, build_hash)
+    pfr_bmc_image(json_file, firmware_file, build_ver, build_num, build_hash)
 
 if __name__ == '__main__':
     main()

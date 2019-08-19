@@ -1,4 +1,4 @@
-From 1059e64f4fc5af65f2afdc209761342fe44e3498 Mon Sep 17 00:00:00 2001
+From 0f63ecc25766fdf66610d08441e59147a4cbde78 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Wed, 16 May 2018 10:03:14 -0700
 Subject: [PATCH] SGPIO DT and pinctrl fixup
@@ -8,17 +8,17 @@ This commit fixes DT and pinctrl for SGPIO use.
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/boot/dts/aspeed-g4.dtsi           | 54 ++++++++++--------------------
- arch/arm/boot/dts/aspeed-g5.dtsi           |  8 +++++
- drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c | 48 +++++++++++++-------------
+ arch/arm/boot/dts/aspeed-g4.dtsi           | 56 +++++++++++-------------------
+ arch/arm/boot/dts/aspeed-g5.dtsi           | 10 ++++++
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c | 48 ++++++++++++-------------
  drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c |  4 +++
- 4 files changed, 54 insertions(+), 60 deletions(-)
+ 4 files changed, 58 insertions(+), 60 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index fd857be397bf..00848693f455 100644
+index fd857be397bf..58306a8232c9 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -207,6 +207,18 @@
+@@ -207,6 +207,20 @@
  				#interrupt-cells = <2>;
  			};
  
@@ -29,6 +29,8 @@ index fd857be397bf..00848693f455 100644
 +				reg = <0x1e780200 0x0100>;
 +				interrupts = <40>;
 +				interrupt-controller;
++				clocks = <&syscon ASPEED_CLK_APB>;
++				bus-frequency = <1000000>;
 +				pinctrl-names = "default";
 +				pinctrl-0 = <&pinctrl_sgpm_default>;
 +				status = "disabled";
@@ -37,7 +39,7 @@ index fd857be397bf..00848693f455 100644
  			timer: timer@1e782000 {
  				/* This timer is a Faraday FTTMR010 derivative */
  				compatible = "aspeed,ast2400-timer";
-@@ -1180,44 +1192,14 @@
+@@ -1180,44 +1194,14 @@
  		groups = "SD2";
  	};
  
@@ -89,20 +91,22 @@ index fd857be397bf..00848693f455 100644
  
  	pinctrl_sioonctrl_default: sioonctrl_default {
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index db82f47339aa..8406da6f62a5 100644
+index db82f47339aa..425a542690de 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -298,6 +298,9 @@
+@@ -298,6 +298,11 @@
  				reg = <0x1e780200 0x0100>;
  				interrupts = <40>;
  				interrupt-controller;
++				clocks = <&syscon ASPEED_CLK_APB>;
++				bus-frequency = <1000000>;
 +				pinctrl-names = "default";
 +				pinctrl-0 = <&pinctrl_sgpm_default>;
 +				status = "disabled";
  			};
  
  			rtc: rtc@1e781000 {
-@@ -1403,6 +1406,11 @@
+@@ -1403,6 +1408,11 @@
  		groups = "SDA2";
  	};
  

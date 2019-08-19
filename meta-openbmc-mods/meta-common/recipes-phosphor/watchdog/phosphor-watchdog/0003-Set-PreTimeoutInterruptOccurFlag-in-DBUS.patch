@@ -1,0 +1,45 @@
+From 41f71ecfa2b8339281a33c260d78102453d4ac97 Mon Sep 17 00:00:00 2001
+From: Ren Yu <yux.ren@intel.com>
+Date: Tue, 30 Jul 2019 15:31:09 +0800
+Subject: [PATCH] Set PreTimeoutInterruptOccurFlag in DBUS
+
+Set preTimeoutInterruptOccurFlag in DBUS as 'true' when
+watchdog pre-timeout interrupt occurred.
+This property is use for recording PreTimeoutInterruptOccurFlag.
+In command get message flag, need verify whether pre-timeout
+interrupt occurred by it.
+
+Tested:
+Set watchdog timer
+(Pre-timeout interrupt is Messaging, Initial Countdown is 2 second).
+ipmitool raw 0x06 0x24 0x5 0x30 0x1 0x3e 0x14 0x00
+Start watchdog timer.
+ipmitool mc watchdog reset
+Wait watchdog timer expired, log into below:
+http://BMC-IP:3000/
+xyz.openbmc_project.Watchdog
+/xyz/openbmc_project/watchdog/host0
+xyz.openbmc_project.State.Watchdog
+check whether the value of PreTimeoutInterruptOccurFlag is true.
+
+Signed-off-by: Ren Yu <yux.ren@intel.com>
+---
+ watchdog.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/watchdog.cpp b/watchdog.cpp
+index fa58ef4..bdf65da 100644
+--- a/watchdog.cpp
++++ b/watchdog.cpp
+@@ -198,6 +198,8 @@ void Watchdog::timeOutHandler()
+ 
+     if (preInterruptNoAction != convertForMessage(preTimeoutInterruptAction))
+     {
++        preTimeoutInterruptOccurFlag(true);
++
+         sd_journal_send("MESSAGE=IPMIWatchdog: Pre Timed out Interrupt=%s",
+                         convertForMessage(preTimeoutInterruptAction).c_str(),
+                         "PRIORITY=%i", LOG_INFO, "REDFISH_MESSAGE_ID=%s",
+-- 
+2.7.4
+

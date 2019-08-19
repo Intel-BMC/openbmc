@@ -1793,46 +1793,16 @@
             "Bus": 0,
             "CpuID": 1,
             "Name": "CPU 1",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99
-                },
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89
-                }
-            ],
-            "Type": "XeonCPU"
+            "Type": "XeonCPU",
+            "UseWA": 1
         },
         {
             "Address": "0x31",
             "Bus": 0,
             "CpuID": 2,
             "Name": "CPU 2",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99
-                },
-                {
-                    "Direction": "greater than",
-                    "Label": "DIMM",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89
-                }
-            ],
-            "Type": "XeonCPU"
+            "Type": "XeonCPU",
+            "UseWA": 1
         }
     ],
     "Name": "TNP Baseboard",

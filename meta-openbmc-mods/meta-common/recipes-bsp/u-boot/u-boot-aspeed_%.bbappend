@@ -33,11 +33,11 @@ SRC_URI_append_intel-ast2500 = " \
     file://0029-FFUJ-FW-IPMI-commands-and-flash-support-in-u-boot.patch \
     file://0030-Support-Get-Set-Security-mode-command.patch \
     file://0031-Make-it-so-TFTP-port-can-be-modified.patch \
+    file://0033-Reboot-into-UBOOT-on-Watchdog-Failures.patch \
     "
 PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \
-    file://0032-Adding-PFR-boot-flow-checkpoint-in-u-boot.patch \
-    file://0033-PFR-firmware-update-support-in-u-boot.patch \
+    file://0032-PFR-FW-update-and-checkpoint-support-in-u-boot.patch \
     "
 SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
 

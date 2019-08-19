@@ -12,9 +12,9 @@ DEPENDS = "sdbusplus openssl libpam"
 
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
-SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
+SRC_URI = "git://git@github.com/Intel-BMC/asd;protocol=ssh;nobranch=1"
+SRCREV = "73d4cc11b859ba91f313a7bb85f2dbb26e36d0ee"
 
-SRCREV = "bf2736cb1c8959164f989f59c4337a0ff108b13f"
 S = "${WORKDIR}/git"
 
 SYSTEMD_SERVICE_${PN} += "com.intel.AtScaleDebug.service"

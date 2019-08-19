@@ -5,5 +5,6 @@ SRC_URI += "file://intel-ast2500.cfg \
             file://0003-Enable-GPIOE0-and-GPIOE2-pass-through-by-default.patch \
             file://0006-Allow-monitoring-of-power-control-input-GPIOs.patch \
             file://0001-aspeed-pwm-tacho-change-default-fan-speed.patch \
+            file://0001-Report-link-statistics-for-the-NCSI-channel.patch \
             "
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

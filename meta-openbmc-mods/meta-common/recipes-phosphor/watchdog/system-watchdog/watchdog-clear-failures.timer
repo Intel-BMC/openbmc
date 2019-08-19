@@ -1,0 +1,8 @@
+[Unit]
+Description=Starts the clear watchdog serivce after 30 minutes
+
+[Timer]
+OnBootSec=30min
+
+[Install]
+WantedBy=timers.target

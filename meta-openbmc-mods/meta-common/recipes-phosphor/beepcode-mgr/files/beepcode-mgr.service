@@ -1,0 +1,12 @@
+[Unit]
+Description=Beep code manager
+
+[Service]
+Restart=always
+RestartSec=2
+ExecStart=/usr/bin/beepcode-mgr
+StartLimitInterval=0
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
