@@ -1,0 +1,8 @@
+[Unit]
+Description=Reset BMC Using Hardware Watchdog
+Conflicts=system-watchdog.service
+
+[Service]
+ExecStart=/sbin/watchdog -T 0 -F /dev/watchdog1
+Type=oneshot
+

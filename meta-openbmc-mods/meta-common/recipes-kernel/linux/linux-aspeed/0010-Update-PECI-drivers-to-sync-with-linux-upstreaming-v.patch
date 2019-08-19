@@ -1,4 +1,4 @@
-From 2dec2c142e48a35e6c7de00c6a35e963de7447e0 Mon Sep 17 00:00:00 2001
+From 691b8580a1592eddb919e8dd295e6c1f136a4c00 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 7 Jan 2019 09:56:10 -0800
 Subject: [PATCH] Update PECI drivers to sync with linux upstreaming version
@@ -10,25 +10,25 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  Documentation/hwmon/peci-cputemp      |  34 +-
  drivers/hwmon/Kconfig                 |   4 +-
- drivers/hwmon/peci-cputemp.c          | 162 ++++--
- drivers/hwmon/peci-dimmtemp.c         |  69 +--
+ drivers/hwmon/peci-cputemp.c          | 171 ++++---
+ drivers/hwmon/peci-dimmtemp.c         | 184 +++++--
  drivers/hwmon/peci-hwmon.h            |   9 +-
  drivers/mfd/Kconfig                   |   5 +-
- drivers/mfd/intel-peci-client.c       |  49 +-
+ drivers/mfd/intel-peci-client.c       |  51 +-
  drivers/peci/Kconfig                  |  46 +-
  drivers/peci/Makefile                 |   7 +-
  drivers/peci/busses/Kconfig           |  32 ++
  drivers/peci/busses/Makefile          |   7 +
- drivers/peci/busses/peci-aspeed.c     | 494 +++++++++++++++++++
+ drivers/peci/busses/peci-aspeed.c     | 492 ++++++++++++++++++
  drivers/peci/busses/peci-npcm.c       | 410 +++++++++++++++
  drivers/peci/peci-aspeed.c            | 505 -------------------
- drivers/peci/peci-core.c              | 905 +++++++++++++++++++---------------
+ drivers/peci/peci-core.c              | 914 ++++++++++++++++++----------------
  drivers/peci/peci-dev.c               | 346 +++++++++++++
  drivers/peci/peci-npcm.c              | 410 ---------------
- include/linux/mfd/intel-peci-client.h |  32 +-
+ include/linux/mfd/intel-peci-client.h |  31 +-
  include/linux/peci.h                  |  30 +-
  include/uapi/linux/peci-ioctl.h       | 416 +++++++++-------
- 20 files changed, 2296 insertions(+), 1676 deletions(-)
+ 20 files changed, 2402 insertions(+), 1702 deletions(-)
  create mode 100644 drivers/peci/busses/Kconfig
  create mode 100644 drivers/peci/busses/Makefile
  create mode 100644 drivers/peci/busses/peci-aspeed.c
@@ -115,7 +115,7 @@ index c0623fa5ba41..7399c3cef30c 100644
  
  source "drivers/hwmon/pmbus/Kconfig"
 diff --git a/drivers/hwmon/peci-cputemp.c b/drivers/hwmon/peci-cputemp.c
-index 11880c86a854..3cb2db2fdf0a 100644
+index 11880c86a854..d0d68e88889f 100644
 --- a/drivers/hwmon/peci-cputemp.c
 +++ b/drivers/hwmon/peci-cputemp.c
 @@ -1,5 +1,5 @@
@@ -125,7 +125,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  
  #include <linux/hwmon.h>
  #include <linux/jiffies.h>
-@@ -9,7 +9,7 @@
+@@ -9,18 +9,13 @@
  #include <linux/platform_device.h>
  #include "peci-hwmon.h"
  
@@ -134,15 +134,19 @@ index 11880c86a854..3cb2db2fdf0a 100644
  #define CORETEMP_CHANNEL_NUMS  CORE_NUMS_MAX
  #define CPUTEMP_CHANNEL_NUMS   (DEFAULT_CHANNEL_NUMS + CORETEMP_CHANNEL_NUMS)
  
-@@ -21,6 +21,7 @@
- 
+-/* The RESOLVED_CORES register in PCU of a client CPU */
+-#define REG_RESOLVED_CORES_BUS       1
+-#define REG_RESOLVED_CORES_DEVICE    30
+-#define REG_RESOLVED_CORES_FUNCTION  3
+-#define REG_RESOLVED_CORES_OFFSET    0xB4
+-
  struct temp_group {
  	struct temp_data die;
 +	struct temp_data dts;
  	struct temp_data tcontrol;
  	struct temp_data tthrottle;
  	struct temp_data tjmax;
-@@ -43,6 +44,7 @@ struct peci_cputemp {
+@@ -43,6 +38,7 @@ struct peci_cputemp {
  
  enum cputemp_channels {
  	channel_die,
@@ -150,7 +154,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  	channel_tcontrol,
  	channel_tthrottle,
  	channel_tjmax,
-@@ -54,6 +56,10 @@ static const u32 config_table[DEFAULT_CHANNEL_NUMS + 1] = {
+@@ -54,6 +50,10 @@ static const u32 config_table[DEFAULT_CHANNEL_NUMS + 1] = {
  	HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
  	HWMON_T_CRIT_HYST,
  
@@ -161,7 +165,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  	/* Tcontrol temperature */
  	HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_CRIT,
  
-@@ -70,6 +76,7 @@ static const u32 config_table[DEFAULT_CHANNEL_NUMS + 1] = {
+@@ -70,6 +70,7 @@ static const u32 config_table[DEFAULT_CHANNEL_NUMS + 1] = {
  
  static const char *cputemp_label[CPUTEMP_CHANNEL_NUMS] = {
  	"Die",
@@ -169,7 +173,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  	"Tcontrol",
  	"Tthrottle",
  	"Tjmax",
-@@ -92,19 +99,20 @@ static int get_temp_targets(struct peci_cputemp *priv)
+@@ -92,19 +93,20 @@ static int get_temp_targets(struct peci_cputemp *priv)
  	s32 tthrottle_offset;
  	s32 tcontrol_margin;
  	u8  pkg_cfg[4];
@@ -196,7 +200,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  
  	priv->temp.tjmax.value = pkg_cfg[2] * 1000;
  
-@@ -123,17 +131,16 @@ static int get_temp_targets(struct peci_cputemp *priv)
+@@ -123,17 +125,16 @@ static int get_temp_targets(struct peci_cputemp *priv)
  static int get_die_temp(struct peci_cputemp *priv)
  {
  	struct peci_get_temp_msg msg;
@@ -218,33 +222,27 @@ index 11880c86a854..3cb2db2fdf0a 100644
  
  	/* Note that the tjmax should be available before calling it */
  	priv->temp.die.value = priv->temp.tjmax.value +
-@@ -144,24 +151,70 @@ static int get_die_temp(struct peci_cputemp *priv)
+@@ -144,24 +145,64 @@ static int get_die_temp(struct peci_cputemp *priv)
  	return 0;
  }
  
 +static int get_dts(struct peci_cputemp *priv)
 +{
-+	struct peci_rd_pkg_cfg_msg msg;
 +	s32 dts_margin;
++	u8  pkg_cfg[4];
 +	int ret;
 +
 +	if (!peci_temp_need_update(&priv->temp.dts))
 +		return 0;
 +
-+	msg.addr = priv->mgr->client->addr;
-+	msg.index = PECI_MBX_INDEX_DTS_MARGIN;
-+	msg.param = 0;
-+	msg.rx_len = 4;
++	ret = peci_client_read_package_config(priv->mgr,
++					      PECI_MBX_INDEX_DTS_MARGIN, 0,
++					      pkg_cfg);
 +
-+	ret = peci_command(priv->mgr->client->adapter, PECI_CMD_RD_PKG_CFG,
-+			   &msg);
 +	if (ret)
 +		return ret;
 +
-+	if (msg.cc != PECI_DEV_CC_SUCCESS)
-+		return -EAGAIN;
-+
-+	dts_margin = (msg.pkg_config[1] << 8) | msg.pkg_config[0];
++	dts_margin = (pkg_cfg[1] << 8) | pkg_cfg[0];
 +
 +	/**
 +	 * Processors return a value of DTS reading in 10.6 format
@@ -296,7 +294,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  	 * Processors return a value of the core DTS reading in 10.6 format
  	 * (10 bits signed decimal, 6 bits fractional).
  	 * Error codes:
-@@ -192,6 +245,7 @@ static int cputemp_read_string(struct device *dev,
+@@ -192,6 +233,7 @@ static int cputemp_read_string(struct device *dev,
  		return -EOPNOTSUPP;
  
  	*str = cputemp_label[channel];
@@ -304,7 +302,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  	return 0;
  }
  
-@@ -200,26 +254,33 @@ static int cputemp_read(struct device *dev,
+@@ -200,26 +242,33 @@ static int cputemp_read(struct device *dev,
  			u32 attr, int channel, long *val)
  {
  	struct peci_cputemp *priv = dev_get_drvdata(dev);
@@ -344,7 +342,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  		case channel_tcontrol:
  			*val = priv->temp.tcontrol.value;
  			break;
-@@ -231,8 +292,8 @@ static int cputemp_read(struct device *dev,
+@@ -231,8 +280,8 @@ static int cputemp_read(struct device *dev,
  			break;
  		default:
  			core_index = channel - DEFAULT_CHANNEL_NUMS;
@@ -355,7 +353,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  				break;
  
  			*val = priv->temp.core[core_index].value;
-@@ -249,11 +310,11 @@ static int cputemp_read(struct device *dev,
+@@ -249,11 +298,11 @@ static int cputemp_read(struct device *dev,
  		*val = priv->temp.tjmax.value - priv->temp.tcontrol.value;
  		break;
  	default:
@@ -369,7 +367,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  }
  
  static umode_t cputemp_is_visible(const void *data,
-@@ -262,11 +323,11 @@ static umode_t cputemp_is_visible(const void *data,
+@@ -262,11 +311,11 @@ static umode_t cputemp_is_visible(const void *data,
  {
  	const struct peci_cputemp *priv = data;
  
@@ -386,7 +384,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  
  	return 0;
  }
-@@ -280,7 +341,7 @@ static const struct hwmon_ops cputemp_ops = {
+@@ -280,40 +329,43 @@ static const struct hwmon_ops cputemp_ops = {
  static int check_resolved_cores(struct peci_cputemp *priv)
  {
  	struct peci_rd_pci_cfg_local_msg msg;
@@ -395,8 +393,14 @@ index 11880c86a854..3cb2db2fdf0a 100644
  
  	/* Get the RESOLVED_CORES register value */
  	msg.addr = priv->mgr->client->addr;
-@@ -290,30 +351,34 @@ static int check_resolved_cores(struct peci_cputemp *priv)
- 	msg.reg = REG_RESOLVED_CORES_OFFSET;
+-	msg.bus = REG_RESOLVED_CORES_BUS;
+-	msg.device = REG_RESOLVED_CORES_DEVICE;
+-	msg.function = REG_RESOLVED_CORES_FUNCTION;
+-	msg.reg = REG_RESOLVED_CORES_OFFSET;
++	msg.bus = 1;
++	msg.device = 30;
++	msg.function = 3;
++	msg.reg = 0xb4;
  	msg.rx_len = 4;
  
 -	rc = peci_command(priv->mgr->client->adapter,
@@ -405,11 +409,10 @@ index 11880c86a854..3cb2db2fdf0a 100644
 -		return rc;
 +	ret = peci_command(priv->mgr->client->adapter,
 +			   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
++	if (msg.cc != PECI_DEV_CC_SUCCESS)
++		ret = -EAGAIN;
 +	if (ret)
 +		return ret;
-+
-+	if (msg.cc != PECI_DEV_CC_SUCCESS)
-+		return -EAGAIN;
  
  	priv->core_mask = le32_to_cpup((__le32 *)msg.pci_config);
  	if (!priv->core_mask)
@@ -439,7 +442,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  				priv->temp_config[priv->config_idx++] =
  					config_table[channel_core];
  
-@@ -326,7 +391,7 @@ static int peci_cputemp_probe(struct platform_device *pdev)
+@@ -326,7 +378,7 @@ static int peci_cputemp_probe(struct platform_device *pdev)
  	struct device *dev = &pdev->dev;
  	struct peci_cputemp *priv;
  	struct device *hwmon_dev;
@@ -448,7 +451,7 @@ index 11880c86a854..3cb2db2fdf0a 100644
  
  	if ((mgr->client->adapter->cmd_mask &
  	    (BIT(PECI_CMD_GET_TEMP) | BIT(PECI_CMD_RD_PKG_CFG))) !=
-@@ -346,12 +411,13 @@ static int peci_cputemp_probe(struct platform_device *pdev)
+@@ -346,12 +398,13 @@ static int peci_cputemp_probe(struct platform_device *pdev)
  		 mgr->client->addr - PECI_BASE_ADDR);
  
  	priv->temp_config[priv->config_idx++] = config_table[channel_die];
@@ -464,8 +467,17 @@ index 11880c86a854..3cb2db2fdf0a 100644
  		dev_dbg(dev, "Skipped creating core temp info\n");
  
  	priv->chip.ops = &cputemp_ops;
+@@ -385,7 +438,7 @@ MODULE_DEVICE_TABLE(platform, peci_cputemp_ids);
+ static struct platform_driver peci_cputemp_driver = {
+ 	.probe    = peci_cputemp_probe,
+ 	.id_table = peci_cputemp_ids,
+-	.driver   = { .name = "peci-cputemp", },
++	.driver   = { .name = KBUILD_MODNAME, },
+ };
+ module_platform_driver(peci_cputemp_driver);
+ 
 diff --git a/drivers/hwmon/peci-dimmtemp.c b/drivers/hwmon/peci-dimmtemp.c
-index 86a45a90805b..e088366fd138 100644
+index 86a45a90805b..a404b6ea4ba3 100644
 --- a/drivers/hwmon/peci-dimmtemp.c
 +++ b/drivers/hwmon/peci-dimmtemp.c
 @@ -1,5 +1,5 @@
@@ -475,9 +487,20 @@ index 86a45a90805b..e088366fd138 100644
  
  #include <linux/hwmon.h>
  #include <linux/jiffies.h>
-@@ -45,16 +45,16 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
+@@ -21,6 +21,8 @@ struct peci_dimmtemp {
+ 	struct workqueue_struct *work_queue;
+ 	struct delayed_work work_handler;
+ 	struct temp_data temp[DIMM_NUMS_MAX];
++	long temp_max[DIMM_NUMS_MAX];
++	long temp_crit[DIMM_NUMS_MAX];
+ 	u32 dimm_mask;
+ 	int retry_count;
+ 	u32 temp_config[DIMM_NUMS_MAX + 1];
+@@ -44,20 +46,106 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
+ {
  	int dimm_order = dimm_no % priv->gen_info->dimm_idx_max;
  	int chan_rank = dimm_no / priv->gen_info->dimm_idx_max;
++	struct peci_rd_pci_cfg_local_msg rp_msg;
  	u8  cfg_data[4];
 -	int rc;
 +	int ret;
@@ -498,7 +521,95 @@ index 86a45a90805b..e088366fd138 100644
  
  	priv->temp[dimm_no].value = cfg_data[dimm_order] * 1000;
  
-@@ -77,6 +77,7 @@ static int dimmtemp_read_string(struct device *dev,
++	switch (priv->gen_info->model) {
++	case INTEL_FAM6_SKYLAKE_X:
++		rp_msg.addr = priv->mgr->client->addr;
++		rp_msg.bus = 2;
++		/*
++		 * Device 10, Function 2: IMC 0 channel 0 -> rank 0
++		 * Device 10, Function 6: IMC 0 channel 1 -> rank 1
++		 * Device 11, Function 2: IMC 0 channel 2 -> rank 2
++		 * Device 12, Function 2: IMC 1 channel 0 -> rank 3
++		 * Device 12, Function 6: IMC 1 channel 1 -> rank 4
++		 * Device 13, Function 2: IMC 1 channel 2 -> rank 5
++		 */
++		rp_msg.device = 10 + chan_rank / 3 * 2 +
++			     (chan_rank % 3 == 2 ? 1 : 0);
++		rp_msg.function = chan_rank % 3 == 1 ? 6 : 2;
++		rp_msg.reg = 0x120 + dimm_order * 4;
++		rp_msg.rx_len = 4;
++
++		ret = peci_command(priv->mgr->client->adapter,
++				   PECI_CMD_RD_PCI_CFG_LOCAL, &rp_msg);
++		if (rp_msg.cc != PECI_DEV_CC_SUCCESS)
++			ret = -EAGAIN;
++		if (ret)
++			return ret;
++
++		priv->temp_max[dimm_no] = rp_msg.pci_config[1] * 1000;
++		priv->temp_crit[dimm_no] = rp_msg.pci_config[2] * 1000;
++		break;
++	case INTEL_FAM6_SKYLAKE_XD:
++		rp_msg.addr = priv->mgr->client->addr;
++		rp_msg.bus = 2;
++		/*
++		 * Device 10, Function 2: IMC 0 channel 0 -> rank 0
++		 * Device 10, Function 6: IMC 0 channel 1 -> rank 1
++		 * Device 12, Function 2: IMC 1 channel 0 -> rank 2
++		 * Device 12, Function 6: IMC 1 channel 1 -> rank 3
++		 */
++		rp_msg.device = 10 + chan_rank / 2 * 2;
++		rp_msg.function = chan_rank % 2 ? 6 : 2;
++		rp_msg.reg = 0x120 + dimm_order * 4;
++		rp_msg.rx_len = 4;
++
++		ret = peci_command(priv->mgr->client->adapter,
++				   PECI_CMD_RD_PCI_CFG_LOCAL, &rp_msg);
++		if (rp_msg.cc != PECI_DEV_CC_SUCCESS)
++			ret = -EAGAIN;
++		if (ret)
++			return ret;
++
++		priv->temp_max[dimm_no] = rp_msg.pci_config[1] * 1000;
++		priv->temp_crit[dimm_no] = rp_msg.pci_config[2] * 1000;
++		break;
++	case INTEL_FAM6_HASWELL_X:
++	case INTEL_FAM6_BROADWELL_X:
++		rp_msg.addr = priv->mgr->client->addr;
++		rp_msg.bus = 1;
++		/*
++		 * Device 20, Function 0: IMC 0 channel 0 -> rank 0
++		 * Device 20, Function 1: IMC 0 channel 1 -> rank 1
++		 * Device 21, Function 0: IMC 0 channel 2 -> rank 2
++		 * Device 21, Function 1: IMC 0 channel 3 -> rank 3
++		 * Device 23, Function 0: IMC 1 channel 0 -> rank 4
++		 * Device 23, Function 1: IMC 1 channel 1 -> rank 5
++		 * Device 24, Function 0: IMC 1 channel 2 -> rank 6
++		 * Device 24, Function 1: IMC 1 channel 3 -> rank 7
++		 */
++		rp_msg.device = 20 + chan_rank / 2 + chan_rank / 4;
++		rp_msg.function = chan_rank % 2;
++		rp_msg.reg = 0x120 + dimm_order * 4;
++		rp_msg.rx_len = 4;
++
++		ret = peci_command(priv->mgr->client->adapter,
++				   PECI_CMD_RD_PCI_CFG_LOCAL, &rp_msg);
++		if (rp_msg.cc != PECI_DEV_CC_SUCCESS)
++			ret = -EAGAIN;
++		if (ret)
++			return ret;
++
++		priv->temp_max[dimm_no] = rp_msg.pci_config[1] * 1000;
++		priv->temp_crit[dimm_no] = rp_msg.pci_config[2] * 1000;
++		break;
++	default:
++		return -EOPNOTSUPP;
++	}
++
+ 	peci_temp_mark_updated(&priv->temp[dimm_no]);
+ 
+ 	return 0;
+@@ -77,6 +165,7 @@ static int dimmtemp_read_string(struct device *dev,
  	chan_rank = channel / dimm_idx_max;
  	dimm_idx = channel % dimm_idx_max;
  	*str = dimmtemp_label[chan_rank][dimm_idx];
@@ -506,29 +617,46 @@ index 86a45a90805b..e088366fd138 100644
  	return 0;
  }
  
-@@ -84,16 +85,17 @@ static int dimmtemp_read(struct device *dev, enum hwmon_sensor_types type,
+@@ -84,17 +173,28 @@ static int dimmtemp_read(struct device *dev, enum hwmon_sensor_types type,
  			 u32 attr, int channel, long *val)
  {
  	struct peci_dimmtemp *priv = dev_get_drvdata(dev);
 -	int rc;
-+	int ret;
- 
- 	if (attr != hwmon_temp_input)
- 		return -EOPNOTSUPP;
- 
+-
+-	if (attr != hwmon_temp_input)
+-		return -EOPNOTSUPP;
+-
 -	rc = get_dimm_temp(priv, channel);
 -	if (rc)
 -		return rc;
++	int ret;
++
 +	ret = get_dimm_temp(priv, channel);
 +	if (ret)
 +		return ret;
- 
- 	*val = priv->temp[channel].value;
 +
- 	return 0;
++	switch (attr) {
++	case hwmon_temp_input:
++		*val = priv->temp[channel].value;
++		break;
++	case hwmon_temp_max:
++		*val = priv->temp_max[channel];
++		break;
++	case hwmon_temp_crit:
++		*val = priv->temp_crit[channel];
++		break;
++	default:
++		ret = -EOPNOTSUPP;
++		break;
++	}
+ 
+-	*val = priv->temp[channel].value;
+-	return 0;
++	return ret;
  }
  
-@@ -120,16 +122,16 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
+ static umode_t dimmtemp_is_visible(const void *data,
+@@ -120,16 +220,16 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
  {
  	u32 chan_rank_max = priv->gen_info->chan_rank_max;
  	u32 dimm_idx_max = priv->gen_info->dimm_idx_max;
@@ -551,7 +679,7 @@ index 86a45a90805b..e088366fd138 100644
  		}
  
  		for (dimm_idx = 0; dimm_idx < dimm_idx_max; dimm_idx++)
-@@ -143,17 +145,18 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
+@@ -143,17 +243,18 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
  		return -EAGAIN;
  
  	dev_dbg(priv->dev, "Scanned populated DIMMs: 0x%x\n", priv->dimm_mask);
@@ -574,7 +702,7 @@ index 86a45a90805b..e088366fd138 100644
  			if (priv->retry_count < DIMM_MASK_CHECK_RETRY_MAX) {
  				queue_delayed_work(priv->work_queue,
  						   &priv->work_handler,
-@@ -164,11 +167,11 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
+@@ -164,11 +265,11 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
  			} else {
  				dev_err(priv->dev,
  					"Timeout DIMM temp info creation\n");
@@ -588,7 +716,17 @@ index 86a45a90805b..e088366fd138 100644
  	}
  
  	channels = priv->gen_info->chan_rank_max *
-@@ -192,12 +195,12 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
+@@ -177,7 +278,8 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
+ 		if (priv->dimm_mask & BIT(i))
+ 			while (i >= config_idx)
+ 				priv->temp_config[config_idx++] =
+-					HWMON_T_LABEL | HWMON_T_INPUT;
++					HWMON_T_LABEL | HWMON_T_INPUT |
++					HWMON_T_MAX | HWMON_T_CRIT;
+ 
+ 	priv->chip.ops = &dimmtemp_ops;
+ 	priv->chip.info = priv->info;
+@@ -192,12 +294,12 @@ static int create_dimm_temp_info(struct peci_dimmtemp *priv)
  							 priv,
  							 &priv->chip,
  							 NULL);
@@ -604,7 +742,7 @@ index 86a45a90805b..e088366fd138 100644
  }
  
  static void create_dimm_temp_info_delayed(struct work_struct *work)
-@@ -205,10 +208,10 @@ static void create_dimm_temp_info_delayed(struct work_struct *work)
+@@ -205,10 +307,10 @@ static void create_dimm_temp_info_delayed(struct work_struct *work)
  	struct delayed_work *dwork = to_delayed_work(work);
  	struct peci_dimmtemp *priv = container_of(dwork, struct peci_dimmtemp,
  						  work_handler);
@@ -618,7 +756,7 @@ index 86a45a90805b..e088366fd138 100644
  		dev_dbg(priv->dev, "Failed to create DIMM temp info\n");
  }
  
-@@ -217,7 +220,7 @@ static int peci_dimmtemp_probe(struct platform_device *pdev)
+@@ -217,7 +319,7 @@ static int peci_dimmtemp_probe(struct platform_device *pdev)
  	struct peci_client_manager *mgr = dev_get_drvdata(pdev->dev.parent);
  	struct device *dev = &pdev->dev;
  	struct peci_dimmtemp *priv;
@@ -627,7 +765,7 @@ index 86a45a90805b..e088366fd138 100644
  
  	if ((mgr->client->adapter->cmd_mask &
  	    (BIT(PECI_CMD_GET_TEMP) | BIT(PECI_CMD_RD_PKG_CFG))) !=
-@@ -242,8 +245,8 @@ static int peci_dimmtemp_probe(struct platform_device *pdev)
+@@ -242,8 +344,8 @@ static int peci_dimmtemp_probe(struct platform_device *pdev)
  
  	INIT_DELAYED_WORK(&priv->work_handler, create_dimm_temp_info_delayed);
  
@@ -638,7 +776,7 @@ index 86a45a90805b..e088366fd138 100644
  		dev_err(dev, "Failed to create DIMM temp info\n");
  		goto err_free_wq;
  	}
-@@ -252,7 +255,7 @@ static int peci_dimmtemp_probe(struct platform_device *pdev)
+@@ -252,7 +354,7 @@ static int peci_dimmtemp_probe(struct platform_device *pdev)
  
  err_free_wq:
  	destroy_workqueue(priv->work_queue);
@@ -647,6 +785,15 @@ index 86a45a90805b..e088366fd138 100644
  }
  
  static int peci_dimmtemp_remove(struct platform_device *pdev)
+@@ -275,7 +377,7 @@ static struct platform_driver peci_dimmtemp_driver = {
+ 	.probe    = peci_dimmtemp_probe,
+ 	.remove   = peci_dimmtemp_remove,
+ 	.id_table = peci_dimmtemp_ids,
+-	.driver   = { .name = "peci-dimmtemp", },
++	.driver   = { .name = KBUILD_MODNAME, },
+ };
+ module_platform_driver(peci_dimmtemp_driver);
+ 
 diff --git a/drivers/hwmon/peci-hwmon.h b/drivers/hwmon/peci-hwmon.h
 index 6ca1855a86bb..ce6b470eae63 100644
 --- a/drivers/hwmon/peci-hwmon.h
@@ -696,7 +843,7 @@ index 75dbcc7da87c..6f7ee4dd08f6 100644
  	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
  	depends on SA1100_H3100 || SA1100_H3600
 diff --git a/drivers/mfd/intel-peci-client.c b/drivers/mfd/intel-peci-client.c
-index d53e4f1078ac..466085fd43b9 100644
+index d53e4f1078ac..18bf0af0e09e 100644
 --- a/drivers/mfd/intel-peci-client.c
 +++ b/drivers/mfd/intel-peci-client.c
 @@ -1,12 +1,12 @@
@@ -727,7 +874,7 @@ index d53e4f1078ac..466085fd43b9 100644
  static struct mfd_cell peci_functions[] = {
  	{ .name = "peci-cputemp", },
  	{ .name = "peci-dimmtemp", },
-@@ -31,19 +25,25 @@ static struct mfd_cell peci_functions[] = {
+@@ -31,38 +25,45 @@ static struct mfd_cell peci_functions[] = {
  };
  
  static const struct cpu_gen_info cpu_gen_info_table[] = {
@@ -746,17 +893,19 @@ index d53e4f1078ac..466085fd43b9 100644
  		.chan_rank_max = CHAN_RANK_MAX_ON_BDX,
  		.dimm_idx_max  = DIMM_IDX_MAX_ON_BDX },
 -	[CPU_GEN_SKX] = {
-+	{ /* Broadwell Xeon D */
-+		.family        = 6, /* Family code */
-+		.model         = INTEL_FAM6_BROADWELL_XEON_D,
-+		.core_max      = CORE_MAX_ON_XD,
-+		.chan_rank_max = CHAN_RANK_MAX_ON_XD,
-+		.dimm_idx_max  = DIMM_IDX_MAX_ON_XD },
 +	{ /* Skylake Xeon */
  		.family        = 6, /* Family code */
  		.model         = INTEL_FAM6_SKYLAKE_X,
  		.core_max      = CORE_MAX_ON_SKX,
-@@ -53,16 +53,17 @@ static const struct cpu_gen_info cpu_gen_info_table[] = {
+ 		.chan_rank_max = CHAN_RANK_MAX_ON_SKX,
+ 		.dimm_idx_max  = DIMM_IDX_MAX_ON_SKX },
++	{ /* Skylake Xeon D */
++		.family        = 6, /* Family code */
++		.model         = INTEL_FAM6_SKYLAKE_XD,
++		.core_max      = CORE_MAX_ON_SKXD,
++		.chan_rank_max = CHAN_RANK_MAX_ON_SKXD,
++		.dimm_idx_max  = DIMM_IDX_MAX_ON_SKXD },
+ };
  
  static int peci_client_get_cpu_gen_info(struct peci_client_manager *priv)
  {
@@ -830,6 +979,15 @@ index d53e4f1078ac..466085fd43b9 100644
  
  static const struct peci_device_id peci_client_ids[] = {
  	{ .name = "peci-client" },
+@@ -139,7 +138,7 @@ static struct peci_driver peci_client_driver = {
+ 	.probe    = peci_client_probe,
+ 	.id_table = peci_client_ids,
+ 	.driver   = {
+-		.name           = "peci-client",
++		.name           = KBUILD_MODNAME,
+ 		.of_match_table = of_match_ptr(peci_client_of_table),
+ 	},
+ };
 diff --git a/drivers/peci/Kconfig b/drivers/peci/Kconfig
 index 7293108fb543..9752feee2454 100644
 --- a/drivers/peci/Kconfig
@@ -972,10 +1130,10 @@ index 000000000000..aa8ce3ae5947
 +obj-$(CONFIG_PECI_NPCM)		+= peci-npcm.o
 diff --git a/drivers/peci/busses/peci-aspeed.c b/drivers/peci/busses/peci-aspeed.c
 new file mode 100644
-index 000000000000..8a0dd40730cc
+index 000000000000..851b71e32eac
 --- /dev/null
 +++ b/drivers/peci/busses/peci-aspeed.c
-@@ -0,0 +1,494 @@
+@@ -0,0 +1,492 @@
 +// SPDX-License-Identifier: GPL-2.0
 +// Copyright (C) 2012-2017 ASPEED Technology Inc.
 +// Copyright (c) 2018-2019 Intel Corporation
@@ -1371,7 +1529,6 @@ index 000000000000..8a0dd40730cc
 +{
 +	struct peci_adapter *adapter;
 +	struct aspeed_peci *priv;
-+	struct resource *res;
 +	int ret;
 +
 +	adapter = peci_alloc_adapter(&pdev->dev, sizeof(*priv));
@@ -1383,8 +1540,7 @@ index 000000000000..8a0dd40730cc
 +	priv->dev = &pdev->dev;
 +	dev_set_drvdata(&pdev->dev, priv);
 +
-+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-+	priv->base = devm_ioremap_resource(&pdev->dev, res);
++	priv->base = devm_platform_ioremap_resource(pdev, 0);
 +	if (IS_ERR(priv->base)) {
 +		ret = PTR_ERR(priv->base);
 +		goto err_put_adapter_dev;
@@ -1413,7 +1569,7 @@ index 000000000000..8a0dd40730cc
 +	priv->rst = devm_reset_control_get(&pdev->dev, NULL);
 +	if (IS_ERR(priv->rst)) {
 +		dev_err(&pdev->dev,
-+			"missing or invalid reset controller entry");
++			"missing or invalid reset controller entry\n");
 +		ret = PTR_ERR(priv->rst);
 +		goto err_put_adapter_dev;
 +	}
@@ -1460,7 +1616,7 @@ index 000000000000..8a0dd40730cc
 +	.probe  = aspeed_peci_probe,
 +	.remove = aspeed_peci_remove,
 +	.driver = {
-+		.name           = "peci-aspeed",
++		.name           = KBUILD_MODNAME,
 +		.of_match_table = of_match_ptr(aspeed_peci_of_table),
 +	},
 +};
@@ -2398,7 +2554,7 @@ index 51cb2563ceb6..000000000000
 -MODULE_DESCRIPTION("ASPEED PECI driver");
 -MODULE_LICENSE("GPL v2");
 diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
-index 6f241469ec7e..d1f0df8b139a 100644
+index 6f241469ec7e..48f29de09311 100644
 --- a/drivers/peci/peci-core.c
 +++ b/drivers/peci/peci-core.c
 @@ -1,38 +1,31 @@
@@ -3400,7 +3556,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  static int peci_check_addr_validity(u8 addr)
  {
-@@ -814,18 +907,23 @@ static int peci_check_client_busy(struct device *dev, void *client_new_p)
+@@ -814,18 +907,22 @@ static int peci_check_client_busy(struct device *dev, void *client_new_p)
  int peci_get_cpu_id(struct peci_adapter *adapter, u8 addr, u32 *cpu_id)
  {
  	struct peci_rd_pkg_cfg_msg msg;
@@ -3418,11 +3574,10 @@ index 6f241469ec7e..d1f0df8b139a 100644
 -	if (!rc)
 -		*cpu_id = le32_to_cpup((__le32 *)msg.pkg_config);
 +	ret = peci_command(adapter, PECI_CMD_RD_PKG_CFG, &msg);
++	if (msg.cc != PECI_DEV_CC_SUCCESS)
++		ret = -EAGAIN;
 +	if (ret)
 +		return ret;
-+
-+	if (msg.cc != PECI_DEV_CC_SUCCESS)
-+		return -EAGAIN;
 +
 +	*cpu_id = le32_to_cpup((__le32 *)msg.pkg_config);
  
@@ -3431,7 +3586,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  }
  EXPORT_SYMBOL_GPL(peci_get_cpu_id);
  
-@@ -833,7 +931,7 @@ static struct peci_client *peci_new_device(struct peci_adapter *adapter,
+@@ -833,7 +930,7 @@ static struct peci_client *peci_new_device(struct peci_adapter *adapter,
  					   struct peci_board_info const *info)
  {
  	struct peci_client *client;
@@ -3440,7 +3595,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	/* Increase reference count for the adapter assigned */
  	if (!peci_get_adapter(adapter->nr))
-@@ -847,46 +945,49 @@ static struct peci_client *peci_new_device(struct peci_adapter *adapter,
+@@ -847,46 +944,49 @@ static struct peci_client *peci_new_device(struct peci_adapter *adapter,
  	client->addr = info->addr;
  	strlcpy(client->name, info->type, sizeof(client->name));
  
@@ -3502,7 +3657,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  	return NULL;
  }
  
-@@ -895,8 +996,10 @@ static void peci_unregister_device(struct peci_client *client)
+@@ -895,8 +995,10 @@ static void peci_unregister_device(struct peci_client *client)
  	if (!client)
  		return;
  
@@ -3514,7 +3669,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	device_unregister(&client->dev);
  }
-@@ -916,7 +1019,7 @@ static void peci_adapter_dev_release(struct device *dev)
+@@ -916,7 +1018,7 @@ static void peci_adapter_dev_release(struct device *dev)
  
  	dev_dbg(dev, "%s: %s\n", __func__, adapter->name);
  	mutex_destroy(&adapter->userspace_clients_lock);
@@ -3523,7 +3678,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  	kfree(adapter);
  }
  
-@@ -928,7 +1031,8 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
+@@ -928,7 +1030,8 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
  	struct peci_board_info info = {};
  	struct peci_client *client;
  	char *blank, end;
@@ -3533,7 +3688,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	/* Parse device type */
  	blank = strchr(buf, ' ');
-@@ -943,16 +1047,17 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
+@@ -943,16 +1046,17 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
  	memcpy(info.type, buf, blank - buf);
  
  	/* Parse remaining parameters, reject extra parameters */
@@ -3554,7 +3709,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  	client = peci_new_device(adapter, &info);
  	if (!client)
  		return -EINVAL;
-@@ -961,8 +1066,8 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
+@@ -961,8 +1065,8 @@ static ssize_t peci_sysfs_new_device(struct device *dev,
  	mutex_lock(&adapter->userspace_clients_lock);
  	list_add_tail(&client->detected, &adapter->userspace_clients);
  	mutex_unlock(&adapter->userspace_clients_lock);
@@ -3565,7 +3720,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	return count;
  }
-@@ -975,9 +1080,9 @@ static ssize_t peci_sysfs_delete_device(struct device *dev,
+@@ -975,9 +1079,9 @@ static ssize_t peci_sysfs_delete_device(struct device *dev,
  	struct peci_adapter *adapter = to_peci_adapter(dev);
  	struct peci_client *client, *next;
  	struct peci_board_info info = {};
@@ -3577,7 +3732,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	/* Parse device type */
  	blank = strchr(buf, ' ');
-@@ -992,41 +1097,41 @@ static ssize_t peci_sysfs_delete_device(struct device *dev,
+@@ -992,41 +1096,41 @@ static ssize_t peci_sysfs_delete_device(struct device *dev,
  	memcpy(info.type, buf, blank - buf);
  
  	/* Parse remaining parameters, reject extra parameters */
@@ -3631,7 +3786,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  }
  static DEVICE_ATTR_IGNORE_LOCKDEP(delete_device, 0200, NULL,
  				  peci_sysfs_delete_device);
-@@ -1039,10 +1144,11 @@ static struct attribute *peci_adapter_attrs[] = {
+@@ -1039,10 +1143,11 @@ static struct attribute *peci_adapter_attrs[] = {
  };
  ATTRIBUTE_GROUPS(peci_adapter);
  
@@ -3644,7 +3799,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  /**
   * peci_verify_adapter - return parameter as peci_adapter, or NULL
-@@ -1063,32 +1169,26 @@ static struct peci_client *peci_of_register_device(struct peci_adapter *adapter,
+@@ -1063,32 +1168,26 @@ static struct peci_client *peci_of_register_device(struct peci_adapter *adapter,
  						   struct device_node *node)
  {
  	struct peci_board_info info = {};
@@ -3689,7 +3844,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  }
  
  static void peci_of_register_devices(struct peci_adapter *adapter)
-@@ -1119,7 +1219,7 @@ static void peci_of_register_devices(struct peci_adapter *adapter)
+@@ -1119,7 +1218,7 @@ static void peci_of_register_devices(struct peci_adapter *adapter)
  
  	of_node_put(bus);
  }
@@ -3698,7 +3853,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  static void peci_of_register_devices(struct peci_adapter *adapter) { }
  #endif /* CONFIG_OF */
  
-@@ -1163,9 +1263,7 @@ static struct peci_adapter *peci_of_find_adapter(struct device_node *node)
+@@ -1163,9 +1262,7 @@ static struct peci_adapter *peci_of_find_adapter(struct device_node *node)
  	return adapter;
  }
  
@@ -3709,7 +3864,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  {
  	struct of_reconfig_data *rd = arg;
  	struct peci_adapter *adapter;
-@@ -1216,7 +1314,7 @@ static int peci_of_notify(struct notifier_block *nb,
+@@ -1216,7 +1313,7 @@ static int peci_of_notify(struct notifier_block *nb,
  static struct notifier_block peci_of_notifier = {
  	.notifier_call = peci_of_notify,
  };
@@ -3718,7 +3873,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  extern struct notifier_block peci_of_notifier;
  #endif /* CONFIG_OF_DYNAMIC */
  
-@@ -1240,7 +1338,7 @@ extern struct notifier_block peci_of_notifier;
+@@ -1240,7 +1337,7 @@ extern struct notifier_block peci_of_notifier;
   *
   * Return: the peci_adapter structure on success, else NULL.
   */
@@ -3727,7 +3882,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  {
  	struct peci_adapter *adapter;
  
-@@ -1263,7 +1361,7 @@ EXPORT_SYMBOL_GPL(peci_alloc_adapter);
+@@ -1263,7 +1360,7 @@ EXPORT_SYMBOL_GPL(peci_alloc_adapter);
  
  static int peci_register_adapter(struct peci_adapter *adapter)
  {
@@ -3736,7 +3891,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	/* Can't register until after driver model init */
  	if (WARN_ON(!is_registered))
-@@ -1275,27 +1373,17 @@ static int peci_register_adapter(struct peci_adapter *adapter)
+@@ -1275,27 +1372,17 @@ static int peci_register_adapter(struct peci_adapter *adapter)
  	if (WARN(!adapter->xfer, "peci adapter has no xfer function\n"))
  		goto err_free_idr;
  
@@ -3769,7 +3924,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  	}
  
  	dev_dbg(&adapter->dev, "adapter [%s] registered\n", adapter->name);
-@@ -1309,13 +1397,11 @@ static int peci_register_adapter(struct peci_adapter *adapter)
+@@ -1309,13 +1396,11 @@ static int peci_register_adapter(struct peci_adapter *adapter)
  
  	return 0;
  
@@ -3784,7 +3939,24 @@ index 6f241469ec7e..d1f0df8b139a 100644
  }
  
  static int peci_add_numbered_adapter(struct peci_adapter *adapter)
-@@ -1411,7 +1497,7 @@ void peci_del_adapter(struct peci_adapter *adapter)
+@@ -1354,12 +1439,10 @@ int peci_add_adapter(struct peci_adapter *adapter)
+ 	struct device *dev = &adapter->dev;
+ 	int id;
+ 
+-	if (dev->of_node) {
+-		id = of_alias_get_id(dev->of_node, "peci");
+-		if (id >= 0) {
+-			adapter->nr = id;
+-			return peci_add_numbered_adapter(adapter);
+-		}
++	id = of_alias_get_id(dev->of_node, "peci");
++	if (id >= 0) {
++		adapter->nr = id;
++		return peci_add_numbered_adapter(adapter);
+ 	}
+ 
+ 	mutex_lock(&core_lock);
+@@ -1411,7 +1494,7 @@ void peci_del_adapter(struct peci_adapter *adapter)
  	}
  	mutex_unlock(&adapter->userspace_clients_lock);
  
@@ -3793,7 +3965,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  	 * Detach any active clients. This can't fail, thus we do not
  	 * check the returned value.
  	 */
-@@ -1420,13 +1506,8 @@ void peci_del_adapter(struct peci_adapter *adapter)
+@@ -1420,13 +1503,8 @@ void peci_del_adapter(struct peci_adapter *adapter)
  	/* device name is gone after device_unregister */
  	dev_dbg(&adapter->dev, "adapter [%s] unregistered\n", adapter->name);
  
@@ -3807,7 +3979,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  	device_unregister(&adapter->dev);
  
  	/* free bus id */
-@@ -1436,6 +1517,18 @@ void peci_del_adapter(struct peci_adapter *adapter)
+@@ -1436,6 +1514,18 @@ void peci_del_adapter(struct peci_adapter *adapter)
  }
  EXPORT_SYMBOL_GPL(peci_del_adapter);
  
@@ -3826,7 +3998,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  /**
   * peci_register_driver - register a PECI driver
   * @owner: owner module of the driver being registered
-@@ -1446,7 +1539,7 @@ EXPORT_SYMBOL_GPL(peci_del_adapter);
+@@ -1446,7 +1536,7 @@ EXPORT_SYMBOL_GPL(peci_del_adapter);
   */
  int peci_register_driver(struct module *owner, struct peci_driver *driver)
  {
@@ -3835,7 +4007,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	/* Can't register until after driver model init */
  	if (WARN_ON(!is_registered))
-@@ -1456,13 +1549,13 @@ int peci_register_driver(struct module *owner, struct peci_driver *driver)
+@@ -1456,13 +1546,13 @@ int peci_register_driver(struct module *owner, struct peci_driver *driver)
  	driver->driver.owner = owner;
  	driver->driver.bus = &peci_bus_type;
  
@@ -3853,7 +4025,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  
  	pr_debug("driver [%s] registered\n", driver->driver.name);
  
-@@ -1492,13 +1585,6 @@ static int __init peci_init(void)
+@@ -1492,13 +1582,6 @@ static int __init peci_init(void)
  		return ret;
  	}
  
@@ -3867,7 +4039,7 @@ index 6f241469ec7e..d1f0df8b139a 100644
  	crc8_populate_msb(peci_crc8_table, PECI_CRC8_POLYNOMIAL);
  
  	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
-@@ -1514,11 +1600,10 @@ static void __exit peci_exit(void)
+@@ -1514,11 +1597,10 @@ static void __exit peci_exit(void)
  	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
  		WARN_ON(of_reconfig_notifier_unregister(&peci_of_notifier));
  
@@ -4649,7 +4821,7 @@ index f632365b1416..000000000000
 -MODULE_DESCRIPTION("NPCM Platform Environment Control Interface (PECI) driver");
 -MODULE_LICENSE("GPL v2");
 diff --git a/include/linux/mfd/intel-peci-client.h b/include/linux/mfd/intel-peci-client.h
-index 8f6d823a59cd..7b62a02e46ee 100644
+index 8f6d823a59cd..9854303bbc26 100644
 --- a/include/linux/mfd/intel-peci-client.h
 +++ b/include/linux/mfd/intel-peci-client.h
 @@ -1,5 +1,5 @@
@@ -4674,22 +4846,22 @@ index 8f6d823a59cd..7b62a02e46ee 100644
 -#define INTEL_FAM6_SKYLAKE_X   0x55
 +#define INTEL_FAM6_HASWELL_X		0x3F
 +#define INTEL_FAM6_BROADWELL_X		0x4F
-+#define INTEL_FAM6_BROADWELL_XEON_D	0x56
 +#define INTEL_FAM6_SKYLAKE_X		0x55
++#define INTEL_FAM6_SKYLAKE_XD		0x56
  #endif
  
  #define CORE_MAX_ON_HSX        18 /* Max number of cores on Haswell */
-@@ -27,6 +28,10 @@
- #define CHAN_RANK_MAX_ON_BDX   4  /* Max number of channel ranks on Broadwell */
- #define DIMM_IDX_MAX_ON_BDX    3  /* Max DIMM index per channel on Broadwell */
- 
-+#define CORE_MAX_ON_XD         16 /* Max number of cores on Xeon D */
-+#define CHAN_RANK_MAX_ON_XD    2  /* Max number of channel ranks on Xeon D */
-+#define DIMM_IDX_MAX_ON_XD     2  /* Max DIMM index per channel on Xeon D */
-+
- #define CORE_MAX_ON_SKX        28 /* Max number of cores on Skylake */
+@@ -31,6 +32,10 @@
  #define CHAN_RANK_MAX_ON_SKX   6  /* Max number of channel ranks on Skylake */
  #define DIMM_IDX_MAX_ON_SKX    2  /* Max DIMM index per channel on Skylake */
+ 
++#define CORE_MAX_ON_SKXD       16 /* Max number of cores on Skylake D */
++#define CHAN_RANK_MAX_ON_SKXD  2  /* Max number of channel ranks on Skylake D */
++#define DIMM_IDX_MAX_ON_SKXD   2  /* Max DIMM index per channel on Skylake D */
++
+ #define CORE_NUMS_MAX          CORE_MAX_ON_SKX
+ #define CHAN_RANK_MAX          CHAN_RANK_MAX_ON_HSX
+ #define DIMM_IDX_MAX           DIMM_IDX_MAX_ON_HSX
 @@ -58,7 +63,6 @@ struct cpu_gen_info {
  /**
   * struct peci_client_manager - PECI client manager information
@@ -4706,7 +4878,7 @@ index 8f6d823a59cd..7b62a02e46ee 100644
  	char name[PECI_NAME_SIZE];
  	const struct cpu_gen_info *gen_info;
  };
-@@ -93,18 +96,23 @@ peci_client_read_package_config(struct peci_client_manager *priv,
+@@ -93,18 +96,22 @@ peci_client_read_package_config(struct peci_client_manager *priv,
  				u8 index, u16 param, u8 *data)
  {
  	struct peci_rd_pkg_cfg_msg msg;
@@ -4722,11 +4894,10 @@ index 8f6d823a59cd..7b62a02e46ee 100644
 -	if (!rc)
 -		memcpy(data, msg.pkg_config, 4);
 +	ret = peci_command(priv->client->adapter, PECI_CMD_RD_PKG_CFG, &msg);
++	if (msg.cc != PECI_DEV_CC_SUCCESS)
++		ret = -EAGAIN;
 +	if (ret)
 +		return ret;
-+
-+	if (msg.cc != PECI_DEV_CC_SUCCESS)
-+		return -EAGAIN;
 +
 +	memcpy(data, msg.pkg_config, 4);
  

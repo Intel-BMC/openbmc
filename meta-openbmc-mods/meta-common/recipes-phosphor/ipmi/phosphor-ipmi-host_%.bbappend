@@ -3,7 +3,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 #SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "894d022017215acceafc9e3f21379534f5396d21"
+SRCREV = "9da3a75091e0bf0849e2555447e64a70f1dc3bfb"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://host-ipmid-whitelist.conf \
@@ -21,6 +21,7 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
             file://0064-Enable-watchdog-to-save-useflag-after-host-power-off.patch \
             file://0064-Update-provisioning-mode-filter-logic.patch \
+            file://0066-Valid-VLANID-should-be-1-4095-as-in-802.1VLAN-spec.patch \
             "
 
 # remove the softpoweroff service since we do not need it

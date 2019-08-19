@@ -1,4 +1,4 @@
-From a2505e885fafd674fe0eb3a2e6daa69392e46684 Mon Sep 17 00:00:00 2001
+From 219406610ce816c56fa7cb5952bbec72fd94a3a9 Mon Sep 17 00:00:00 2001
 From: Yuan Li <yuan.li@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel platforms
@@ -11,19 +11,19 @@ Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 Signed-off-by: Zhu, Yunge <yunge.zhu@linux.intel.com>
-Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
 Signed-off-by: Qiang XU <qiang.xu@linux.intel.com>
+Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 410 ++++++++++++++++++++++++++
- 1 file changed, 410 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 437 ++++++++++++++++++++++++++
+ 1 file changed, 436 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 new file mode 100644
-index 000000000000..e94a1473045f
+index 0000000..9f8192f
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,437 @@
 +/dts-v1/;
 +
 +#include "aspeed-g5.dtsi"
@@ -129,6 +129,7 @@ index 000000000000..e94a1473045f
 +
 +&peci0 {
 +	status = "okay";
++	gpios = <&gpio ASPEED_GPIO(F, 6) 0>;
 +};
 +
 +&syscon {
@@ -148,7 +149,7 @@ index 000000000000..e94a1473045f
 +	/*C0-C7*/	"","","","","","","","",
 +	/*D0-D7*/	"","","","","","","","",
 +	/*E0-E7*/	"RESET_BUTTON","RESET_OUT","POWER_BUTTON","POWER_OUT","","","","",
-+	/*F0-F7*/	"","","","","CPU_ERR0","CPU_ERR1","","",
++	/*F0-F7*/	"NMI_OUT","","","","CPU_ERR0","CPU_ERR1","","",
 +	/*G0-G7*/	"CPU_ERR2","CPU_CATERR","PCH_BMC_THERMTRIP","","","","","",
 +	/*H0-H7*/	"","","","","","","","",
 +	/*I0-I7*/	"","","","","","","","",
@@ -172,6 +173,36 @@ index 000000000000..e94a1473045f
 +	/*AA0-AA7*/	"P3VBAT_BRIDGE_EN","","","","","","SMI","POST_COMPLETE",
 +	/*AB0-AB7*/	"","NMI_BUTTON","ID_BUTTON","PS_PWROK","","","","",
 +	/*AC0-AC7*/	"","","","","","","","";
++};
++
++&sgpio {
++	status = "okay";
++	gpio-line-names =
++	/* SGPIO output lines */
++	/*OA0-OA7*/	"","","","","","","","",
++	/*OB0-OB7*/	"LED_CPU1_CH1_DIMM1_FAULT","LED_CPU1_CH1_DIMM2_FAULT","LED_CPU1_CH2_DIMM1_FAULT","LED_CPU1_CH2_DIMM2_FAULT","LED_CPU1_CH3_DIMM1_FAULT","LED_CPU1_CH3_DIMM2_FAULT","LED_CPU1_CH4_DIMM1_FAULT","LED_CPU1_CH4_DIMM2_FAULT",
++	/*OC0-OC7*/	"LED_CPU1_CH5_DIMM1_FAULT","LED_CPU1_CH5_DIMM2_FAULT","LED_CPU1_CH6_DIMM1_FAULT","LED_CPU1_CH6_DIMM2_FAULT","LED_FAN1_FAULT","LED_FAN2_FAULT","LED_FAN3_FAULT","LED_FAN4_FAULT",
++	/*OD0-OD7*/	"LED_FAN5_FAULT","LED_FAN6_FAULT","LED_FAN7_FAULT","LED_FAN8_FAULT","LED_CPU2_CH1_DIMM1_FAULT","LED_CPU1_CH1_DIMM2_FAULT","LED_CPU2_CH2_DIMM1_FAULT","LED_CPU2_CH2_DIMM2_FAULT",
++	/*OE0-OE7*/	"LED_CPU2_CH3_DIMM1_FAULT","LED_CPU2_CH3_DIMM2_FAULT","LED_CPU2_CH4_DIMM1_FAULT","LED_CPU2_CH4_DIMM2_FAULT","LED_CPU2_CH5_DIMM1_FAULT","LED_CPU2_CH5_DIMM2_FAULT","LED_CPU2_CH6_DIMM1_FAULT","LED_CPU2_CH6_DIMM2_FAULT",
++	/*OF0-OF7*/	"LED_CPU3_CH1_DIMM1_FAULT","LED_CPU3_CH1_DIMM2_FAULT","LED_CPU3_CH2_DIMM1_FAULT","LED_CPU3_CH2_DIMM2_FAULT","LED_CPU3_CH3_DIMM1_FAULT","LED_CPU3_CH3_DIMM2_FAULT","LED_CPU3_CH4_DIMM1_FAULT","LED_CPU3_CH4_DIMM2_FAULT",
++	/*OG0-OG7*/	"LED_CPU3_CH5_DIMM1_FAULT","LED_CPU3_CH5_DIMM2_FAULT","LED_CPU3_CH6_DIMM1_FAULT","LED_CPU3_CH6_DIMM2_FAULT","LED_CPU4_CH1_DIMM1_FAULT","LED_CPU4_CH1_DIMM2_FAULT","LED_CPU4_CH2_DIMM1_FAULT","LED_CPU4_CH2_DIMM2_FAULT",
++	/*OH0-OH7*/	"LED_CPU4_CH3_DIMM1_FAULT","LED_CPU4_CH3_DIMM2_FAULT","LED_CPU4_CH4_DIMM1_FAULT","LED_CPU4_CH4_DIMM2_FAULT","LED_CPU4_CH5_DIMM1_FAULT","LED_CPU4_CH5_DIMM2_FAULT","LED_CPU4_CH6_DIMM1_FAULT","LED_CPU4_CH6_DIMM2_FAULT",
++	/*OI0-OI7*/	"","","","","","","","",
++	/*OJ0-OJ7*/	"","","","","","","","",
++	/*DUMMY*/	"","","","","","","","",
++	/*DUMMY*/	"","","","","","","","",
++
++	/* SGPIO input lines */
++	/*IA0-IA7*/	"CPU1_PRESENCE","","","","","","","",
++	/*IB0-IB7*/	"","","CPU2_PRESENCE","","","","","",
++	/*IC0-IC7*/	"","","","","","","","",
++	/*ID0-ID7*/	"","","","","","","","",
++	/*IE0-IE7*/	"","","","","","","","",
++	/*IF0-IF7*/	"","","","","","","","",
++	/*IG0-IG7*/	"","","","","","","","",
++	/*IH0-IH7*/	"","","","","","","","",
++	/*II0-II7*/	"","","","","","","","",
++	/*IJ0-IJ7*/	"","","","","","","","";
 +};
 +
 +&kcs3 {
@@ -210,10 +241,6 @@ index 000000000000..e94a1473045f
 + *	};
 + *};
 + */
-+
-+&sgpio {
-+	status = "okay";
-+};
 +
 +&uart1 {
 +	status = "okay";

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- XML file for Block Sign Tool -->
 <blocksign>
+  <version>1</version>
   <!-- Block 0 -->
   <block0>
     <magic>0xB6EAFD19</magic>

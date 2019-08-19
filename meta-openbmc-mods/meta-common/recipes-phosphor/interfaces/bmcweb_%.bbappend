@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "2c0feb0085ac3cc11c6fd77df7a8c7701f38fea5"
+SRCREV = "b76f9ca126d5c1abcd8b833a511d784531dbb3a1"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 

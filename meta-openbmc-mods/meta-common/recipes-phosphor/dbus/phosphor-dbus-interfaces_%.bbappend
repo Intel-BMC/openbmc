@@ -3,8 +3,7 @@ SRCREV = "ddc9e9f9d6ed0282ec6c1421a706b45f3c09ebcc"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-SRC_URI += "file://0002-Modify-Dbus-for-IPv6.patch \
-            file://0005-Add-DBUS-interface-of-CPU-and-Memory-s-properties.patch \
+SRC_URI += "file://0005-Add-DBUS-interface-of-CPU-and-Memory-s-properties.patch \
             file://0007-ipmi-set-BIOS-id.patch \
             file://0010-Increase-the-default-watchdog-timeout-value.patch \
             file://0012-Add-RestoreDelay-interface-for-power-restore-delay.patch \

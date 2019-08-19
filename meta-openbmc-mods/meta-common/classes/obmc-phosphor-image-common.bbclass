@@ -1,4 +1,5 @@
 inherit obmc-phosphor-image
+inherit systemd-watchdog
 
 IMAGE_INSTALL_append = " \
         bmcweb \
@@ -33,6 +34,7 @@ IMAGE_INSTALL_append = " \
         phosphor-u-boot-mgr \
         prov-mode-mgr \
         ac-boot-check \
+        beepcode-mgr \
         "
 
 # this package was flagged as a security risk

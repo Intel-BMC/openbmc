@@ -1,0 +1,44 @@
+From 9195eef3fec7022ca52ac9791c19de2362ed042e Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 19 Jul 2019 12:54:38 -0700
+Subject: [PATCH] gpio: aspeed: temporary fix for gpiochip range setting
+
+Since we are still using fixed indices for gpio line numbers for sysfs
+interface, this commit set the gpiochip range as fixed temporariliy
+til we replace all index based gpio uses with name based uses.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/gpio/gpio-aspeed.c  | 2 +-
+ drivers/gpio/sgpio-aspeed.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpio/gpio-aspeed.c b/drivers/gpio/gpio-aspeed.c
+index e426452a28f7..d4aaf7fa8e4b 100644
+--- a/drivers/gpio/gpio-aspeed.c
++++ b/drivers/gpio/gpio-aspeed.c
+@@ -1189,7 +1189,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
+ 	gpio->chip.set = aspeed_gpio_set;
+ 	gpio->chip.set_config = aspeed_gpio_set_config;
+ 	gpio->chip.label = dev_name(&pdev->dev);
+-	gpio->chip.base = -1;
++	gpio->chip.base = 0;
+ 	gpio->chip.irq.need_valid_mask = true;
+ 
+ 	/* Allocate a cache of the output registers */
+diff --git a/drivers/gpio/sgpio-aspeed.c b/drivers/gpio/sgpio-aspeed.c
+index 6fb402a3f74d..2f4c0aab0bf2 100644
+--- a/drivers/gpio/sgpio-aspeed.c
++++ b/drivers/gpio/sgpio-aspeed.c
+@@ -675,7 +675,7 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
+ 	gpio->chip.set = aspeed_sgpio_set;
+ 	gpio->chip.set_config = aspeed_sgpio_set_config;
+ 	gpio->chip.label = dev_name(&pdev->dev);
+-	gpio->chip.base = -1;
++	gpio->chip.base = gpio->config->nr_pgpios;
+ 	gpio->chip.irq.need_valid_mask = true;
+ 
+ 	/* Allocate a cache of the output registers */
+-- 
+2.7.4
+

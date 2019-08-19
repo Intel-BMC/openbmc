@@ -10,7 +10,7 @@ SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
 DEPENDS = "boost sdbusplus crashdump"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "bf2736cb1c8959164f989f59c4337a0ff108b13f"
+SRCREV = "6ed87657134c7379da1febcccd5d87617c702347"
 
 S = "${WORKDIR}/git/peci_pcie"
 

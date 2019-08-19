@@ -1113,8 +1113,8 @@
             "Address": "0x72",
             "Bus": 2,
             "ChannelNames": [
-                "PcieSlot1",
-                "PcieSlot2",
+                "Pcie_Slot_1",
+                "Pcie_Slot_2",
                 "",
                 "FruChannel"
             ],
@@ -1125,8 +1125,8 @@
             "Address": "0x73",
             "Bus": 2,
             "ChannelNames": [
-                "PcieSlot1",
-                "PcieSlot2",
+                "Pcie_Slot_1",
+                "Pcie_Slot_2",
                 "",
                 "FruChannel"
             ],
@@ -1149,10 +1149,10 @@
             "Address": "0x74",
             "Bus": 2,
             "ChannelNames": [
-                "PcieSlot1",
-                "PcieSlot2",
-                "PcieSlot3",
-                "PcieSlot4"
+                "Pcie_Slot_1",
+                "Pcie_Slot_2",
+                "Pcie_Slot_3",
+                "Pcie_Slot_4"
             ],
             "Name": "PCIE Mux",
             "Type": "PCA9546Mux"
@@ -1972,48 +1972,28 @@
             "Bus": 0,
             "CpuID": 1,
             "Name": "CPU 1",
-            "PresenceGpio": 232,
-            "Thresholds": [
+            "PresenceGpio": [
                 {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99,
-                    "label": "DIMM"
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89,
-                    "label": "DIMM"
+                    "Name": "CPU1_PRESENCE",
+                    "Polarity": "Low"
                 }
             ],
-            "Type": "XeonCPU"
+            "Type": "XeonCPU",
+            "UseWA": 1
         },
         {
             "Address": "0x31",
             "Bus": 0,
             "CpuID": 2,
             "Name": "CPU 2",
-            "PresenceGpio": 242,
-            "Thresholds": [
+            "PresenceGpio": [
                 {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 99,
-                    "label": "DIMM"
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 89,
-                    "label": "DIMM"
+                    "Name": "CPU2_PRESENCE",
+                    "Polarity": "Low"
                 }
             ],
-            "Type": "XeonCPU"
+            "Type": "XeonCPU",
+            "UseWA": 1
         }
     ],
     "Name": "WP Baseboard",

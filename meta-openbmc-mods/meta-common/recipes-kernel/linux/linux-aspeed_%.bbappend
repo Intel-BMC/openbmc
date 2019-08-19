@@ -44,4 +44,8 @@ SRC_URI += " \
         file://0067-i2c-aspeed-add-DMA-mode-transfer-support.patch \
         file://0001-set-idle-disconnect-to-true-in-all-cases.patch \
         file://0068-i2c-aspeed-add-H-W-timeout-support.patch \
+        file://0069-i2c-aspeed-add-SLAVE_ADDR_RECEIVED_PENDING-interrupt.patch \
+        file://0070-gpio-aspeed-temporary-fix-for-gpiochip-range-setting.patch \
+        file://0071-peci-add-a-temporary-workaround.patch \
+        file://0072-pmbus-add-fault-and-beep-attributes.patch \
         "
