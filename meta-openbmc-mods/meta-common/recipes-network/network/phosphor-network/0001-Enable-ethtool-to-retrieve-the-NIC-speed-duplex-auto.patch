@@ -1,0 +1,43 @@
+From ac59423171d466c0b8e75cd60e8ef5ebaf39fb87 Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Thu, 1 Aug 2019 13:35:29 -0700
+Subject: [PATCH] Enable ethtool to retrieve the NIC speed, duplex, autoneg
+ values
+
+Ethtool is used to retrieve the NIC link speed, autonegotiation state,
+and the duplex state. The NIC driver must support the necessary
+ethtool functionality for these values to be returned. The FTGMAC
+driver doesn't provide data for the NCSI channel. The driver requires
+an update for the values to be retrieved.
+
+Tested:
+In combination with a patch to the FTGMAC driver I performed a GET
+request for the bmc/EthernetInterfaces/eth(x) node. The LinkStatus and
+the SpeedMbps entries populate correctly.
+
+Change-Id: I480676b41a3ebdc518cd31a749ed57277e233a7a
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ ethernet_interface.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
+index e3ea33c..81388ca 100644
+--- a/ethernet_interface.cpp
++++ b/ethernet_interface.cpp
+@@ -54,8 +54,12 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+     MacAddressIntf::mACAddress(getMACAddress(intfName));
+     EthernetInterfaceIntf::nTPServers(getNTPServersFromConf());
+     EthernetInterfaceIntf::nameservers(getNameServerFromConf());
++    InterfaceInfo ifInfo = EthernetInterface::getInterfaceInfo();
+     getChannelPrivilege(intfName);
+ 
++    EthernetInterfaceIntf::autoNeg(std::get<2>(ifInfo), false);
++    EthernetInterfaceIntf::speed(std::get<0>(ifInfo));
++
+     // Emit deferred signal.
+     if (emitSignal)
+     {
+-- 
+2.20.1
+

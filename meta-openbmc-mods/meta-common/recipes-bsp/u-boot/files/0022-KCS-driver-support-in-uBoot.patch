@@ -1,7 +1,7 @@
-From 1264c57a485a238b715c489b7ca14982af396442 Mon Sep 17 00:00:00 2001
+From 6d8db23becf9665193023e350adcad00b75195b0 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 13 Mar 2019 14:28:05 +0530
-Subject: [PATCH] KCS driver support in uBoot
+Subject: [PATCH 1/1] KCS driver support in uBoot
 
 Added KCS support in uBoot. This will enable
 KCS channels and set the specified registers
@@ -25,18 +25,18 @@ via KCS interfaces using cmdtool.efi.
     Res: C1 (Invalid).
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
-
+Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
  board/aspeed/ast-g5/Makefile       |   1 +
  board/aspeed/ast-g5/ast-g5-intel.c |   3 +
- board/aspeed/ast-g5/ast-g5-kcs.c   | 420 +++++++++++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5-kcs.h   | 112 ++++++++++
+ board/aspeed/ast-g5/ast-g5-kcs.c   | 420 +++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-kcs.h   | 112 ++++++++
  4 files changed, 536 insertions(+)
  create mode 100644 board/aspeed/ast-g5/ast-g5-kcs.c
  create mode 100644 board/aspeed/ast-g5/ast-g5-kcs.h
 
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index 9022433..05972b9 100644
+index 90224333c4..05972b9d17 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -4,3 +4,4 @@ obj-y += ast-g5-espi.o
@@ -45,29 +45,28 @@ index 9022433..05972b9 100644
  obj-y += ast-g5-timer.o
 +obj-y += ast-g5-kcs.o
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index e19df03..adc6d10 100644
+index 032f716722..c149426947 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -480,6 +480,7 @@ static void pwm_init(void)
+@@ -256,6 +256,7 @@ int intel_force_firmware_jumper_enabled(void)
  }
  
  extern void espi_init(void);
 +extern void kcs_init(void);
  void ast_g5_intel(void)
  {
- 	pwm_init();
-@@ -489,6 +490,8 @@ void ast_g5_intel(void)
+ 	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
+@@ -264,5 +265,7 @@ void ast_g5_intel(void)
  	timer8_init();
  	if (intel_force_firmware_jumper_enabled()) {
  		id_led_control(GPIO_AMBER_LED, EIDLED_On);
 +		kcs_init();
 +		/* TODO: need to stop the booting here. */
- 	} else {
- 		id_led_control(GPIO_GREEN_LED, EIDLED_On);
  	}
+ }
 diff --git a/board/aspeed/ast-g5/ast-g5-kcs.c b/board/aspeed/ast-g5/ast-g5-kcs.c
 new file mode 100644
-index 0000000..7bff26f
+index 0000000000..7bff26f9db
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-kcs.c
 @@ -0,0 +1,420 @@
@@ -493,7 +492,7 @@ index 0000000..7bff26f
 +}
 diff --git a/board/aspeed/ast-g5/ast-g5-kcs.h b/board/aspeed/ast-g5/ast-g5-kcs.h
 new file mode 100644
-index 0000000..bb697c4
+index 0000000000..bb697c455d
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-kcs.h
 @@ -0,0 +1,112 @@
@@ -609,3 +608,6 @@ index 0000000..bb697c4
 +	u16 data_out_idx;
 +	u8 data_out[MAX_KCS_PKT_SIZE];
 +};
+-- 
+2.17.1
+

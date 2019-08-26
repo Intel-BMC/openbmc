@@ -842,13 +842,6 @@
         },
         {
             "Direction": "Input",
-            "Index": 214,
-            "Name": "SMI Active",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
             "Index": 218,
             "Name": "ID Button",
             "Polarity": "Low",

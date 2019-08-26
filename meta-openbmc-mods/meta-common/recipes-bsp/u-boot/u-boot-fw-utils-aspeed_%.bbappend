@@ -34,6 +34,7 @@ SRC_URI_append_intel-ast2500 = " \
     file://0030-Support-Get-Set-Security-mode-command.patch \
     file://0031-Make-it-so-TFTP-port-can-be-modified.patch \
     file://0033-Reboot-into-UBOOT-on-Watchdog-Failures.patch \
+    file://0034-Disable-uart-debug-interface.patch \
     "
 PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \

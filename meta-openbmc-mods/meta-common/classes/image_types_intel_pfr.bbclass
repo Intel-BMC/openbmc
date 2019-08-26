@@ -65,12 +65,12 @@ do_image_pfr () {
     mv ${PFR_IMAGES_DIR}/pfm.bin ${PFR_IMAGES_DIR}/pfm-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/pbc.bin ${PFR_IMAGES_DIR}/pbc-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/bmc_compressed.bin ${PFR_IMAGES_DIR}/bmc_compressed-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned-cap_${DATETIME}.bin
+    mv ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_signed_cap-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/image-mtd-pfr ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}
 }
 
-do_image_pfr[vardepsexclude] += "DATETIME" 
+do_image_pfr[vardepsexclude] += "DATETIME"
 do_image_pfr[vardeps] += "IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
 
 python() {

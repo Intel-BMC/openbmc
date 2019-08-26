@@ -1,0 +1,206 @@
+From 7b4227247c8740c346e57a99dc5145c81b47d9df Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 6 Nov 2018 16:25:58 -0800
+Subject: [PATCH] mfd: peci: Add ICX generation info
+
+This commit adds CPU generation info for ICX family. It should be
+managed within downstream until it is rolled out.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/hwmon/peci-cputemp.c          | 52 +++++++++++++++++++++++++++--------
+ drivers/hwmon/peci-dimmtemp.c         | 42 ++++++++++++++++++++++++++++
+ drivers/mfd/intel-peci-client.c       |  6 ++++
+ include/linux/mfd/intel-peci-client.h |  7 ++++-
+ 4 files changed, 95 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/hwmon/peci-cputemp.c b/drivers/hwmon/peci-cputemp.c
+index d0d68e88889f..fc3bd69c0b35 100644
+--- a/drivers/hwmon/peci-cputemp.c
++++ b/drivers/hwmon/peci-cputemp.c
+@@ -28,7 +28,7 @@ struct peci_cputemp {
+ 	char name[PECI_NAME_SIZE];
+ 	const struct cpu_gen_info *gen_info;
+ 	struct temp_group temp;
+-	u32 core_mask;
++	u64 core_mask;
+ 	u32 temp_config[CPUTEMP_CHANNEL_NUMS + 1];
+ 	uint config_idx;
+ 	struct hwmon_channel_info temp_info;
+@@ -333,24 +333,54 @@ static int check_resolved_cores(struct peci_cputemp *priv)
+ 
+ 	/* Get the RESOLVED_CORES register value */
+ 	msg.addr = priv->mgr->client->addr;
+-	msg.bus = 1;
+ 	msg.device = 30;
+ 	msg.function = 3;
+-	msg.reg = 0xb4;
+ 	msg.rx_len = 4;
++	if (priv->gen_info->model == INTEL_FAM6_ICELAKE_X) {
++		msg.bus = 14;
++		msg.reg = 0xd4;
++
++		ret = peci_command(priv->mgr->client->adapter,
++				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
++		if (msg.cc != PECI_DEV_CC_SUCCESS)
++			ret = -EAGAIN;
++		if (ret)
++			return ret;
++
++		priv->core_mask = le32_to_cpup((__le32 *)msg.pci_config);
++		priv->core_mask <<= 32;
++
++		msg.reg = 0xd0;
++
++		ret = peci_command(priv->mgr->client->adapter,
++				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
++
++		if (msg.cc != PECI_DEV_CC_SUCCESS)
++			ret = -EAGAIN;
++		if (ret) {
++			priv->core_mask = 0;
++			return ret;
++		}
+ 
+-	ret = peci_command(priv->mgr->client->adapter,
+-			   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
+-	if (msg.cc != PECI_DEV_CC_SUCCESS)
+-		ret = -EAGAIN;
+-	if (ret)
+-		return ret;
++		priv->core_mask |= le32_to_cpup((__le32 *)msg.pci_config);
++	} else {
++		msg.bus = 1;
++		msg.reg = 0xb4;
++
++		ret = peci_command(priv->mgr->client->adapter,
++				   PECI_CMD_RD_PCI_CFG_LOCAL, &msg);
++		if (msg.cc != PECI_DEV_CC_SUCCESS)
++			ret = -EAGAIN;
++		if (ret)
++			return ret;
++
++		priv->core_mask = le32_to_cpup((__le32 *)msg.pci_config);
++	}
+ 
+-	priv->core_mask = le32_to_cpup((__le32 *)msg.pci_config);
+ 	if (!priv->core_mask)
+ 		return -EAGAIN;
+ 
+-	dev_dbg(priv->dev, "Scanned resolved cores: 0x%x\n", priv->core_mask);
++	dev_dbg(priv->dev, "Scanned resolved cores: 0x%llx\n", priv->core_mask);
+ 
+ 	return 0;
+ }
+diff --git a/drivers/hwmon/peci-dimmtemp.c b/drivers/hwmon/peci-dimmtemp.c
+index a404b6ea4ba3..2cc5d48c544e 100644
+--- a/drivers/hwmon/peci-dimmtemp.c
++++ b/drivers/hwmon/peci-dimmtemp.c
+@@ -47,6 +47,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
+ 	int dimm_order = dimm_no % priv->gen_info->dimm_idx_max;
+ 	int chan_rank = dimm_no / priv->gen_info->dimm_idx_max;
+ 	struct peci_rd_pci_cfg_local_msg rp_msg;
++	struct peci_rd_end_pt_cfg_msg re_msg;
+ 	u8  cfg_data[4];
+ 	int ret;
+ 
+@@ -62,6 +63,42 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
+ 	priv->temp[dimm_no].value = cfg_data[dimm_order] * 1000;
+ 
+ 	switch (priv->gen_info->model) {
++	case INTEL_FAM6_ICELAKE_X:
++		re_msg.addr = priv->mgr->client->addr;
++		re_msg.msg_type = PECI_ENDPTCFG_TYPE_MMIO;
++		re_msg.params.mmio.seg = 0;
++		re_msg.params.mmio.bus = 0xfe; /* post-enum index for bus 30 */
++		re_msg.params.mmio.device = 0;
++		re_msg.params.mmio.function = 1;
++		/*
++		 * Bar d8, Offset 0x224e0: IMC 0 channel 0 -> rank 0
++		 * Bar d8, Offset 0x264e0: IMC 0 channel 1 -> rank 1
++		 * Bar dc, Offset 0x224e0: IMC 1 channel 0 -> rank 2
++		 * Bar dc, Offset 0x264e0: IMC 1 channel 1 -> rank 3
++		 * Bar e0, Offset 0x224e0: IMC 2 channel 0 -> rank 4
++		 * Bar e0, Offset 0x264e0: IMC 2 channel 1 -> rank 5
++		 * Bar e4, Offset 0x224e0: IMC 3 channel 0 -> rank 6
++		 * Bar e4, Offset 0x264e0: IMC 3 channel 1 -> rank 7
++		 */
++		re_msg.params.mmio.bar = 0xd8 + chan_rank / 2 * 4;
++		re_msg.params.mmio.addr_type = PECI_ENDPTCFG_ADDR_TYPE_MMIO_D;
++		re_msg.params.mmio.offset = 0x224e0 + dimm_order * 4;
++		if (chan_rank % 2)
++			re_msg.params.mmio.offset += 0x4000;
++		re_msg.rx_len = 4;
++
++		ret = peci_command(priv->mgr->client->adapter,
++				   PECI_CMD_RD_END_PT_CFG, &re_msg);
++#if 0 /* Temporary WA */
++		if (re_msg.cc != PECI_DEV_CC_SUCCESS)
++			ret = -EAGAIN;
++#endif
++		if (ret)
++			return ret;
++
++		priv->temp_max[dimm_no] = re_msg.data[1] * 1000;
++		priv->temp_crit[dimm_no] = re_msg.data[2] * 1000;
++		break;
+ 	case INTEL_FAM6_SKYLAKE_X:
+ 		rp_msg.addr = priv->mgr->client->addr;
+ 		rp_msg.bus = 2;
+@@ -228,6 +265,11 @@ static int check_populated_dimms(struct peci_dimmtemp *priv)
+ 						   PECI_MBX_INDEX_DDR_DIMM_TEMP,
+ 						   chan_rank, cfg_data);
+ 		if (ret) {
++			/* Temporary WA */
++			if (ret == -EAGAIN &&
++			    priv->gen_info->model == INTEL_FAM6_ICELAKE_X)
++				continue;
++
+ 			priv->dimm_mask = 0;
+ 			return ret;
+ 		}
+diff --git a/drivers/mfd/intel-peci-client.c b/drivers/mfd/intel-peci-client.c
+index 18bf0af0e09e..0f9cfc4f11d7 100644
+--- a/drivers/mfd/intel-peci-client.c
++++ b/drivers/mfd/intel-peci-client.c
+@@ -49,6 +49,12 @@ static const struct cpu_gen_info cpu_gen_info_table[] = {
+ 		.core_max      = CORE_MAX_ON_SKXD,
+ 		.chan_rank_max = CHAN_RANK_MAX_ON_SKXD,
+ 		.dimm_idx_max  = DIMM_IDX_MAX_ON_SKXD },
++	{ /* Icelake Xeon */
++		.family        = 6, /* Family code */
++		.model         = INTEL_FAM6_ICELAKE_X,
++		.core_max      = CORE_MAX_ON_ICX,
++		.chan_rank_max = CHAN_RANK_MAX_ON_ICX,
++		.dimm_idx_max  = DIMM_IDX_MAX_ON_ICX },
+ };
+ 
+ static int peci_client_get_cpu_gen_info(struct peci_client_manager *priv)
+diff --git a/include/linux/mfd/intel-peci-client.h b/include/linux/mfd/intel-peci-client.h
+index 9854303bbc26..63d32e90b74d 100644
+--- a/include/linux/mfd/intel-peci-client.h
++++ b/include/linux/mfd/intel-peci-client.h
+@@ -18,6 +18,7 @@
+ #define INTEL_FAM6_BROADWELL_X		0x4F
+ #define INTEL_FAM6_SKYLAKE_X		0x55
+ #define INTEL_FAM6_SKYLAKE_XD		0x56
++#define INTEL_FAM6_ICELAKE_X		0x6A
+ #endif
+ 
+ #define CORE_MAX_ON_HSX        18 /* Max number of cores on Haswell */
+@@ -36,7 +37,11 @@
+ #define CHAN_RANK_MAX_ON_SKXD  2  /* Max number of channel ranks on Skylake D */
+ #define DIMM_IDX_MAX_ON_SKXD   2  /* Max DIMM index per channel on Skylake D */
+ 
+-#define CORE_NUMS_MAX          CORE_MAX_ON_SKX
++#define CORE_MAX_ON_ICX        45 /* Max number of cores on Icelake */
++#define CHAN_RANK_MAX_ON_ICX   8  /* Max number of channel ranks on Icelake */
++#define DIMM_IDX_MAX_ON_ICX    2  /* Max DIMM index per channel on Icelake */
++
++#define CORE_NUMS_MAX          CORE_MAX_ON_ICX
+ #define CHAN_RANK_MAX          CHAN_RANK_MAX_ON_HSX
+ #define DIMM_IDX_MAX           DIMM_IDX_MAX_ON_HSX
+ #define DIMM_NUMS_MAX          (CHAN_RANK_MAX * DIMM_IDX_MAX)
+-- 
+2.7.4
+

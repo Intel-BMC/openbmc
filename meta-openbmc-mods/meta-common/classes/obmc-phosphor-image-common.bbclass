@@ -14,6 +14,7 @@ IMAGE_INSTALL_append = " \
         dbus-sensors \
         phosphor-webui \
         rest-dbus-static \
+        at-scale-debug \
         phosphor-pid-control \
         phosphor-host-postd \
         smbios-mdrv1 \
@@ -36,6 +37,8 @@ IMAGE_INSTALL_append = " \
         ac-boot-check \
         beepcode-mgr \
         "
+
+IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"
 
 # this package was flagged as a security risk
 IMAGE_INSTALL_remove += " lrzsz"

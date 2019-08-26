@@ -23,6 +23,7 @@ SRC_URI += " \
         file://0032-misc-aspeed-Add-Aspeed-UART-routing-control-driver.patch \
         file://0034-arm-dts-aspeed-Swap-the-mac-nodes-numbering.patch \
         file://0035-Implement-a-memory-driver-share-memory.patch \
+        file://0037-mfd-peci-Add-ICX-generation-info.patch \
         file://0039-Add-Aspeed-PWM-driver-which-uses-FTTMR010-timer-IP.patch \
         file://0040-i2c-Add-mux-hold-unhold-msg-types.patch \
         file://0042-Add-bus-timeout-ms-and-retries-device-tree-propertie.patch \

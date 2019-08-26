@@ -46,7 +46,7 @@ PFM_SPI = 0x1
 PFM_I2C = 0x2
 SHA256 = 0x1
 SHA256_SIZE = 32
-PFM_DEF_SIZE = 16
+PFM_DEF_SIZE = 32 # 32 bytes of PFM header
 PFM_SPI_SIZE_DEF = 16 # 16 bytes of SPI PFM
 PFM_SPI_SIZE_HASH = 32 # 32 bytes of SPI region HASH
 PFM_I2C_SIZE = 40 # 40 bytes of i2c rules region in PFM
@@ -327,10 +327,15 @@ class pfr_bmc_image(object):
             }
 
         # PFM should be 128bytes aligned, find the padding bytes
-        padding_bytes = 128 - (self.pfm_bytes % 128)
+        padding_bytes = 0
+        if (self.pfm_bytes % 128) != 0:
+            padding_bytes = 128 - (self.pfm_bytes % 128)
+
+        print("padding={}".format(padding_bytes))
+        print("PFM size1={}".format(self.pfm_bytes))
         self.pfm_bytes += padding_bytes
         parts['pfm_len'] = struct.pack('<I', self.pfm_bytes)
-        print("PFM size={}".format(self.pfm_bytes))
+        print("PFM size2={}".format(self.pfm_bytes))
 
         with open("pfm.bin", "wb+") as f:
             f.write(b''.join([parts[n] for n in names]))

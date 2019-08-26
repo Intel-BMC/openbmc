@@ -1,0 +1,146 @@
+From 513d95ef53569b2345e1e12337bade61f0cca2aa Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Tue, 20 Aug 2019 11:26:53 -0700
+Subject: Add keypad input support
+
+This commit makes keypad inputs available.
+
+Change-Id: I95a9268cd930c85846947b6bd49c97087121ca8a
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ ikvm_input.cpp | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ scancodes.hpp  | 17 +++++++++++++++++
+ 2 files changed, 61 insertions(+)
+
+diff --git a/ikvm_input.cpp b/ikvm_input.cpp
+index 30deea6019dc..1767cbea7362 100644
+--- a/ikvm_input.cpp
++++ b/ikvm_input.cpp
+@@ -309,6 +309,14 @@ uint8_t Input::keyToScancode(rfbKeySym key)
+     {
+         scancode = USBHID_KEY_F1 + (key - XK_F1);
+     }
++    else if (key >= XK_KP_F1 && key <= XK_KP_F4)
++    {
++        scancode = USBHID_KEY_F1 + (key - XK_KP_F1);
++    }
++    else if (key >= XK_KP_1 && key <= XK_KP_9)
++    {
++        scancode = USBHID_KEY_KP_1 + (key - XK_KP_1);
++    }
+     else
+     {
+         switch (key)
+@@ -354,9 +362,11 @@ uint8_t Input::keyToScancode(rfbKeySym key)
+                 scancode = USBHID_KEY_BACKSPACE;
+                 break;
+             case XK_Tab:
++            case XK_KP_Tab:
+                 scancode = USBHID_KEY_TAB;
+                 break;
+             case XK_space:
++            case XK_KP_Space:
+                 scancode = USBHID_KEY_SPACE;
+                 break;
+             case XK_minus:
+@@ -416,38 +426,72 @@ uint8_t Input::keyToScancode(rfbKeySym key)
+                 scancode = USBHID_KEY_PAUSE;
+                 break;
+             case XK_Insert:
++            case XK_KP_Insert:
+                 scancode = USBHID_KEY_INSERT;
+                 break;
+             case XK_Home:
++            case XK_KP_Home:
+                 scancode = USBHID_KEY_HOME;
+                 break;
+             case XK_Page_Up:
++            case XK_KP_Page_Up:
+                 scancode = USBHID_KEY_PAGEUP;
+                 break;
+             case XK_Delete:
++            case XK_KP_Delete:
+                 scancode = USBHID_KEY_DELETE;
+                 break;
+             case XK_End:
++            case XK_KP_End:
+                 scancode = USBHID_KEY_END;
+                 break;
+             case XK_Page_Down:
++            case XK_KP_Page_Down:
+                 scancode = USBHID_KEY_PAGEDOWN;
+                 break;
+             case XK_Right:
++            case XK_KP_Right:
+                 scancode = USBHID_KEY_RIGHT;
+                 break;
+             case XK_Left:
++            case XK_KP_Left:
+                 scancode = USBHID_KEY_LEFT;
+                 break;
+             case XK_Down:
++            case XK_KP_Down:
+                 scancode = USBHID_KEY_DOWN;
+                 break;
+             case XK_Up:
++            case XK_KP_Up:
+                 scancode = USBHID_KEY_UP;
+                 break;
+             case XK_Num_Lock:
+                 scancode = USBHID_KEY_NUMLOCK;
+                 break;
++            case XK_KP_Enter:
++                scancode = USBHID_KEY_KP_ENTER;
++                break;
++            case XK_KP_Equal:
++                scancode = USBHID_KEY_KP_EQUAL;
++                break;
++            case XK_KP_Multiply:
++                scancode = USBHID_KEY_KP_MULTIPLY;
++                break;
++            case XK_KP_Add:
++                scancode = USBHID_KEY_KP_ADD;
++                break;
++            case XK_KP_Subtract:
++                scancode = USBHID_KEY_KP_SUBTRACT;
++                break;
++            case XK_KP_Decimal:
++                scancode = USBHID_KEY_KP_DECIMAL;
++                break;
++            case XK_KP_Divide:
++                scancode = USBHID_KEY_KP_DIVIDE;
++                break;
++            case XK_KP_0:
++                scancode = USBHID_KEY_KP_0;
++                break;
+         }
+     }
+ 
+diff --git a/scancodes.hpp b/scancodes.hpp
+index db79231a2ba1..7fd5b12d8e6e 100644
+--- a/scancodes.hpp
++++ b/scancodes.hpp
+@@ -80,3 +80,20 @@
+ #define USBHID_KEY_DOWN 0x51
+ #define USBHID_KEY_UP 0x52
+ #define USBHID_KEY_NUMLOCK 0x53
++#define USBHID_KEY_KP_DIVIDE 0x54
++#define USBHID_KEY_KP_MULTIPLY 0x55
++#define USBHID_KEY_KP_SUBTRACT 0x56
++#define USBHID_KEY_KP_ADD 0x57
++#define USBHID_KEY_KP_ENTER 0x58
++#define USBHID_KEY_KP_1 0x59
++#define USBHID_KEY_KP_2 0x5a
++#define USBHID_KEY_KP_3 0x5b
++#define USBHID_KEY_KP_4 0x5c
++#define USBHID_KEY_KP_5 0x5d
++#define USBHID_KEY_KP_6 0x5e
++#define USBHID_KEY_KP_7 0x5f
++#define USBHID_KEY_KP_8 0x60
++#define USBHID_KEY_KP_9 0x61
++#define USBHID_KEY_KP_0 0x62
++#define USBHID_KEY_KP_DECIMAL 0x63
++#define USBHID_KEY_KP_EQUAL 0x67
+-- 
+2.7.4
+

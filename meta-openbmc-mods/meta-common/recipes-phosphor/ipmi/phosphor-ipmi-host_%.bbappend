@@ -3,7 +3,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 #SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "9da3a75091e0bf0849e2555447e64a70f1dc3bfb"
+SRCREV = "c2b7fc1fc67cc18f8e602eb6bd232b65c991a6e2"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://host-ipmid-whitelist.conf \

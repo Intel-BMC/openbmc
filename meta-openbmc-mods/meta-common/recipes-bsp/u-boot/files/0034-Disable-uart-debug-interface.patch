@@ -1,0 +1,52 @@
+From 8faea0050bfb7d75d1e58b13ce33b3df2039f12c Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Tue, 20 Aug 2019 16:10:03 +0800
+Subject: [PATCH] Disable uart debug interface
+
+AST2500 SOC integrates a UART debug interface which can
+input commands to AST2500 by using simple terminal
+program without the assistance of CPU.
+
+For security requirements, we need to disable this feature,
+set SCU2C[]10 = 1 to disable it.
+
+Tested:
+Flash the u-boot.bin and dump SCU2C as below:
+md 0x1e6e202c
+1e6e202c: 00200400
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ arch/arm/include/asm/arch-aspeed/regs-scu.h | 1 +
+ board/aspeed/ast-g5/ast-g5-intel.c          | 3 +++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+index 8a596ce..8333ba1 100644
+--- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
++++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+@@ -467,6 +467,7 @@
+ #define SCU_MISC_VUART_TO_CTRL		(0x1 << 13)
+ #define SCU_MISC_DIV13_EN		(0x1 << 12)
+ #define SCU_MISC_Y_CLK_INVERT		(0x1 << 11)
++#define SCU_MISC_UART_DEBUG_DIS		(0x1 << 10)
+ #define SCU_MISC_OUT_DELAY		(0x1 << 9)
+ #define SCU_MISC_PCI_TO_AHB_DIS		(0x1 << 8)
+ #define SCU_MISC_2D_CRT_EN		(0x1 << 7)
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 59f54a8..083c141 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -576,6 +576,9 @@ extern void espi_init(void);
+ extern void kcs_init(void);
+ void ast_g5_intel(void)
+ {
++	/* Disable uart port debug function */
++	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) | SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);
++
+ 	uart_init();
+ 	pwm_init();
+ 	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
+-- 
+2.7.4
+

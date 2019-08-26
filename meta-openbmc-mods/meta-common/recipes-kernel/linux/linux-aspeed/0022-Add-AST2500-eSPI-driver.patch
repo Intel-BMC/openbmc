@@ -1,4 +1,4 @@
-From 0f0e0a03218f6a7bdcdd78d319959e6bb974502c Mon Sep 17 00:00:00 2001
+From 677c21a8a991d38662a73a86218dbd58640934fa Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Sat, 24 Feb 2018 11:12:32 +0800
 Subject: [PATCH] eSPI: add ASPEED AST2500 eSPI driver to boot a host with PCH
@@ -16,15 +16,19 @@ Also for the host power on / off actions, from BMC side, the following VW
 3. OOB_RESET_ACK
 4. HOST_RESET_ACK
 
+Also, it provides monitoring interface of PLTRST_N signal through
+/dev/espi-pltrstn
+
 Signed-off-by: Haiyue Wang <haiyue.wang@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- .../devicetree/bindings/misc/aspeed,espi-slave.txt |  19 ++
- Documentation/misc-devices/espi-slave.rst          | 118 +++++++
+ .../devicetree/bindings/misc/aspeed,espi-slave.txt |  19 +
+ Documentation/misc-devices/espi-slave.rst          | 118 ++++++
  arch/arm/boot/dts/aspeed-g5.dtsi                   |   4 +
  drivers/misc/Kconfig                               |   8 +
  drivers/misc/Makefile                              |   1 +
- drivers/misc/aspeed-espi-slave.c                   | 353 +++++++++++++++++++++
- 6 files changed, 503 insertions(+)
+ drivers/misc/aspeed-espi-slave.c                   | 419 +++++++++++++++++++++
+ 6 files changed, 569 insertions(+)
  create mode 100644 Documentation/devicetree/bindings/misc/aspeed,espi-slave.txt
  create mode 100644 Documentation/misc-devices/espi-slave.rst
  create mode 100644 drivers/misc/aspeed-espi-slave.c
@@ -179,7 +183,7 @@ index 000000000000..887a69a7130a
 +- Interface Base Specification (for Client and Server Platforms)
 +<https://www.intel.com/content/dam/support/us/en/documents/software/chipset-software/327432-004_espi_base_specification_rev1.0.pdf>`_
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 2d6f730a7101..0e7f1d2fa08e 100644
+index 006801a32fec..b12a368f00db 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
 @@ -289,6 +289,7 @@
@@ -190,7 +194,7 @@ index 2d6f730a7101..0e7f1d2fa08e 100644
  			};
  
  			sgpio: sgpio@1e780200 {
-@@ -383,6 +384,9 @@
+@@ -385,6 +386,9 @@
  				reg = <0x1e6ee000 0x100>;
  				interrupts = <23>;
  				status = "disabled";
@@ -233,363 +237,429 @@ index e13de4f0798f..f91f66a15484 100644
  obj-y				+= cardreader/
 diff --git a/drivers/misc/aspeed-espi-slave.c b/drivers/misc/aspeed-espi-slave.c
 new file mode 100644
-index 000000000000..36ae867ca6f9
+index 000000000000..06b038bba032
 --- /dev/null
 +++ b/drivers/misc/aspeed-espi-slave.c
-@@ -0,0 +1,353 @@
+@@ -0,0 +1,419 @@
 +// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Copyright (C) 2012-2015, ASPEED Technology Inc.
-+ * Copyright (c) 2015-2018, Intel Corporation.
-+ */
++// Copyright (c) 2015-2019, Intel Corporation.
 +
-+#include <linux/atomic.h>
 +#include <linux/clk.h>
-+#include <linux/errno.h>
++#include <linux/fs.h>
 +#include <linux/interrupt.h>
 +#include <linux/io.h>
 +#include <linux/miscdevice.h>
 +#include <linux/module.h>
 +#include <linux/of.h>
 +#include <linux/platform_device.h>
-+#include <linux/poll.h>
 +#include <linux/regmap.h>
-+#include <linux/sched.h>
-+#include <linux/slab.h>
-+#include <linux/timer.h>
++#include <linux/sched/signal.h>
++#include <linux/spinlock.h>
++#include <linux/uaccess.h>
 +
-+#define DEVICE_NAME     "aspeed-espi-slave"
++#define ASPEED_ESPI_CTRL			0x00
++#define  ASPEED_ESPI_CTRL_SW_RESET		GENMASK(31, 24)
++#define  ASPEED_ESPI_CTRL_OOB_CHRDY		BIT(4)
++#define ASPEED_ESPI_INT_STS			0x08
++#define  ASPEED_ESPI_HW_RESET			BIT(31)
++#define  ASPEED_ESPI_VW_SYSEVT1			BIT(22)
++#define  ASPEED_ESPI_VW_SYSEVT			BIT(8)
++#define ASPEED_ESPI_INT_EN			0x0C
++#define ASPEED_ESPI_DATA_PORT			0x28
++#define ASPEED_ESPI_SYSEVT_INT_EN		0x94
++#define ASPEED_ESPI_SYSEVT			0x98
++#define  ASPEED_ESPI_SYSEVT_HOST_RST_ACK	BIT(27)
++#define  ASPEED_ESPI_SYSEVT_SLAVE_BOOT_STATUS	BIT(23)
++#define  ASPEED_ESPI_SYSEVT_SLAVE_BOOT_DONE	BIT(20)
++#define  ASPEED_ESPI_SYSEVT_OOB_RST_ACK		BIT(16)
++#define ASPEED_ESPI_SYSEVT_INT_T0 		0x110
++#define ASPEED_ESPI_SYSEVT_INT_T1 		0x114
++#define ASPEED_ESPI_SYSEVT_INT_T2 		0x118
++#define ASPEED_ESPI_SYSEVT_INT_STS		0x11C
++#define  ASPEED_ESPI_SYSEVT_HOST_RST_WARN	BIT(8)
++#define  ASPEED_ESPI_SYSEVT_OOB_RST_WARN	BIT(6)
++#define  ASPEED_ESPI_SYSEVT_PLTRSTN		BIT(5)
++#define ASPEED_ESPI_SYSEVT1_INT_EN		0x100
++#define ASPEED_ESPI_SYSEVT1			0x104
++#define  ASPEED_ESPI_SYSEVT1_SUS_ACK		BIT(20)
++#define ASPEED_ESPI_SYSEVT1_INT_T0		0x120
++#define ASPEED_ESPI_SYSEVT1_INT_T1		0x124
++#define ASPEED_ESPI_SYSEVT1_INT_T2		0x128
++#define ASPEED_ESPI_SYSEVT1_INT_STS		0x12C
++#define  ASPEED_ESPI_SYSEVT1_SUS_WARN		BIT(0)
 +
-+#define ESPI_CTRL                 0x00
-+#define      ESPI_CTRL_SW_RESET             GENMASK(31, 24)
-+#define      ESPI_CTRL_OOB_CHRDY            BIT(4)
-+#define ESPI_ISR                  0x08
-+#define      ESPI_ISR_HW_RESET              BIT(31)
-+#define      ESPI_ISR_VW_SYS_EVT1           BIT(22)
-+#define      ESPI_ISR_VW_SYS_EVT            BIT(8)
-+#define ESPI_IER                  0x0C
-+#define ESPI_DATA_PORT            0x28
-+#define      ESPI_DATA_PORT_ASPEED          0xa8
-+#define ESPI_SYS_IER              0x94
-+#define ESPI_SYS_EVENT            0x98
-+#define ESPI_SYS_INT_T0           0x110
-+#define ESPI_SYS_INT_T1           0x114
-+#define ESPI_SYS_INT_T2           0x118
-+#define ESPI_SYS_ISR              0x11C
-+#define      ESPI_SYSEVT_HOST_RST_ACK       BIT(27)
-+#define      ESPI_SYSEVT_SLAVE_BOOT_STATUS  BIT(23)
-+#define      ESPI_SYSEVT_SLAVE_BOOT_DONE    BIT(20)
-+#define      ESPI_SYSEVT_OOB_RST_ACK        BIT(16)
-+#define      ESPI_SYSEVT_HOST_RST_WARN      BIT(8)
-+#define      ESPI_SYSEVT_OOB_RST_WARN       BIT(6)
-+#define      ESPI_SYSEVT_PLT_RST_N          BIT(5)
-+#define ESPI_SYS1_IER             0x100
-+#define ESPI_SYS1_EVENT           0x104
-+#define ESPI_SYS1_INT_T0          0x120
-+#define ESPI_SYS1_INT_T1          0x124
-+#define ESPI_SYS1_INT_T2          0x128
-+#define ESPI_SYS1_ISR             0x12C
-+#define      ESPI_SYSEVT1_SUS_ACK           BIT(20)
-+#define      ESPI_SYSEVT1_SUS_WARN          BIT(0)
++#define ASPEED_ESPI_INT_MASK						       \
++		(ASPEED_ESPI_HW_RESET |					       \
++		 ASPEED_ESPI_VW_SYSEVT1 |				       \
++		 ASPEED_ESPI_VW_SYSEVT)
 +
-+struct aspeed_espi_slave_data {
-+	struct regmap *map;
-+	struct clk    *clk;
++/*
++ * Setup Interrupt Type / Enable of System Event from Master
++ *                                T2 T1 T0
++ *  1) HOST_RST_WARN : Dual Edge   1  0  0
++ *  2) OOB_RST_WARN  : Dual Edge   1  0  0
++ *  3) PLTRSTN       : Dual Edge   1  0  0
++ */
++#define ASPEED_ESPI_SYSEVT_INT_T0_MASK		0
++#define ASPEED_ESPI_SYSEVT_INT_T1_MASK		0
++#define ASPEED_ESPI_SYSEVT_INT_T2_MASK					       \
++		(ASPEED_ESPI_SYSEVT_HOST_RST_WARN |			       \
++		 ASPEED_ESPI_SYSEVT_OOB_RST_WARN |			       \
++		 ASPEED_ESPI_SYSEVT_PLTRSTN)
++#define ASPEED_ESPI_SYSEVT_INT_MASK					       \
++		(ASPEED_ESPI_SYSEVT_INT_T0_MASK |			       \
++		 ASPEED_ESPI_SYSEVT_INT_T1_MASK |			       \
++		 ASPEED_ESPI_SYSEVT_INT_T2_MASK)
++
++/*
++ * Setup Interrupt Type / Enable of System Event 1 from Master
++ *                                T2 T1 T0
++ *  1) SUS_WARN    : Rising Edge   0  0  1
++ */
++#define ASPEED_ESPI_SYSEVT1_INT_T0_MASK		ASPEED_ESPI_SYSEVT1_SUS_WARN
++#define ASPEED_ESPI_SYSEVT1_INT_T1_MASK		0
++#define ASPEED_ESPI_SYSEVT1_INT_T2_MASK		0
++#define ASPEED_ESPI_SYSEVT1_INT_MASK					       \
++		(ASPEED_ESPI_SYSEVT1_INT_T0_MASK |			       \
++		 ASPEED_ESPI_SYSEVT1_INT_T1_MASK |			       \
++		 ASPEED_ESPI_SYSEVT1_INT_T2_MASK)
++
++struct aspeed_espi {
++	struct regmap		*map;
++	struct clk		*clk;
++	struct device		*dev;
++	int			irq;
++
++	/* for PLTRST_N signal monitoring interface */
++	struct miscdevice	pltrstn_miscdev;
++	spinlock_t		pltrstn_lock; /* for PLTRST_N signal sampling */
++	wait_queue_head_t	pltrstn_waitq;
++	char			pltrstn;
 +};
 +
-+static void aspeed_espi_slave_sys_event(struct platform_device *pdev)
++static void aspeed_espi_sys_event(struct aspeed_espi *priv)
 +{
-+	struct aspeed_espi_slave_data *priv = platform_get_drvdata(pdev);
-+	struct device *dev = &pdev->dev;
 +	u32 sts, evt;
 +
-+	if (regmap_read(priv->map, ESPI_SYS_ISR, &sts) != 0 ||
-+	    regmap_read(priv->map, ESPI_SYS_EVENT, &evt) != 0) {
-+		dev_err(dev, "regmap_read failed\n");
-+		return;
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT_INT_STS, &sts);
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT, &evt);
++
++	dev_dbg(priv->dev, "sys: sts = %08x, evt = %08x\n", sts, evt);
++
++	if (!(evt & ASPEED_ESPI_SYSEVT_SLAVE_BOOT_STATUS)) {
++		regmap_write(priv->map, ASPEED_ESPI_SYSEVT,
++			     evt | ASPEED_ESPI_SYSEVT_SLAVE_BOOT_STATUS |
++			     ASPEED_ESPI_SYSEVT_SLAVE_BOOT_DONE);
++		dev_dbg(priv->dev, "Setting espi slave boot done\n");
++	}
++	if (sts & ASPEED_ESPI_SYSEVT_HOST_RST_WARN &&
++	    evt & ASPEED_ESPI_SYSEVT_HOST_RST_WARN) {
++		regmap_write_bits(priv->map, ASPEED_ESPI_SYSEVT,
++				  ASPEED_ESPI_SYSEVT_HOST_RST_ACK,
++				  ASPEED_ESPI_SYSEVT_HOST_RST_ACK);
++		dev_dbg(priv->dev, "SYSEVT_HOST_RST_WARN: acked\n");
++	}
++	if (sts & ASPEED_ESPI_SYSEVT_OOB_RST_WARN &&
++	    evt & ASPEED_ESPI_SYSEVT_OOB_RST_WARN) {
++		regmap_write_bits(priv->map, ASPEED_ESPI_SYSEVT,
++				  ASPEED_ESPI_SYSEVT_OOB_RST_ACK,
++				  ASPEED_ESPI_SYSEVT_OOB_RST_ACK);
++		dev_dbg(priv->dev, "SYSEVT_OOB_RST_WARN: acked\n");
++	}
++	if (sts & ASPEED_ESPI_SYSEVT_PLTRSTN || priv->pltrstn == 'N') {
++		priv->pltrstn = (evt & ASPEED_ESPI_SYSEVT_PLTRSTN) ? '1' : '0';
++		wake_up_interruptible(&priv->pltrstn_waitq);
++		dev_dbg(priv->dev, "SYSEVT_PLTRSTN: %c\n", priv->pltrstn);
 +	}
 +
-+	dev_dbg(dev, "sys: sts = %08x, evt = %08x\n", sts, evt);
-+
-+	if ((evt & ESPI_SYSEVT_SLAVE_BOOT_STATUS) == 0) {
-+		dev_info(dev, "Setting espi slave boot done\n");
-+		regmap_write(priv->map, ESPI_SYS_EVENT,
-+			evt | ESPI_SYSEVT_SLAVE_BOOT_STATUS |
-+			ESPI_SYSEVT_SLAVE_BOOT_DONE);
-+	}
-+#if 0
-+	if (sts & ESPI_SYSEVT_HOST_RST_WARN) {
-+		dev_info(dev, "ESPI_SYSEVT_HOST_RST_WARN; %s ack\n",
-+				(evt & ESPI_SYSEVT_HOST_RST_WARN ? "send" : "clr"));
-+		regmap_write_bits(priv->map, ESPI_SYS_EVENT,
-+				ESPI_SYSEVT_HOST_RST_ACK,
-+				evt & ESPI_SYSEVT_HOST_RST_WARN ?
-+				ESPI_SYSEVT_HOST_RST_ACK : 0);
-+	}
-+	if (sts & ESPI_SYSEVT_OOB_RST_WARN) {
-+		dev_info(dev, "ESPI_SYSEVT_OOB_RST_WARN; %s ack\n",
-+				(evt & ESPI_SYSEVT_OOB_RST_WARN ? "send" : "clr"));
-+		regmap_write_bits(priv->map, ESPI_SYS_EVENT,
-+			ESPI_SYSEVT_OOB_RST_ACK,
-+			evt & ESPI_SYSEVT_OOB_RST_WARN ?
-+			ESPI_SYSEVT_OOB_RST_ACK : 0);
-+	}
-+#else
-+	if (sts & ESPI_SYSEVT_HOST_RST_WARN) {
-+		if (evt & ESPI_SYSEVT_HOST_RST_WARN) {
-+			dev_info(dev, "ESPI_SYSEVT_HOST_RST_WARN; send ack\n");
-+			regmap_write_bits(priv->map, ESPI_SYS_EVENT,
-+				ESPI_SYSEVT_HOST_RST_ACK, ESPI_SYSEVT_HOST_RST_ACK);
-+		}
-+	}
-+	if (sts & ESPI_SYSEVT_OOB_RST_WARN) {
-+		if (evt & ESPI_SYSEVT_OOB_RST_WARN) {
-+			dev_info(dev, "ESPI_SYSEVT_OOB_RST_WARN; send ack\n");
-+			regmap_write_bits(priv->map, ESPI_SYS_EVENT,
-+				ESPI_SYSEVT_OOB_RST_ACK, ESPI_SYSEVT_OOB_RST_ACK);
-+		}
-+	}
-+#endif
-+	regmap_write(priv->map, ESPI_SYS_ISR, sts);
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT_INT_STS, sts);
 +}
 +
-+static void aspeed_espi_slave_sys1_event(struct platform_device *pdev)
++static void aspeed_espi_sys_event1(struct aspeed_espi *priv)
 +{
-+	struct aspeed_espi_slave_data *priv = platform_get_drvdata(pdev);
-+	struct device *dev = &pdev->dev;
 +	u32 sts, evt;
 +
-+	if (regmap_read(priv->map, ESPI_SYS1_ISR, &sts) != 0 ||
-+	    regmap_read(priv->map, ESPI_SYS1_EVENT, &evt) != 0) {
-+		dev_err(dev, "regmap_read failed\n");
-+		return;
-+	}
-+	dev_dbg(dev, "sys1: sts = %08x, evt = %08x\n", sts, evt);
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT1_INT_STS, &sts);
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT1, &evt);
 +
-+#if 0
-+	if (sts & ESPI_SYSEVT1_SUS_WARN) {
-+		dev_info(dev, "ESPI_SYSEVT1_SUS_WARN; %s ack\n",
-+				(evt & ESPI_SYSEVT1_SUS_WARN ? "send" : "clr"));
-+		regmap_write_bits(priv->map, ESPI_SYS1_EVENT,
-+			ESPI_SYSEVT1_SUS_ACK,
-+			evt & ESPI_SYSEVT1_SUS_WARN ?
-+			ESPI_SYSEVT1_SUS_ACK : 0);
++	dev_dbg(priv->dev, "sys event1: sts = %08x, evt = %08x\n", sts, evt);
++
++	if (sts & ASPEED_ESPI_SYSEVT1_SUS_WARN &&
++	    evt & ASPEED_ESPI_SYSEVT1_SUS_WARN) {
++		regmap_write_bits(priv->map, ASPEED_ESPI_SYSEVT1,
++				  ASPEED_ESPI_SYSEVT1_SUS_ACK,
++				  ASPEED_ESPI_SYSEVT1_SUS_ACK);
++		dev_dbg(priv->dev, "SYSEVT1_SUS_WARN: acked\n");
 +	}
-+#else
-+	if (sts & ESPI_SYSEVT1_SUS_WARN) {
-+		if (evt & ESPI_SYSEVT1_SUS_WARN) {
-+			dev_info(dev, "ESPI_SYSEVT_OOB_RST_WARN; send ack\n");
-+			regmap_write_bits(priv->map, ESPI_SYS1_EVENT,
-+				ESPI_SYSEVT1_SUS_ACK, ESPI_SYSEVT1_SUS_ACK);
-+		}
-+	}
-+#endif
-+	regmap_write(priv->map, ESPI_SYS1_ISR, sts);
++
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT1_INT_STS, sts);
 +}
 +
-+static void aspeed_espi_slave_boot_ack(struct platform_device *pdev)
++static void aspeed_espi_boot_ack(struct aspeed_espi *priv)
 +{
-+	struct aspeed_espi_slave_data *priv = platform_get_drvdata(pdev);
-+	struct device *dev = &pdev->dev;
 +	u32 evt;
 +
-+	if (regmap_read(priv->map, ESPI_SYS_EVENT, &evt) == 0 &&
-+	    (evt & ESPI_SYSEVT_SLAVE_BOOT_STATUS) == 0) {
-+		dev_info(dev, "Setting espi slave boot done\n");
-+		regmap_write(priv->map, ESPI_SYS_EVENT,
-+			evt | ESPI_SYSEVT_SLAVE_BOOT_STATUS |
-+			ESPI_SYSEVT_SLAVE_BOOT_DONE);
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT, &evt);
++	if (!(evt & ASPEED_ESPI_SYSEVT_SLAVE_BOOT_STATUS)) {
++		regmap_write(priv->map, ASPEED_ESPI_SYSEVT,
++			     evt | ASPEED_ESPI_SYSEVT_SLAVE_BOOT_STATUS |
++			     ASPEED_ESPI_SYSEVT_SLAVE_BOOT_DONE);
++		dev_dbg(priv->dev, "Setting espi slave boot done\n");
 +	}
 +
-+	if (regmap_read(priv->map, ESPI_SYS1_EVENT, &evt) == 0 &&
-+	    (evt & ESPI_SYSEVT1_SUS_WARN) != 0 &&
-+		(evt & ESPI_SYSEVT1_SUS_ACK) == 0) {
-+		dev_info(dev, "Boot SUS WARN set; send ack\n");
-+		regmap_write(priv->map, ESPI_SYS1_EVENT,
-+			evt | ESPI_SYSEVT1_SUS_ACK);
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT1, &evt);
++	if (evt & ASPEED_ESPI_SYSEVT1_SUS_WARN &&
++	    !(evt & ASPEED_ESPI_SYSEVT1_SUS_ACK)) {
++		regmap_write(priv->map, ASPEED_ESPI_SYSEVT1,
++			     evt | ASPEED_ESPI_SYSEVT1_SUS_ACK);
++		dev_dbg(priv->dev, "Boot SYSEVT1_SUS_WARN: acked\n");
 +	}
 +}
 +
-+static irqreturn_t aspeed_espi_slave_irq(int irq, void *arg)
++static irqreturn_t aspeed_espi_irq(int irq, void *arg)
 +{
-+	struct platform_device *pdev = arg;
-+	struct aspeed_espi_slave_data *priv = platform_get_drvdata(pdev);
-+	struct device *dev = &pdev->dev;
-+	u32 sts;
++	struct aspeed_espi *priv = arg;
++	u32 sts, sts_handled = 0;
 +
-+	if (regmap_read(priv->map, ESPI_ISR, &sts) != 0) {
-+		dev_err(dev, "regmap_read failed\n");
-+		return IRQ_NONE;
++	regmap_read(priv->map, ASPEED_ESPI_INT_STS, &sts);
++
++	dev_dbg(priv->dev, "INT_STS: 0x%08x\n", sts);
++
++	if (sts & ASPEED_ESPI_VW_SYSEVT) {
++		aspeed_espi_sys_event(priv);
++		sts_handled |= ASPEED_ESPI_VW_SYSEVT;
 +	}
 +
-+	dev_dbg(dev, "ESPI_ISR: %08x\n", sts);
-+
-+	if (sts & ESPI_ISR_VW_SYS_EVT)
-+		aspeed_espi_slave_sys_event(pdev);
-+
-+	if (sts & ESPI_ISR_VW_SYS_EVT1)
-+		aspeed_espi_slave_sys1_event(pdev);
-+
-+	/*
-+	if (sts & ESPI_ISR_HW_RESET) {
-+		regmap_write_bits(priv->map, ESPI_CTRL,
-+				ESPI_CTRL_SW_RESET, 0);
-+		regmap_write_bits(priv->map, ESPI_CTRL,
-+				ESPI_CTRL_SW_RESET, ESPI_CTRL_SW_RESET);
-+
-+		aspeed_espi_slave_boot_ack(pdev);
++	if (sts & ASPEED_ESPI_VW_SYSEVT1) {
++		aspeed_espi_sys_event1(priv);
++		sts_handled |= ASPEED_ESPI_VW_SYSEVT1;
 +	}
-+	*/
 +
-+	regmap_write(priv->map, ESPI_ISR, sts);
++	if (sts & ASPEED_ESPI_HW_RESET) {
++		regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
++				  ASPEED_ESPI_CTRL_SW_RESET, 0);
++		regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
++				  ASPEED_ESPI_CTRL_SW_RESET,
++				  ASPEED_ESPI_CTRL_SW_RESET);
++		aspeed_espi_boot_ack(priv);
++		sts_handled |= ASPEED_ESPI_HW_RESET;
++	}
 +
-+	return IRQ_HANDLED;
++	regmap_write(priv->map, ASPEED_ESPI_INT_STS, sts);
++
++	return sts != sts_handled ? IRQ_NONE : IRQ_HANDLED;
 +}
 +
-+/* Setup Interrupt Type/Enable of System Event from Master
-+ *				   T2 T1 T0
-+ *  1). HOST_RST_WARN : Dual Edge   1  0  0
-+ *  2). OOB_RST_WARN  : Dual Edge   1  0  0
-+ *  3). PLTRST_N      : Dual Edge   1  0  0
-+ */
-+#define ESPI_SYS_INT_T0_SET        0x00000000
-+#define ESPI_SYS_INT_T1_SET        0x00000000
-+#define ESPI_SYS_INT_T2_SET \
-+(ESPI_SYSEVT_HOST_RST_WARN | ESPI_SYSEVT_OOB_RST_WARN | ESPI_SYSEVT_PLT_RST_N)
-+#define ESPI_SYS_INT_SET \
-+(ESPI_SYSEVT_HOST_RST_WARN | ESPI_SYSEVT_OOB_RST_WARN | ESPI_SYSEVT_PLT_RST_N)
-+
-+/* Setup Interrupt Type/Enable of System Event 1 from Master
-+ *				   T2 T1 T0
-+ *  1). SUS_WARN    : Rising Edge   0  0  1
-+ */
-+#define ESPI_SYS1_INT_T0_SET        ESPI_SYSEVT1_SUS_WARN
-+#define ESPI_SYS1_INT_T1_SET        0x00000000
-+#define ESPI_SYS1_INT_T2_SET        0x00000000
-+#define ESPI_SYS1_INT_SET           ESPI_SYSEVT1_SUS_WARN
-+
-+static int aspeed_espi_slave_config_irq(struct platform_device *pdev)
++static void aspeed_espi_config_irq(struct aspeed_espi *priv)
 +{
-+	struct aspeed_espi_slave_data *priv = platform_get_drvdata(pdev);
-+	struct device *dev = &pdev->dev;
-+	int irq;
-+	int rc;
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT_INT_T0,
++		     ASPEED_ESPI_SYSEVT_INT_T0_MASK);
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT_INT_T1,
++		     ASPEED_ESPI_SYSEVT_INT_T1_MASK);
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT_INT_T2,
++		     ASPEED_ESPI_SYSEVT_INT_T2_MASK);
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT_INT_EN,
++		     ASPEED_ESPI_SYSEVT_INT_MASK);
 +
-+	irq = platform_get_irq(pdev, 0);
-+	if (irq < 0)
-+		return irq;
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT1_INT_T0,
++		     ASPEED_ESPI_SYSEVT1_INT_T0_MASK);
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT1_INT_T1,
++		     ASPEED_ESPI_SYSEVT1_INT_T1_MASK);
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT1_INT_T2,
++		     ASPEED_ESPI_SYSEVT1_INT_T2_MASK);
++	regmap_write(priv->map, ASPEED_ESPI_SYSEVT1_INT_EN,
++		     ASPEED_ESPI_SYSEVT1_INT_MASK);
 +
-+	regmap_write_bits(priv->map, ESPI_CTRL, ESPI_CTRL_OOB_CHRDY,
-+			ESPI_CTRL_OOB_CHRDY);
++	regmap_write(priv->map, ASPEED_ESPI_INT_EN, ASPEED_ESPI_INT_MASK);
 +
-+	regmap_write(priv->map, ESPI_SYS_INT_T0, ESPI_SYS_INT_T0_SET);
-+	regmap_write(priv->map, ESPI_SYS_INT_T1, ESPI_SYS_INT_T1_SET);
-+	regmap_write(priv->map, ESPI_SYS_INT_T2, ESPI_SYS_INT_T2_SET);
-+	regmap_write(priv->map, ESPI_SYS_IER, ESPI_SYS_INT_SET);
++	aspeed_espi_boot_ack(priv);
++}
 +
-+	regmap_write(priv->map, ESPI_SYS1_INT_T0, ESPI_SYS1_INT_T0_SET);
-+	regmap_write(priv->map, ESPI_SYS1_INT_T1, ESPI_SYS1_INT_T1_SET);
-+	regmap_write(priv->map, ESPI_SYS1_INT_T2, ESPI_SYS1_INT_T2_SET);
-+	regmap_write(priv->map, ESPI_SYS1_IER, ESPI_SYS1_INT_SET);
++static inline struct aspeed_espi *to_aspeed_espi(struct file *filp)
++{
++	return container_of(filp->private_data, struct aspeed_espi,
++			    pltrstn_miscdev);
++}
 +
-+	regmap_write(priv->map, ESPI_IER, 0xFFFFFFFF);
-+
-+	aspeed_espi_slave_boot_ack(pdev);
-+
-+	rc = devm_request_irq(dev, irq, aspeed_espi_slave_irq, IRQF_SHARED,
-+			dev_name(dev), pdev);
-+	if (rc < 0)
-+		return rc;
++static int aspeed_espi_pltrstn_open(struct inode *inode, struct file *filp)
++{
++	if (filp->f_flags & O_ACCMODE != O_RDONLY)
++		return -EACCES;
 +
 +	return 0;
 +}
 +
-+static const struct regmap_config espi_slave_regmap_cfg = {
-+	.reg_bits     = 32,
-+	.reg_stride   = 4,
-+	.val_bits     = 32,
-+	.max_register = ESPI_SYS1_ISR,
++static ssize_t aspeed_espi_pltrstn_read(struct file *filp, char __user *buf,
++					size_t count, loff_t *offset)
++{
++	struct aspeed_espi *priv = to_aspeed_espi(filp);
++	DECLARE_WAITQUEUE(wait, current);
++	unsigned long flags;
++	char old_sample;
++	int ret = 0;
++
++	spin_lock_irqsave(&priv->pltrstn_lock, flags);
++
++	add_wait_queue(&priv->pltrstn_waitq, &wait);
++	set_current_state(TASK_INTERRUPTIBLE);
++
++	old_sample = priv->pltrstn;
++
++	do {
++		char new_sample = priv->pltrstn;
++
++		if (filp->f_flags & O_NONBLOCK || old_sample != new_sample) {
++			ret = put_user(new_sample, (unsigned long __user *)buf);
++			if (!ret)
++				ret = sizeof(new_sample);
++		} else if (signal_pending(current)) {
++			ret = -ERESTARTSYS;
++		}
++
++		if (!ret) {
++			spin_unlock_irqrestore(&priv->pltrstn_lock, flags);
++			schedule();
++			spin_lock_irqsave(&priv->pltrstn_lock, flags);
++		}
++	} while (!ret);
++
++	remove_wait_queue(&priv->pltrstn_waitq, &wait);
++	set_current_state(TASK_RUNNING);
++
++	spin_unlock_irqrestore(&priv->pltrstn_lock, flags);
++
++	return ret;
++}
++
++static const struct file_operations aspeed_espi_pltrstn_fops = {
++	.owner	= THIS_MODULE,
++	.open	= aspeed_espi_pltrstn_open,
++	.read	= aspeed_espi_pltrstn_read,
 +};
 +
-+static int aspeed_espi_slave_probe(struct platform_device *pdev)
++static const struct regmap_config aspeed_espi_regmap_cfg = {
++	.reg_bits	= 32,
++	.reg_stride	= 4,
++	.val_bits	= 32,
++	.max_register	= ASPEED_ESPI_SYSEVT1_INT_STS,
++};
++
++static int aspeed_espi_probe(struct platform_device *pdev)
 +{
-+	struct aspeed_espi_slave_data *priv;
-+	struct device *dev = &pdev->dev;
++	struct aspeed_espi *priv;
 +	struct resource *res;
 +	void __iomem *regs;
-+	int rc;
++	u32 ctrl;
++	int ret;
 +
 +	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-+	regs = devm_ioremap_resource(dev, res);
++	regs = devm_ioremap_resource(&pdev->dev, res);
 +	if (IS_ERR(regs))
 +		return PTR_ERR(regs);
 +
-+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
++	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 +	if (!priv)
 +		return -ENOMEM;
 +
-+	priv->map = devm_regmap_init_mmio(dev, regs, &espi_slave_regmap_cfg);
++	dev_set_drvdata(&pdev->dev, priv);
++	priv->dev = &pdev->dev;
++
++	priv->map = devm_regmap_init_mmio(&pdev->dev, regs,
++					  &aspeed_espi_regmap_cfg);
 +	if (IS_ERR(priv->map))
 +		return PTR_ERR(priv->map);
 +
-+	priv->clk = devm_clk_get(dev, NULL);
++	priv->irq = platform_get_irq(pdev, 0);
++	if (priv->irq < 0)
++		return priv->irq;
++
++	aspeed_espi_config_irq(priv);
++
++	ret = devm_request_irq(&pdev->dev, priv->irq, aspeed_espi_irq, 0,
++			       "aspeed-espi-irq", priv);
++	if (ret)
++		return ret;
++
++	priv->clk = devm_clk_get(&pdev->dev, NULL);
 +	if (IS_ERR(priv->clk)) {
-+		dev_err(dev, "couldn't get clock\n");
-+		return PTR_ERR(priv->clk);
++		ret = PTR_ERR(priv->clk);
++		if (ret != -EPROBE_DEFER)
++			dev_err(&pdev->dev, "couldn't get clock\n");
++		return ret;
 +	}
-+	rc = clk_prepare_enable(priv->clk);
-+	if (rc) {
-+		dev_err(dev, "couldn't enable clock\n");
-+		return rc;
-+	}
-+
-+	dev_set_name(dev, DEVICE_NAME);
-+
-+	platform_set_drvdata(pdev, priv);
-+
-+	rc = aspeed_espi_slave_config_irq(pdev);
-+	if (rc) {
-+		platform_set_drvdata(pdev, NULL);
-+		goto err;
++	ret = clk_prepare_enable(priv->clk);
++	if (ret) {
++		dev_err(&pdev->dev, "couldn't enable clock\n");
++		return ret;
 +	}
 +
-+	dev_info(dev, "aspeed,ast2500-espi-slave probe complete\n");
++	/*
++	 * We check that the regmap works on this very first access, but as this
++	 * is an MMIO-backed regmap, subsequent regmap access is not going to
++	 * fail and we skip error checks from this point.
++	 */
++	ret = regmap_read(priv->map, ASPEED_ESPI_CTRL, &ctrl);
++	if (ret) {
++		dev_err(&pdev->dev, "failed to read ctrl register\n");
++		goto err_clk_disable_out;
++	}
++	regmap_write(priv->map, ASPEED_ESPI_CTRL,
++		     ctrl | ASPEED_ESPI_CTRL_OOB_CHRDY);
++
++	spin_lock_init(&priv->pltrstn_lock);
++	init_waitqueue_head(&priv->pltrstn_waitq);
++	priv->pltrstn = 'N'; /* means it's not reported yet from master */
++	priv->pltrstn_miscdev.minor = MISC_DYNAMIC_MINOR;
++	priv->pltrstn_miscdev.name = "espi-pltrstn";
++	priv->pltrstn_miscdev.fops = &aspeed_espi_pltrstn_fops;
++	priv->pltrstn_miscdev.parent = &pdev->dev;
++
++	ret = misc_register(&priv->pltrstn_miscdev);
++	if (ret) {
++		dev_err(&pdev->dev, "Unable to register device\n");
++		goto err_clk_disable_out;
++	}
++
++	dev_info(&pdev->dev, "eSPI registered, irq %d\n", priv->irq);
++
 +	return 0;
 +
-+err:
++err_clk_disable_out:
 +	clk_disable_unprepare(priv->clk);
-+	return rc;
++
++	return ret;
 +}
 +
-+
-+static int aspeed_espi_slave_remove(struct platform_device *pdev)
++static int aspeed_espi_remove(struct platform_device *pdev)
 +{
-+	struct aspeed_espi_slave_data *priv = platform_get_drvdata(pdev);
++	struct aspeed_espi *priv = dev_get_drvdata(&pdev->dev);
 +
++	misc_deregister(&priv->pltrstn_miscdev);
 +	clk_disable_unprepare(priv->clk);
 +
 +	return 0;
 +}
 +
-+static const struct of_device_id of_espi_slave_match_table[] = {
++static const struct of_device_id of_espi_match_table[] = {
 +	{ .compatible = "aspeed,ast2500-espi-slave" },
 +	{ }
 +};
-+MODULE_DEVICE_TABLE(of, of_espi_slave_match_table);
++MODULE_DEVICE_TABLE(of, of_espi_match_table);
 +
-+static struct platform_driver aspeed_espi_slave_driver = {
-+	.driver = {
-+		.name           = DEVICE_NAME,
-+		.of_match_table = of_match_ptr(of_espi_slave_match_table),
++static struct platform_driver aspeed_espi_driver = {
++	.driver	= {
++		.name		= KBUILD_MODNAME,
++		.of_match_table	= of_match_ptr(of_espi_match_table),
 +	},
-+	.probe = aspeed_espi_slave_probe,
-+	.remove = aspeed_espi_slave_remove,
++	.probe	= aspeed_espi_probe,
++	.remove	= aspeed_espi_remove,
 +};
-+module_platform_driver(aspeed_espi_slave_driver);
++module_platform_driver(aspeed_espi_driver);
 +
-+MODULE_LICENSE("GPL v2");
 +MODULE_AUTHOR("Haiyue Wang <haiyue.wang@linux.intel.com>");
-+MODULE_DESCRIPTION("Linux device interface to the eSPI slave");
++MODULE_AUTHOR("Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>");
++MODULE_DESCRIPTION("Aspeed eSPI driver");
++MODULE_LICENSE("GPL v2");
 -- 
 2.7.4
 

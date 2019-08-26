@@ -12,8 +12,8 @@ DEPENDS = "sdbusplus openssl libpam"
 
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
-SRC_URI = "git://git@github.com/Intel-BMC/asd;protocol=ssh;nobranch=1"
-SRCREV = "73d4cc11b859ba91f313a7bb85f2dbb26e36d0ee"
+SRC_URI = "git://git@github.com/Intel-BMC/asd;protocol=ssh"
+SRCREV = "934a1312e797eb835e2853be6eb70f7a06f9f19e"
 
 S = "${WORKDIR}/git"
 

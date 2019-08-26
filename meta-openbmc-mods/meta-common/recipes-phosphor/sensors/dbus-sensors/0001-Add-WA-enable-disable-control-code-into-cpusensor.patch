@@ -34,7 +34,7 @@ index 2a3ff16f8294..b4085fd1038d 100644
 +                if (useWA == 0)
 +                {
 +                    std::ofstream deviceFile(
-+                        "/sys/module/peci_core/parameters/use_wa");
++                        "/sys/module/peci_aspeed/parameters/use_wa");
 +                    if (deviceFile.good())
 +                    {
 +                        deviceFile << 'N';

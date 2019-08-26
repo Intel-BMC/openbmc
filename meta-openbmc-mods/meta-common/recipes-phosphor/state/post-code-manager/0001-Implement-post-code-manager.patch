@@ -311,7 +311,7 @@ index 0000000..67bc43f
 +BusName=xyz.openbmc_project.State.Boot.PostCode
 +
 +[Install]
-+WantedBy=obmc-standby.target
++WantedBy=multi-user.target
 diff --git a/src/main.cpp b/src/main.cpp
 new file mode 100644
 index 0000000..4a74b29
