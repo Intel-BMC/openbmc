@@ -128,11 +128,12 @@ reformat_ubi_volume() {
     local nv_num="$1"
     local mnt="$2"
     local ubi="/dev/ubi${nv_num}"
+    local mtd="/dev/mtd${nv_num}"
     local vol="${ubi}_0"
     # unmount the volume to reformat it
     umount -f "$mnt"
     ubidetach -m $nv_num
-    ubiformat -y "$ubi"
+    ubiformat -y "$mtd"
     prepare_ubi_volume $nv_num
     # remount the UBIFS on the UBI volume
     mount -t ubifs "$vol" "$mnt"
