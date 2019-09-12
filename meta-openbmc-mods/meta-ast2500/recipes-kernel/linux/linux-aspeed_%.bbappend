@@ -4,6 +4,7 @@ SRC_URI += "file://intel-ast2500.cfg \
             file://0002-Enable-pass-through-on-GPIOE1-and-GPIOE3-free.patch \
             file://0003-Enable-GPIOE0-and-GPIOE2-pass-through-by-default.patch \
             file://0006-Allow-monitoring-of-power-control-input-GPIOs.patch \
+            file://0007-gpio-aspeed-fix-check-for-pointer-return-value.patch \
             file://0001-aspeed-pwm-tacho-change-default-fan-speed.patch \
             file://0001-Report-link-statistics-for-the-NCSI-channel.patch \
             "
