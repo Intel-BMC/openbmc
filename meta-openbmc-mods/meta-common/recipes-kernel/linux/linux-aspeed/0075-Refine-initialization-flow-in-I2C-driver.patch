@@ -1,0 +1,64 @@
+From a98e86429ce520cab3505c76ce02703837ef79b9 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 23 Sep 2019 13:48:49 -0700
+Subject: [PATCH] Refine initialization flow in I2C driver
+
+Since we enabled I2C busses in u-boot, we need to disable the I2C
+bus and clear all garbage interrupts when kernel probes the bus.
+This commit refines the initialization flow by adding a bus reset
+at the beginning of probe function and by moving bus init function
+after interrupt handling setup.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/i2c/busses/i2c-aspeed.c | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
+index 0070366e9d6d..ab771a57a252 100644
+--- a/drivers/i2c/busses/i2c-aspeed.c
++++ b/drivers/i2c/busses/i2c-aspeed.c
+@@ -1441,6 +1441,11 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ 	if (IS_ERR(bus->base))
+ 		return PTR_ERR(bus->base);
+ 
++	/* Disable bus and clean up any left over interrupt state. */
++	writel(0, bus->base + ASPEED_I2C_FUN_CTRL_REG);
++	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
++	writel(0xffffffff, bus->base + ASPEED_I2C_INTR_STS_REG);
++
+ 	parent_clk = devm_clk_get(&pdev->dev, NULL);
+ 	if (IS_ERR(parent_clk))
+ 		return PTR_ERR(parent_clk);
+@@ -1563,17 +1568,6 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ 
+ 	bus->dev = &pdev->dev;
+ 
+-	/* Clean up any left over interrupt state. */
+-	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
+-	writel(0xffffffff, bus->base + ASPEED_I2C_INTR_STS_REG);
+-	/*
+-	 * bus.lock does not need to be held because the interrupt handler has
+-	 * not been enabled yet.
+-	 */
+-	ret = aspeed_i2c_init(bus, pdev);
+-	if (ret < 0)
+-		goto out_free_dma_buf;
+-
+ 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+ 	ret = devm_request_irq(&pdev->dev, irq, aspeed_i2c_bus_irq,
+ 			       0, dev_name(&pdev->dev), bus);
+@@ -1586,6 +1580,10 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ 
+ 	platform_set_drvdata(pdev, bus);
+ 
++	ret = aspeed_i2c_init(bus, pdev);
++	if (ret < 0)
++		goto out_free_dma_buf;
++
+ 	dev_info(bus->dev, "i2c bus %d registered (%s mode), irq %d\n",
+ 		 bus->adap.nr, bus->dma_buf ? "dma" :
+ 					      bus->buf_base ? "buffer" : "byte",
+-- 
+2.7.4
+

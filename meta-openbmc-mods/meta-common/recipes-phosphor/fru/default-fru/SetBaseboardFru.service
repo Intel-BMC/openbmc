@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for FRU presence
+
+[Service]
+ExecStart=/usr/bin/checkFru.sh
+Type=oneshot
+
+[Install]
+WantedBy=basic.target

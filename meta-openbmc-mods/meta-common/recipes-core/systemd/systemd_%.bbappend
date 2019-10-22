@@ -4,8 +4,7 @@ LICENSE = "GPL-2.0"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-SRC_URI += "file://000-ro-rootfs-tmpfile-defaults.patch \
-            file://0001-Modfiy-system.conf-DefaultTimeoutStopSec.patch \
+SRC_URI += "file://0001-Modfiy-system.conf-DefaultTimeoutStopSec.patch \
             file://systemd-time-wait-sync.service \
            "
 

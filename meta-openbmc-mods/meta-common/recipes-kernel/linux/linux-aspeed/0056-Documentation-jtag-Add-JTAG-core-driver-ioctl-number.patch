@@ -1,7 +1,7 @@
-From ba0c35ae070cffcb384fc76e23a38e00142b128d Mon Sep 17 00:00:00 2001
+From d5efb0ec2b28bc1074472ab4eaa937dcbe490f6a Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
-Date: Wed, 10 Mar 2019 11:48:18 -0800
-Subject: [PATCH v29 5/6] Documentation jtag: Add JTAG core driver ioctl number
+Date: Sun, 10 Mar 2019 11:48:18 -0800
+Subject: [PATCH] Documentation jtag: Add JTAG core driver ioctl number
 
 JTAG class driver provide infrastructure to support hardware/software
 JTAG platform drivers. It provide user layer API interface for flashing
@@ -36,22 +36,22 @@ Cc: Arnd Bergmann <arnd@arndb.de>
 Cc: Steven A Filary <steven.a.filary@intel.com>
 Cc: Bryan Hunt <bryan.hunt@intel.com>
 ---
- Documentation/ioctl/ioctl-number.txt | 2 ++
+ Documentation/ioctl/ioctl-number.rst | 2 ++
  1 file changed, 2 insertions(+)
 
-diff --git a/Documentation/ioctl/ioctl-number.txt b/Documentation/ioctl/ioctl-number.txt
-index c955814..f732118 100644
---- a/Documentation/ioctl/ioctl-number.txt
-+++ b/Documentation/ioctl/ioctl-number.txt
-@@ -323,6 +323,8 @@ Code  Seq#(hex)	Include File		Comments
- 0xB0	all	RATIO devices		in development:
- 					<mailto:vgo@ratio.de>
- 0xB1	00-1F	PPPoX			<mailto:mostrows@styx.uwaterloo.ca>
-+0xB2	00-0F	linux/jtag.h		JTAG driver
-+					<mailto:oleksandrs@mellanox.com>
- 0xB3	00	linux/mmc/ioctl.h
- 0xB4	00-0F	linux/gpio.h		<mailto:linux-gpio@vger.kernel.org>
- 0xB5	00-0F	uapi/linux/rpmsg.h	<mailto:linux-remoteproc@vger.kernel.org>
+diff --git a/Documentation/ioctl/ioctl-number.rst b/Documentation/ioctl/ioctl-number.rst
+index 7f8dcae7a230..4d25966d44e5 100644
+--- a/Documentation/ioctl/ioctl-number.rst
++++ b/Documentation/ioctl/ioctl-number.rst
+@@ -332,6 +332,8 @@ Code  Seq#    Include File                                           Comments
+                                                                      <mailto:vgo@ratio.de>
+ 0xB1  00-1F                                                          PPPoX
+                                                                      <mailto:mostrows@styx.uwaterloo.ca>
++0xB2  00-0F  linux/jtag.h                                            JTAG driver
++                                                                     <mailto:oleksandrs@mellanox.com>
+ 0xB3  00     linux/mmc/ioctl.h
+ 0xB4  00-0F  linux/gpio.h                                            <mailto:linux-gpio@vger.kernel.org>
+ 0xB5  00-0F  uapi/linux/rpmsg.h                                      <mailto:linux-remoteproc@vger.kernel.org>
 -- 
 2.7.4
 

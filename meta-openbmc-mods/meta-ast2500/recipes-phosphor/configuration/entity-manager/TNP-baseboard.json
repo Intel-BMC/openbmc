@@ -1793,16 +1793,14 @@
             "Bus": 0,
             "CpuID": 1,
             "Name": "CPU 1",
-            "Type": "XeonCPU",
-            "UseWA": 1
+            "Type": "XeonCPU"
         },
         {
             "Address": "0x31",
             "Bus": 0,
             "CpuID": 2,
             "Name": "CPU 2",
-            "Type": "XeonCPU",
-            "UseWA": 1
+            "Type": "XeonCPU"
         }
     ],
     "Name": "TNP Baseboard",

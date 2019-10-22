@@ -1,4 +1,4 @@
-From 520416545a47cffe66815f31bc1465eab8864554 Mon Sep 17 00:00:00 2001
+From 45dd8ca9bb83b688aa0d0b5472fd0b1ed9fcf29a Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Fri, 7 Jun 2019 07:37:39 -0800
 Subject: [PATCH v29 1/6] drivers: jtag: Add JTAG core driver
@@ -267,20 +267,20 @@ Comments pointed by Tobias Klauser <tklauser@distanz.ch>
  create mode 100644 include/uapi/linux/jtag.h
 
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index 339ac306ded6..fb970bbe6b03 100644
+index 92f4a9bb83f1..7403af7ffa85 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
-@@ -234,4 +234,5 @@ source "drivers/counter/Kconfig"
+@@ -232,4 +232,5 @@ source "drivers/counter/Kconfig"
  
  source "drivers/peci/Kconfig"
  
 +source "drivers/jtag/Kconfig"
  endmenu
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 18d91cd5ac0f..b4d21c963923 100644
+index 47cad1b9f992..cd240910c56e 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
-@@ -189,3 +189,4 @@ obj-$(CONFIG_GNSS)		+= gnss/
+@@ -188,3 +188,4 @@ obj-$(CONFIG_GNSS)		+= gnss/
  obj-$(CONFIG_INTERCONNECT)	+= interconnect/
  obj-$(CONFIG_COUNTER)		+= counter/
  obj-$(CONFIG_PECI)		+= peci/

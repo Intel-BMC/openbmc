@@ -1,24 +1,26 @@
-From 8d5f080b38d1b652eb5fdd3a7b74164906680ab7 Mon Sep 17 00:00:00 2001
+From 5f43a95bd032279440196a1c9802e1dec5d24a65 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@intel.com>
 Date: Wed, 4 Apr 2018 13:52:39 -0700
 Subject: [PATCH] Add support for new PECI commands
 
 Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Signed-off-by: Zhu, Yunge <yunge.zhu@linux.intel.com>
 ---
- drivers/peci/peci-core.c        | 396 ++++++++++++++++++++++++++++++++++++++++
- include/uapi/linux/peci-ioctl.h | 146 +++++++++++++++
- 2 files changed, 542 insertions(+)
+ drivers/peci/peci-core.c        | 430 ++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/peci-ioctl.h | 179 +++++++++++++++++
+ 2 files changed, 609 insertions(+)
 
 diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
-index d1f0df8b139a..b99ba788a032 100644
+index 2a6be04..43a86a0 100644
 --- a/drivers/peci/peci-core.c
 +++ b/drivers/peci/peci-core.c
-@@ -318,6 +318,12 @@ static int peci_scan_cmd_mask(struct peci_adapter *adapter)
+@@ -318,6 +318,13 @@ static int peci_scan_cmd_mask(struct peci_adapter *adapter)
  	 * See PECI Spec Table 3-1.
  	 */
  	revision = FIELD_GET(REVISION_NUM_MASK, dib);
 +	if (revision >= 0x40) { /* Rev. 4.0 */
++		adapter->cmd_mask |= BIT(PECI_CMD_RD_IA_MSREX);
 +		adapter->cmd_mask |= BIT(PECI_CMD_RD_END_PT_CFG);
 +		adapter->cmd_mask |= BIT(PECI_CMD_WR_END_PT_CFG);
 +		adapter->cmd_mask |= BIT(PECI_CMD_CRASHDUMP_DISC);
@@ -27,7 +29,61 @@ index d1f0df8b139a..b99ba788a032 100644
  	if (revision >= 0x36) /* Rev. 3.6 */
  		adapter->cmd_mask |= BIT(PECI_CMD_WR_IA_MSR);
  	if (revision >= 0x35) /* Rev. 3.5 */
-@@ -687,6 +693,392 @@ static int peci_cmd_wr_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
+@@ -375,14 +382,18 @@ static int peci_cmd_xfer(struct peci_adapter *adapter, void *vmsg)
+ 		switch (msg->tx_buf[0]) {
+ 		case PECI_RDPKGCFG_CMD:
+ 		case PECI_RDIAMSR_CMD:
++		case PECI_RDIAMSREX_CMD:
+ 		case PECI_RDPCICFG_CMD:
+ 		case PECI_RDPCICFGLOCAL_CMD:
++		case PECI_RDENDPTCFG_CMD:
++		case PECI_CRASHDUMP_CMD:
+ 			ret = peci_xfer_with_retries(adapter, msg, false);
+ 			break;
+ 		case PECI_WRPKGCFG_CMD:
+ 		case PECI_WRIAMSR_CMD:
+ 		case PECI_WRPCICFG_CMD:
+ 		case PECI_WRPCICFGLOCAL_CMD:
++		case PECI_WRENDPTCFG_CMD:
+ 			/* Check if the AW FCS byte is already provided */
+ 			ret = peci_aw_fcs(msg, 2 + msg->tx_len, &aw_fcs);
+ 			if (ret)
+@@ -590,6 +601,34 @@ static int peci_cmd_rd_ia_msr(struct peci_adapter *adapter, void *vmsg)
+ 	return ret;
+ }
+ 
++static int peci_cmd_rd_ia_msrex(struct peci_adapter *adapter, void *vmsg)
++{
++	struct peci_rd_ia_msrex_msg *umsg = vmsg;
++	struct peci_xfer_msg *msg;
++	int ret;
++
++	msg = peci_get_xfer_msg(PECI_RDIAMSREX_WRITE_LEN, PECI_RDIAMSREX_READ_LEN);
++	if (!msg)
++		return -ENOMEM;
++
++	msg->addr = umsg->addr;
++	msg->tx_buf[0] = PECI_RDIAMSREX_CMD;
++	msg->tx_buf[1] = 0;
++	msg->tx_buf[2] = (u8)umsg->thread_id;
++	msg->tx_buf[3] = (u8)(umsg->thread_id >> 8);
++	msg->tx_buf[4] = (u8)umsg->address;
++	msg->tx_buf[5] = (u8)(umsg->address >> 8);
++
++	ret = peci_xfer_with_retries(adapter, msg, false);
++	if (!ret)
++		memcpy(&umsg->value, &msg->rx_buf[1], sizeof(uint64_t));
++
++	umsg->cc = msg->rx_buf[0];
++	peci_put_xfer_msg(msg);
++
++	return ret;
++}
++
+ static int peci_cmd_wr_ia_msr(struct peci_adapter *adapter, void *vmsg)
+ {
+ 	return -ENOSYS; /* Not implemented yet */
+@@ -730,6 +769,392 @@ static int peci_cmd_wr_pci_cfg_local(struct peci_adapter *adapter, void *vmsg)
  	return ret;
  }
  
@@ -420,7 +476,12 @@ index d1f0df8b139a..b99ba788a032 100644
  typedef int (*peci_cmd_fn_type)(struct peci_adapter *, void *);
  
  static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
-@@ -702,6 +1094,10 @@ static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
+@@ -741,10 +1166,15 @@ static const peci_cmd_fn_type peci_cmd_fn[PECI_CMD_MAX] = {
+ 	peci_cmd_wr_pkg_cfg,
+ 	peci_cmd_rd_ia_msr,
+ 	peci_cmd_wr_ia_msr,
++	peci_cmd_rd_ia_msrex,
+ 	peci_cmd_rd_pci_cfg,
  	peci_cmd_wr_pci_cfg,
  	peci_cmd_rd_pci_cfg_local,
  	peci_cmd_wr_pci_cfg_local,
@@ -432,10 +493,23 @@ index d1f0df8b139a..b99ba788a032 100644
  
  /**
 diff --git a/include/uapi/linux/peci-ioctl.h b/include/uapi/linux/peci-ioctl.h
-index 253fb42e38b7..405cd8edbcbf 100644
+index 253fb42..1158254 100644
 --- a/include/uapi/linux/peci-ioctl.h
 +++ b/include/uapi/linux/peci-ioctl.h
-@@ -71,6 +71,10 @@ enum peci_cmd {
+@@ -47,6 +47,7 @@
+  * @PECI_CMD_WR_PKG_CFG: write access to the PCS (Package Configuration Space)
+  * @PECI_CMD_RD_IA_MSR: read access to MSRs (Model Specific Registers)
+  * @PECI_CMD_WR_IA_MSR: write access to MSRs (Model Specific Registers)
++ * @PECI_CMD_RD_IA_MSREX: read access to MSRs (Model Specific Registers)
+  * @PECI_CMD_RD_PCI_CFG: sideband read access to the PCI configuration space
+  *	maintained in downstream devices external to the processor
+  * @PECI_CMD_WR_PCI_CFG: sideband write access to the PCI configuration space
+@@ -67,10 +68,15 @@ enum peci_cmd {
+ 	PECI_CMD_WR_PKG_CFG,
+ 	PECI_CMD_RD_IA_MSR,
+ 	PECI_CMD_WR_IA_MSR,
++	PECI_CMD_RD_IA_MSREX,
+ 	PECI_CMD_RD_PCI_CFG,
  	PECI_CMD_WR_PCI_CFG,
  	PECI_CMD_RD_PCI_CFG_LOCAL,
  	PECI_CMD_WR_PCI_CFG_LOCAL,
@@ -446,7 +520,42 @@ index 253fb42e38b7..405cd8edbcbf 100644
  	PECI_CMD_MAX
  };
  
-@@ -438,6 +442,132 @@ struct peci_wr_pci_cfg_local_msg {
+@@ -312,6 +318,34 @@ struct peci_wr_ia_msr_msg {
+ } __attribute__((__packed__));
+ 
+ /**
++ * struct peci_rd_ia_msrex_msg - RdIAMSREX command
++ * @addr: address of the client
++ * @thread_id: ID of the specific logical processor
++ * @address: address of MSR to read from
++ * @cc: completion code
++ * @value: data to be read
++ *
++ * The RdIAMSREX() PECI command provides read access to Model Specific Registers
++ * (MSRs) defined in the processor's Intel Architecture (IA).
++ * The differences between RdIAMSREX() and RdIAMSR() are that:
++ * (1)RdIAMSR() can only read MC registers, RdIAMSREX() can read all MSRs
++ * (2)thread_id of RdIAMSR() is u8, thread_id of RdIAMSREX() is u16
++ */
++struct peci_rd_ia_msrex_msg {
++#define PECI_RDIAMSREX_WRITE_LEN	6
++#define PECI_RDIAMSREX_READ_LEN	9
++#define PECI_RDIAMSREX_CMD	0xd1
++
++	__u8	addr;
++	__u8	padding0;
++	__u16	thread_id;
++	__u16	address;
++	__u8	cc;
++	__u8	padding1;
++	__u64	value;
++} __attribute__((__packed__));
++
++/**
+  * struct peci_rd_pci_cfg_msg - RdPCIConfig command
+  * @addr: address of the client
+  * @bus: PCI bus number
+@@ -438,6 +472,132 @@ struct peci_wr_pci_cfg_local_msg {
  	__u32	value;
  } __attribute__((__packed__));
  
@@ -579,7 +688,17 @@ index 253fb42e38b7..405cd8edbcbf 100644
  #define PECI_IOC_BASE  0xb7
  
  #define PECI_IOC_XFER \
-@@ -478,4 +608,20 @@ struct peci_wr_pci_cfg_local_msg {
+@@ -464,6 +624,9 @@ struct peci_wr_pci_cfg_local_msg {
+ #define PECI_IOC_WR_IA_MSR \
+ 	_IOWR(PECI_IOC_BASE, PECI_CMD_WR_IA_MSR, struct peci_wr_ia_msr_msg)
+ 
++#define PECI_IOC_RD_IA_MSREX \
++	_IOWR(PECI_IOC_BASE, PECI_CMD_RD_IA_MSREX, struct peci_rd_ia_msrex_msg)
++
+ #define PECI_IOC_RD_PCI_CFG \
+ 	_IOWR(PECI_IOC_BASE, PECI_CMD_RD_PCI_CFG, struct peci_rd_pci_cfg_msg)
+ 
+@@ -478,4 +641,20 @@ struct peci_wr_pci_cfg_local_msg {
  	_IOWR(PECI_IOC_BASE, PECI_CMD_WR_PCI_CFG_LOCAL, \
  	      struct peci_wr_pci_cfg_local_msg)
  

@@ -1,0 +1,10 @@
+[Unit]
+Description=Hardware RNG Entropy Gatherer Daemon
+
+[Service]
+EnvironmentFile=-@SYSCONFDIR@/default/rng-tools
+ExecStart=@SBINDIR@/rngd -f $EXTRA_ARGS
+Nice=15
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
-SUMMARY = "Intel PFR manifest and signing key for development and testing"
-DESCRIPTION = "Do not use this signing keys to sign CI and release images."
+SUMMARY = "Intel PFR image manifest and image signing keys"
+DESCRIPTION = "This copies PFR image generation scripts and image signing keys to staging area"
 
 PR = "r1"
 LICENSE = "Apache-2.0"
@@ -7,8 +7,6 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 
 inherit native
 
-PFR_KEY_NAME ?= "pfr-dev-key"
-PFR_SIGN_UTIL ?= "blocksign"
 DEPENDS += " intel-blocksign-native"
 
 SRC_URI = " \
@@ -23,15 +21,16 @@ SRC_URI = " \
           "
 
 do_install() {
-        bbplain "Copying the intel pfr image generation scripts and image signing keys"
+        bbplain "Copying intel pfr image generation scripts and image signing keys"
 
-        install -d ${STAGING_DIR}/intel-pfr-files
-        install -m 400 ${WORKDIR}/pfr_manifest.json ${STAGING_DIR}/intel-pfr-files
-        install -m 400 ${WORKDIR}/pfm_config.xml ${STAGING_DIR}/intel-pfr-files
-        install -m 400 ${WORKDIR}/bmc_config.xml  ${STAGING_DIR}/intel-pfr-files
-        install -m 775 ${WORKDIR}/pfr_image.py ${STAGING_DIR}/intel-pfr-files
-        install -m 400 ${WORKDIR}/csk_prv.pem ${STAGING_DIR}/intel-pfr-files
-        install -m 400 ${WORKDIR}/csk_pub.pem ${STAGING_DIR}/intel-pfr-files
-        install -m 400 ${WORKDIR}/rk_pub.pem ${STAGING_DIR}/intel-pfr-files
-        install -m 400 ${WORKDIR}/rk_prv.pem ${STAGING_DIR}/intel-pfr-files
+        install -d ${D}/${bindir}
+        install -d ${D}/${datadir}/pfrconfig
+        install -m 775 ${WORKDIR}/pfr_image.py ${D}${bindir}
+        install -m 400 ${WORKDIR}/pfr_manifest.json ${D}/${datadir}/pfrconfig
+        install -m 400 ${WORKDIR}/pfm_config.xml ${D}/${datadir}/pfrconfig
+        install -m 400 ${WORKDIR}/bmc_config.xml ${D}/${datadir}/pfrconfig
+        install -m 400 ${WORKDIR}/csk_prv.pem ${D}/${datadir}/pfrconfig
+        install -m 400 ${WORKDIR}/csk_pub.pem ${D}/${datadir}/pfrconfig
+        install -m 400 ${WORKDIR}/rk_pub.pem ${D}/${datadir}/pfrconfig
+        install -m 400 ${WORKDIR}/rk_prv.pem ${D}/${datadir}/pfrconfig
 }

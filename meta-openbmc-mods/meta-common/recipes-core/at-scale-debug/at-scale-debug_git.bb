@@ -8,12 +8,12 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=0d1c657b2ba1e8877940a8d1614ec560"
 
 
 inherit cmake
-DEPENDS = "sdbusplus openssl libpam"
+DEPENDS = "sdbusplus openssl libpam libgpiod"
 
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
-SRC_URI = "git://git@github.com/Intel-BMC/asd;protocol=ssh;nobranch=1"
-SRCREV = "73d4cc11b859ba91f313a7bb85f2dbb26e36d0ee"
+SRC_URI = "git://git@github.com/Intel-BMC/asd;protocol=ssh"
+SRCREV = "bcc326ea6968ac002bb10b5bc848368d957ba049"
 
 S = "${WORKDIR}/git"
 

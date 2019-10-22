@@ -85,8 +85,8 @@ index 2ffaae3..e9b7a9c 100644
  
 +        // pretimeOutAction
 +        const auto ipmiPreTimeoutInterrupt =
-+            static_cast<IpmiPreTimeoutInterrupt>((req.timer_action >> 4) &
-+                                                 wdPreTimeoutInterruptMask);
++            static_cast<IpmiPreTimeoutInterrupt>(wdPreTimeoutInterruptMask &
++                (static_cast<uint8_t>(preTimeoutInterrupt)));
 +        wd_service.setPreTimeoutInterrupt(
 +            ipmiPreTimeoutInterruptToWdAction(ipmiPreTimeoutInterrupt));
 +

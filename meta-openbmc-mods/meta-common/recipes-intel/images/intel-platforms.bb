@@ -3,7 +3,6 @@ DESCRIPTION = "Image with Intel content based upon Phosphor, an OpenBMC framewor
 inherit obmc-phosphor-full-fitimage
 inherit obmc-phosphor-image-common
 inherit obmc-phosphor-image-dev
-inherit ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'image_types_intel_pfr', '', d)}
 
 DEPENDS += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'obmc-intel-pfr-image-native', '', d)}"
 DEPENDS += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"

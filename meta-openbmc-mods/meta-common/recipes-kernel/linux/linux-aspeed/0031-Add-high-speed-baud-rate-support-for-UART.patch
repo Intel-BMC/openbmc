@@ -1,4 +1,4 @@
-From 01c8d6a5146cd39c2286f659e21f1a1042aa741a Mon Sep 17 00:00:00 2001
+From d80fcbb3e9d95a7e926598290012eea88a7c474d Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Wed, 2 Jan 2019 15:06:43 +0800
 Subject: [PATCH] Add high speed baud rate support for UART
@@ -14,29 +14,29 @@ bootloader(u-boot) will set SCU4C based on the environment configuration
 
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- drivers/clk/clk-aspeed.c                 | 41 +++++++++++++++++++++++++++-----
+ drivers/clk/clk-aspeed.c                 | 44 +++++++++++++++++++++++++++-----
  include/dt-bindings/clock/aspeed-clock.h |  2 ++
- 2 files changed, 37 insertions(+), 6 deletions(-)
+ 2 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/clk/clk-aspeed.c b/drivers/clk/clk-aspeed.c
-index 42b4df6ba249..97c27820db3e 100644
+index 9bd5155598d6..24d56a724969 100644
 --- a/drivers/clk/clk-aspeed.c
 +++ b/drivers/clk/clk-aspeed.c
 @@ -14,7 +14,9 @@
  
- #include <dt-bindings/clock/aspeed-clock.h>
+ #include "clk-aspeed.h"
  
--#define ASPEED_NUM_CLKS		36
+-#define ASPEED_NUM_CLKS		38
 +#define ASPEED_NUM_CLKS		ASPEED_CLK_MAX
-+#define UART_HIGH_SPEED_CLK		192000000
-+#define UART_LOW_SPEED_CLK		24000000
++#define UART_HIGH_SPEED_CLK	192000000
++#define UART_LOW_SPEED_CLK	24000000
  
  #define ASPEED_RESET2_OFFSET	32
  
-@@ -28,6 +30,12 @@
- #define  AST2400_HPLL_BYPASS_EN	BIT(17)
+@@ -29,6 +31,12 @@
  #define ASPEED_MISC_CTRL	0x2c
  #define  UART_DIV13_EN		BIT(12)
+ #define ASPEED_MAC_CLK_DLY	0x48
 +#define ASPEED_MISC2_CTRL	0x4c
 +#define  UART1_HS_CLK_EN	BIT(24)
 +#define  UART2_HS_CLK_EN	BIT(25)
@@ -46,35 +46,38 @@ index 42b4df6ba249..97c27820db3e 100644
  #define ASPEED_STRAP		0x70
  #define  CLKIN_25MHZ_EN		BIT(23)
  #define  AST2400_CLK_SOURCE_SEL	BIT(18)
-@@ -446,7 +454,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+@@ -386,7 +394,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
  	struct aspeed_reset *ar;
  	struct regmap *map;
  	struct clk_hw *hw;
 -	u32 val, rate;
-+	u32 val, uart_clock_div;
++	u32 val, rate, rate_hi;
  	int i, ret;
  
  	map = syscon_node_to_regmap(dev->of_node);
-@@ -481,15 +489,23 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+@@ -420,16 +428,25 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+ 
  	/* UART clock div13 setting */
  	regmap_read(map, ASPEED_MISC_CTRL, &val);
- 	if (val & UART_DIV13_EN)
+-	if (val & UART_DIV13_EN)
 -		rate = 24000000 / 13;
-+		uart_clock_div = 13;
- 	else
+-	else
 -		rate = 24000000;
-+		uart_clock_div = 1;
-+
++	if (val & UART_DIV13_EN) {
++		rate = UART_LOW_SPEED_CLK / 13;
++		rate_hi = UART_HIGH_SPEED_CLK / 13;
++	} else {
++		rate = UART_LOW_SPEED_CLK;
++		rate_hi = UART_HIGH_SPEED_CLK;
++	}
  	/* TODO: Find the parent data for the uart clock */
--	hw = clk_hw_register_fixed_rate(dev, "uart", NULL, 0, rate);
-+	hw = clk_hw_register_fixed_rate(dev, "uart", NULL, 0,
-+					UART_LOW_SPEED_CLK / uart_clock_div);
+ 	hw = clk_hw_register_fixed_rate(dev, "uart", NULL, 0, rate);
  	if (IS_ERR(hw))
  		return PTR_ERR(hw);
  	aspeed_clk_data->hws[ASPEED_CLK_UART] = hw;
  
 +	hw = clk_hw_register_fixed_rate(dev, "uart-hs", "usb-port1-gate", 0,
-+					UART_HIGH_SPEED_CLK / uart_clock_div);
++					rate_hi);
 +	if (IS_ERR(hw))
 +		return PTR_ERR(hw);
 +	aspeed_clk_data->hws[ASPEED_CLK_UART_HS] = hw;
@@ -82,7 +85,7 @@ index 42b4df6ba249..97c27820db3e 100644
  	/*
  	 * Memory controller (M-PLL) PLL. This clock is configured by the
  	 * bootloader, and is exposed to Linux as a read-only clock rate.
-@@ -570,9 +586,22 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+@@ -539,9 +556,22 @@ static int aspeed_clk_probe(struct platform_device *pdev)
  	 *   UART[1..5] clock source mux
  	 */
  
@@ -105,7 +108,7 @@ index 42b4df6ba249..97c27820db3e 100644
  
  		/* Special case: the USB port 1 clock (bit 14) is always
  		 * working the opposite way from the other ones.
-@@ -580,7 +609,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
+@@ -549,7 +579,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
  		gate_flags = (gd->clock_idx == 14) ? 0 : CLK_GATE_SET_TO_DISABLE;
  		hw = aspeed_clk_hw_register_gate(dev,
  				gd->name,
@@ -115,15 +118,15 @@ index 42b4df6ba249..97c27820db3e 100644
  				map,
  				gd->clock_idx,
 diff --git a/include/dt-bindings/clock/aspeed-clock.h b/include/dt-bindings/clock/aspeed-clock.h
-index f43738607d77..335879505a72 100644
+index 64e245fb113f..df2f9fdfe5c1 100644
 --- a/include/dt-bindings/clock/aspeed-clock.h
 +++ b/include/dt-bindings/clock/aspeed-clock.h
-@@ -39,6 +39,8 @@
- #define ASPEED_CLK_BCLK			33
- #define ASPEED_CLK_MPLL			34
+@@ -41,6 +41,8 @@
  #define ASPEED_CLK_24M			35
-+#define ASPEED_CLK_UART_HS		36
-+#define ASPEED_CLK_MAX			37
+ #define ASPEED_CLK_GATE_MAC1RCLK	36
+ #define ASPEED_CLK_GATE_MAC2RCLK	37
++#define ASPEED_CLK_UART_HS		38
++#define ASPEED_CLK_MAX			39
  
  #define ASPEED_RESET_XDMA		0
  #define ASPEED_RESET_MCTP		1

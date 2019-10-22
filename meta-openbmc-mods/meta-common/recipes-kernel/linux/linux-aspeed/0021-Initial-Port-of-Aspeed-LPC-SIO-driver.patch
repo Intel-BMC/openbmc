@@ -1,4 +1,4 @@
-From 3d1ddeb903f6eaeb06ddc1d6cfbed6374ef31f36 Mon Sep 17 00:00:00 2001
+From 450b6d6e58ca9954fd4b675da8b6bb25d21c020f Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@intel.com>
 Date: Mon, 13 Nov 2017 16:29:44 +0800
 Subject: [PATCH] Aspeed LPC SIO driver
@@ -44,10 +44,10 @@ index 000000000000..c74ea3a4e5ac
 +	status = "disabled";
 +};
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 07758c9b900b..3df43f925848 100644
+index b7b6e8aa3a12..71563972d2fe 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -345,6 +345,13 @@
+@@ -395,6 +395,13 @@
  						compatible = "aspeed,bmc-misc";
  					};
  
@@ -62,10 +62,10 @@ index 07758c9b900b..3df43f925848 100644
  						compatible = "aspeed,ast2400-mbox";
  						reg = <0x180 0x5c>;
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 2387e2d1ff9e..2d6f730a7101 100644
+index 12a81155f1ab..88f75736fe48 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -474,6 +474,13 @@
+@@ -504,6 +504,13 @@
  						compatible = "aspeed,bmc-misc";
  					};
  

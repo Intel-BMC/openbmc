@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "b76f9ca126d5c1abcd8b833a511d784531dbb3a1"
+SRCREV = "c80fee55c3663e5ac620a4d11378799c91867b76"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -15,3 +15,6 @@ EXTRA_OECMAKE += "-DBMCWEB_ENABLE_REDFISH_RAW_PECI=ON"
 
 # Enable Redfish BMC Journal support
 EXTRA_OECMAKE += "-DBMCWEB_ENABLE_REDFISH_BMC_JOURNAL=ON"
+
+# Enable PFR support
+EXTRA_OECMAKE += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-DBMCWEB_ENABLE_REDFISH_PFR_FEATURE=ON', '', d)}"

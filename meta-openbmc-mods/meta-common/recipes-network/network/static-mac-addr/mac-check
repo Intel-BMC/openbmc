@@ -70,6 +70,7 @@ mac_check() {
 	fi
 }
 
+mkdir -p ${SOFS_MNT}/factory-settings/network/mac
 while read IFACE UBDEV; do
 	mac_check "$IFACE" "$UBDEV"
 done <<-END_CONF

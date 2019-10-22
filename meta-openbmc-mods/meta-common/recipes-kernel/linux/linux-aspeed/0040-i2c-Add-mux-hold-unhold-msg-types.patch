@@ -1,4 +1,4 @@
-From ed13e7eb07e6cb8bdc1eb4563de30b469a9beb26 Mon Sep 17 00:00:00 2001
+From be693c1c21979c067623434aa653f85a83c8eac7 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 15 Feb 2019 16:05:09 -0800
 Subject: [PATCH] i2c: Add mux hold/unhold msg types
@@ -48,7 +48,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  6 files changed, 214 insertions(+), 16 deletions(-)
 
 diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
-index 9e43508d4567..8a480d269542 100644
+index 9c440fa6a3dd..53ff27cae5d3 100644
 --- a/drivers/i2c/i2c-core-base.c
 +++ b/drivers/i2c/i2c-core-base.c
 @@ -1299,6 +1299,25 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
@@ -100,7 +100,7 @@ index 9e43508d4567..8a480d269542 100644
   */
  int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  {
-+	enum i2c_hold_msg_type hold_msg;
++	enum i2c_hold_msg_type hold_msg = I2C_HOLD_MSG_NONE;
  	unsigned long orig_jiffies;
 +	unsigned long timeout;
  	int ret, try;
@@ -219,18 +219,18 @@ index 3ac426a8ab5a..f7bf95101e34 100644
  	return res;
  }
 diff --git a/drivers/i2c/i2c-mux.c b/drivers/i2c/i2c-mux.c
-index 603252fa1284..d3f55243e701 100644
+index 774507b54b57..c6e433238b22 100644
 --- a/drivers/i2c/i2c-mux.c
 +++ b/drivers/i2c/i2c-mux.c
-@@ -26,6 +26,7 @@
- #include <linux/module.h>
+@@ -27,6 +27,7 @@
  #include <linux/of.h>
  #include <linux/slab.h>
+ #include <linux/sysfs.h>
 +#include <linux/timer.h>
  
  /* multiplexer per channel data */
  struct i2c_mux_priv {
-@@ -35,21 +36,57 @@ struct i2c_mux_priv {
+@@ -36,21 +37,57 @@ struct i2c_mux_priv {
  	u32 chan_id;
  };
  
@@ -290,7 +290,7 @@ index 603252fa1284..d3f55243e701 100644
  
  	return ret;
  }
-@@ -60,15 +97,32 @@ static int i2c_mux_master_xfer(struct i2c_adapter *adap,
+@@ -61,15 +98,32 @@ static int i2c_mux_master_xfer(struct i2c_adapter *adap,
  	struct i2c_mux_priv *priv = adap->algo_data;
  	struct i2c_mux_core *muxc = priv->muxc;
  	struct i2c_adapter *parent = muxc->parent;
@@ -325,7 +325,7 @@ index 603252fa1284..d3f55243e701 100644
  
  	return ret;
  }
-@@ -81,16 +135,33 @@ static int __i2c_mux_smbus_xfer(struct i2c_adapter *adap,
+@@ -82,16 +136,33 @@ static int __i2c_mux_smbus_xfer(struct i2c_adapter *adap,
  	struct i2c_mux_priv *priv = adap->algo_data;
  	struct i2c_mux_core *muxc = priv->muxc;
  	struct i2c_adapter *parent = muxc->parent;
@@ -361,7 +361,7 @@ index 603252fa1284..d3f55243e701 100644
  
  	return ret;
  }
-@@ -103,16 +174,33 @@ static int i2c_mux_smbus_xfer(struct i2c_adapter *adap,
+@@ -104,16 +175,33 @@ static int i2c_mux_smbus_xfer(struct i2c_adapter *adap,
  	struct i2c_mux_priv *priv = adap->algo_data;
  	struct i2c_mux_core *muxc = priv->muxc;
  	struct i2c_adapter *parent = muxc->parent;
@@ -431,10 +431,10 @@ index c5a977320f82..47f8763d6ed2 100644
  	int max_adapters;
  	struct i2c_adapter *adapter[0];
 diff --git a/include/linux/i2c.h b/include/linux/i2c.h
-index 1308126fc384..3ee92c6a442d 100644
+index fa5552c2307b..92c795ce9081 100644
 --- a/include/linux/i2c.h
 +++ b/include/linux/i2c.h
-@@ -699,6 +699,13 @@ struct i2c_adapter {
+@@ -711,6 +711,13 @@ struct i2c_adapter {
  	const struct i2c_adapter_quirks *quirks;
  
  	struct irq_domain *host_notify_domain;
@@ -448,7 +448,7 @@ index 1308126fc384..3ee92c6a442d 100644
  };
  #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
  
-@@ -998,4 +1005,22 @@ static inline struct i2c_client *i2c_acpi_new_device(struct device *dev,
+@@ -1005,4 +1012,22 @@ static inline struct i2c_adapter *i2c_acpi_find_adapter_by_handle(acpi_handle ha
  }
  #endif /* CONFIG_ACPI */
  

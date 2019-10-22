@@ -44,12 +44,12 @@
     }
   },
   "4" : {
-    "name" : "EMP",
+    "name" : "RESERVED",
     "is_valid" : true,
     "active_sessions" : 0,
     "channel_info" : {
-      "medium_type" : "ipmb",
-      "protocol_type" : "ipmb-1.0",
+      "medium_type" : "reserved",
+      "protocol_type" : "na",
       "session_supported" : "session-less",
       "is_ipmi" : true
     }

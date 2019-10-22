@@ -1,4 +1,4 @@
-From 7dd0a7c62e5885bb726ef2bd5007e79a50932c38 Mon Sep 17 00:00:00 2001
+From 5b9ec5081492b461710cb82e7ecc93fd3af8ad34 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 18 Mar 2019 14:06:36 -0700
 Subject: [PATCH] Suppress excessive HID gadget error logs
@@ -18,13 +18,22 @@ This should be a downstream only customization. Do not upstream it.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- drivers/usb/gadget/function/f_hid.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ drivers/usb/gadget/function/f_hid.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/usb/gadget/function/f_hid.c b/drivers/usb/gadget/function/f_hid.c
-index f3816a5c861e..3a94584a9dbc 100644
+index f3816a5c861e..c96c0f6f1df0 100644
 --- a/drivers/usb/gadget/function/f_hid.c
 +++ b/drivers/usb/gadget/function/f_hid.c
+@@ -320,7 +320,7 @@ static void f_hidg_req_complete(struct usb_ep *ep, struct usb_request *req)
+ 	struct f_hidg *hidg = (struct f_hidg *)ep->driver_data;
+ 	unsigned long flags;
+ 
+-	if (req->status != 0) {
++	if (req->status != 0 && req->status != -ESHUTDOWN) {
+ 		ERROR(hidg->func.config->cdev,
+ 			"End Point Request ERROR: %d\n", req->status);
+ 	}
 @@ -395,8 +395,10 @@ static ssize_t f_hidg_write(struct file *file, const char __user *buffer,
  
  	status = usb_ep_queue(hidg->in_ep, req, GFP_ATOMIC);

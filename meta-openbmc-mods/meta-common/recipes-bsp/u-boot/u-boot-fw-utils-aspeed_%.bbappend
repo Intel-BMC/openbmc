@@ -34,10 +34,14 @@ SRC_URI_append_intel-ast2500 = " \
     file://0030-Support-Get-Set-Security-mode-command.patch \
     file://0031-Make-it-so-TFTP-port-can-be-modified.patch \
     file://0033-Reboot-into-UBOOT-on-Watchdog-Failures.patch \
+    file://0034-Disable-uart-debug-interface.patch \
+    file://0036-Re-Enable-KCS.patch \
+    file://0037-aspeed-ast-scu.c-fix-MAC1LINK-and-MAC2LINK-pin-pads-.patch \
     "
 PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \
     file://0032-PFR-FW-update-and-checkpoint-support-in-u-boot.patch \
+    file://0035-PFR-platform-EXTRST-reset-mask-selection.patch \
     "
 SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
 
