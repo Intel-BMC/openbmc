@@ -54,7 +54,7 @@ FILES_phosphor-rsyslog-config += " \
 "
 
 SRC_URI += "git://github.com/openbmc/phosphor-logging"
-SRCREV = "3fb83b3787c8440e48d37eb4c488fa253d63a807"
+SRCREV = "14d671fa2311144fe43047486c4938e9c461ce24"
 
 S = "${WORKDIR}/git"
 
@@ -90,6 +90,13 @@ PACKAGECONFIG[metadata-processing] = " \
 PACKAGECONFIG[install_scripts] = " \
         --enable-install_scripts, \
         --disable-install_scripts, ,\
+        "
+
+PACKAGECONFIG[openpower-pels] = " \
+        --enable-openpower-pel-extension, \
+        --disable-openpower-pel-extension, \
+        nlohmann-json, \
+        , \
         "
 
 # Enable install_scripts during native and native SDK build

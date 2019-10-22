@@ -5,7 +5,7 @@ LICENSE = "GPLv2 & LGPLv2.1"
 RDEPENDS_${PN}-ptest = "bash make"
 
 require qemu-targets.inc
-inherit pkgconfig bluetooth ptest
+inherit pkgconfig ptest
 
 LIC_FILES_CHKSUM = "file://COPYING;md5=441c28d2cf86e15a37fa47e15a72fbac \
                     file://COPYING.LIB;endline=24;md5=8c5efda6cf1e1b03dcfd0e6c0d271c7f"
@@ -17,18 +17,18 @@ SRC_URI = "https://download.qemu.org/${BPN}-${PV}.tar.xz \
            file://0002-Add-subpackage-ptest-which-runs-all-unit-test-cases-.patch \
            file://0003-qemu-Add-addition-environment-space-to-boot-loader-q.patch \
            file://0004-qemu-disable-Valgrind.patch \
-           file://0005-qemu-Limit-paths-searched-during-user-mode-emulation.patch \
-           file://0006-qemu-native-set-ld.bfd-fix-cflags-and-set-some-envir.patch \
-           file://0007-chardev-connect-socket-to-a-spawned-command.patch \
-           file://0008-apic-fixup-fallthrough-to-PIC.patch \
-           file://0009-linux-user-Fix-webkitgtk-hangs-on-32-bit-x86-target.patch \
-           file://0010-Revert-linux-user-fix-mmap-munmap-mprotect-mremap-sh.patch \
-           file://0013-target-arm-Fix-vector-operation-segfault.patch \
+           file://0005-qemu-native-set-ld.bfd-fix-cflags-and-set-some-envir.patch \
+           file://0006-chardev-connect-socket-to-a-spawned-command.patch \
+           file://0007-apic-fixup-fallthrough-to-PIC.patch \
+           file://0008-linux-user-Fix-webkitgtk-hangs-on-32-bit-x86-target.patch \
+           file://0009-Fix-webkitgtk-builds.patch \
+           file://0010-configure-Add-pkg-config-handling-for-libgcrypt.patch \
+           file://CVE-2019-15890.patch \
            "
 UPSTREAM_CHECK_REGEX = "qemu-(?P<pver>\d+(\.\d+)+)\.tar"
 
-SRC_URI[md5sum] = "0afeca336fd57ae3d3086ec07f59d708"
-SRC_URI[sha256sum] = "13a93dfe75b86734326f8d5b475fde82ec692d5b5a338b4262aeeb6b0fa4e469"
+SRC_URI[md5sum] = "cdf2b5ca52b9abac9bacb5842fa420f8"
+SRC_URI[sha256sum] = "656e60218689bdeec69903087fd7582d5d3e72238d02f4481d8dc6d79fd909c6"
 
 COMPATIBLE_HOST_mipsarchn32 = "null"
 COMPATIBLE_HOST_mipsarchn64 = "null"
@@ -76,6 +76,8 @@ EXTRA_OECONF = " \
 export LIBTOOL="${HOST_SYS}-libtool"
 
 B = "${WORKDIR}/build"
+
+EXTRA_OECONF_append = " --python=${HOSTTOOLS_DIR}/python3"
 
 do_configure_prepend_class-native() {
 	# Append build host pkg-config paths for native target since the host may provide sdl
@@ -131,13 +133,13 @@ PACKAGECONFIG[xen] = "--enable-xen,--disable-xen,xen,xen-libxenstore xen-libxenc
 PACKAGECONFIG[vnc-sasl] = "--enable-vnc --enable-vnc-sasl,--disable-vnc-sasl,cyrus-sasl,"
 PACKAGECONFIG[vnc-jpeg] = "--enable-vnc --enable-vnc-jpeg,--disable-vnc-jpeg,jpeg,"
 PACKAGECONFIG[vnc-png] = "--enable-vnc --enable-vnc-png,--disable-vnc-png,libpng,"
-PACKAGECONFIG[libcurl] = "--enable-curl,--disable-curl,libcurl,"
+PACKAGECONFIG[libcurl] = "--enable-curl,--disable-curl,curl,"
 PACKAGECONFIG[nss] = "--enable-smartcard,--disable-smartcard,nss,"
 PACKAGECONFIG[curses] = "--enable-curses,--disable-curses,ncurses,"
 PACKAGECONFIG[gtk+] = "--enable-gtk,--disable-gtk,gtk+3 gettext-native"
 PACKAGECONFIG[vte] = "--enable-vte,--disable-vte,vte gettext-native"
 PACKAGECONFIG[libcap-ng] = "--enable-cap-ng,--disable-cap-ng,libcap-ng,"
-PACKAGECONFIG[ssh2] = "--enable-libssh2,--disable-libssh2,libssh2,"
+PACKAGECONFIG[ssh] = "--enable-libssh,--disable-libssh,libssh,"
 PACKAGECONFIG[gcrypt] = "--enable-gcrypt,--disable-gcrypt,libgcrypt,"
 PACKAGECONFIG[nettle] = "--enable-nettle,--disable-nettle,nettle"
 PACKAGECONFIG[libusb] = "--enable-libusb,--disable-libusb,libusb1"
@@ -148,7 +150,7 @@ PACKAGECONFIG[lzo] = "--enable-lzo,--disable-lzo,lzo"
 PACKAGECONFIG[numa] = "--enable-numa,--disable-numa,numactl"
 PACKAGECONFIG[gnutls] = "--enable-gnutls,--disable-gnutls,gnutls"
 PACKAGECONFIG[bzip2] = "--enable-bzip2,--disable-bzip2,bzip2"
-PACKAGECONFIG[bluez] = "--enable-bluez,--disable-bluez,${BLUEZ}"
+PACKAGECONFIG[bluez] = "--enable-bluez,--disable-bluez,bluez5"
 PACKAGECONFIG[libiscsi] = "--enable-libiscsi,--disable-libiscsi"
 PACKAGECONFIG[kvm] = "--enable-kvm,--disable-kvm"
 PACKAGECONFIG[virglrenderer] = "--enable-virglrenderer,--disable-virglrenderer,virglrenderer"

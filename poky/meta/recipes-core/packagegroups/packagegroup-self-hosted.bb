@@ -6,6 +6,8 @@ SUMMARY = "Self-hosting"
 DESCRIPTION = "Packages required to run the build system"
 PR = "r13"
 
+PACKAGE_ARCH = "${TUNE_PKGARCH}"
+
 inherit packagegroup  distro_features_check
 # rdepends on libx11-dev
 REQUIRED_DISTRO_FEATURES = "x11"
@@ -37,7 +39,7 @@ RDEPENDS_packagegroup-self-hosted-host-tools = "\
     e2fsprogs-tune2fs \
     hdparm \
     iptables \
-    lsb \
+    lsb-release \
     mc \
     mc-fish \
     mc-helpers \

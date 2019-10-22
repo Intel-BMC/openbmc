@@ -134,6 +134,9 @@ KERNEL_FEATURES_append = " phosphor-gpio-keys"
 KERNEL_FEATURES_remove_qemuall = " phosphor-gpio-keys"
 
 IMAGE_CLASSES_append = " image_types_phosphor"
+IMAGE_CLASSES_append_npcm7xx = " image_types_phosphor_nuvoton"
+
+IMAGE_INSTALL_append = " dbus-broker"
 
 # OpenBMC uses a couple recipes from meta-virtualization
 # but we do not actually want any virtualization support
@@ -144,8 +147,8 @@ SKIP_META_VIRT_SANITY_CHECK = "1"
 # Skip the udev database by default.  It adds around 2MB
 # compressed to the root filesystem, and probably doesn't
 # make sense on a BMC anyway.
-BAD_RECOMMENDATIONS_pn-obmc-phosphor-image = "udev-hwdb"
-BAD_RECOMMENDATIONS_pn-obmc-phosphor-image += "shared-mime-info"
+BAD_RECOMMENDATIONS += "udev-hwdb"
+BAD_RECOMMENDATIONS += "shared-mime-info"
 
 LAYER_CONF_VERSION ?= "8"
 
