@@ -42,3 +42,9 @@ portions of this codebase that are approved for upstreaming.
 While the code is easily portable across different type of IA platforms,
 currently we use Intel’s Wolf Pass (S2600WP) platform for development and most
 testing. 
+
+### How to build for Wolf Pass ###
+```bash
+source oe-init-build-env
+bitbake intel-platforms
+```
