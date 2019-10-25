@@ -11,15 +11,14 @@ SRC_URI = "https://github.com/mesonbuild/meson/releases/download/${PV}/meson-${P
            file://0001-python-module-do-not-manipulate-the-environment-when.patch \
            file://disable-rpath-handling.patch \
            file://cross-prop-default.patch \
-           file://load-configs-generalise-search-path.patch \
-           file://0007-mesonbuild-allow-multiple-cross-file-options.patch \
            file://0001-environment.py-detect-windows-also-if-the-system-str.patch \
            file://0001-mesonbuild-environment.py-do-not-determine-whether-a.patch \
            file://0001-mesonbuild-environment.py-check-environment-for-vari.patch \
            file://0001-modules-python.py-do-not-substitute-python-s-install.patch \
+           file://vala-cross-compile.patch \
            "
-SRC_URI[sha256sum] = "f68f56d60c80a77df8fc08fa1016bc5831605d4717b622c96212573271e14ecc"
-SRC_URI[md5sum] = "24a6527796115828d2ebc75880e18d62"
+SRC_URI[sha256sum] = "23688f0fc90be623d98e80e1defeea92bbb7103bf9336a5f5b9865d36e892d76"
+SRC_URI[md5sum] = "d46c4a8e3cfd27f90e2c6fe4a69e574b"
 
 SRC_URI_append_class-native = " \
     file://0001-Make-CPU-family-warnings-fatal.patch \

@@ -1,0 +1,25 @@
+Display testname for subtest
+
+Signed-off-by: Tudor Florea <tudor.florea@enea.com>
+Upstream-Status: Pending
+
+---
+ tests/functions.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/functions.sh b/tests/functions.sh
+index 5246605..b24dc15 100644
+--- a/tests/functions.sh
++++ b/tests/functions.sh
+@@ -320,7 +320,7 @@ function ts_init_subtest {
+ 
+ 	if [ "$TS_PARSABLE" != "yes" ]; then
+ 		[ $TS_NSUBTESTS -eq 1 ] && echo
+-		printf "%16s: %-27s ..." "" "$TS_SUBNAME"
++		printf "%13s: %-30s ..." "$TS_COMPONENT" "$TS_SUBNAME"
+ 	fi
+ }
+ 
+-- 
+2.8.3
+

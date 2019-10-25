@@ -1,6 +1,6 @@
-From 55db62a92dff4bfc3d34c590b33d9da4e7706b9d Mon Sep 17 00:00:00 2001
+From 27b94aa1df83abad63cbba69525273194b14ab9c Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
-Date: Wed, 3 Jul 2019 06:12:55 +0800
+Date: Wed, 16 Oct 2019 14:24:20 +0800
 Subject: [PATCH] Move Set SOL config parameter to host-ipmid
 
 Move Set SOL config parameter command from net-ipmid to host-ipmid,
@@ -23,15 +23,14 @@ to 0 and other properties will not reset to default value.
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
 ---
  host-ipmid-whitelist.conf |   1 +
- transporthandler.cpp      | 289 ++++++++++++++++++++++++++++++++++++++++++++++
- transporthandler.hpp      |  33 ++++++
- 3 files changed, 323 insertions(+)
+ transporthandler.cpp      | 322 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 323 insertions(+)
 
 diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
-index 2b72d23..856588e 100644
+index e8df7c7..f030ef4 100644
 --- a/host-ipmid-whitelist.conf
 +++ b/host-ipmid-whitelist.conf
-@@ -42,6 +42,7 @@
+@@ -41,6 +41,7 @@
  0x0A:0x48    //<Storage>:<Get SEL Time>
  0x0A:0x49    //<Storage>:<Set SEL Time>
  0x0C:0x02    //<Transport>:<Get LAN Configuration Parameters>
@@ -40,22 +39,17 @@ index 2b72d23..856588e 100644
  0x2C:0x01    //<Group Extension>:<Get DCMI Capabilities>
  0x2C:0x02    //<Group Extension>:<Get Power Reading>
 diff --git a/transporthandler.cpp b/transporthandler.cpp
-index bb624c4..25062ae 100644
+index e88eb63..4a42e7b 100644
 --- a/transporthandler.cpp
 +++ b/transporthandler.cpp
-@@ -36,6 +36,9 @@ static const std::array<std::string, 3> ipAddressEnablesType = {
-     "xyz.openbmc_project.Network.EthernetInterface.IPAllowed.IPv6Only",
-     "xyz.openbmc_project.Network.EthernetInterface.IPAllowed.IPv4AndIPv6"};
+@@ -1168,8 +1168,323 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
+ } // namespace transport
+ } // namespace ipmi
  
 +constexpr const char* solInterface = "xyz.openbmc_project.Ipmi.SOL";
 +constexpr const char* solPath = "/xyz/openbmc_project/ipmi/sol/";
 +
- std::map<int, std::unique_ptr<struct ChannelConfig_t>> channelConfig;
- 
- using namespace phosphor::logging;
-@@ -1631,6 +1634,285 @@ void createNetworkTimer()
-     }
- }
+ void register_netfn_transport_functions() __attribute__((constructor));
  
 +static std::string
 +    getSOLService(std::shared_ptr<sdbusplus::asio::connection> dbus,
@@ -194,6 +188,37 @@ index bb624c4..25062ae 100644
 +
 +} // namespace ipmi
 +
++namespace sol
++{
++enum class Parameter
++{
++    progress,       //!< Set In Progress.
++    enable,         //!< SOL Enable.
++    authentication, //!< SOL Authentication.
++    accumulate,     //!< Character Accumulate Interval & Send Threshold.
++    retry,          //!< SOL Retry.
++    nvbitrate,      //!< SOL non-volatile bit rate.
++    vbitrate,       //!< SOL volatile bit rate.
++    channel,        //!< SOL payload channel.
++    port,           //!< SOL payload port.
++};
++
++enum class Privilege : uint8_t
++{
++    highestPriv,
++    callbackPriv,
++    userPriv,
++    operatorPriv,
++    adminPriv,
++    oemPriv,
++};
++
++} // namespace sol
++
++constexpr uint8_t progressMask = 0x03;
++constexpr uint8_t enableMask = 0x01;
++constexpr uint8_t retryMask = 0x07;
++
 +ipmi::RspType<> setSOLConfParams(ipmi::Context::ptr ctx, uint4_t chNum,
 +                                 uint4_t reserved, uint8_t paramSelector,
 +                                 uint8_t configParamData1,
@@ -312,8 +337,10 @@ index bb624c4..25062ae 100644
 +            {
 +                return ipmi::responseReqDataLenInvalid();
 +            }
-+            if ((setSOLParameter("RetryCount", (configParamData1 & 0x7),
-+                                 channelNum) < 0) ||
++            if ((setSOLParameter(
++                     "RetryCount",
++                     static_cast<uint8_t>(configParamData1 & retryMask),
++                     channelNum) < 0) ||
 +                (setSOLParameter("RetryIntervalMS", *configParamData2,
 +                                 channelNum) < 0))
 +            {
@@ -338,74 +365,19 @@ index bb624c4..25062ae 100644
 +
  void register_netfn_transport_functions()
  {
-     // As this timer is only for transport handler
-@@ -1648,5 +1930,12 @@ void register_netfn_transport_functions()
-     ipmi_register_callback(NETFUN_TRANSPORT, IPMI_CMD_GET_LAN, NULL,
-                            ipmi_transport_get_lan, PRIVILEGE_OPERATOR);
- 
+     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
+@@ -1178,4 +1493,11 @@ void register_netfn_transport_functions()
+     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
+                           ipmi::transport::cmdGetLanConfigParameters,
+                           ipmi::Privilege::Admin, ipmi::transport::getLan);
++
 +    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
 +                          ipmi::transport::cmdSetSolConfigParameters,
 +                          ipmi::Privilege::Admin, setSOLConfParams);
 +
 +    // Initialize dbus property progress to 0 every time sol manager restart.
 +    initializeSOLInProgress();
-+
-     return;
  }
-diff --git a/transporthandler.hpp b/transporthandler.hpp
-index bd23391..1237658 100644
---- a/transporthandler.hpp
-+++ b/transporthandler.hpp
-@@ -1,5 +1,6 @@
- #pragma once
- 
-+#include <ipmid/api-types.hpp>
- #include <ipmid/types.hpp>
- #include <string>
- // IPMI commands for Transport net functions.
-@@ -8,6 +9,8 @@ enum ipmi_netfn_storage_cmds
-     // Get capability bits
-     IPMI_CMD_SET_LAN = 0x01,
-     IPMI_CMD_GET_LAN = 0x02,
-+    IPMI_CMD_SET_SOL_CONF_PARAMS = 0x21,
-+    IPMI_CMD_GET_SOL_CONF_PARAMS = 0x22,
- };
- 
- // Command specific completion codes
-@@ -186,3 +189,33 @@ void commitNetworkChanges();
-  * @param[in] channel: channel number.
-  */
- void applyChanges(int channel);
-+
-+namespace sol
-+{
-+enum class Parameter
-+{
-+    progress,       //!< Set In Progress.
-+    enable,         //!< SOL Enable.
-+    authentication, //!< SOL Authentication.
-+    accumulate,     //!< Character Accumulate Interval & Send Threshold.
-+    retry,          //!< SOL Retry.
-+    nvbitrate,      //!< SOL non-volatile bit rate.
-+    vbitrate,       //!< SOL volatile bit rate.
-+    channel,        //!< SOL payload channel.
-+    port,           //!< SOL payload port.
-+};
-+
-+enum class Privilege : uint8_t
-+{
-+    highestPriv,
-+    callbackPriv,
-+    userPriv,
-+    operatorPriv,
-+    adminPriv,
-+    oemPriv,
-+};
-+
-+} // namespace sol
-+
-+constexpr uint8_t progressMask = 0x03;
-+constexpr uint8_t enableMask = 0x01;
 -- 
 2.7.4
 

@@ -17,11 +17,11 @@ Change-Id: If5528d3b7294c5f8c17db5919439235d0fad0446
  transporthandler.hpp    |  50 +++
  4 files changed, 713 insertions(+), 1 deletion(-)
 
-diff --git a/include/ipmid/types.hpp b/include/ipmid/types.hpp
-index 57c5873..c06fd8c 100644
---- a/include/ipmid/types.hpp
-+++ b/include/ipmid/types.hpp
-@@ -224,6 +224,7 @@ constexpr auto ADDR_TYPE_FORMAT = "%hhx";
+Index: phosphor-host-ipmid.clean/include/ipmid/types.hpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/include/ipmid/types.hpp
++++ phosphor-host-ipmid.clean/include/ipmid/types.hpp
+@@ -224,6 +224,7 @@ constexpr auto ADDR_TYPE_FORMAT = "%hhx"
  
  constexpr auto IPV4_ADDRESS_SIZE_BYTE = 4;
  constexpr auto IPV6_ADDRESS_SIZE_BYTE = 16;
@@ -50,10 +50,10 @@ index 57c5873..c06fd8c 100644
 +
  } // namespace network
  } // namespace ipmi
-diff --git a/include/ipmid/utils.hpp b/include/ipmid/utils.hpp
-index 9ef1488..8b91b12 100644
---- a/include/ipmid/utils.hpp
-+++ b/include/ipmid/utils.hpp
+Index: phosphor-host-ipmid.clean/include/ipmid/utils.hpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/include/ipmid/utils.hpp
++++ phosphor-host-ipmid.clean/include/ipmid/utils.hpp
 @@ -256,6 +256,7 @@ namespace network
  constexpr auto ROOT = "/xyz/openbmc_project/network";
  constexpr auto SERVICE = "xyz.openbmc_project.Network";
@@ -62,11 +62,11 @@ index 9ef1488..8b91b12 100644
  constexpr auto IPV4_PREFIX = "169.254";
  constexpr auto IPV6_PREFIX = "fe80";
  constexpr auto IP_INTERFACE = "xyz.openbmc_project.Network.IP";
-diff --git a/transporthandler.cpp b/transporthandler.cpp
-index 8172cc4..12d224a 100644
---- a/transporthandler.cpp
-+++ b/transporthandler.cpp
-@@ -30,6 +30,12 @@ std::unique_ptr<phosphor::Timer> networkTimer = nullptr;
+Index: phosphor-host-ipmid.clean/transporthandler.cpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/transporthandler.cpp
++++ phosphor-host-ipmid.clean/transporthandler.cpp
+@@ -29,6 +29,12 @@ std::unique_ptr<phosphor::Timer> network
  
  const int SIZE_MAC = 18; // xx:xx:xx:xx:xx:xx
  constexpr auto ipv4Protocol = "xyz.openbmc_project.Network.IP.Protocol.IPv4";
@@ -79,29 +79,23 @@ index 8172cc4..12d224a 100644
  
  std::map<int, std::unique_ptr<struct ChannelConfig_t>> channelConfig;
  
-@@ -389,7 +395,6 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-                                   ipmi_context_t context)
- {
-     ipmi_ret_t rc = IPMI_CC_OK;
--    *data_len = 0;
- 
-     using namespace std::chrono_literals;
- 
-@@ -403,6 +408,9 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-     auto reqptr = reinterpret_cast<const set_lan_t*>(request);
-     sdbusplus::bus::bus bus(ipmid_get_sd_bus_connection());
- 
-+    size_t reqLen = *data_len;
-+    *data_len = 0;
+@@ -445,6 +451,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
+     {
+         case LanParam::IP:
+         {
++            if (reqLen != lanParamIPSize)
++            {
++                return IPMI_CC_REQ_DATA_LEN_INVALID;
++            }
 +
-     // channel number is the lower nibble
-     int channel = reqptr->channel & CHANNEL_MASK;
-     auto ethdevice = ipmi::getChannelName(channel);
-@@ -426,6 +434,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+             std::snprintf(ipaddr, INET_ADDRSTRLEN,
+                           ipmi::network::IP_ADDRESS_FORMAT, reqptr->data[0],
+                           reqptr->data[1], reqptr->data[2], reqptr->data[3]);
+@@ -455,6 +466,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
  
          case LanParam::IPSRC:
          {
-+            if (reqLen != LAN_PARAM_IPSRC_SIZE)
++            if (reqLen != lanParamIPSrcSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -109,11 +103,11 @@ index 8172cc4..12d224a 100644
              uint8_t ipsrc{};
              std::memcpy(&ipsrc, reqptr->data, ipmi::network::IPSRC_SIZE_BYTE);
              channelConf->ipsrc = static_cast<ipmi::network::IPOrigin>(ipsrc);
-@@ -434,6 +447,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -463,6 +479,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
  
          case LanParam::MAC:
          {
-+            if (reqLen != LAN_PARAM_MAC_SIZE)
++            if (reqLen != lanParamMACSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -121,11 +115,11 @@ index 8172cc4..12d224a 100644
              char mac[SIZE_MAC];
  
              std::snprintf(mac, SIZE_MAC, ipmi::network::MAC_ADDRESS_FORMAT,
-@@ -454,6 +472,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -483,6 +504,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
  
          case LanParam::SUBNET:
          {
-+            if (reqLen != LAN_PARAM_SUBNET_SIZE)
++            if (reqLen != lanParamSubnetSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -133,11 +127,11 @@ index 8172cc4..12d224a 100644
              std::snprintf(netmask, INET_ADDRSTRLEN,
                            ipmi::network::IP_ADDRESS_FORMAT, reqptr->data[0],
                            reqptr->data[1], reqptr->data[2], reqptr->data[3]);
-@@ -463,6 +486,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -492,6 +518,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
  
          case LanParam::GATEWAY:
          {
-+            if (reqLen != LAN_PARAM_GATEWAY_SIZE)
++            if (reqLen != lanParamGatewaySize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -145,23 +139,11 @@ index 8172cc4..12d224a 100644
              std::snprintf(gateway, INET_ADDRSTRLEN,
                            ipmi::network::IP_ADDRESS_FORMAT, reqptr->data[0],
                            reqptr->data[1], reqptr->data[2], reqptr->data[3]);
-@@ -472,6 +500,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
- 
-         case LanParam::VLAN:
-         {
-+            if (reqLen != LAN_PARAM_VLAN_SIZE)
-+            {
-+                return IPMI_CC_REQ_DATA_LEN_INVALID;
-+            }
-+
-             uint16_t vlan{};
-             std::memcpy(&vlan, reqptr->data, ipmi::network::VLAN_SIZE_BYTE);
-             // We are not storing the enable bit
-@@ -484,6 +517,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -522,6 +553,11 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
  
          case LanParam::INPROGRESS:
          {
-+            if (reqLen != LAN_PARAM_INPROGRESS_SIZE)
++            if (reqLen != lanParamInProgressSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -169,13 +151,13 @@ index 8172cc4..12d224a 100644
              if (reqptr->data[0] == SET_COMPLETE)
              {
                  channelConf->lan_set_in_progress = SET_COMPLETE;
-@@ -512,6 +550,122 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -540,6 +576,122 @@ ipmi_ret_t ipmi_transport_set_lan(ipmi_n
          }
          break;
  
 +        case LanParam::IPV6_AND_IPV4_ENABLES:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_AND_IPV4_ENABLES_SIZE)
++            if (reqLen != lanParamIPv6AndIPv4EnablesSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -186,7 +168,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_STATIC_ADDRESSES:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_STATIC_ADDRESSES_SIZE)
++            if (reqLen != lanParamIPv6StaticAddressesSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -202,7 +184,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_ROUTER_ADDRESS_CONF_CTRL:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_ROUTER_ADDRESS_CONF_CTRL_SIZE)
++            if (reqLen != lanParamIPv6RouterAddressConfCtrlSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -213,7 +195,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_STATIC_ROUTER_1_IP_ADDR:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_1_IP_ADDR_SIZE)
++            if (reqLen != lanParamIPv6StaticRouter1IPAddrSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -227,7 +209,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_STATIC_ROUTER_1_PREFIX_LEN:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_LEN_SIZE)
++            if (reqLen != lanParamIPv6StaticRouter1PrefixLenSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -238,7 +220,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_STATIC_ROUTER_1_PREFIX_VAL:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_VAL_SIZE)
++            if (reqLen != lanParamIPv6StaticRouter1PrefixValSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -252,7 +234,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_STATIC_ROUTER_2_IP_ADDR:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_2_IP_ADDR_SIZE)
++            if (reqLen != lanParamIPv6StaticRouter2IPAddrSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -266,7 +248,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_STATIC_ROUTER_2_PREFIX_LEN:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_LEN_SIZE)
++            if (reqLen != lanParamIPv6StaticRouter2PrefixLenSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -277,7 +259,7 @@ index 8172cc4..12d224a 100644
 +
 +        case LanParam::IPV6_STATIC_ROUTER_2_PREFIX_VAL:
 +        {
-+            if (reqLen != LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_VAL_SIZE)
++            if (reqLen != lanParamIPv6StaticRouter2PrefixValSize)
 +            {
 +                return IPMI_CC_REQ_DATA_LEN_INVALID;
 +            }
@@ -292,7 +274,7 @@ index 8172cc4..12d224a 100644
          default:
          {
              rc = IPMI_CC_PARM_NOT_SUPPORTED;
-@@ -538,6 +692,7 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -568,6 +720,7 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_n
      ipmi_ret_t rc = IPMI_CC_OK;
      *data_len = 0;
      const uint8_t current_revision = 0x11; // Current rev per IPMI Spec 2.0
@@ -300,7 +282,7 @@ index 8172cc4..12d224a 100644
  
      get_lan_t* reqptr = (get_lan_t*)request;
      // channel number is the lower nibble
-@@ -676,6 +831,476 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -713,6 +866,476 @@ ipmi_ret_t ipmi_transport_get_lan(ipmi_n
                          static_cast<uint8_t>(cipherList.size());
              break;
          }
@@ -777,7 +759,7 @@ index 8172cc4..12d224a 100644
          default:
              log<level::ERR>("Unsupported parameter",
                              entry("PARAMETER=0x%x", reqptr->parameter));
-@@ -921,6 +1546,16 @@ void applyChanges(int channel)
+@@ -957,6 +1580,16 @@ void applyChanges(int channel)
                                          ipaddress, prefix);
              }
  
@@ -794,7 +776,7 @@ index 8172cc4..12d224a 100644
              if (!gateway.empty())
              {
                  ipmi::setDbusProperty(bus, systemObject.second,
-@@ -928,7 +1563,24 @@ void applyChanges(int channel)
+@@ -964,7 +1597,24 @@ void applyChanges(int channel)
                                        ipmi::network::SYSTEMCONFIG_INTERFACE,
                                        "DefaultGateway", std::string(gateway));
              }
@@ -817,42 +799,41 @@ index 8172cc4..12d224a 100644
 +            ipmi::network::ETHERNET_INTERFACE, "IPv6AcceptRA",
 +            (bool)channelConf->ipv6RouterAddressConfigControl);
      }
-     catch (InternalFailure& e)
+     catch (sdbusplus::exception::exception& e)
      {
-diff --git a/transporthandler.hpp b/transporthandler.hpp
-index 04d4673..bd23391 100644
---- a/transporthandler.hpp
-+++ b/transporthandler.hpp
-@@ -79,6 +79,28 @@ enum class LanParam : uint8_t
+Index: phosphor-host-ipmid.clean/transporthandler.hpp
+===================================================================
+--- phosphor-host-ipmid.clean.orig/transporthandler.hpp
++++ phosphor-host-ipmid.clean/transporthandler.hpp
+@@ -79,8 +79,27 @@ enum class LanParam : uint8_t
      IPV6_NEIGHBOR_TIMING_CONFIGURATION = 80,
  };
  
-+// Data length of parameters
-+constexpr size_t LAN_PARAM_INPROGRESS_SIZE = 3;
-+constexpr size_t LAN_PARAM_IP_SIZE = 6;
-+constexpr size_t LAN_PARAM_IPSRC_SIZE = 3;
-+constexpr size_t LAN_PARAM_MAC_SIZE = 8;
-+constexpr size_t LAN_PARAM_SUBNET_SIZE = 6;
-+constexpr size_t LAN_PARAM_GATEWAY_SIZE = 6;
-+constexpr size_t LAN_PARAM_VLAN_SIZE = 4;
-+constexpr size_t LAN_PARAM_IPV6_AND_IPV4_ENABLES_SIZE = 3;
-+constexpr size_t LAN_PARAM_IPV6_STATIC_ADDRESSES_SIZE = 23;
-+constexpr size_t LAN_PARAM_IPV6_ROUTER_ADDRESS_CONF_CTRL_SIZE = 3;
-+constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_1_IP_ADDR_SIZE = 18;
-+constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_LEN_SIZE = 3;
-+constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_1_PREFIX_VAL_SIZE = 19;
-+constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_2_IP_ADDR_SIZE = 18;
-+constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_LEN_SIZE = 3;
-+constexpr size_t LAN_PARAM_IPV6_STATIC_ROUTER_2_PREFIX_VAL_SIZE = 19;
-+
 +constexpr uint8_t DUID_LEN = 10;
 +constexpr uint8_t DUID_LL_TYPE = 3;
 +constexpr uint8_t DUIC_ETH_HW_TYPE = 1;
 +
+ // Data length of parameters
+ constexpr size_t lanParamVLANSize = 4;
++constexpr size_t lanParamInProgressSize = 3;
++constexpr size_t lanParamIPSize = 6;
++constexpr size_t lanParamIPSrcSize = 3;
++constexpr size_t lanParamMACSize = 8;
++constexpr size_t lanParamSubnetSize = 6;
++constexpr size_t lanParamGatewaySize = 6;
++constexpr size_t lanParamIPv6AndIPv4EnablesSize = 3;
++constexpr size_t lanParamIPv6StaticAddressesSize = 23;
++constexpr size_t lanParamIPv6RouterAddressConfCtrlSize = 3;
++constexpr size_t lanParamIPv6StaticRouter1IPAddrSize = 18;
++constexpr size_t lanParamIPv6StaticRouter1PrefixLenSize = 3;
++constexpr size_t lanParamIPv6StaticRouter1PrefixValSize = 19;
++constexpr size_t lanParamIPv6StaticRouter2IPAddrSize = 18;
++constexpr size_t lanParamIPv6StaticRouter2PrefixLenSize = 3;
++constexpr size_t lanParamIPv6StaticRouter2PrefixValSize = 19;
  constexpr uint8_t SET_COMPLETE = 0;
  constexpr uint8_t SET_IN_PROGRESS = 1;
  constexpr uint8_t SET_COMMIT_WRITE = 2;         // Optional
-@@ -101,6 +123,20 @@ struct ChannelConfig_t
+@@ -103,6 +122,20 @@ struct ChannelConfig_t
      uint8_t lan_set_in_progress = SET_COMPLETE;
      bool flush = false;
  
@@ -873,7 +854,7 @@ index 04d4673..bd23391 100644
      void clear()
      {
          ipaddr.clear();
-@@ -111,6 +147,20 @@ struct ChannelConfig_t
+@@ -113,6 +146,20 @@ struct ChannelConfig_t
          ipsrc = ipmi::network::IPOrigin::UNSPECIFIED;
          lan_set_in_progress = SET_COMPLETE;
          flush = false;
@@ -894,6 +875,3 @@ index 04d4673..bd23391 100644
      }
  };
  
--- 
-2.17.1
-

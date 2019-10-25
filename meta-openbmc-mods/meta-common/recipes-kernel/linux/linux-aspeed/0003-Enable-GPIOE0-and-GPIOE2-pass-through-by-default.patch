@@ -1,0 +1,70 @@
+From fa75e700680ea87ab5aa9722bde1667c572f2fe8 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Mon, 6 May 2019 14:18:27 -0700
+Subject: [PATCH] Enable GPIOE0 and GPIOE2 pass-through by default
+
+This change sets the gpio DT pinctrl default configuration to
+enable GPIOE0 and GPIOE2 pass-through.  Since this causes
+pinctrl_get_select_default() to be called automatically for
+the gpio driver to claim the GPIO pins in those groups, we
+also need to call pinctrl_put() to release claim on the
+pass-through GPIOs so they can be requested at runtime.
+
+Tested:
+Disabled pass-through in uboot and confirmed that after booting
+Linux, pass-through is enabled and 'cat /sys/kernel/debug/pinctrl/
+1e6e2000.syscon\:pinctrl-aspeed-g5-pinctrl/pinmux-pins' shows that
+the pass-through GPIOs are UNCLAIMED.
+
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ arch/arm/boot/dts/aspeed-bmc-intel-purley.dts |  4 ++++
+ drivers/gpio/gpio-aspeed.c                    | 10 ++++++++++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
+index 040b345f55e1..bc6bb41a8e68 100644
+--- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
++++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
+@@ -117,6 +117,10 @@
+ 
+ &gpio {
+ 	status = "okay";
++	/* Enable GPIOE0 and GPIOE2 pass-through by default */
++	pinctrl-names = "pass-through";
++	pinctrl-0 = <&pinctrl_gpie0_default
++			&pinctrl_gpie2_default>;
+ 	gpio-line-names =
+ 	/*A0-A7*/	"","","","","","","","",
+ 	/*B0-B7*/	"","","","","","","","",
+diff --git a/drivers/gpio/gpio-aspeed.c b/drivers/gpio/gpio-aspeed.c
+index 09e53c5f3b0a..ac33f8134fe6 100644
+--- a/drivers/gpio/gpio-aspeed.c
++++ b/drivers/gpio/gpio-aspeed.c
+@@ -1140,6 +1140,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
+ {
+ 	const struct of_device_id *gpio_id;
+ 	struct aspeed_gpio *gpio;
++	struct pinctrl *pinctrl;
+ 	int rc, i, banks, err;
+ 	u32 ngpio;
+ 
+@@ -1190,6 +1191,15 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
+ 		return -ENOMEM;
+ 
+ 	/*
++	 * Select the pass-through pinctrl config to enable the pass-through
++	 * mux for GPIOs E0 and E2. Then call pinctrl_put() to release claim
++	 * of the GPIO pins, so they can be requested at runtime.
++	 */
++	pinctrl = pinctrl_get_select(&pdev->dev, "pass-through");
++	if (pinctrl)
++		pinctrl_put(pinctrl);
++
++	/*
+ 	 * Populate it with initial values read from the HW and switch
+ 	 * all command sources to the ARM by default
+ 	 */
+-- 
+2.7.4
+

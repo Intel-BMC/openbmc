@@ -1,13 +1,11 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-# TODO: This should be removed, once up-stream bump up
-# issue is resolved
-#SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "9da3a75091e0bf0849e2555447e64a70f1dc3bfb"
+#todo yong unpin this
+SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid;nobranch=1"
+SRCREV = "c514d874e4ce3ed1f747cfcb4bab5990393c55e8"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://host-ipmid-whitelist.conf \
-            file://0009-IPv6-Network-changes.patch \
             file://0010-fix-get-system-GUID-ipmi-command.patch \
             file://0013-ipmi-add-set-bios-id-to-whitelist.patch \
             file://0039-ipmi-add-oem-command-get-AIC-FRU-to-whitelist.patch \
@@ -21,8 +19,11 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
             file://0064-Enable-watchdog-to-save-useflag-after-host-power-off.patch \
             file://0064-Update-provisioning-mode-filter-logic.patch \
-            file://0066-Valid-VLANID-should-be-1-4095-as-in-802.1VLAN-spec.patch \
             "
+
+EXTRA_OECONF_append = " --disable-i2c-whitelist-check"
+
+RDEPENDS_${PN}_remove = "clear-once"
 
 # remove the softpoweroff service since we do not need it
 SYSTEMD_SERVICE_${PN}_remove += " \

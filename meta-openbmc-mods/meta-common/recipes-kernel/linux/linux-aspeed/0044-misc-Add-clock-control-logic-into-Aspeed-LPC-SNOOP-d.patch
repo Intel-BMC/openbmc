@@ -1,4 +1,4 @@
-From a5bbf0f5943d3a6be6e58a4b78d6d18694ceb859 Mon Sep 17 00:00:00 2001
+From f2e7fb51e4832a0da2fdb8fb267471b54581312b Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:27:48 -0700
 Subject: [PATCH] misc: Add clock control logic into Aspeed LPC SNOOP driver
@@ -22,10 +22,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  3 files changed, 29 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index c2388bb7c678..70aca75d65e0 100644
+index b3b6720fb6fb..58c5148194a3 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -320,6 +320,7 @@
+@@ -370,6 +370,7 @@
  						compatible = "aspeed,ast2400-lpc-snoop";
  						reg = <0x0 0x80>;
  						interrupts = <8>;
@@ -34,10 +34,10 @@ index c2388bb7c678..70aca75d65e0 100644
  					};
  
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 88b318fd287b..f4a5d06f1000 100644
+index 49f792eafdd1..955789d8c736 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -453,6 +453,7 @@
+@@ -483,6 +483,7 @@
  						compatible = "aspeed,ast2500-lpc-snoop";
  						reg = <0x0 0x80>;
  						interrupts = <8>;

@@ -8,6 +8,12 @@ INC_PR = "r1"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e466242989bd33c1bd2b6a526a742498"
 
 SRC_URI = "http://www.python.org/ftp/python/${PV}/Python-${PV}.tar.xz \
+           file://bpo-35907-cve-2019-9948.patch \
+           file://bpo-35907-cve-2019-9948-fix.patch \
+           file://bpo-36216-cve-2019-9636.patch \
+           file://bpo-36216-cve-2019-9636-fix.patch \
+           file://CVE-2019-9740.patch \
+           file://CVE-2018-20852.patch \
            "
 
 SRC_URI[md5sum] = "30157d85a2c0479c09ea2cbe61f2aaf5"
@@ -31,7 +37,6 @@ EXTRA_OECONF = "\
   --enable-shared \
   --enable-ipv6=${@bb.utils.contains('DISTRO_FEATURES', 'ipv6', 'yes', 'no', d)} \
   ac_cv_header_bluetooth_bluetooth_h=no ac_cv_header_bluetooth_h=no \
-  ${PYTHONLSBOPTS} \
 "
 
 do_configure_prepend() {

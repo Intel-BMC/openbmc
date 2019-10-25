@@ -37,7 +37,7 @@ RDEPENDS_packagegroup-meta-networking-connectivity = "\
     mbedtls relayd snort dhcpcd rdate vlan vpnc \
     inetutils wolfssl lftp miniupnpd networkmanager \
     networkmanager-openvpn rdist nanomsg python-networkmanager \
-    ${@bb.utils.contains("DISTRO_FEATURES", "bluez5 x11", "blueman", "", d)} \
+    ${@bb.utils.contains("DISTRO_FEATURES", "bluetooth x11", "blueman", "", d)} \
     ${@bb.utils.contains("DISTRO_FEATURES", "pam", "samba", "", d)} \
     ${@bb.utils.contains("DISTRO_FEATURES", "pam", "samba", "", d)} \
     "
@@ -78,7 +78,7 @@ RDEPENDS_packagegroup-meta-networking-kernel = "\
 RDEPENDS_packagegroup-meta-networking-netkit = "\
     netkit-rwho-client netkit-rwho-server netkit-rsh-client netkit-rsh-server \
     netkit-telnet netkit-tftp-client netkit-tftp-server \
-    netkit-ftp netkit-rusers-client netkit-rusers-server netkit-rpc \
+    netkit-ftp netkit-rpc \
     "
 
 RDEPENDS_packagegroup-meta-networking-protocols = "\
@@ -95,7 +95,7 @@ RDEPENDS_packagegroup-meta-networking-support = "\
     phytool fwknop htpdate tcpreplay \
     traceroute geoip-perl geoip geoipupdate esmtp \
     libtdb netcf dnsmasq curlpp openipmi drbd-utils \
-    drbd tunctl dovecot ipvsadm stunnel chrony spice-protocol \
+    tunctl dovecot ipvsadm stunnel chrony spice-protocol \
     usbredir ntop wireshark tnftp lksctp-tools \
     cim-schema-docs cim-schema-final cim-schema-exper \
     libmemcached smcroute libtevent ipcalc c-ares uftp \

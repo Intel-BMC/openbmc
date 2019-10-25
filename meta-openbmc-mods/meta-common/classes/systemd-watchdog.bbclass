@@ -4,7 +4,11 @@ add_watchdog_confs() {
     count=5 # allowed reboots
 
     for service in $(ls $D/lib/systemd/system | grep -o ".*service"); do
-        if [[ $service == *"mapper-wait"* ]]; then
+        if [[ "$service" == *"mapper-wait"* ]]; then
+            continue
+        fi
+
+        if [ "$service" = "system-watchdog.service" ]; then
             continue
         fi
 

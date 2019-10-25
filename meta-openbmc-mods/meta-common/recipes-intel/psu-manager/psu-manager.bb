@@ -1,8 +1,8 @@
 SUMMARY = "Power supply manager for Intel based platform"
 DESCRIPTION = "Power supply manager which include PSU Cold Redundancy service"
 
-SRC_URI = "git://git@github.com/Intel-BMC/provingground.git;protocol=ssh;nobranch=1"
-SRCREV = "fe33964c744f871f3e024dd8d0b6ffba67394c30"
+SRC_URI = "git://git@github.com/Intel-BMC/provingground.git;protocol=ssh"
+SRCREV = "30110fe5b18999bddc5721dc5611f542f6feeabd"
 
 S = "${WORKDIR}/git/psu-manager/"
 
@@ -14,7 +14,7 @@ LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 inherit cmake
 inherit systemd
 
-SYSTEMD_SERVICE_${PN} += "cold-redundancy.service"
+SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.coldredundancy.service"
 
 DEPENDS += " \
     systemd \

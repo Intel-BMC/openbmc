@@ -1,4 +1,4 @@
-From 8598b57423967f5851484533a1b09a04bafa235b Mon Sep 17 00:00:00 2001
+From 01fc94b1193f4e97d498e2bcb05dfe21b991b01d Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Sun, 10 Mar 2019 11:49:37 -0800
 Subject: [PATCH v29 6/6] drivers: jtag: Add JTAG core driver Maintainers
@@ -24,10 +24,10 @@ Cc: Bryan Hunt <bryan.hunt@intel.com>
  1 file changed, 11 insertions(+)
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index e0925f221e25..2cd0a46f9a1a 100644
+index f5c5eaa69f2f..92b0932c4b9f 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -8521,6 +8521,17 @@ L:	linux-serial@vger.kernel.org
+@@ -8709,6 +8709,17 @@ L:	linux-serial@vger.kernel.org
  S:	Orphan
  F:	drivers/tty/serial/jsm/
  

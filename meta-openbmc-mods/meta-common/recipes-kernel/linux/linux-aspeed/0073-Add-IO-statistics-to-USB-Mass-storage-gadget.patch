@@ -1,0 +1,155 @@
+From 5c82e0b33f2a373d5e19569635f108cfa096f53e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Adrian=20Ambro=C5=BCewicz?= <adrian.ambrozewicz@intel.com>
+Date: Mon, 29 Jul 2019 10:19:00 +0200
+Subject: [PATCH] Add IO stats to USB Mass Storage gadget
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Introduces new attribute to Mass Storage Gadget ConfigFS : stats.
+It's read-only attribute which contains statistics of read/write operations
+based on LUN transaction counters (IO number and bytes transferred).
+
+Goal is to provide a way to observe whether simulated device is actually
+used by host. Statistics on hosted file / nbd level are not always viable
+due to page cache having severe impact on actual IO statistics.
+This attribute should provide information about host IO on USB Gadget as
+close to endpoint as possible.
+
+Attribute is tied completely to configFS implementation and it's lifecycle
+is managed by Kernel and user. Driver implements a handler which populates
+output buffer on read.
+
+Tests performed:
+- mounted USB Mass Storage gadget, new attribute showed up in gadget tree
+- attribute was monitored for changes during IO performed on host machine
+- removed device, attribute (along with other device attributes) was gone
+
+Signed-off-by: Adrian Ambrożewicz <adrian.ambrozewicz@intel.com>
+---
+ drivers/usb/gadget/function/f_mass_storage.c | 12 ++++++++++++
+ drivers/usb/gadget/function/storage_common.c |  9 +++++++++
+ drivers/usb/gadget/function/storage_common.h | 29 ++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+)
+
+diff --git a/drivers/usb/gadget/function/f_mass_storage.c b/drivers/usb/gadget/function/f_mass_storage.c
+index 7c96c4665178..ecc3c68a7882 100644
+--- a/drivers/usb/gadget/function/f_mass_storage.c
++++ b/drivers/usb/gadget/function/f_mass_storage.c
+@@ -710,6 +710,8 @@ static int do_read(struct fsg_common *common)
+ 		amount_left  -= nread;
+ 		common->residue -= nread;
+ 
++		fsg_stats_rd_attempt(&curlun->stats, nread);
++
+ 		/*
+ 		 * Except at the end of the transfer, nread will be
+ 		 * equal to the buffer size, which is divisible by the
+@@ -907,6 +909,8 @@ static int do_write(struct fsg_common *common)
+ 		amount_left_to_write -= nwritten;
+ 		common->residue -= nwritten;
+ 
++		fsg_stats_wr_attempt(&curlun->stats, nwritten);
++
+ 		/* If an error occurred, report it and its position */
+ 		if (nwritten < amount) {
+ 			curlun->sense_data = SS_WRITE_ERROR;
+@@ -3122,6 +3126,13 @@ static ssize_t fsg_lun_opts_inquiry_string_store(struct config_item *item,
+ 
+ CONFIGFS_ATTR(fsg_lun_opts_, inquiry_string);
+ 
++static ssize_t fsg_lun_opts_stats_show(struct config_item *item, char *page)
++{
++	return fsg_show_stats(to_fsg_lun_opts(item)->lun, page);
++}
++
++CONFIGFS_ATTR_RO(fsg_lun_opts_, stats);
++
+ static struct configfs_attribute *fsg_lun_attrs[] = {
+ 	&fsg_lun_opts_attr_file,
+ 	&fsg_lun_opts_attr_ro,
+@@ -3129,6 +3140,7 @@ static struct configfs_attribute *fsg_lun_attrs[] = {
+ 	&fsg_lun_opts_attr_cdrom,
+ 	&fsg_lun_opts_attr_nofua,
+ 	&fsg_lun_opts_attr_inquiry_string,
++	&fsg_lun_opts_attr_stats,
+ 	NULL,
+ };
+ 
+diff --git a/drivers/usb/gadget/function/storage_common.c b/drivers/usb/gadget/function/storage_common.c
+index f7e6c42558eb..2325b97961df 100644
+--- a/drivers/usb/gadget/function/storage_common.c
++++ b/drivers/usb/gadget/function/storage_common.c
+@@ -371,6 +371,15 @@ ssize_t fsg_show_inquiry_string(struct fsg_lun *curlun, char *buf)
+ }
+ EXPORT_SYMBOL_GPL(fsg_show_inquiry_string);
+ 
++ssize_t fsg_show_stats(struct fsg_lun *curlun, char *buf)
++{
++	return sprintf(buf, "read cnt: %u\n" "read sum: %llu\n"
++		       "write cnt: %u\n" "write sum: %llu\n",
++		       curlun->stats.read.count, curlun->stats.read.bytes,
++		       curlun->stats.write.count, curlun->stats.write.bytes);
++}
++EXPORT_SYMBOL_GPL(fsg_show_stats);
++
+ /*
+  * The caller must hold fsg->filesem for reading when calling this function.
+  */
+diff --git a/drivers/usb/gadget/function/storage_common.h b/drivers/usb/gadget/function/storage_common.h
+index e5e3a2553aaa..447021ba821a 100644
+--- a/drivers/usb/gadget/function/storage_common.h
++++ b/drivers/usb/gadget/function/storage_common.h
+@@ -95,6 +95,32 @@ do {									\
+  */
+ #define INQUIRY_STRING_LEN ((size_t) (8 + 16 + 4 + 1))
+ 
++struct fsg_stats_cnt {
++	u64 bytes;
++	u32 count;
++};
++
++struct fsg_stats {
++	struct fsg_stats_cnt read;
++	struct fsg_stats_cnt write;
++};
++
++static inline void fsg_stats_update(struct fsg_stats_cnt *cnt, u64 diff)
++{
++	cnt->count++;
++	cnt->bytes += diff;
++}
++
++static inline void fsg_stats_wr_attempt(struct fsg_stats *stats, u64 b_written)
++{
++	fsg_stats_update(&stats->write, b_written);
++}
++
++static inline void fsg_stats_rd_attempt(struct fsg_stats *stats, u64 b_read)
++{
++	fsg_stats_update(&stats->read, b_read);
++}
++
+ struct fsg_lun {
+ 	struct file	*filp;
+ 	loff_t		file_length;
+@@ -120,6 +146,8 @@ struct fsg_lun {
+ 	const char	*name;		/* "lun.name" */
+ 	const char	**name_pfx;	/* "function.name" */
+ 	char		inquiry_string[INQUIRY_STRING_LEN];
++
++	struct fsg_stats	stats;
+ };
+ 
+ static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
+@@ -213,6 +241,7 @@ ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
+ ssize_t fsg_show_inquiry_string(struct fsg_lun *curlun, char *buf);
+ ssize_t fsg_show_cdrom(struct fsg_lun *curlun, char *buf);
+ ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf);
++ssize_t fsg_show_stats(struct fsg_lun *curlun, char *buf);
+ ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
+ 		     const char *buf, size_t count);
+ ssize_t fsg_store_nofua(struct fsg_lun *curlun, const char *buf, size_t count);
+-- 
+2.7.4
+

@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for kernel panic
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/kernel-panic-check.sh
+
+[Install]
+WantedBy=multi-user.target

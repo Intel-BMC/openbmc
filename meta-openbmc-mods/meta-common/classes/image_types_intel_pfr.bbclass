@@ -1,7 +1,8 @@
 
 
 inherit obmc-phosphor-full-fitimage
-DEPENDS += "obmc-intel-pfr-image-native"
+inherit image_types_phosphor_auto
+DEPENDS += "obmc-intel-pfr-image-native python3-native intel-blocksign-native"
 
 require recipes-core/os-release/version-vars.inc
 
@@ -10,11 +11,14 @@ IMAGE_TYPES += "intel-pfr"
 IMAGE_TYPEDEP_intel-pfr = "mtd-auto"
 IMAGE_TYPES_MASKED += "intel-pfr"
 
-# PFR macros
-#    directory where PFR scripts and key are copied
-PFR_STAGING_DIR = "${STAGING_DIR}/intel-pfr-files"
-#     PFR images directory
+# PFR images directory
 PFR_IMAGES_DIR = "${DEPLOY_DIR_IMAGE}/pfr_images"
+
+# PFR image generation script directory
+PFR_SCRIPT_DIR = "${STAGING_DIR_NATIVE}${bindir}"
+
+# PFR image config directory
+PFR_CFG_DIR = "${STAGING_DIR_NATIVE}${datadir}/pfrconfig"
 
 # Refer flash map in manifest.json for the addresses offset
 PFM_OFFSET = "0x80000"
@@ -39,10 +43,10 @@ do_image_pfr () {
     cd "${PFR_IMAGES_DIR}"
 
     # python script that does the creating PFM, BMC compressed and unsigned images from BMC 128MB raw binary file.
-    python ${PFR_STAGING_DIR}/pfr_image.py ${PFR_STAGING_DIR}/pfr_manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash}
+    ${PFR_SCRIPT_DIR}/pfr_image.py ${PFR_CFG_DIR}/pfr_manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash}
 
     # sign the PFM region
-    ${PFR_STAGING_DIR}/blocksign -c ${PFR_STAGING_DIR}/pfm_config.xml -o ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm.bin
+    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/pfm_config.xml -o ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm.bin
 
     # Add the signed PFM to rom image
     dd bs=1k conv=notrunc seek=${PFM_OFFSET_PAGE} if=${PFR_IMAGES_DIR}/pfm_signed.bin of=${PFR_IMAGES_DIR}/image-mtd-pfr
@@ -55,7 +59,7 @@ do_image_pfr () {
     dd if=${PFR_IMAGES_DIR}/bmc_compressed.bin bs=1k >> ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
 
     # Sign the BMC update capsule
-    ${PFR_STAGING_DIR}/blocksign -c ${PFR_STAGING_DIR}/bmc_config.xml -o ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
+    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/bmc_config.xml -o ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
 
     # Add the signed bmc update capsule to full rom image @ 0x2a00000
     dd bs=1k conv=notrunc seek=${RC_IMAGE_PAGE} if=${PFR_IMAGES_DIR}/bmc_signed_cap.bin of=${PFR_IMAGES_DIR}/image-mtd-pfr
@@ -65,13 +69,17 @@ do_image_pfr () {
     mv ${PFR_IMAGES_DIR}/pfm.bin ${PFR_IMAGES_DIR}/pfm-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/pbc.bin ${PFR_IMAGES_DIR}/pbc-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/bmc_compressed.bin ${PFR_IMAGES_DIR}/bmc_compressed-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned-cap_${DATETIME}.bin
+    mv ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_signed_cap-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/image-mtd-pfr ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}
+    mv ${PFR_IMAGES_DIR}/image-mtd-pfr ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}.bin
 }
 
-do_image_pfr[vardepsexclude] += "DATETIME" 
+do_image_pfr[vardepsexclude] += "DATETIME"
 do_image_pfr[vardeps] += "IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
+do_image_pfr[depends] += " \
+                         obmc-intel-pfr-image-native:do_populate_sysroot \
+                         intel-blocksign-native:do_populate_sysroot \
+                         "
 
 python() {
     types = d.getVar('IMAGE_FSTYPES', True).split()

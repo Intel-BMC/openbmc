@@ -2,7 +2,7 @@ SUMMARY = "Chassis Power Control service for Intel based platform"
 DESCRIPTION = "Chassis Power Control service for Intel based platfrom"
 
 SRC_URI = "git://git@github.com/Intel-BMC/intel-chassis-control.git;protocol=ssh"
-SRCREV = "b9e1b13e42359baf21592480874a176548071cf2"
+SRCREV = "0d766e3ea2af610ca63c8c828cb284da0e706b19"
 
 S = "${WORKDIR}/git/services/chassis/"
 

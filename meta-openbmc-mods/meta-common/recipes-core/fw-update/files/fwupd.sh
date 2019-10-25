@@ -73,6 +73,74 @@ if [ ! -e $LOCAL_PATH ] || [ $(stat -c %s $LOCAL_PATH) -eq 0 ]; then
     esac
 fi
 
+# PFR image update section
+# this file being created at build time for PFR images
+if [ -e /usr/share/pfr ]
+then
+# read the image type from the uploaded image
+# Byte at location 0x8 gives image type
+img_type=$(hexdump -s 8 -n 1 $LOCAL_PATH | cut -b12,1 | sed '2d;')
+echo "image-type=$img_type"
+
+# BMC image - max size 32MB
+if [ "$img_type" = '04' ]; then
+    echo "BMC firmware image"
+    # 32MB - 33554432
+    img_size=33554432
+    upd_intent_val=0x08
+    # page is at 4KB boundary
+    img_page_offset=0
+    erase_offset=0
+    blk_cnt=0x200
+# CPLD image- max size 4MB
+elif [ "$img_type" = '00' ]; then
+    echo "CPLD firmware image"
+    # 4MB - 4194304
+    img_size=4194304
+    upd_intent_val=0x04
+    # dd command accepts the offset in decimal
+    # below is the page offset in 4KB boundary
+    img_page_offset=12288
+    erase_offset=0x3000000
+    blk_cnt=0x40
+# BIOS image- max size 16MB
+elif [ "$img_type" = '02' ]; then
+    echo "BIOS firmware image"
+    # 16MB- 16777216
+    img_size=16777216
+    upd_intent_val=0x01
+    # dd command accepts the offset in decimal
+    # below is the page offset in 4KB boundary
+    img_page_offset=8192
+    erase_offset=0x2000000
+    blk_cnt=0x100
+else
+    echo "${img_type}:Unknown image type, exiting the firmware update script"
+    exit 1
+fi
+
+# do a quick sanity check on the image
+if [ $(stat -c "%s" "$LOCAL_PATH") -gt $img_size ]; then
+    echo "Update file "$LOCAL_PATH" is bigger than the supported image size"
+    exit 1
+fi
+
+TGT="/dev/mtd/image-stg"
+echo "Updating $(basename $TGT)"
+flash_erase $TGT $erase_offset $blk_cnt
+echo "Writing $(stat -c "%s" "$LOCAL_PATH") bytes"
+# cat "$LOCAL_PATH" > "$TGT"
+dd bs=4k seek=$img_page_offset if=$LOCAL_PATH of=$TGT
+sync
+echo "Written $(stat -c "%s" "$LOCAL_PATH") bytes"
+# remove the updated image from /tmp
+rm -f $LOCAL_PATH
+echo "Setting update intent in PFR CPLD"
+sleep 5 # delay for sync and to get the above echo messages
+# write to PFRCPLD about BMC update intent.
+i2cset -y 4 0x70 0x13 $upd_intent_val
+
+else # Non-PFR image update section
 # do a quick sanity check on the image
 if [ $(stat -c "%s" "$LOCAL_PATH") -lt 10000000 ]; then
     echo "Update file "$LOCAL_PATH" seems to be too small"
@@ -84,18 +152,6 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-#this file being created at build time for PFR images
-#TODO: Need to do runtime detection of PFR platform
-#TODO: Also to check if PFR is provisioned or not
-if [ -e /usr/share/pfr ]
-then
-TGT="/dev/mtd/image-stg"
-echo "Updating $(basename $TGT)"
-flash_erase $TGT 0 0
-echo "Writing $(stat -c "%s" "$LOCAL_PATH") bytes"
-cat "$LOCAL_PATH" > "$TGT"
-#TODO: Add I2C command to write to PFRCPLD about BMC update intent.
-else
 # guess based on fw_env which partition we booted from
 BOOTADDR=$(fw_printenv bootcmd | awk '{print $2}')
 

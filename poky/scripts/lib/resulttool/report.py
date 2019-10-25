@@ -19,9 +19,9 @@ class ResultsTextReport(object):
         self.ptests = {}
         self.ltptests = {}
         self.ltpposixtests = {}
-        self.result_types = {'passed': ['PASSED', 'passed'],
-                             'failed': ['FAILED', 'failed', 'ERROR', 'error', 'UNKNOWN'],
-                             'skipped': ['SKIPPED', 'skipped']}
+        self.result_types = {'passed': ['PASSED', 'passed', 'PASS', 'XFAIL'],
+                             'failed': ['FAILED', 'failed', 'FAIL', 'ERROR', 'error', 'UNKNOWN', 'XPASS'],
+                             'skipped': ['SKIPPED', 'skipped', 'UNSUPPORTED', 'UNTESTED', 'UNRESOLVED']}
 
 
     def handle_ptest_result(self, k, status, result, machine):
@@ -32,16 +32,22 @@ class ResultsTextReport(object):
             # Ensure tests without any test results still show up on the report
             for suite in result['ptestresult.sections']:
                 if suite not in self.ptests[machine]:
-                    self.ptests[machine][suite] = {'passed': 0, 'failed': 0, 'skipped': 0, 'duration' : '-', 'failed_testcases': []}
+                    self.ptests[machine][suite] = {
+                            'passed': 0, 'failed': 0, 'skipped': 0, 'duration' : '-',
+                            'failed_testcases': [], "testcases": set(),
+                            }
                 if 'duration' in result['ptestresult.sections'][suite]:
                     self.ptests[machine][suite]['duration'] = result['ptestresult.sections'][suite]['duration']
                 if 'timeout' in result['ptestresult.sections'][suite]:
                     self.ptests[machine][suite]['duration'] += " T"
-            return
+            return True
+
+        # process test result
         try:
             _, suite, test = k.split(".", 2)
         except ValueError:
-            return
+            return True
+
         # Handle 'glib-2.0'
         if 'ptestresult.sections' in result and suite not in result['ptestresult.sections']:
             try:
@@ -50,11 +56,23 @@ class ResultsTextReport(object):
                     suite = suite + "." + suite1
             except ValueError:
                 pass
+
         if suite not in self.ptests[machine]:
-            self.ptests[machine][suite] = {'passed': 0, 'failed': 0, 'skipped': 0, 'duration' : '-', 'failed_testcases': []}
+            self.ptests[machine][suite] = {
+                    'passed': 0, 'failed': 0, 'skipped': 0, 'duration' : '-',
+                    'failed_testcases': [], "testcases": set(),
+                    }
+
+        # do not process duplicate results
+        if test in self.ptests[machine][suite]["testcases"]:
+            print("Warning duplicate ptest result '{}.{}' for {}".format(suite, test, machine))
+            return False
+
         for tk in self.result_types:
             if status in self.result_types[tk]:
                 self.ptests[machine][suite][tk] += 1
+        self.ptests[machine][suite]["testcases"].add(test)
+        return True
 
     def handle_ltptest_result(self, k, status, result, machine):
         if machine not in self.ltptests:
@@ -124,17 +142,20 @@ class ResultsTextReport(object):
         result = testresult.get('result', [])
         for k in result:
             test_status = result[k].get('status', [])
+            if k.startswith("ptestresult."):
+                if not self.handle_ptest_result(k, test_status, result, machine):
+                    continue
+            elif k.startswith("ltpresult."):
+                self.handle_ltptest_result(k, test_status, result, machine)
+            elif k.startswith("ltpposixresult."):
+                self.handle_ltpposixtest_result(k, test_status, result, machine)
+
+            # process result if it was not skipped by a handler
             for tk in self.result_types:
                 if test_status in self.result_types[tk]:
                     test_count_report[tk] += 1
             if test_status in self.result_types['failed']:
                 test_count_report['failed_testcases'].append(k)
-            if k.startswith("ptestresult."):
-                self.handle_ptest_result(k, test_status, result, machine)
-            if k.startswith("ltpresult."):
-                self.handle_ltptest_result(k, test_status, result, machine)
-            if k.startswith("ltpposixresult."):
-                self.handle_ltpposixtest_result(k, test_status, result, machine)
         return test_count_report
 
     def print_test_report(self, template_file_name, test_count_reports):
@@ -203,8 +224,21 @@ class ResultsTextReport(object):
             testresults = resultutils.load_resultsdata(source_dir)
         for testsuite in testresults:
             for resultid in testresults[testsuite]:
+                skip = False
                 result = testresults[testsuite][resultid]
                 machine = result['configuration']['MACHINE']
+
+                # Check to see if there is already results for these kinds of tests for the machine
+                for key in result['result'].keys():
+                    testtype = str(key).split('.')[0]
+                    if ((machine in self.ltptests and testtype == "ltpiresult" and self.ltptests[machine]) or
+                        (machine in self.ltpposixtests and testtype == "ltpposixresult" and self.ltpposixtests[machine])):
+                        print("Already have test results for %s on %s, skipping %s" %(str(key).split('.')[0], machine, resultid))
+                        skip = True
+                        break
+                if skip:
+                    break
+
                 test_count_report = self.get_aggregated_test_result(logger, result, machine)
                 test_count_report['machine'] = machine
                 test_count_report['testseries'] = result['configuration']['TESTSERIES']

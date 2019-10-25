@@ -25,3 +25,6 @@ PREFERRED_PROVIDER_virtual/obmc-host-ctl ?= ""
 PREFERRED_PROVIDER_virtual/obmc-inventory-data = "entity-manager"
 PREFERRED_PROVIDER_virtual/phosphor-led-manager-config-native ?= "intel-led-manager-config-native"
 #PREFERRED_PROVIDER_virtual/obmc-gpio-monitor ?= "phosphor-gpio-monitor"
+
+# add all the upstream intel override fixes
+OVERRIDES .= ":intel"

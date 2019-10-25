@@ -153,6 +153,7 @@ class TestImage(OESelftestTestCase):
 
         # Enable package feed signing
         self.gpg_home = tempfile.mkdtemp(prefix="oeqa-feed-sign-")
+        self.track_for_cleanup(self.gpg_home)
         signing_key_dir = os.path.join(self.testlayer_path, 'files', 'signing')
         runCmd('gpg --batch --homedir %s --import %s' % (self.gpg_home, os.path.join(signing_key_dir, 'key.secret')), native_sysroot=get_bb_var("RECIPE_SYSROOT_NATIVE", "gnupg-native"))
         features += 'INHERIT += "sign_package_feed"\n'
@@ -164,9 +165,6 @@ class TestImage(OESelftestTestCase):
         # Build core-image-sato and testimage
         bitbake('core-image-full-cmdline socat')
         bitbake('-c testimage core-image-full-cmdline')
-
-        # remove the oeqa-feed-sign temporal directory
-        shutil.rmtree(self.gpg_home, ignore_errors=True)
 
     def test_testimage_virgl_gtk(self):
         """
@@ -193,7 +191,7 @@ class TestImage(OESelftestTestCase):
         features += 'TEST_SUITES = "ping ssh virgl"\n'
         features += 'IMAGE_FEATURES_append = " ssh-server-dropbear"\n'
         features += 'IMAGE_INSTALL_append = " kmscube"\n'
-        features += 'TEST_RUNQEMUPARAMS = "gtk-gl"\n'
+        features += 'TEST_RUNQEMUPARAMS = "gtk gl"\n'
         self.write_config(features)
         bitbake('core-image-minimal')
         bitbake('-c testimage core-image-minimal')

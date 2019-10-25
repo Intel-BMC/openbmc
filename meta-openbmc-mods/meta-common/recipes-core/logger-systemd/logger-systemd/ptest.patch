@@ -1,0 +1,23 @@
+Define TESTS variable
+
+Signed-off-by: Tudor Florea <tudor.florea@enea.com>
+Upstream-Status: Pending
+---
+ Makefile.am | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Makefile.am b/Makefile.am
+index bbaccb1..7d5a6bb 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -48,6 +48,7 @@ systemdsystemunit_DATA =
+ dist_bashcompletion_DATA =
+ check_PROGRAMS =
+ dist_check_SCRIPTS =
++TESTS = $(check_PROGRAMS)
+ 
+ PATHFILES =
+ 
+-- 
+2.8.3
+

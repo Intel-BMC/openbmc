@@ -1,4 +1,4 @@
-From c55d6bb49cfbd39a7c0848076c84166def65936e Mon Sep 17 00:00:00 2001
+From 04af6987c904225fdd4657e7b87874edd11c4e0b Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Thu, 7 Mar 2019 15:17:40 -0800
 Subject: [PATCH] Add bus-timeout-ms and #retries device tree properties
@@ -59,10 +59,10 @@ index 44efafdfd7f5..e382931cf3d6 100644
  used by the device. I2C core will assign "irq" interrupt (or the very first
  interrupt if not using interrupt names) as primary interrupt for the slave.
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 434b753def3b..99bd30953531 100644
+index e1719b1f2020..58bdbe472721 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
-@@ -1014,7 +1014,6 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+@@ -1018,7 +1018,6 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
  	spin_lock_init(&bus->lock);
  	init_completion(&bus->cmd_complete);
  	bus->adap.owner = THIS_MODULE;
@@ -71,7 +71,7 @@ index 434b753def3b..99bd30953531 100644
  	bus->adap.dev.parent = &pdev->dev;
  	bus->adap.dev.of_node = pdev->dev.of_node;
 diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
-index 8a480d269542..69b798a2d31e 100644
+index 302d2d0c87d0..825e2d85d5a7 100644
 --- a/drivers/i2c/i2c-core-base.c
 +++ b/drivers/i2c/i2c-core-base.c
 @@ -1320,6 +1320,7 @@ static void i2c_adapter_hold_timer_callback(struct timer_list *t)

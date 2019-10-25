@@ -13,11 +13,14 @@ inherit cmake
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "i2c-tools"
+DEPENDS += "i2c-tools"
+
+CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-SRC_URI += "file://0001-Add-smbus-support-to-Cmake-Lists.patch \
+SRC_URI += "file://0001-Smbus-changes-for-libmctp.patch \
             file://crc32c.c \
             file://crc32c.h  \
             file://libmctp-smbus.h  \
@@ -28,3 +31,10 @@ do_configure_prepend() {
     cp -f ${WORKDIR}/*.h ${S}
 }
 
+# linux-libc-headers guides this way to include custom uapi headers
+CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
+CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
+
+do_configure[depends] += "virtual/kernel:do_shared_workdir"

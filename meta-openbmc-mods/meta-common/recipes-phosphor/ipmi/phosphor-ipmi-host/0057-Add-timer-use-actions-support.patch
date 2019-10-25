@@ -1,6 +1,6 @@
-From 6e37e02a4f200507627a82f6dba00a9c9d877cb2 Mon Sep 17 00:00:00 2001
+From 3c69c94eed1a0c6eecfd53e739fade6596c6f3e5 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
-Date: Mon, 18 Mar 2019 23:05:16 +0800
+Date: Thu, 12 Sep 2019 17:37:05 +0800
 Subject: [PATCH] Add timer use/actions support
 
 Based on IPMI spec, add timer use/actions support,
@@ -8,188 +8,24 @@ and add input data checking
 
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- app/watchdog.cpp         | 62 +++++++++++++++++++++++++++++++++++++++++++-----
- app/watchdog_service.cpp |  8 +++++++
- app/watchdog_service.hpp |  8 +++++++
- 3 files changed, 72 insertions(+), 6 deletions(-)
+ app/watchdog.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/app/watchdog.cpp b/app/watchdog.cpp
-index 1a5d19c..3b61055 100644
+index c4e594d..18e7e3a 100644
 --- a/app/watchdog.cpp
 +++ b/app/watchdog.cpp
-@@ -89,6 +89,13 @@ static constexpr uint8_t wd_dont_stop = 0x1 << 6;
- static constexpr uint8_t wd_timeout_action_mask = 0x3;
+@@ -251,8 +251,8 @@ ipmi::RspType<> ipmiSetWatchdogTimer(
+         return ipmi::responseInvalidFieldRequest();
+     }
  
- static constexpr uint8_t wdTimerUseMask = 0x7;
-+static constexpr uint8_t wdTimerUseResTimer1 = 0x0;
-+static constexpr uint8_t wdTimerUseResTimer2 = 0x6;
-+static constexpr uint8_t wdTimerUseResTimer3 = 0x7;
-+static constexpr uint8_t wdTimerUseRes = 0x38;
-+
-+static constexpr uint8_t wdTimerActionMask = 0xcc;
-+static constexpr uint8_t wdTimerUseExpMask = 0xc1;
+-    timerLogFlags = static_cast<uint8_t>(dontLog);
+-    timerActions &= static_cast<uint8_t>(timeoutAction) |
++    timerLogFlags = (static_cast<uint8_t>(dontLog)) << 7;
++    timerActions = static_cast<uint8_t>(timeoutAction) |
+                     static_cast<uint8_t>(preTimeoutInterrupt) << 4;
  
- enum class IpmiAction : uint8_t
- {
-@@ -186,6 +193,11 @@ static_assert(sizeof(wd_set_req) == 6, "wd_set_req has invalid size.");
- static_assert(sizeof(wd_set_req) <= MAX_IPMI_BUFFER,
-               "wd_get_res can't fit in request buffer.");
- 
-+static uint8_t timerLogFlags = 0;
-+static uint8_t timerActions = 0;
-+
-+static uint8_t timerUseExpirationFlags = 0;
-+
- ipmi_ret_t ipmi_app_watchdog_set(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-                                  ipmi_request_t request,
-                                  ipmi_response_t response,
-@@ -203,6 +215,24 @@ ipmi_ret_t ipmi_app_watchdog_set(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-     req.initial_countdown = le16toh(req.initial_countdown);
-     *data_len = 0;
- 
-+    if (((req.timer_use & wdTimerUseMask) == wdTimerUseResTimer1) ||
-+        ((req.timer_use & wdTimerUseMask) == wdTimerUseResTimer2) ||
-+        ((req.timer_use & wdTimerUseMask) == wdTimerUseResTimer3) ||
-+        (req.timer_use & wdTimerUseRes) ||
-+        (req.timer_action & wdTimerActionMask) ||
-+        (req.expire_flags & wdTimerUseExpMask))
-+    {
-+        return IPMI_CC_INVALID_FIELD_REQUEST;
-+    }
-+
-+    if (req.pretimeout > (req.initial_countdown / 10))
-+    {
-+        return IPMI_CC_INVALID_FIELD_REQUEST;
-+    }
-+
-+    timerLogFlags = req.timer_use & 0x80;
-+    timerActions = req.timer_action;
-+
      try
-     {
-         WatchdogService wd_service;
-@@ -221,6 +251,10 @@ ipmi_ret_t ipmi_app_watchdog_set(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-             static_cast<IpmiTimerUse>(req.timer_use & wdTimerUseMask);
-         wd_service.setTimerUse(ipmiTimerUseToWdTimerUse(ipmiTimerUse));
- 
-+        wd_service.setExpiredTimerUse(WatchdogService::TimerUse::Reserved);
-+
-+        timerUseExpirationFlags &= ~req.expire_flags;
-+
-         // Set the new interval and the time remaining deci -> mill seconds
-         const uint64_t interval = req.initial_countdown * 100;
-         wd_service.setInterval(interval);
-@@ -339,7 +373,6 @@ static_assert(sizeof(wd_get_res) == 8, "wd_get_res has invalid size.");
- static_assert(sizeof(wd_get_res) <= MAX_IPMI_BUFFER,
-               "wd_get_res can't fit in response buffer.");
- 
--static constexpr uint8_t wd_dont_log = 0x1 << 7;
- static constexpr uint8_t wd_running = 0x1 << 6;
- 
- ipmi_ret_t ipmi_app_watchdog_get(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-@@ -358,20 +391,37 @@ ipmi_ret_t ipmi_app_watchdog_get(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
- 
-         // Build and return the response
-         wd_get_res res;
--        res.timer_use = wd_dont_log;
--        res.timer_action =
--            static_cast<uint8_t>(wdActionToIpmiAction(wd_prop.expireAction));
-+        res.timer_use |= timerLogFlags;
-+        res.timer_action = timerActions;
- 
-         // Interval and timeRemaining need converted from milli -> deci seconds
-         res.initial_countdown = htole16(wd_prop.interval / 100);
-+
-+        if (wd_prop.expiredTimerUse != WatchdogService::TimerUse::Reserved)
-+        {
-+            timerUseExpirationFlags |=
-+                1 << static_cast<uint8_t>(
-+                    wdTimerUseToIpmiTimerUse(wd_prop.expiredTimerUse));
-+        }
-+
-         if (wd_prop.enabled)
-         {
-             res.timer_use |= wd_running;
-             res.present_countdown = htole16(wd_prop.timeRemaining / 100);
-+            res.expire_flags = 0;
-         }
-         else
-         {
--            res.present_countdown = res.initial_countdown;
-+            if (wd_prop.expiredTimerUse == WatchdogService::TimerUse::Reserved)
-+            {
-+                res.present_countdown = res.initial_countdown;
-+                res.expire_flags = 0;
-+            }
-+            else
-+            {
-+                res.present_countdown = 0;
-+                res.expire_flags = timerUseExpirationFlags;
-+            }
-         }
- 
-         res.timer_use |=
-@@ -379,7 +429,7 @@ ipmi_ret_t ipmi_app_watchdog_get(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
- 
-         // TODO: Do something about having pretimeout support
-         res.pretimeout = 0;
--        res.expire_flags = 0;
-+
-         memcpy(response, &res, sizeof(res));
-         *data_len = sizeof(res);
-         lastCallSuccessful = true;
-diff --git a/app/watchdog_service.cpp b/app/watchdog_service.cpp
-index e65ea63..8b1aa47 100644
---- a/app/watchdog_service.cpp
-+++ b/app/watchdog_service.cpp
-@@ -83,6 +83,9 @@ WatchdogService::Properties WatchdogService::getProperties()
-         wd_prop.timerUse = Watchdog::convertTimerUseFromString(
-             std::get<std::string>(properties.at("CurrentTimerUse")));
- 
-+        wd_prop.expiredTimerUse = Watchdog::convertTimerUseFromString(
-+            std::get<std::string>(properties.at("ExpiredTimerUse")));
-+
-         wd_prop.interval = std::get<uint64_t>(properties.at("Interval"));
-         wd_prop.timeRemaining =
-             std::get<uint64_t>(properties.at("TimeRemaining"));
-@@ -187,6 +190,11 @@ void WatchdogService::setTimerUse(TimerUse timerUse)
-     setProperty("CurrentTimerUse", convertForMessage(timerUse));
- }
- 
-+void WatchdogService::setExpiredTimerUse(TimerUse timerUse)
-+{
-+    setProperty("ExpiredTimerUse", convertForMessage(timerUse));
-+}
-+
- void WatchdogService::setInterval(uint64_t interval)
- {
-     setProperty("Interval", interval);
-diff --git a/app/watchdog_service.hpp b/app/watchdog_service.hpp
-index 75afc1e..d0cc1a8 100644
---- a/app/watchdog_service.hpp
-+++ b/app/watchdog_service.hpp
-@@ -36,6 +36,7 @@ class WatchdogService
-         bool enabled;
-         Action expireAction;
-         TimerUse timerUse;
-+        TimerUse expiredTimerUse;
-         uint64_t interval;
-         uint64_t timeRemaining;
-     };
-@@ -79,6 +80,13 @@ class WatchdogService
-      */
-     void setTimerUse(TimerUse timerUse);
- 
-+    /** @brief Sets the value of the ExpiredTimerUse property on the host
-+     * watchdog
-+     *
-+     *  @param[in] timerUse - The new timerUse value
-+     */
-+    void setExpiredTimerUse(TimerUse timerUse);
-+
-     /** @brief Sets the value of the interval property on the host watchdog
-      *
-      *  @param[in] interval - The new interval value
 -- 
 2.7.4
 
