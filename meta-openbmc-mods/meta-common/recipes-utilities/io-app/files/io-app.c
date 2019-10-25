@@ -450,6 +450,7 @@ typedef enum
     CPU_PILOT3,
     CPU_PILOT4,
     CPU_AST2500,
+    CPU_AST2600,
     CPU_MAX,
 } CPU_TYPE;
 
@@ -499,21 +500,49 @@ static CPU_TYPE probe_cpu(void)
                         if (!quiet)
                             fprintf(stderr, "AST2500\n");
                         this_cpu = CPU_AST2500;
+                        break;
                     }
                     else if (strncmp("ASpeed SoC", v, 11) == 0)
                     {
                         if (!quiet)
                             fprintf(stderr, "Found ASpeed SoC\n");
                         this_cpu = CPU_AST2500;
+                        break;
                     }
                     else if (strncmp("ServerEngines PILOT3", v, 21) == 0)
                     {
                         if (!quiet)
                             fprintf(stderr, "Found PILOT3\n");
                         this_cpu = CPU_PILOT3;
+                        break;
                     }
                 }
-                break;
+            }
+            else if (strncmp("CPU", cpuinfo, 4) == 0)
+            {
+                char *v = strtok_r(NULL, delim, &tmp_s);
+                if (!v || strncmp("part", v, 5) != 0)
+                {
+                    continue;
+                }
+                v = strtok_r(NULL, delim, &tmp_s);
+                if (v)
+                {
+                    if (strncmp("0xb76", v, 6) == 0)
+                    {
+                        if (!quiet)
+                            fprintf(stderr, "AST2500\n");
+                        this_cpu = CPU_AST2500;
+                        break;
+                    }
+                    else if (strncmp("0xc07", v, 6) == 0)
+                    {
+                        if (!quiet)
+                            fprintf(stderr, "AST2600\n");
+                        this_cpu = CPU_AST2600;
+                        break;
+                    }
+                }
             }
         }
         fclose(f);
@@ -530,6 +559,8 @@ static const char *probe_cpu_for_map(void)
         return "0:2000000,10000000:8000,40000000:43b000";
     case CPU_AST2500:
         return "0:4000000,1e600000:1a0000,20000000:4000000";
+    case CPU_AST2600:
+        return "0:20000000,38000000:8000000,60000000:20000000";
     default:
         return "";
     }

@@ -18,13 +18,13 @@ REQUIRED_DISTRO_FEATURES_class-native = ""
 REQUIRED_DISTRO_FEATURES_class-nativesdk = ""
 
 PACKAGECONFIG[egl] = "-Degl=yes, -Degl=no, virtual/egl"
-PACKAGECONFIG[x11] = "-Dglx=yes, -Dglx=no, virtual/libx11 virtual/libgl"
+PACKAGECONFIG[x11] = "-Dglx=yes, -Dglx=no -Dx11=false, virtual/libx11 virtual/libgl"
 PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'x11', d)} egl"
 
 EXTRA_OEMESON += "-Dtests=false"
 
-PACKAGECONFIG_class-native = "egl"
-PACKAGECONFIG_class-nativesdk = "egl"
+PACKAGECONFIG_class-native = "egl x11"
+PACKAGECONFIG_class-nativesdk = "egl x11"
 
 BBCLASSEXTEND = "native nativesdk"
 

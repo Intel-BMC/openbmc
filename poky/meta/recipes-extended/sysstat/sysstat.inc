@@ -4,7 +4,7 @@ HOMEPAGE = "http://sebastien.godard.pagesperso-orange.fr/"
 LICENSE = "GPLv2+"
 SECTION = "console/utils"
 
-SRC_URI = "http://pagesperso-orange.fr/sebastien.godard/sysstat-${PV}.tar.xz \
+SRC_URI = "http://pagesperso-orange.fr/sebastien.godard/${BP}.tar.xz \
            file://99_sysstat \
            file://sysstat.service \
           "
@@ -20,6 +20,7 @@ inherit autotools-brokensep gettext systemd upstream-version-is-even
 PACKAGECONFIG ??= ""
 PACKAGECONFIG[lm-sensors] = "--enable-sensors,--disable-sensors,lmsensors,lmsensors-libsensors"
 PACKAGECONFIG[cron] = "--enable-install-cron --enable-copy-only,--disable-install-cron --disable-copy-only"
+PACKAGECONFIG[systemd] = "--with-systemdsystemunitdir=${systemd_system_unitdir}"
 
 EXTRA_OECONF += "--disable-stripping"
 
@@ -28,7 +29,7 @@ SYSTEMD_SERVICE_${PN} = "sysstat.service"
 SYSTEMD_AUTO_ENABLE = "enable"
 
 do_configure_prepend() {
-    export sa_lib_dir=${libdir}/sa
+    export sa_lib_dir=${libexecdir}/sa
 }
 
 do_install() {
@@ -44,11 +45,13 @@ do_install() {
 	        install -d ${D}${sysconfdir}/tmpfiles.d
 	        echo "d ${localstatedir}/log/sa - - - -" \
 		     > ${D}${sysconfdir}/tmpfiles.d/sysstat.conf
-	fi
 
-	install -d ${D}${systemd_unitdir}/system
-	install -m 0644 ${WORKDIR}/sysstat.service ${D}${systemd_unitdir}/system
-	sed -i -e 's#@LIBDIR@#${libdir}#g' ${D}${systemd_unitdir}/system/sysstat.service
+	        if ${@bb.utils.contains('PACKAGECONFIG', 'cron', 'false', 'true', d)}; then
+			install -d ${D}${systemd_unitdir}/system
+			install -m 0644 ${WORKDIR}/sysstat.service ${D}${systemd_unitdir}/system
+			sed -i -e 's#@LIBDIR@#${libdir}#g' ${D}${systemd_unitdir}/system/sysstat.service
+	        fi
+	fi
 }
 
 pkg_postinst_${PN} () {

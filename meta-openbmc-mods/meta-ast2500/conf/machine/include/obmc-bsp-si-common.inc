@@ -22,6 +22,7 @@ OBMC_PHOSPHOR_IMAGE_OVERLAY= "1"
 OBMC_IMAGE_EXTRA_INSTALL_append = " u-boot-fw-utils-aspeed"
 
 IMAGE_CLASSES += "image_types image_types_phosphor_auto qemuboot"
+IMAGE_CLASSES += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'image_types_intel_pfr', '', d)}"
 
 INITRAMFS_CTYPE ?= "lzma"
 INITRAMFS_IMAGE = "obmc-phosphor-initramfs"

@@ -1,29 +1,66 @@
+From e7b86ade7db1e9ae86ea39a957bead9090f4ccbf Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Thu, 12 Sep 2019 13:18:42 +0800
+Subject: [PATCH] Enable watchdog to save useflag after host power off
+
+Get the right useflag after host power off.
+
+Tested:
+Set a watchdog (Timer action is none and Time Use is BIOS FRB2)
+ipmitool raw 0x06 0x24 0x01 0x00 0x00 0x00 0x40 0x00
+Get watchdog
+ipmitool mc watchdog get
+Start watchdog
+ipmitool mc watchdog reset
+Get watchdog
+ipmitool mc watchdog get
+After timer is stop, set a watchdog again
+(Timer action is none and Time Use is  BIOS/POST)
+ipmitool raw 0x06 0x24 0x02 0x00 0x00 0x00 0x40 0x00
+Start watchdog and wait until timer is stop,
+Get watchdog
+ipmitool mc watchdog get
+Timer Expiration Flags should be 0x06(BIOS FRB2, BIOS/POST)
+Power down the Host
+Ipmitool chassis power off
+Check the Timer Expiration Flags(User Flags)
+ipmitool mc watchdog get
+Timer Expiration Flags should be 0x06(BIOS FRB2, BIOS/POST)
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+---
+ app/watchdog.cpp | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
 diff --git a/app/watchdog.cpp b/app/watchdog.cpp
-index 2938d23..bc5df29 100644
+index 4650d89..1562f5e 100644
 --- a/app/watchdog.cpp
 +++ b/app/watchdog.cpp
-@@ -445,23 +445,21 @@ ipmi_ret_t ipmi_app_watchdog_get(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -435,23 +435,21 @@ ipmi::RspType<uint8_t,  // timerUse
                      wdTimerUseToIpmiTimerUse(wd_prop.expiredTimerUse));
          }
  
-+        res.expire_flags = timerUseExpirationFlags;
++        expireFlags = timerUseExpirationFlags;
          if (wd_prop.enabled)
          {
-             res.timer_use |= wd_running;
-             res.present_countdown = htole16(wd_prop.timeRemaining / 100);
--            res.expire_flags = 0;
+             timerUse |= wd_running;
+             presentCountdown = htole16(wd_prop.timeRemaining / 100);
+-            expireFlags = 0;
          }
          else
          {
              if (wd_prop.expiredTimerUse == WatchdogService::TimerUse::Reserved)
              {
-                 res.present_countdown = res.initial_countdown;
--                res.expire_flags = 0;
+                 presentCountdown = initialCountdown;
+-                expireFlags = 0;
              }
              else
              {
-                 res.present_countdown = 0;
--                res.expire_flags = timerUseExpirationFlags;
+                 presentCountdown = 0;
+-                expireFlags = timerUseExpirationFlags;
              }
          }
  
+-- 
+2.7.4
+

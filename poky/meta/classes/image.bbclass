@@ -305,11 +305,8 @@ fakeroot python do_image_qa () {
             bb.build.exec_func(cmd, d)
         except oe.utils.ImageQAFailed as e:
             qamsg = qamsg + '\tImage QA function %s failed: %s\n' % (e.name, e.description)
-        except bb.build.FuncFailed as e:
-            qamsg = qamsg + '\tImage QA function %s failed' % e.name
-            if e.logfile:
-                qamsg = qamsg + ' (log file is located at %s)' % e.logfile
-            qamsg = qamsg + '\n'
+        except Exception as e:
+            qamsg = qamsg + '\tImage QA function %s failed\n' % cmd
 
     if qamsg:
         imgname = d.getVar('IMAGE_NAME')
@@ -328,7 +325,8 @@ addtask do_image_qa_setscene
 
 def setup_debugfs_variables(d):
     d.appendVar('IMAGE_ROOTFS', '-dbg')
-    d.appendVar('IMAGE_LINK_NAME', '-dbg')
+    if d.getVar('IMAGE_LINK_NAME'):
+        d.appendVar('IMAGE_LINK_NAME', '-dbg')
     d.appendVar('IMAGE_NAME','-dbg')
     d.setVar('IMAGE_BUILDING_DEBUGFS', 'true')
     debugfs_image_fstypes = d.getVar('IMAGE_FSTYPES_DEBUGFS')
@@ -528,7 +526,7 @@ def get_rootfs_size(d):
     base_size = size_kb * overhead_factor
     bb.debug(1, '%f = %d * %f' % (base_size, size_kb, overhead_factor))
     base_size2 = max(base_size, rootfs_req_size) + rootfs_extra_space
-    bb.debug(1, '%f = max(%f, %d)[%f] + %d' % (base_size2, base_size, rootfs_req_size, max(base_size, rootfs_req_size), overhead_factor))
+    bb.debug(1, '%f = max(%f, %d)[%f] + %d' % (base_size2, base_size, rootfs_req_size, max(base_size, rootfs_req_size), rootfs_extra_space))
 
     base_size = base_size2
     if base_size != int(base_size):
@@ -666,10 +664,11 @@ reproducible_final_image_task () {
 }
 
 systemd_preset_all () {
-    systemctl --root="${IMAGE_ROOTFS}" --preset-mode=enable-only preset-all
+    if [ -e ${IMAGE_ROOTFS}${root_prefix}/lib/systemd/systemd ]; then
+	systemctl --root="${IMAGE_ROOTFS}" --preset-mode=enable-only preset-all
+    fi
 }
 
-IMAGE_EXTRADEPENDS += "${@ 'systemd-systemctl-native' if bb.utils.contains('DISTRO_FEATURES', 'systemd', True, False, d) and not bb.utils.contains('IMAGE_FEATURES', 'stateless-rootfs', True, False, d) else ''}"
 IMAGE_PREPROCESS_COMMAND_append = " ${@ 'systemd_preset_all;' if bb.utils.contains('DISTRO_FEATURES', 'systemd', True, False, d) and not bb.utils.contains('IMAGE_FEATURES', 'stateless-rootfs', True, False, d) else ''} reproducible_final_image_task; "
 
 CVE_PRODUCT = ""

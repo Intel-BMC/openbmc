@@ -1,4 +1,4 @@
-From 38c04788647a95e3951674eb802f1f99ecdde164 Mon Sep 17 00:00:00 2001
+From 8b9bca54ec03fb80834eb8d15dd599293af6d971 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 29 Jun 2018 11:00:02 -0700
 Subject: [PATCH] Add dump debug code into I2C drivers
@@ -20,7 +20,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  2 files changed, 50 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index fa66951b05d0..434b753def3b 100644
+index c2a6e5a27314..e1719b1f2020 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
 @@ -163,6 +163,21 @@ struct aspeed_i2c_bus {
@@ -65,7 +65,7 @@ index fa66951b05d0..434b753def3b 100644
  	return bus->master_xfer_result;
  }
  
-@@ -1061,6 +1082,11 @@ static struct platform_driver aspeed_i2c_bus_driver = {
+@@ -1065,6 +1086,11 @@ static struct platform_driver aspeed_i2c_bus_driver = {
  };
  module_platform_driver(aspeed_i2c_bus_driver);
  

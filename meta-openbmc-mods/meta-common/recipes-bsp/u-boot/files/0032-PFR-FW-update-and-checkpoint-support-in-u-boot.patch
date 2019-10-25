@@ -1,7 +1,7 @@
-From 0c975e64ca8bd5fdaf12f15b4dbc9ceaa942c36c Mon Sep 17 00:00:00 2001
+From 2c5ae4ff71edda4d2d9cc0d289f61635409c3be4 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 24 Jul 2019 20:11:30 +0530
-Subject: [PATCH] PFR FW update and checkpoint support in u-boot
+Subject: [PATCH 2/2] PFR FW update and checkpoint support in u-boot
 
 1) Added firmware update ipmi commands support
 for PFR images. This enables PFR based firmware
@@ -21,21 +21,22 @@ BMC image update via KCS ( In FFUJ mode).
 cross verified the check-points properly set or not.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
  board/aspeed/ast-g5/Makefile       |   1 +
- board/aspeed/ast-g5/ast-g5-intel.c |  10 ++++
- board/aspeed/ast-g5/fw-update.c    | 112 +++++++++++++++++++------------------
- board/aspeed/ast-g5/fw-update.h    |   7 +++
- board/aspeed/ast-g5/ipmi-fwupd.c   |  37 ++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c |  10 +++
+ board/aspeed/ast-g5/fw-update.c    | 112 +++++++++++++++--------------
+ board/aspeed/ast-g5/fw-update.h    |   7 ++
+ board/aspeed/ast-g5/ipmi-fwupd.c   |  37 ++++++++++
  board/aspeed/ast-g5/ipmi-fwupd.h   |   6 --
- board/aspeed/ast-g5/pfr-mgr.c      |  73 ++++++++++++++++++++++++
- board/aspeed/ast-g5/pfr-mgr.h      |  73 ++++++++++++++++++++++++
+ board/aspeed/ast-g5/pfr-mgr.c      |  73 +++++++++++++++++++
+ board/aspeed/ast-g5/pfr-mgr.h      |  73 +++++++++++++++++++
  8 files changed, 258 insertions(+), 61 deletions(-)
  create mode 100644 board/aspeed/ast-g5/pfr-mgr.c
  create mode 100644 board/aspeed/ast-g5/pfr-mgr.h
 
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index 0b2d936..9021d7f 100644
+index 0b2d936c23..9021d7fc08 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -8,3 +8,4 @@ obj-y += ast-g5-kcs.o
@@ -44,7 +45,7 @@ index 0b2d936..9021d7f 100644
  obj-y += fw-update.o
 +obj-y += pfr-mgr.o
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index e68ab85..cd359ce 100644
+index c58fd3591b..13889594bf 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -16,6 +16,7 @@
@@ -55,10 +56,10 @@ index e68ab85..cd359ce 100644
  
  /* Names to match the GPIOs */
  enum gpio_names {
-@@ -541,6 +542,10 @@ extern void espi_init(void);
- extern void kcs_init(void);
- void ast_g5_intel(void)
- {
+@@ -582,6 +583,10 @@ void ast_g5_intel(void)
+ 	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) |
+ 		      SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);
+ 
 +	/* To notify the CPLD about the start of bootloader
 +	 * and hardware initialization */
 +	set_cpld_reg(PFR_CPLD_BOOT_CHECKPOINT_REG, PFR_CPLD_CHKPOINT_START);
@@ -66,8 +67,8 @@ index e68ab85..cd359ce 100644
  	uart_init();
  	pwm_init();
  	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
-@@ -551,6 +556,11 @@ void ast_g5_intel(void)
- 	if (intel_force_firmware_jumper_enabled()) {
+@@ -595,6 +600,11 @@ void ast_g5_intel(void)
+ 		id_led_control(GPIO_GREEN_LED, EIDLED_Off);
  		id_led_control(GPIO_AMBER_LED, EIDLED_On);
  		kcs_init();
 +		/* Notify CPLD about FFUJ jumper set and pause
@@ -76,10 +77,10 @@ index e68ab85..cd359ce 100644
 +		set_cpld_reg(PFR_CPLD_BOOT_CHECKPOINT_REG,
 +			     PFR_CPLD_CHKPOINT_FFUJ);
  		/* TODO: need to stop the booting here. */
- 	} else {
- 		id_led_control(GPIO_GREEN_LED, EIDLED_On);
+ 	}
+ }
 diff --git a/board/aspeed/ast-g5/fw-update.c b/board/aspeed/ast-g5/fw-update.c
-index 9923993..89fe5fd 100644
+index 99239938b5..89fe5fd4fd 100644
 --- a/board/aspeed/ast-g5/fw-update.c
 +++ b/board/aspeed/ast-g5/fw-update.c
 @@ -6,6 +6,7 @@
@@ -269,7 +270,7 @@ index 9923993..89fe5fd 100644
  		mdelay(WAIT_STATE_TIMEOUT);
  	}
 diff --git a/board/aspeed/ast-g5/fw-update.h b/board/aspeed/ast-g5/fw-update.h
-index ed033ad..45e46ba 100644
+index ed033adfed..45e46ba596 100644
 --- a/board/aspeed/ast-g5/fw-update.h
 +++ b/board/aspeed/ast-g5/fw-update.h
 @@ -28,6 +28,12 @@ enum update_status {
@@ -291,7 +292,7 @@ index ed033ad..45e46ba 100644
  int generate_random_number(void);
 +
 diff --git a/board/aspeed/ast-g5/ipmi-fwupd.c b/board/aspeed/ast-g5/ipmi-fwupd.c
-index 3eba056..6afc8d6 100644
+index 3eba056e7f..6afc8d66b7 100644
 --- a/board/aspeed/ast-g5/ipmi-fwupd.c
 +++ b/board/aspeed/ast-g5/ipmi-fwupd.c
 @@ -2,10 +2,14 @@
@@ -350,7 +351,7 @@ index 3eba056..6afc8d6 100644
  	result->no_of_bytes_written = (u8)req_len;
  
 diff --git a/board/aspeed/ast-g5/ipmi-fwupd.h b/board/aspeed/ast-g5/ipmi-fwupd.h
-index e490f6b..7409d2e 100644
+index e490f6b527..7409d2e2f9 100644
 --- a/board/aspeed/ast-g5/ipmi-fwupd.h
 +++ b/board/aspeed/ast-g5/ipmi-fwupd.h
 @@ -19,12 +19,6 @@ enum control_state_bit {
@@ -368,7 +369,7 @@ index e490f6b..7409d2e 100644
  	u8 completion_code;
 diff --git a/board/aspeed/ast-g5/pfr-mgr.c b/board/aspeed/ast-g5/pfr-mgr.c
 new file mode 100644
-index 0000000..7713168
+index 0000000000..77131688e7
 --- /dev/null
 +++ b/board/aspeed/ast-g5/pfr-mgr.c
 @@ -0,0 +1,73 @@
@@ -447,7 +448,7 @@ index 0000000..7713168
 +
 diff --git a/board/aspeed/ast-g5/pfr-mgr.h b/board/aspeed/ast-g5/pfr-mgr.h
 new file mode 100644
-index 0000000..6cf8c6d
+index 0000000000..6cf8c6d5b9
 --- /dev/null
 +++ b/board/aspeed/ast-g5/pfr-mgr.h
 @@ -0,0 +1,73 @@
@@ -525,5 +526,5 @@ index 0000000..6cf8c6d
 +ulong get_flash_region_offset(u32 type);
 +ulong get_image_max_size(u32 type);
 -- 
-2.7.4
+2.17.1
 

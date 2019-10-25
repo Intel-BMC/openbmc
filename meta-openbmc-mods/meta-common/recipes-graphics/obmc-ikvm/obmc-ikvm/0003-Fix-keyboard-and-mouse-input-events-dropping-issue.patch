@@ -1,0 +1,162 @@
+From 0c0b7b5da551c99161bda98820a529ba29cbaac1 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Wed, 21 Aug 2019 16:52:30 -0700
+Subject: [PATCH] Fix keyboard and mouse input events dropping issue
+
+Restarting of HID input devices causes input events dropping issue
+which is critical for BMC KVM uses. For an example, user can't enter
+to BIOS by doing keep pressing 'F2' or 'Del' key because of this issue.
+
+To fix the issue, this commit removes the input device restarting
+logic and refines error log journaling logic using errno checking.
+
+Tested:
+  1. Open BMCweb -> Server control -> KVM.
+  2. Make a host reset and keep pressing 'F2' key.
+  3. Was able to enter to BIOS using the key press.
+
+Change-Id: Iec1bfad1d9e5825858844cab658bbfa3e6bc24f6
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ ikvm_input.cpp | 58 +++++++---------------------------------------------------
+ ikvm_input.hpp |  4 ----
+ ikvm_video.cpp |  3 +--
+ 3 files changed, 8 insertions(+), 57 deletions(-)
+
+diff --git a/ikvm_input.cpp b/ikvm_input.cpp
+index d95e6313f62c..df12f2715585 100644
+--- a/ikvm_input.cpp
++++ b/ikvm_input.cpp
+@@ -23,9 +23,9 @@ using namespace phosphor::logging;
+ using namespace sdbusplus::xyz::openbmc_project::Common::File::Error;
+ 
+ Input::Input(const std::string& kbdPath, const std::string& ptrPath) :
+-    pointerError(false), sendKeyboard(false), sendPointer(false),
+-    keyboardFd(-1), pointerFd(-1), keyboardReport{0}, pointerReport{0},
+-    keyboardPath(kbdPath), pointerPath(ptrPath)
++    sendKeyboard(false), sendPointer(false), keyboardFd(-1), pointerFd(-1),
++    keyboardReport{0}, pointerReport{0}, keyboardPath(kbdPath),
++    pointerPath(ptrPath)
+ {
+     if (!keyboardPath.empty())
+     {
+@@ -156,36 +156,6 @@ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
+     rfbDefaultPtrAddEvent(buttonMask, x, y, cl);
+ }
+ 
+-void Input::restart()
+-{
+-    if (!keyboardPath.empty() && keyboardFd < 0)
+-    {
+-        keyboardFd = open(keyboardPath.c_str(), O_RDWR | O_CLOEXEC);
+-        if (keyboardFd < 0)
+-        {
+-            log<level::ERR>("Failed to open input device",
+-                            entry("PATH=%s", keyboardPath.c_str()),
+-                            entry("ERROR=%s", strerror(errno)));
+-        }
+-
+-        sendKeyboard = false;
+-    }
+-
+-    if (!pointerPath.empty() && pointerFd < 0)
+-    {
+-        pointerFd = open(pointerPath.c_str(), O_RDWR | O_CLOEXEC | O_NONBLOCK);
+-        if (pointerFd < 0)
+-        {
+-            log<level::ERR>("Failed to open input device",
+-                            entry("PATH=%s", pointerPath.c_str()),
+-                            entry("ERROR=%s", strerror(errno)));
+-        }
+-
+-        pointerError = false;
+-        sendPointer = false;
+-    }
+-}
+-
+ void Input::sendWakeupPacket()
+ {
+     uint8_t wakeupReport[KEY_REPORT_LENGTH] = {0};
+@@ -459,13 +429,10 @@ bool Input::writeKeyboard(const uint8_t *report)
+ {
+     if (write(keyboardFd, report, KEY_REPORT_LENGTH) != KEY_REPORT_LENGTH)
+     {
+-        log<level::ERR>("Failed to write keyboard report",
+-                        entry("ERROR=%s", strerror(errno)));
+-
+-        if (errno == ESHUTDOWN)
++        if (errno != ESHUTDOWN && errno != EAGAIN)
+         {
+-            close(keyboardFd);
+-            keyboardFd = -1;
++            log<level::ERR>("Failed to write keyboard report",
++                            entry("ERROR=%s", strerror(errno)));
+         }
+ 
+         return false;
+@@ -478,23 +445,12 @@ void Input::writePointer(const uint8_t *report)
+ {
+     if (write(pointerFd, report, PTR_REPORT_LENGTH) != PTR_REPORT_LENGTH)
+     {
+-        if (!pointerError)
++        if (errno != ESHUTDOWN && errno != EAGAIN)
+         {
+             log<level::ERR>("Failed to write pointer report",
+                             entry("ERROR=%s", strerror(errno)));
+-            pointerError = true;
+-        }
+-
+-        if (errno == ESHUTDOWN)
+-        {
+-            close(pointerFd);
+-            pointerFd = -1;
+         }
+     }
+-    else
+-    {
+-        pointerError = false;
+-    }
+ }
+ 
+ } // namespace ikvm
+diff --git a/ikvm_input.hpp b/ikvm_input.hpp
+index 953333263e2d..2adc7c106755 100644
+--- a/ikvm_input.hpp
++++ b/ikvm_input.hpp
+@@ -48,8 +48,6 @@ class Input
+      */
+     static void pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl);
+ 
+-    /* @brief Re-opens USB device in case the endpoint shutdown */
+-    void restart();
+     /* @brief Sends a wakeup data packet to the USB input device */
+     void sendWakeupPacket();
+     /* @brief Sends an HID report to the USB input device */
+@@ -90,8 +88,6 @@ class Input
+     bool writeKeyboard(const uint8_t *report);
+     void writePointer(const uint8_t *report);
+ 
+-    /* @brief Indicates whether or not a pointer report error has occurred */
+-    bool pointerError;
+     /* @brief Indicates whether or not to send a keyboard report */
+     bool sendKeyboard;
+     /* @brief Indicates whether or not to send a pointer report */
+diff --git a/ikvm_video.cpp b/ikvm_video.cpp
+index 6a5aa6c10927..7bd4b4eb6c98 100644
+--- a/ikvm_video.cpp
++++ b/ikvm_video.cpp
+@@ -163,10 +163,9 @@ bool Video::needsResize()
+         restart();
+         return false;
+     }
+-    else if (timingsError)
++    else
+     {
+         timingsError = false;
+-        input.restart();
+     }
+ 
+     if (timings.bt.width != width || timings.bt.height != height)
+-- 
+2.7.4
+

@@ -620,61 +620,6 @@
             "Type": "CFMSensor"
         },
         {
-            "AlphaF": 4.352,
-            "AlphaS": 0.512,
-            "Name": "Exit Air Temp",
-            "PowerFactorMax": 1.0,
-            "PowerFactorMin": 0.4,
-            "QMax": 88,
-            "QMin": 15,
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 85
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 80
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "ExitAirTempSensor"
-        },
-        {
-            "AllowedFailures": 1,
-            "Name": "FanRedundancy",
-            "Type": "FanRedundancy"
-        },
-        {
-            "Direction": "Input",
-            "Index": 214,
-            "Name": "SMI Input",
-            "Polarity": "High",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 218,
-            "Name": "ID Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
             "Name": "System Fan connector 1",
             "Pwm": 0,
             "Tachs": [
@@ -1098,6 +1043,16 @@
                 }
             ],
             "Type": "IpmbSensor"
+        },
+        {
+            "EthIndex": 0,
+            "Name": "Dedicated Management NIC",
+            "Type": "NIC"
+        },
+        {
+            "EthIndex": 1,
+            "Name": "Host/BMC Shared NIC",
+            "Type": "NIC"
         },
         {
             "Address": "0x71",
@@ -1729,53 +1684,6 @@
             "Type": "Pid.Zone"
         },
         {
-            "Class": "Ceiling",
-            "Inputs": [
-                "Front Panel Temp"
-            ],
-            "Name": "Front Panel UCC",
-            "NegativeHysteresis": 2,
-            "Output": [
-                70.0,
-                80.0
-            ],
-            "PositiveHysteresis": 0,
-            "Profiles": [
-                "Acoustic"
-            ],
-            "Reading": [
-                22.0,
-                32.0
-            ],
-            "Type": "Stepwise",
-            "Zones": [
-                "Left",
-                "Right"
-            ]
-        },
-        {
-            "Class": "Floor",
-            "Inputs": [
-                "Front Panel Temp"
-            ],
-            "Name": "Front Panel LCC",
-            "NegativeHysteresis": 2,
-            "Output": [
-                50.0,
-                60.0
-            ],
-            "PositiveHysteresis": 0,
-            "Reading": [
-                20.0,
-                30.0
-            ],
-            "Type": "Stepwise",
-            "Zones": [
-                "Left",
-                "Right"
-            ]
-        },
-        {
             "Address": "0x4A",
             "Bus": 6,
             "Name": "BMC Temp",
@@ -1936,38 +1844,6 @@
             "Type": "TMP75"
         },
         {
-            "Address": "0x4D",
-            "Bus": "0x1",
-            "Name": "Front Panel Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 55
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 50
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "TMP75"
-        },
-        {
             "Address": "0x30",
             "Bus": 0,
             "CpuID": 1,
@@ -1978,8 +1854,7 @@
                     "Polarity": "Low"
                 }
             ],
-            "Type": "XeonCPU",
-            "UseWA": 1
+            "Type": "XeonCPU"
         },
         {
             "Address": "0x31",
@@ -1992,8 +1867,7 @@
                     "Polarity": "Low"
                 }
             ],
-            "Type": "XeonCPU",
-            "UseWA": 1
+            "Type": "XeonCPU"
         }
     ],
     "Name": "WP Baseboard",

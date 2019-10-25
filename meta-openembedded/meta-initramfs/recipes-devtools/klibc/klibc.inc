@@ -23,6 +23,7 @@ SRC_URI = "git://git.kernel.org/pub/scm/libs/klibc/klibc.git \
            file://0001-klibc-add-getrandom-syscall.patch \
            file://0001-klibc-Kbuild-Accept-EXTRA_KLIBCAFLAGS.patch \
            file://0001-Define-ulocked_-fgets-fread-fwrite-aliases.patch \
+           file://0001-Fix-missing-include-in-sys-mman.h.patch \
            "
 
 ARMPATCHES ?= ""
@@ -32,6 +33,9 @@ ARMPATCHES_arm = "file://klibc-config-eabi.patch \
                  "
 
 S = "${WORKDIR}/git"
+
+OPTFLAGS = "${TUNE_CCARGS} -Os"
+OPTFLAGS_append_toolchain-clang = " -fno-builtin-bcmp"
 
 PARALLEL_MAKE = ""
 EXTRA_OEMAKE = "'KLIBCARCH=${KLIBC_ARCH}' \
@@ -43,7 +47,7 @@ EXTRA_OEMAKE = "'KLIBCARCH=${KLIBC_ARCH}' \
                 'INSTALLDIR=${libdir}/klibc' \
                 'SHLIBDIR=${libdir}' \
                 '${KLIBCTHUMB}' \
-                'KLIBCOPTFLAGS=${TUNE_CCARGS} -Os' \
+                'KLIBCOPTFLAGS=${OPTFLAGS}' \
                  V=1 \
                 "
 

@@ -1,4 +1,4 @@
-From efa7ad95db45494b2c3685c0688f00174e517e34 Mon Sep 17 00:00:00 2001
+From c1567ac196f176b19b53b6c4e7949809fd01e334 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 10 Jul 2019 16:19:33 -0700
 Subject: [PATCH] misc: aspeed: add lpc mbox driver
@@ -20,10 +20,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  create mode 100644 drivers/soc/aspeed/aspeed-lpc-mbox.c
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 00848693f455..4b8b0be22cd4 100644
+index ee86b41af291..b7b6e8aa3a12 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -344,6 +344,15 @@
+@@ -394,6 +394,15 @@
  					sio_regs: regs {
  						compatible = "aspeed,bmc-misc";
  					};
@@ -40,10 +40,10 @@ index 00848693f455..4b8b0be22cd4 100644
  			};
  
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 8406da6f62a5..9f3bd5bafab5 100644
+index 128e0b5bbae2..12a81155f1ab 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -473,6 +473,15 @@
+@@ -503,6 +503,15 @@
  					sio_regs: regs {
  						compatible = "aspeed,bmc-misc";
  					};

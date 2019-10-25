@@ -25,12 +25,18 @@ log() {
 
 # start with /proc and /tmp mounted
 [ -e /proc/mounts ] || mount -t proc proc /proc
+# FIXME: add size limits to /tmp
 grep -q /tmp /proc/mounts || mount -t tmpfs -o rw,nosuid,nodev tmp /tmp
 grep -q /sys /proc/mounts || mount -t sysfs -o rw,nosuid,nodev,noexec sys /sys
+
+# fix up /srv to be RW
+mkdir -p /tmp/srv
+mount --bind /tmp/srv /srv
 
 if grep -q debug-init /proc/cmdline; then
     exec > /tmp/init.log 2>&1
     set -x
+    env
 else
     # silent bob
     exec >/dev/null 2>&1
@@ -127,23 +133,29 @@ prepare_ubi_volume() {
 reformat_ubi_volume() {
     local nv_num="$1"
     local mnt="$2"
+    local mtd="/dev/mtd${nv_num}"
     local ubi="/dev/ubi${nv_num}"
     local vol="${ubi}_0"
     # unmount the volume to reformat it
     umount -f "$mnt"
     ubidetach -m $nv_num
-    ubiformat -y "$ubi"
+    ubiformat -y "$mtd"
     prepare_ubi_volume $nv_num
     # remount the UBIFS on the UBI volume
-    mount -t ubifs "$vol" "$mnt"
+    mount -t ubifs -o sync "$vol" "$mnt"
     if [ $? -ne 0 ]; then
         log "Failed to mount reformatted NV volume; system unstable"
     fi
 }
 
+clear_ubenv() {
+    log "Clearing U-Boot environment"
+    flash_erase /dev/mtd/u-boot-env 0 0
+}
+
 # mount a UBIFS on the UBI volume
 prepare_ubi_volume $NV_MTD_NUM
-mount -t ubifs "/dev/ubi${NV_MTD_NUM}_0" "$RWFS_MNT"
+mount -t ubifs -o sync "/dev/ubi${NV_MTD_NUM}_0" "$RWFS_MNT"
 if [ $? -ne 0 ]; then
     log "Failed to mount NV volume; attempting recovery"
     reformat_ubi_volume $NV_MTD_NUM $RWFS_MNT
@@ -158,15 +170,28 @@ if [ $restore_op -eq 1 ]; then
     targeted_clean
 elif [ $restore_op -eq 2 ]; then
     full_clean
+    clear_ubenv
 elif [ $restore_op -eq 3 ]; then
     log "restore-defaults: reformat"
     reformat_ubi_volume $NV_MTD_NUM $RWFS_MNT
+    clear_ubenv
 fi
 rm -f $RESTORE_FLAG
 
 for FS in $NV_OVERLAYS; do
     nvrw "$FS"
 done
+
+# at first boot, fix up /var/volatile/{log,tmp} to be RW (due to yocto nonsense)
+if [ -L /var/log ]; then
+    # remove symlink /var/log -> volatile/log; make /var/log non-volatile
+    rm /var/log
+    mkdir -p /var/log
+    # remove symlink /var/tmp -> volatile/tmp; symlink to /tmp/var
+    rm /var/tmp
+    ln -s /tmp/var /var/tmp
+fi
+mkdir -p /tmp/var
 
 # work around bug where /etc/machine-id will be mounted with a temporary file
 # if rootfs is read-only and the file is empty
@@ -205,7 +230,7 @@ if ! grep -q sofs /proc/mounts; then
 
     # mount a UBIFS on the UBI volume
     prepare_ubi_volume $SOFS_MTD_NUM
-    mount -t ubifs "/dev/ubi${SOFS_MTD_NUM}_0" "$SOFS_MNT"
+    mount -t ubifs -o sync "/dev/ubi${SOFS_MTD_NUM}_0" "$SOFS_MNT"
     if [ $? -ne 0 ]; then
         log "Failed to mount SOFS volume; attempting recovery"
         reformat_ubi_volume $SOFS_MTD_NUM $SOFS_MNT

@@ -3,6 +3,10 @@
 #ifndef _LIBMCTP_SMBUS_H
 #define _LIBMCTP_SMBUS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "libmctp.h"
 
 struct mctp_binding_smbus;
@@ -15,4 +19,9 @@ void mctp_smbus_register_bus(struct mctp_binding_smbus *smbus,
 int mctp_smbus_read(struct mctp_binding_smbus *smbus);
 int mctp_smbus_open_bus(struct mctp_binding_smbus *smbus, int out_bus_num,
 			int root_bus_num);
+void mctp_smbus_free(struct mctp_binding_smbus *smbus);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* _LIBMCTP_SMBUS_H */

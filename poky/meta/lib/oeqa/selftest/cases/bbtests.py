@@ -40,7 +40,7 @@ class BitbakeTests(OESelftestTestCase):
     def test_event_handler(self):
         self.write_config("INHERIT += \"test_events\"")
         result = bitbake('m4-native')
-        find_build_started = re.search(r"NOTE: Test for bb\.event\.BuildStarted(\n.*)*NOTE: Executing RunQueue Tasks", result.output)
+        find_build_started = re.search(r"NOTE: Test for bb\.event\.BuildStarted(\n.*)*NOTE: Executing.*Tasks", result.output)
         find_build_completed = re.search(r"Tasks Summary:.*(\n.*)*NOTE: Test for bb\.event\.BuildCompleted", result.output)
         self.assertTrue(find_build_started, msg = "Match failed in:\n%s"  % result.output)
         self.assertTrue(find_build_completed, msg = "Match failed in:\n%s" % result.output)
@@ -75,8 +75,11 @@ class BitbakeTests(OESelftestTestCase):
         result = bitbake('man-db -c patch', ignore_status=True)
         self.delete_recipeinc('man-db')
         bitbake('-cclean man-db')
-        line = self.getline(result, "Function failed: patch_do_patch")
-        self.assertTrue(line and line.startswith("ERROR:"), msg = "Incorrectly formed patch application didn't fail. bitbake output: %s" % result.output)
+        found = False
+        for l in result.output.split('\n'):
+            if l.startswith("ERROR:") and "failed" in l and "do_patch" in l:
+                found = l
+        self.assertTrue(found and found.startswith("ERROR:"), msg = "Incorrectly formed patch application didn't fail. bitbake output: %s" % result.output)
 
     def test_force_task_1(self):
         # test 1 from bug 5875
@@ -115,11 +118,12 @@ class BitbakeTests(OESelftestTestCase):
             self.assertIn(task, result.output, msg="Couldn't find %s task.")
 
     def test_bitbake_g(self):
-        result = bitbake('-g core-image-minimal')
-        for f in ['pn-buildlist', 'recipe-depends.dot', 'task-depends.dot']:
+        recipe = 'base-files'
+        result = bitbake('-g %s' % recipe)
+        for f in ['pn-buildlist', 'task-depends.dot']:
             self.addCleanup(os.remove, f)
         self.assertTrue('Task dependencies saved to \'task-depends.dot\'' in result.output, msg = "No task dependency \"task-depends.dot\" file was generated for the given task target. bitbake output: %s" % result.output)
-        self.assertTrue('busybox' in ftools.read_file(os.path.join(self.builddir, 'task-depends.dot')), msg = "No \"busybox\" dependency found in task-depends.dot file.")
+        self.assertTrue(recipe in ftools.read_file(os.path.join(self.builddir, 'task-depends.dot')), msg = "No \"%s\" dependency found in task-depends.dot file." % recipe)
 
     def test_image_manifest(self):
         bitbake('core-image-minimal')
@@ -241,6 +245,36 @@ INHERIT_remove = \"report-error\"
         for task in tasks:
             self.assertIn('_setscene', task, 'A task different from _setscene ran: %s.\n'
                                              'Executed tasks were: %s' % (task, str(tasks)))
+
+    def test_skip_setscene(self):
+        test_recipe = 'ed'
+
+        bitbake(test_recipe)
+        bitbake('-c clean %s' % test_recipe)
+
+        ret = bitbake('--setscene-only %s' % test_recipe)
+        tasks = re.findall(r'task\s+(do_\S+):', ret.output)
+
+        for task in tasks:
+            self.assertIn('_setscene', task, 'A task different from _setscene ran: %s.\n'
+                                             'Executed tasks were: %s' % (task, str(tasks)))
+
+        # Run without setscene. Should do nothing
+        ret = bitbake('--skip-setscene %s' % test_recipe)
+        tasks = re.findall(r'task\s+(do_\S+):', ret.output)
+
+        self.assertFalse(tasks, 'Tasks %s ran when they should not have' % (str(tasks)))
+
+        # Clean (leave sstate cache) and run with --skip-setscene. No setscene
+        # tasks should run
+        bitbake('-c clean %s' % test_recipe)
+
+        ret = bitbake('--skip-setscene %s' % test_recipe)
+        tasks = re.findall(r'task\s+(do_\S+):', ret.output)
+
+        for task in tasks:
+            self.assertNotIn('_setscene', task, 'A _setscene task ran: %s.\n'
+                                                'Executed tasks were: %s' % (task, str(tasks)))
 
     def test_bbappend_order(self):
         """ Bitbake should bbappend to recipe in a predictable order """

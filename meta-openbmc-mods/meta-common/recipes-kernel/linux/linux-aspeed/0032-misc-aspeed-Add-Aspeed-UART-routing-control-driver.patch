@@ -1,4 +1,4 @@
-From 0928704f3b593217662f980221406fcf6db39377 Mon Sep 17 00:00:00 2001
+From af686df07d23080834332b63fe37ee28b630ca2f Mon Sep 17 00:00:00 2001
 From: Oskar Senft <osk@google.com>
 Date: Wed, 8 Aug 2018 10:15:05 -0400
 Subject: [PATCH] misc: aspeed: Add Aspeed UART routing control driver.
@@ -102,10 +102,10 @@ index 000000000000..afaf17cb7eda
 +$ cat /sys/bus/platform/drivers/aspeed-uart-routing/*.uart_routing/uart1
 +io1 io2 io3 io4 uart2 [uart3] uart4 io6
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-index 4815104459f1..3094e90c9def 100644
+index 0aa2ac82cae4..403f29a74281 100644
 --- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -233,6 +233,10 @@
+@@ -260,6 +260,10 @@
  	status = "okay";
  };
  
@@ -117,10 +117,10 @@ index 4815104459f1..3094e90c9def 100644
  	status = "okay";
  
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 0e7f1d2fa08e..6e0b40eb939f 100644
+index 26671cc4dbd5..8288002e4f02 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -493,6 +493,12 @@
+@@ -524,6 +524,12 @@
  						status = "disabled";
  					};
  				};
@@ -134,10 +134,10 @@ index 0e7f1d2fa08e..6e0b40eb939f 100644
  
  			peci: bus@1e78b000 {
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index b6acddaa9421..78e8fc892209 100644
+index 50814caba1d3..439f3b0de702 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
-@@ -481,6 +481,12 @@ config ASPEED_ESPI_SLAVE
+@@ -463,6 +463,12 @@ config ASPEED_ESPI_SLAVE
  	  Control Aspeed ast2500 eSPI slave controller to handle event
  	  which needs the firmware's processing.
  
@@ -151,10 +151,10 @@ index b6acddaa9421..78e8fc892209 100644
  	depends on PCI
  	select CRC32
 diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
-index f91f66a15484..7337b8bcd0a3 100644
+index f168e6713440..87958cb74d00 100644
 --- a/drivers/misc/Makefile
 +++ b/drivers/misc/Makefile
-@@ -55,6 +55,7 @@ obj-$(CONFIG_ECHO)		+= echo/
+@@ -54,6 +54,7 @@ obj-$(CONFIG_ECHO)		+= echo/
  obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
  obj-$(CONFIG_CXL_BASE)		+= cxl/
  obj-$(CONFIG_ASPEED_ESPI_SLAVE)	+= aspeed-espi-slave.o

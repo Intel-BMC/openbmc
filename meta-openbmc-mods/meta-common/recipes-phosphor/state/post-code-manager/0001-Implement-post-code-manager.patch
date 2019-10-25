@@ -311,7 +311,7 @@ index 0000000..67bc43f
 +BusName=xyz.openbmc_project.State.Boot.PostCode
 +
 +[Install]
-+WantedBy=obmc-standby.target
++WantedBy=multi-user.target
 diff --git a/src/main.cpp b/src/main.cpp
 new file mode 100644
 index 0000000..4a74b29
@@ -426,21 +426,21 @@ index 0000000..983eeee
 +        std::ofstream os(fullPath.c_str(), std::ios::binary);
 +        cereal::JSONOutputArchive oarchive(os);
 +        oarchive(index);
-+
 +        std::ofstream osPostCodes((path + std::to_string(currentBootCycleIndex())).c_str(), std::ios::binary);
 +        cereal::JSONOutputArchive oarchivePostCodes(osPostCodes);
 +        oarchivePostCodes(postCodes);
-+
-+        return path;
 +    }
 +    catch (cereal::Exception& e)
 +    {
 +        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
++        return "";
 +    }
 +    catch (const fs::filesystem_error& e)
 +    {
 +        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
++        return "";
 +    }
++    return path;
 +}
 +
 +bool PostCode::deserialize(const fs::path& path, uint16_t& index)

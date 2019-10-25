@@ -1,4 +1,4 @@
-#/usr/bin/env python3
+#!/usr/bin/env python3
 # coding: utf-8
 # our image is contained as parts, including the hash
 # then it gets zipped up and signed again
@@ -46,7 +46,7 @@ PFM_SPI = 0x1
 PFM_I2C = 0x2
 SHA256 = 0x1
 SHA256_SIZE = 32
-PFM_DEF_SIZE = 16
+PFM_DEF_SIZE = 32 # 32 bytes of PFM header
 PFM_SPI_SIZE_DEF = 16 # 16 bytes of SPI PFM
 PFM_SPI_SIZE_HASH = 32 # 32 bytes of SPI region HASH
 PFM_I2C_SIZE = 40 # 40 bytes of i2c rules region in PFM
@@ -102,7 +102,6 @@ class pfr_bmc_image(object):
         for p in self.manifest['image-parts']:
             # the json should have in the order- filename, index, offset, size and protection byte
             self.image_parts.append((p['name'], p['index'], p['offset'], p['size'], p['prot_mask'], p['pfm'], p['hash'], p['compress']))
-        print(self.image_parts)
 
         self.act_dgst = hashlib.sha256()
 
@@ -124,7 +123,6 @@ class pfr_bmc_image(object):
         for i in self.manifest['i2c-rules']:
             # the json should have in the order- bus-id, rule-id, address, size and cmd-whitelist
             self.i2c_rules.append((i['bus-id'], i['rule-id'], i['address'], i['cmd-whitelist']))
-        print(self.i2c_rules)
 
         # I2C rules PFM array
         self.pfm_i2c_rules = []
@@ -205,7 +203,7 @@ class pfr_bmc_image(object):
         if pfm_flag == 1:
            self.pfm_bytes += PFM_SPI_SIZE_DEF
 
-           hash = b'\x00' * 32
+           hash = bytearray(32)
            hash_pres = 0
 
            if hash_flag == 1:
@@ -232,7 +230,7 @@ class pfr_bmc_image(object):
                     whitelist_map[i] = 0xff
                 break
             else:
-                idx = int(c,16) / 8 # index in the 32 bytes of white list i2c cmds
+                idx = int(c,16) // 8 # index in the 32 bytes of white list i2c cmds
                 bit = int(c,16) % 8 # bit position to set
                 whitelist_map[idx] |= (1 << bit)
 
@@ -241,7 +239,6 @@ class pfr_bmc_image(object):
 
     def build_i2c_rules(self):
         for i in self.i2c_rules:
-            print(i[0], i[1], i[2], i[3])
             self.add_i2c_rules(i)
 
     def hash_and_map(self):
@@ -327,10 +324,15 @@ class pfr_bmc_image(object):
             }
 
         # PFM should be 128bytes aligned, find the padding bytes
-        padding_bytes = 128 - (self.pfm_bytes % 128)
+        padding_bytes = 0
+        if (self.pfm_bytes % 128) != 0:
+            padding_bytes = 128 - (self.pfm_bytes % 128)
+
+        print("padding={}".format(padding_bytes))
+        print("PFM size1={}".format(self.pfm_bytes))
         self.pfm_bytes += padding_bytes
         parts['pfm_len'] = struct.pack('<I', self.pfm_bytes)
-        print("PFM size={}".format(self.pfm_bytes))
+        print("PFM size2={}".format(self.pfm_bytes))
 
         with open("pfm.bin", "wb+") as f:
             f.write(b''.join([parts[n] for n in names]))
@@ -343,7 +345,7 @@ class pfr_bmc_image(object):
                 f.write(struct.pack('<I', int(i.spi_end_addr)))
 
                 if i.spi_hash_pres == 1:
-                    f.write(i.spi_hash.decode('hex'))
+                    f.write(bytearray.fromhex(i.spi_hash))
 
             for r in self.pfm_i2c_rules:
                 f.write(struct.pack('<B', int(r.i2c_pfm)))

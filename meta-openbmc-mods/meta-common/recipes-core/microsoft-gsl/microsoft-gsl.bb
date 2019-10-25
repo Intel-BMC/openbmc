@@ -4,7 +4,7 @@
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=363055e71e77071107ba2bb9a54bd9a7"
 
-SRC_URI = "git://github.com/Microsoft/GSL.git;protocol=https"
+SRC_URI = "git://github.com/Microsoft/GSL.git;protocol=https;nobranch=1"
 
 # Modify these as desired
 PV = "1.0+git${SRCPV}"

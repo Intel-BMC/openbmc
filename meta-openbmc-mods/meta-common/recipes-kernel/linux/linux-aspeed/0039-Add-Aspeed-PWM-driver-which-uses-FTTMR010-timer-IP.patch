@@ -1,4 +1,4 @@
-From 7ac4709dd92c608ca4c8ff0046a434c8f465a80c Mon Sep 17 00:00:00 2001
+From e2df269568c6c0c8c8edbca73118c2dbdaea75bd Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 11 Feb 2019 17:02:35 -0800
 Subject: [PATCH] Add Aspeed PWM driver which uses FTTMR010 timer IP
@@ -18,10 +18,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  create mode 100644 drivers/pwm/pwm-fttmr010.c
 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index b8c85fad2a39..88ac8e08b6ae 100644
+index 6d2c4494ce04..653e03a0fa4c 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -312,7 +312,7 @@
+@@ -342,7 +342,7 @@
  
  			timer: timer@1e782000 {
  				/* This timer is a Faraday FTTMR010 derivative */
@@ -31,7 +31,7 @@ index b8c85fad2a39..88ac8e08b6ae 100644
  				interrupts = <16 17 18 35 36 37 38 39>;
  				clocks = <&syscon ASPEED_CLK_APB>;
 diff --git a/drivers/pwm/Kconfig b/drivers/pwm/Kconfig
-index dff5a93f7daa..5759439a3947 100644
+index a7e57516959e..3388f837fcf9 100644
 --- a/drivers/pwm/Kconfig
 +++ b/drivers/pwm/Kconfig
 @@ -171,6 +171,15 @@ config PWM_FSL_FTM
@@ -51,7 +51,7 @@ index dff5a93f7daa..5759439a3947 100644
  	tristate "HiSilicon BVT PWM support"
  	depends on ARCH_HISI || COMPILE_TEST
 diff --git a/drivers/pwm/Makefile b/drivers/pwm/Makefile
-index c368599d36c0..937d212bb02a 100644
+index 76b555b51887..19ecfd82d8c5 100644
 --- a/drivers/pwm/Makefile
 +++ b/drivers/pwm/Makefile
 @@ -15,6 +15,7 @@ obj-$(CONFIG_PWM_CRC)		+= pwm-crc.o

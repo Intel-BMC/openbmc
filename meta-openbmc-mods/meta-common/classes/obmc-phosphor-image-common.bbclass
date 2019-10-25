@@ -5,7 +5,6 @@ IMAGE_INSTALL_append = " \
         bmcweb \
         dbus-broker \
         dtc \
-        dtoverlay \
         entity-manager \
         ipmitool \
         intel-ipmi-oem \
@@ -16,9 +15,9 @@ IMAGE_INSTALL_append = " \
         rest-dbus-static \
         phosphor-pid-control \
         phosphor-host-postd \
-        smbios-mdrv1 \
         phosphor-certificate-manager \
         phosphor-sel-logger \
+        smbios-mdrv1 \
         smbios-mdrv2 \
         obmc-ikvm \
         system-watchdog \
@@ -34,8 +33,13 @@ IMAGE_INSTALL_append = " \
         phosphor-u-boot-mgr \
         prov-mode-mgr \
         ac-boot-check \
+        host-error-monitor \
         beepcode-mgr \
+        psu-manager \
+        kernel-panic-check \
         "
+
+IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"
 
 # this package was flagged as a security risk
 IMAGE_INSTALL_remove += " lrzsz"

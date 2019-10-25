@@ -15,6 +15,6 @@ SRCREV = "60d76db038a0d85851098b13451246abb0d876ed"
 S = "${WORKDIR}/git/"
 
 do_install_append() {
-   install -d ${STAGING_DIR}/intel-pfr-files
-   install -m 775 ${B}/blocksign ${STAGING_DIR}/intel-pfr-files
+   install -d ${D}/${bindir}
+   install -m 775 ${B}/blocksign ${D}/${bindir}
 }
