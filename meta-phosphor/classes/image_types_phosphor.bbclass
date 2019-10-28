@@ -16,15 +16,18 @@ IMAGE_BASETYPE ?= "squashfs-xz"
 OVERLAY_BASETYPE ?= "jffs2"
 FLASH_UBI_BASETYPE ?= "${IMAGE_BASETYPE}"
 FLASH_UBI_OVERLAY_BASETYPE ?= "ubifs"
+FLASH_EXT4_BASETYPE ?= "ext4"
+FLASH_EXT4_OVERLAY_BASETYPE ?= "ext4"
 
-IMAGE_TYPES += "mtd-static mtd-static-alltar mtd-static-tar mtd-ubi mtd-ubi-tar"
+IMAGE_TYPES += "mtd-static mtd-static-alltar mtd-static-tar mtd-ubi mtd-ubi-tar mmc-ext4-tar"
 
 IMAGE_TYPEDEP_mtd-static = "${IMAGE_BASETYPE}"
 IMAGE_TYPEDEP_mtd-static-tar = "${IMAGE_BASETYPE}"
 IMAGE_TYPEDEP_mtd-static-alltar = "mtd-static"
 IMAGE_TYPEDEP_mtd-ubi = "${FLASH_UBI_BASETYPE}"
 IMAGE_TYPEDEP_mtd-ubi-tar = "${FLASH_UBI_BASETYPE}"
-IMAGE_TYPES_MASKED += "mtd-static mtd-static-alltar mtd-static-tar mtd-ubi mtd-ubi-tar"
+IMAGE_TYPEDEP_mmc-ext4-tar = "${FLASH_EXT4_BASETYPE}"
+IMAGE_TYPES_MASKED += "mtd-static mtd-static-alltar mtd-static-tar mtd-ubi mtd-ubi-tar mmc-ext4-tar"
 
 # Flash characteristics in KB unless otherwise noted
 DISTROOVERRIDES .= ":flash-${FLASH_SIZE}"
@@ -77,19 +80,31 @@ python() {
 # Instead, prefix the overlay override value with 'rwfs-' to avoid collisions.
 DISTROOVERRIDES .= ":static-rwfs-${OVERLAY_BASETYPE}"
 DISTROOVERRIDES .= ":ubi-rwfs-${FLASH_UBI_OVERLAY_BASETYPE}"
+DISTROOVERRIDES .= ":mmc-rwfs-${FLASH_EXT4_OVERLAY_BASETYPE}"
 
 JFFS2_RWFS_CMD = "mkfs.jffs2 --root=jffs2 --faketime --output=${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.jffs2"
 UBIFS_RWFS_CMD = "mkfs.ubifs -r ubifs -c ${FLASH_UBI_RWFS_LEBS} -m ${FLASH_PAGE_SIZE} -e ${FLASH_LEB_SIZE} ${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.ubifs"
+EXT4_RWFS_CMD = "mkfs.ext4 -F ${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.rwfs.ext4"
 
 FLASH_STATIC_RWFS_CMD_static-rwfs-jffs2 = "${JFFS2_RWFS_CMD}"
 FLASH_UBI_RWFS_CMD_ubi-rwfs-jffs2 = "${JFFS2_RWFS_CMD}"
 FLASH_UBI_RWFS_CMD_ubi-rwfs-ubifs = "${UBIFS_RWFS_CMD}"
+FLASH_EXT4_RWFS_CMD_mmc-rwfs-ext4 = "${EXT4_RWFS_CMD}"
 
-mk_nor_image() {
+mk_empty_image() {
 	image_dst="$1"
 	image_size_kb=$2
 	dd if=/dev/zero bs=1k count=$image_size_kb \
 		| tr '\000' '\377' > $image_dst
+}
+
+clean_rwfs() {
+	type=$1
+	shift
+
+	rm -f ${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.$type
+	rm -rf $type
+	mkdir $type
 }
 
 make_rwfs() {
@@ -99,14 +114,13 @@ make_rwfs() {
 	shift
 	opts="$@"
 
-	rm -f ${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.$type
-	rm -rf $type
-	mkdir $type
+	mkdir -p $type
 
 	$cmd $opts
 }
 
 do_generate_rwfs_static() {
+	clean_rwfs ${OVERLAY_BASETYPE}
 	make_rwfs ${OVERLAY_BASETYPE} "${FLASH_STATIC_RWFS_CMD}" ${OVERLAY_MKFS_OPTS}
 }
 do_generate_rwfs_static[dirs] = " ${S}/static"
@@ -115,11 +129,22 @@ do_generate_rwfs_static[depends] += " \
         "
 
 do_generate_rwfs_ubi() {
+	clean_rwfs ${FLASH_UBI_OVERLAY_BASETYPE}
 	make_rwfs ${FLASH_UBI_OVERLAY_BASETYPE} "${FLASH_UBI_RWFS_CMD}"
 }
 do_generate_rwfs_ubi[dirs] = " ${S}/ubi"
 do_generate_rwfs_ubi[depends] += " \
         mtd-utils-native:do_populate_sysroot \
+        "
+
+do_generate_rwfs_ext4() {
+	clean_rwfs rwfs.${FLASH_EXT4_OVERLAY_BASETYPE}
+	mk_empty_image ${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.rwfs.ext4 1024
+	make_rwfs ${FLASH_EXT4_OVERLAY_BASETYPE} "${FLASH_EXT4_RWFS_CMD}" ${OVERLAY_MKFS_OPTS}
+}
+do_generate_rwfs_ext4[dirs] = " ${S}/ext4"
+do_generate_rwfs_ext4[depends] += " \
+        e2fsprogs-native:do_populate_sysroot \
         "
 
 add_volume() {
@@ -170,7 +195,7 @@ do_make_ubi() {
 	ubinize -p ${FLASH_PEB_SIZE}KiB -m ${FLASH_PAGE_SIZE} -o ubi-img $cfg
 
 	# Concatenate the uboot and ubi partitions
-	mk_nor_image ${IMGDEPLOYDIR}/${IMAGE_NAME}.ubi.mtd ${FLASH_SIZE}
+	mk_empty_image ${IMGDEPLOYDIR}/${IMAGE_NAME}.ubi.mtd ${FLASH_SIZE}
 	dd bs=1k conv=notrunc seek=${FLASH_UBOOT_OFFSET} \
 		if=${DEPLOY_DIR_IMAGE}/u-boot.${UBOOT_SUFFIX} \
 		of=${IMGDEPLOYDIR}/${IMAGE_NAME}.ubi.mtd
@@ -191,7 +216,7 @@ do_make_ubi[depends] += " \
 
 do_mk_static_nor_image() {
 	# Assemble the flash image
-	mk_nor_image ${IMGDEPLOYDIR}/${IMAGE_NAME}.static.mtd ${FLASH_SIZE}
+	mk_empty_image ${IMGDEPLOYDIR}/${IMAGE_NAME}.static.mtd ${FLASH_SIZE}
 }
 
 python do_generate_static() {
@@ -314,11 +339,11 @@ make_tar_of_images() {
 	extra_files="$@"
 
 	# Create the tar archive
-	tar -h -cvf ${IMGDEPLOYDIR}/${IMAGE_NAME}.$type.mtd.tar \
+	tar -h -cvf ${IMGDEPLOYDIR}/${IMAGE_NAME}.$type.tar \
 		image-u-boot image-kernel image-rofs image-rwfs $extra_files
 
 	cd ${IMGDEPLOYDIR}
-	ln -sf ${IMAGE_NAME}.$type.mtd.tar ${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.$type.mtd.tar
+	ln -sf ${IMAGE_NAME}.$type.tar ${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.$type.tar
 }
 
 do_generate_static_tar() {
@@ -326,7 +351,7 @@ do_generate_static_tar() {
 	ln -sf ${S}/publickey publickey
 	make_image_links ${OVERLAY_BASETYPE} ${IMAGE_BASETYPE}
 	make_signatures image-u-boot image-kernel image-rofs image-rwfs MANIFEST publickey
-	make_tar_of_images static MANIFEST publickey ${signature_files}
+	make_tar_of_images static.mtd MANIFEST publickey ${signature_files}
 
 	# Maintain non-standard legacy link.
 	cd ${IMGDEPLOYDIR}
@@ -348,11 +373,28 @@ do_generate_ubi_tar() {
 	ln -sf ${S}/publickey publickey
 	make_image_links ${FLASH_UBI_OVERLAY_BASETYPE} ${FLASH_UBI_BASETYPE}
 	make_signatures image-u-boot image-kernel image-rofs image-rwfs MANIFEST publickey
-	make_tar_of_images ubi MANIFEST publickey ${signature_files}
+	make_tar_of_images ubi.mtd MANIFEST publickey ${signature_files}
 }
 do_generate_ubi_tar[dirs] = " ${S}/ubi"
 do_generate_ubi_tar[depends] += " \
         ${PN}:do_image_${@d.getVar('FLASH_UBI_BASETYPE', True).replace('-', '_')} \
+        virtual/kernel:do_deploy \
+        u-boot:do_populate_sysroot \
+        openssl-native:do_populate_sysroot \
+        ${SIGNING_KEY_DEPENDS} \
+        ${PN}:do_copy_signing_pubkey \
+        "
+
+do_generate_ext4_tar() {
+	ln -sf ${S}/MANIFEST MANIFEST
+	ln -sf ${S}/publickey publickey
+	make_image_links rwfs.${FLASH_EXT4_OVERLAY_BASETYPE} ${FLASH_EXT4_BASETYPE}
+	make_signatures image-u-boot image-kernel image-rofs image-rwfs MANIFEST publickey
+	make_tar_of_images ext4.mmc MANIFEST publickey ${signature_files}
+}
+do_generate_ext4_tar[dirs] = " ${S}/ext4"
+do_generate_ext4_tar[depends] += " \
+        ${PN}:do_image_${FLASH_EXT4_BASETYPE} \
         virtual/kernel:do_deploy \
         u-boot:do_populate_sysroot \
         openssl-native:do_populate_sysroot \
@@ -377,11 +419,13 @@ def get_pubkey_path(d):
 
 python do_generate_phosphor_manifest() {
     version = do_get_version(d)
+    target_machine = d.getVar('MACHINE', True)
     with open('MANIFEST', 'w') as fd:
         fd.write('purpose=xyz.openbmc_project.Software.Version.VersionPurpose.BMC\n')
         fd.write('version={}\n'.format(version.strip('"')))
         fd.write('KeyType={}\n'.format(get_pubkey_type(d)))
         fd.write('HashType=RSA-SHA256\n')
+        fd.write('MachineName={}\n'.format(target_machine))
 }
 do_generate_phosphor_manifest[dirs] = "${S}"
 do_generate_phosphor_manifest[depends] += " \
@@ -404,6 +448,7 @@ addtask copy_signing_pubkey after do_rootfs
 addtask generate_phosphor_manifest after do_rootfs
 addtask generate_rwfs_static after do_rootfs
 addtask generate_rwfs_ubi after do_rootfs
+addtask generate_rwfs_ext4 after do_rootfs
 
 python() {
     types = d.getVar('IMAGE_FSTYPES', True).split()
@@ -434,4 +479,10 @@ python() {
                 'do_generate_ubi_tar',
                 'do_image_complete',
                 'do_generate_rwfs_ubi do_generate_phosphor_manifest', d)
+
+    if 'mmc-ext4-tar' in types:
+        bb.build.addtask(
+                'do_generate_ext4_tar',
+                'do_image_complete',
+                'do_generate_rwfs_ext4 do_generate_phosphor_manifest', d)
 }
