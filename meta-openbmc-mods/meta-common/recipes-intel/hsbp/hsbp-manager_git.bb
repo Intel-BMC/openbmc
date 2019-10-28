@@ -1,8 +1,8 @@
 SUMMARY = "HSBP Manager"
 DESCRIPTION = "HSBP Manager monitors HSBPs through SMBUS"
 
-SRC_URI = "git://git@github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "30110fe5b18999bddc5721dc5611f542f6feeabd"
+SRC_URI = "git://github.com/openbmc/s2600wf-misc.git"
+SRCREV = "8675a91ba6951cb9338a138cab73a7b792158804"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"

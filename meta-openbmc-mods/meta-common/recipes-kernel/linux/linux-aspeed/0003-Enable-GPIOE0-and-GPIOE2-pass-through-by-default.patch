@@ -1,4 +1,4 @@
-From fa75e700680ea87ab5aa9722bde1667c572f2fe8 Mon Sep 17 00:00:00 2001
+From b34fdedc21c98db698150d5014e12927a017b07f Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Mon, 6 May 2019 14:18:27 -0700
 Subject: [PATCH] Enable GPIOE0 and GPIOE2 pass-through by default
@@ -18,15 +18,15 @@ the pass-through GPIOs are UNCLAIMED.
 
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-purley.dts |  4 ++++
- drivers/gpio/gpio-aspeed.c                    | 10 ++++++++++
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts |  4 ++++
+ drivers/gpio/gpio-aspeed.c                     | 10 ++++++++++
  2 files changed, 14 insertions(+)
 
-diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-index 040b345f55e1..bc6bb41a8e68 100644
---- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-+++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-@@ -117,6 +117,10 @@
+diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
+index 72bb1b3..ea1d9cd3 100644
+--- a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
++++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
+@@ -134,6 +134,10 @@
  
  &gpio {
  	status = "okay";
@@ -36,9 +36,9 @@ index 040b345f55e1..bc6bb41a8e68 100644
 +			&pinctrl_gpie2_default>;
  	gpio-line-names =
  	/*A0-A7*/	"","","","","","","","",
- 	/*B0-B7*/	"","","","","","","","",
+ 	/*B0-B7*/	"FM_BMC_BOARD_SKU_ID0_N","FM_BMC_BOARD_SKU_ID1_N","FM_BMC_BOARD_SKU_ID2_N","FM_BMC_BOARD_SKU_ID3_N","FM_BMC_BOARD_SKU_ID4_N","","","",
 diff --git a/drivers/gpio/gpio-aspeed.c b/drivers/gpio/gpio-aspeed.c
-index 09e53c5f3b0a..ac33f8134fe6 100644
+index 09e53c5..6165b44 100644
 --- a/drivers/gpio/gpio-aspeed.c
 +++ b/drivers/gpio/gpio-aspeed.c
 @@ -1140,6 +1140,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
@@ -58,7 +58,7 @@ index 09e53c5f3b0a..ac33f8134fe6 100644
 +	 * of the GPIO pins, so they can be requested at runtime.
 +	 */
 +	pinctrl = pinctrl_get_select(&pdev->dev, "pass-through");
-+	if (pinctrl)
++	if (!IS_ERR(pinctrl))
 +		pinctrl_put(pinctrl);
 +
 +	/*

@@ -37,6 +37,7 @@ IMAGE_INSTALL_append = " \
         beepcode-mgr \
         psu-manager \
         kernel-panic-check \
+        id-led-off \
         "
 
 IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"

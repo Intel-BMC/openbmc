@@ -9,13 +9,13 @@ and loads 128MB flash map.
 
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-purley.dts | 2 +-
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
+diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 index 4815104459f1..df02bb1aaf36 100644
---- a/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
-+++ b/arch/arm/boot/dts/aspeed-bmc-intel-purley.dts
+--- a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
++++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 @@ -89,7 +89,7 @@
  	flash@0 {
  		status = "okay";
