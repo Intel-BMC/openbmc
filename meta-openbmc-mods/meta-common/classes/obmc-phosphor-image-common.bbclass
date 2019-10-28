@@ -8,6 +8,7 @@ IMAGE_INSTALL_append = " \
         entity-manager \
         ipmitool \
         intel-ipmi-oem \
+        peci-pcie \
         phosphor-ipmi-ipmb \
         phosphor-node-manager-proxy \
         dbus-sensors \
@@ -37,6 +38,7 @@ IMAGE_INSTALL_append = " \
         beepcode-mgr \
         psu-manager \
         kernel-panic-check \
+        id-led-off \
         "
 
 IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"

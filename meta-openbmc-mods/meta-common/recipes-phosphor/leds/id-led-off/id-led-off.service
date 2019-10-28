@@ -1,0 +1,11 @@
+[Unit]
+Description=turn off the ID LED when BMC is ready
+Wants=multi-user.target
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/id-led-off.sh
+
+[Install]
+WantedBy=multi-user.target

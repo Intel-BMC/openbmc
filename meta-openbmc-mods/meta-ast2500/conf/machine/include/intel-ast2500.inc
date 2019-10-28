@@ -1,5 +1,5 @@
 KMACHINE = "aspeed"
-KERNEL_DEVICETREE = "${KMACHINE}-bmc-intel-purley.dtb"
+KERNEL_DEVICETREE = "${KMACHINE}-bmc-intel-ast2500.dtb"
 
 require conf/machine/include/ast2500.inc
 require conf/machine/include/obmc-bsp-si-common.inc

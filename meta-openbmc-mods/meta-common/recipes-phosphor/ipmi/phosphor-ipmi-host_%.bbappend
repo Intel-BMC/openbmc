@@ -1,8 +1,8 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-#todo yong unpin this
-SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid;nobranch=1"
-SRCREV = "c514d874e4ce3ed1f747cfcb4bab5990393c55e8"
+SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
+SRCREV = "ddb1f443d1d6e76949a230847e6145b108114a40"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://host-ipmid-whitelist.conf \
@@ -12,7 +12,6 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0050-enable-6-oem-commands.patch \
             file://0053-Fix-keep-looping-issue-when-entering-OS.patch \
             file://0056-add-SetInProgress-to-get-set-boot-option-cmd.patch \
-            file://0057-Add-timer-use-actions-support.patch \
             file://0059-Move-Set-SOL-config-parameter-to-host-ipmid.patch \
             file://0060-Move-Get-SOL-config-parameter-to-host-ipmid.patch \
             file://0062-Update-IPMI-Chassis-Control-command.patch \
@@ -22,6 +21,7 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             "
 
 EXTRA_OECONF_append = " --disable-i2c-whitelist-check"
+EXTRA_OECONF_append = " --enable-transport-oem=yes"
 
 RDEPENDS_${PN}_remove = "clear-once"
 
@@ -36,10 +36,16 @@ FILES_${PN}_remove = " \
     ${systemd_unitdir}/system/obmc-host-shutdown@0.target.requires/ \
     ${systemd_unitdir}/system/obmc-host-shutdown@0.target.requires/xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service \
     "
+
 do_configure_append(){
     cp -f ${WORKDIR}/host-ipmid-whitelist.conf ${S}
 }
 
+do_compile_prepend(){
+    cp -f ${PROJECT_SRC_DIR}/transporthandler_oem.cpp ${S}
+}
+
 do_install_append(){
     rm -f ${D}/${bindir}/phosphor-softpoweroff
+    rm -f ${S}/transporthandler_oem.cpp
 }
