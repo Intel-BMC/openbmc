@@ -135,7 +135,6 @@ reformat_ubi_volume() {
     local mnt="$2"
     local mtd="/dev/mtd${nv_num}"
     local ubi="/dev/ubi${nv_num}"
-    local mtd="/dev/mtd${nv_num}"
     local vol="${ubi}_0"
     # unmount the volume to reformat it
     umount -f "$mnt"

@@ -1,6 +1,6 @@
-From e7b86ade7db1e9ae86ea39a957bead9090f4ccbf Mon Sep 17 00:00:00 2001
+From c82162866be3c236ed73c6a19b9a0bb3097718ae Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
-Date: Thu, 12 Sep 2019 13:18:42 +0800
+Date: Sat, 12 Oct 2019 12:23:24 +0800
 Subject: [PATCH] Enable watchdog to save useflag after host power off
 
 Get the right useflag after host power off.
@@ -33,17 +33,16 @@ Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
  1 file changed, 1 insertion(+), 3 deletions(-)
 
 diff --git a/app/watchdog.cpp b/app/watchdog.cpp
-index 4650d89..1562f5e 100644
+index c64a92f..2ff9ee9 100644
 --- a/app/watchdog.cpp
 +++ b/app/watchdog.cpp
-@@ -435,23 +435,21 @@ ipmi::RspType<uint8_t,  // timerUse
+@@ -437,22 +437,20 @@ ipmi::RspType<uint3_t, // timerUse - timer use
                      wdTimerUseToIpmiTimerUse(wd_prop.expiredTimerUse));
          }
  
 +        expireFlags = timerUseExpirationFlags;
          if (wd_prop.enabled)
          {
-             timerUse |= wd_running;
              presentCountdown = htole16(wd_prop.timeRemaining / 100);
 -            expireFlags = 0;
          }
@@ -58,9 +57,9 @@ index 4650d89..1562f5e 100644
              {
                  presentCountdown = 0;
 -                expireFlags = timerUseExpirationFlags;
+                 // Automatically clear it whenever a timer expiration occurs.
+                 timerNotLogFlags = false;
              }
-         }
- 
 -- 
 2.7.4
 

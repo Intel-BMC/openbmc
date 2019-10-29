@@ -1,7 +1,7 @@
-From f28e3694f4b15c6eee58733f57213d360fc5ac7a Mon Sep 17 00:00:00 2001
+From 8a127e2054683479d3999ad99ba7ff76c193aa1a Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 5 Sep 2018 14:16:54 +0530
-Subject: [PATCH 2/2] Adding channel specific privilege to network
+Subject: [PATCH] Adding channel specific privilege to network
 
  - Adding the channel access information to the network
    interface object. This privilege will be used in
@@ -25,10 +25,10 @@ Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
  4 files changed, 267 insertions(+), 1 deletion(-)
 
 diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
-index aa1c895..e3ea33c 100644
+index 2375482..c3edd4b 100644
 --- a/ethernet_interface.cpp
 +++ b/ethernet_interface.cpp
-@@ -35,6 +35,9 @@ using namespace phosphor::logging;
+@@ -37,6 +37,9 @@ using namespace phosphor::logging;
  using namespace sdbusplus::xyz::openbmc_project::Common::Error;
  using Argument = xyz::openbmc_project::Common::InvalidArgument;
  
@@ -38,15 +38,15 @@ index aa1c895..e3ea33c 100644
  EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
                                       const std::string& objPath,
                                       bool dhcpEnabled, Manager& parent,
-@@ -51,6 +54,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
-     MacAddressIntf::mACAddress(getMACAddress(intfName));
-     EthernetInterfaceIntf::nTPServers(getNTPServersFromConf());
-     EthernetInterfaceIntf::nameservers(getNameServerFromConf());
+@@ -56,6 +59,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+ 
+     EthernetInterfaceIntf::autoNeg(std::get<2>(ifInfo));
+     EthernetInterfaceIntf::speed(std::get<0>(ifInfo));
 +    getChannelPrivilege(intfName);
  
      // Emit deferred signal.
      if (emitSignal)
-@@ -837,5 +841,117 @@ void EthernetInterface::deleteAll()
+@@ -823,5 +827,117 @@ void EthernetInterface::deleteAll()
      manager.writeToConfigurationFile();
  }
  
@@ -165,15 +165,16 @@ index aa1c895..e3ea33c 100644
  } // namespace network
  } // namespace phosphor
 diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
-index 55fd7d9..7bf93a6 100644
+index 60c56e3..3e4cf12 100644
 --- a/ethernet_interface.hpp
 +++ b/ethernet_interface.hpp
-@@ -2,10 +2,13 @@
+@@ -2,11 +2,14 @@
  
  #include "types.hpp"
  #include "util.hpp"
 +#include "xyz/openbmc_project/Channel/ChannelAccess/server.hpp"
  #include "xyz/openbmc_project/Network/IP/Create/server.hpp"
+ #include "xyz/openbmc_project/Network/Neighbor/CreateStatic/server.hpp"
  
  #include <experimental/filesystem>
 +#include <nlohmann/json.hpp>
@@ -182,17 +183,17 @@ index 55fd7d9..7bf93a6 100644
  #include <sdbusplus/server/object.hpp>
  #include <string>
  #include <xyz/openbmc_project/Collection/DeleteAll/server.hpp>
-@@ -21,7 +24,8 @@ using Ifaces = sdbusplus::server::object::object<
-     sdbusplus::xyz::openbmc_project::Network::server::EthernetInterface,
+@@ -23,7 +26,8 @@ using Ifaces = sdbusplus::server::object::object<
      sdbusplus::xyz::openbmc_project::Network::server::MACAddress,
      sdbusplus::xyz::openbmc_project::Network::IP::server::Create,
+     sdbusplus::xyz::openbmc_project::Network::Neighbor::server::CreateStatic,
 -    sdbusplus::xyz::openbmc_project::Collection::server::DeleteAll>;
 +    sdbusplus::xyz::openbmc_project::Collection::server::DeleteAll,
 +    sdbusplus::xyz::openbmc_project::Channel::server::ChannelAccess>;
  
  using IP = sdbusplus::xyz::openbmc_project::Network::server::IP;
  
-@@ -29,10 +33,15 @@ using EthernetInterfaceIntf =
+@@ -31,10 +35,15 @@ using EthernetInterfaceIntf =
      sdbusplus::xyz::openbmc_project::Network::server::EthernetInterface;
  using MacAddressIntf =
      sdbusplus::xyz::openbmc_project::Network::server::MACAddress;
@@ -208,7 +209,7 @@ index 55fd7d9..7bf93a6 100644
  namespace fs = std::experimental::filesystem;
  
  class Manager; // forward declaration of network manager.
-@@ -153,6 +162,14 @@ class EthernetInterface : public Ifaces
+@@ -195,6 +204,14 @@ class EthernetInterface : public Ifaces
       */
      void deleteAll();
  
@@ -223,7 +224,7 @@ index 55fd7d9..7bf93a6 100644
      using EthernetInterfaceIntf::dHCPEnabled;
      using EthernetInterfaceIntf::interfaceName;
      using MacAddressIntf::mACAddress;
-@@ -256,6 +273,26 @@ class EthernetInterface : public Ifaces
+@@ -291,6 +308,26 @@ class EthernetInterface : public Ifaces
      std::string objPath;
  
      friend class TestEthernetInterface;
@@ -251,7 +252,7 @@ index 55fd7d9..7bf93a6 100644
  
  } // namespace network
 diff --git a/network_manager.cpp b/network_manager.cpp
-index fa5da0f..a5020f0 100644
+index 043d7a2..75f4e5f 100644
 --- a/network_manager.cpp
 +++ b/network_manager.cpp
 @@ -34,6 +34,13 @@ extern std::unique_ptr<Timer> restartTimer;
@@ -400,5 +401,5 @@ index edb341f..e16b205 100644
  
  } // namespace network
 -- 
-2.17.1
+2.21.0
 
