@@ -39,15 +39,15 @@ SRC_URI += "file://70-hwmon.rules"
 SRC_URI += "file://70-iio.rules"
 SRC_URI += "file://start_hwmon.sh"
 
-SRCREV = "ddbf1c68e33f18797fafffc4615b19178b9fdb8d"
+SRCREV = "5906173aec2a48f37d1356f1ade788c8d25530b2"
 
 S = "${WORKDIR}/git"
 
 do_install_append() {
 
         install -d ${D}/${base_libdir}/udev/rules.d/
-        install ${WORKDIR}/70-hwmon.rules ${D}/${base_libdir}/udev/rules.d/
-        install ${WORKDIR}/70-iio.rules ${D}/${base_libdir}/udev/rules.d/
+        install -m 0644 ${WORKDIR}/70-hwmon.rules ${D}/${base_libdir}/udev/rules.d/
+        install -m 0644 ${WORKDIR}/70-iio.rules ${D}/${base_libdir}/udev/rules.d/
 
         install -d ${D}${bindir}
         install -m 0755 ${WORKDIR}/start_hwmon.sh ${D}${bindir}

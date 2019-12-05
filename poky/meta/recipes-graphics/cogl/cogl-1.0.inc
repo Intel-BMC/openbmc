@@ -1,8 +1,12 @@
 SUMMARY = "Modern 3D graphics API with associated utility APIs"
+DESCRIPTION = "Cogl is a small open source library for using 3D graphics \
+hardware for rendering. The API departs from the flat state machine style of \
+OpenGL and is designed to make it easy to write orthogonal components that \
+can render without stepping on each others toes."
 HOMEPAGE = "http://wiki.clutter-project.org/wiki/Cogl"
 LICENSE = "MIT"
 
-inherit clutter distro_features_check upstream-version-is-even gobject-introspection
+inherit clutter features_check upstream-version-is-even gobject-introspection
 # cogl-1.0 needs opengl to build
 REQUIRED_DISTRO_FEATURES ?= "opengl"
 

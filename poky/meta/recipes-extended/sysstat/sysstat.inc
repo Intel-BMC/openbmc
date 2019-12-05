@@ -10,14 +10,13 @@ SRC_URI = "http://pagesperso-orange.fr/sebastien.godard/${BP}.tar.xz \
           "
 
 UPSTREAM_CHECK_URI = "http://sebastien.godard.pagesperso-orange.fr/download.html"
-UPSTREAM_VERSION_UNKNOWN = "1"
 
 DEPENDS += "base-passwd"
 
 # autotools-brokensep as this package doesn't use automake
 inherit autotools-brokensep gettext systemd upstream-version-is-even
 
-PACKAGECONFIG ??= ""
+PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'systemd', d)}"
 PACKAGECONFIG[lm-sensors] = "--enable-sensors,--disable-sensors,lmsensors,lmsensors-libsensors"
 PACKAGECONFIG[cron] = "--enable-install-cron --enable-copy-only,--disable-install-cron --disable-copy-only"
 PACKAGECONFIG[systemd] = "--with-systemdsystemunitdir=${systemd_system_unitdir}"
@@ -46,10 +45,12 @@ do_install() {
 	        echo "d ${localstatedir}/log/sa - - - -" \
 		     > ${D}${sysconfdir}/tmpfiles.d/sysstat.conf
 
-	        if ${@bb.utils.contains('PACKAGECONFIG', 'cron', 'false', 'true', d)}; then
+		# Unless both cron and systemd are enabled, install our own
+		# systemd unit file. Otherwise the package will install one.
+	        if ${@bb.utils.contains('PACKAGECONFIG', 'cron systemd', 'false', 'true', d)}; then
 			install -d ${D}${systemd_unitdir}/system
 			install -m 0644 ${WORKDIR}/sysstat.service ${D}${systemd_unitdir}/system
-			sed -i -e 's#@LIBDIR@#${libdir}#g' ${D}${systemd_unitdir}/system/sysstat.service
+			sed -i -e 's#@LIBEXECDIR@#${libexecdir}#g' ${D}${systemd_unitdir}/system/sysstat.service
 	        fi
 	fi
 }
@@ -62,6 +63,6 @@ pkg_postinst_${PN} () {
 	fi
 }
 
-FILES_${PN} += "${libdir}/sa ${systemd_system_unitdir}"
+FILES_${PN} += "${systemd_system_unitdir}"
 
 TARGET_CC_ARCH += "${LDFLAGS}"
