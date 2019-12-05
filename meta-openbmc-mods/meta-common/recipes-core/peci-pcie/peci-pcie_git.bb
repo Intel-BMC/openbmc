@@ -10,7 +10,7 @@ SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
 DEPENDS = "boost sdbusplus libpeci"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "20016caebaac78c3290462ffa8df10c2efd61261"
+SRCREV = "98c33cdb7d704a387edee4ac8f0ef98ea771b222"
 
 S = "${WORKDIR}/git/peci_pcie"
 

@@ -1,6 +1,5 @@
-# todo Johnathan, undo nobranch once phosphor-networking is working
-SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git;nobranch=1"
-SRCREV = "9cb4a711cff999b373cf98b44cc18b9001c1395a"
+SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git"
+SRCREV = "4610bace070eb17c6e4ee015210dac44284c53a7"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -13,4 +12,5 @@ SRC_URI += "file://0005-Add-DBUS-interface-of-CPU-and-Memory-s-properties.patch 
             file://0022-Add-chassis-power-cycle-and-reset-to-Chassis-State.patch \
             file://0024-Add-the-pre-timeout-interrupt-defined-in-IPMI-spec.patch \
             file://0025-Add-PreInterruptFlag-properity-in-DBUS.patch \
+            file://0001-Reapply-Enhance-DHCP-beyond-just-OFF-and-IPv4-IPv6-e.patch \
             "

@@ -54,8 +54,8 @@ index 09e53c5..6165b44 100644
  
  	/*
 +	 * Select the pass-through pinctrl config to enable the pass-through
-+	 * mux for GPIOs E0 and E2. Then call pinctrl_put() to release claim
-+	 * of the GPIO pins, so they can be requested at runtime.
++	 * mux for GPIOs marked as pass-through. Then call pinctrl_put() to
++	 * release claim of the GPIO pins, so they can be requested at runtime.
 +	 */
 +	pinctrl = pinctrl_get_select(&pdev->dev, "pass-through");
 +	if (!IS_ERR(pinctrl))

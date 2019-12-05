@@ -13,7 +13,14 @@ DEPENDS = "sdbusplus openssl libpam libgpiod"
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
 SRC_URI = "git://git@github.com/Intel-BMC/asd;protocol=ssh"
-SRCREV = "0d25836d8c63372890fbb7f40c54de6166a0a76f"
+SRCREV = "1.4.2"
+
+inherit useradd
+
+USERADD_PACKAGES = "${PN}"
+
+# add a special user asdbg
+USERADD_PARAM_${PN} = "-u 999 asdbg"
 
 S = "${WORKDIR}/git"
 

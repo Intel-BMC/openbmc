@@ -1,0 +1,32 @@
+From ff0b985d3ad004398db3222a40607f1bef433f9b Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 19 Nov 2019 15:12:42 -0800
+Subject: [PATCH] clk: ast2600: enable BCLK for PCI/PCIe bus always
+
+BCLK for PCI/PCIe bus should be enabled always with having the
+CLK_IS_CRITICAL flag otherwise it will be disabled at kernel late
+initcall phase as an unused clock, and eventually it causes
+unexpected behavior on BMC features that are connected to the host
+through PCI/PCIe bus.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/clk/clk-ast2600.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/clk/clk-ast2600.c b/drivers/clk/clk-ast2600.c
+index 9191bc3e78ee..8201d65018b9 100644
+--- a/drivers/clk/clk-ast2600.c
++++ b/drivers/clk/clk-ast2600.c
+@@ -64,7 +64,7 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
+ 	[ASPEED_CLK_GATE_GCLK]		= {  2,  7, "gclk-gate",	NULL,	 0 },	/* 2D engine */
+ 	/* vclk parent - dclk/d1clk/hclk/mclk */
+ 	[ASPEED_CLK_GATE_VCLK]		= {  3,  6, "vclk-gate",	NULL,	 0 },	/* Video Capture */
+-	[ASPEED_CLK_GATE_BCLK]		= {  4,  8, "bclk-gate",	"bclk",	 0 }, /* PCIe/PCI */
++	[ASPEED_CLK_GATE_BCLK]		= {  4,  8, "bclk-gate",	"bclk",	 CLK_IS_CRITICAL }, /* PCIe/PCI */
+ 	/* From dpll */
+ 	[ASPEED_CLK_GATE_DCLK]		= {  5, -1, "dclk-gate",	NULL,	 CLK_IS_CRITICAL }, /* DAC */
+ 	[ASPEED_CLK_GATE_REF0CLK]	= {  6, -1, "ref0clk-gate",	"clkin", CLK_IS_CRITICAL },
+-- 
+2.7.4
+

@@ -4,7 +4,7 @@ MACHINE ??= "intel-ast2500"
 DISTRO ?= "openbmc-phosphor"
 PACKAGE_CLASSES ?= "package_rpm"
 SANITY_TESTED_DISTROS_append ?= " RedHatEnterpriseWorkstation-6.*"
-EXTRA_IMAGE_FEATURES = "debug-tweaks"
+EXTRA_IMAGE_FEATURES = "debug-tweaks validation-unsecure"
 USER_CLASSES ?= "buildstats image-mklibs image-prelink"
 PATCHRESOLVE = "noop"
 BB_DISKMON_DIRS = "\
@@ -16,7 +16,7 @@ BB_DISKMON_DIRS = "\
     ABORT,${DL_DIR},100M,1K \
     ABORT,${SSTATE_DIR},100M,1K \
     ABORT,/tmp,10M,1K"
-CONF_VERSION = "3"
+CONF_VERSION = "4"
 #BB_NUMBER_THREADS = "70"
 
 FULL_OPTIMIZATION = "-Os -pipe ${DEBUG_FLAGS}"

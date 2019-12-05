@@ -16,12 +16,14 @@ individually so this patch adds clock control logic into the LPC
 KCS driver.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 ---
  .../devicetree/bindings/ipmi/aspeed-kcs-bmc.txt    |  3 ++
  arch/arm/boot/dts/aspeed-g4.dtsi                   | 35 ++++++++++++++++++++
  arch/arm/boot/dts/aspeed-g5.dtsi                   |  6 +++-
+ arch/arm/boot/dts/aspeed-g6.dtsi                   |  4 ++
  drivers/char/ipmi/kcs_bmc_aspeed.c                 | 37 ++++++++++++++++++----
- 4 files changed, 73 insertions(+), 8 deletions(-)
+ 5 files changed, 77 insertions(+), 8 deletions(-)
 
 diff --git a/Documentation/devicetree/bindings/ipmi/aspeed-kcs-bmc.txt b/Documentation/devicetree/bindings/ipmi/aspeed-kcs-bmc.txt
 index d98a9bf45d6c..3453eb0bf8f2 100644
@@ -140,6 +142,42 @@ index 955789d8c736..19739183c1c8 100644
  						status = "disabled";
  					};
  
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 955789d8c736..19739183c1c8 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -356,18 +477,23 @@
+ 					kcs1: kcs1@0 {
+ 						compatible = "aspeed,ast2600-kcs-bmc";
+ 						interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						kcs_chan = <1>;
+ 						status = "disabled";
+ 					};
++
+ 					kcs2: kcs2@0 {
+ 						compatible = "aspeed,ast2600-kcs-bmc";
+ 						interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						kcs_chan = <2>;
+ 						status = "disabled";
+ 					};
++
+ 					kcs3: kcs3@0 {
+ 						compatible = "aspeed,ast2600-kcs-bmc";
+ 						interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						kcs_chan = <3>;
+ 						status = "disabled";
+ 					};
+@@ -385,6 +511,7 @@
+ 					kcs4: kcs4@0 {
+ 						compatible = "aspeed,ast2600-kcs-bmc";
+ 						interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 						kcs_chan = <4>;
+ 						status = "disabled";
+ 					};
 diff --git a/drivers/char/ipmi/kcs_bmc_aspeed.c b/drivers/char/ipmi/kcs_bmc_aspeed.c
 index 3c955946e647..bd1912dc5a21 100644
 --- a/drivers/char/ipmi/kcs_bmc_aspeed.c

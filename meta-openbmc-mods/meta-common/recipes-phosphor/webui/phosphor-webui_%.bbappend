@@ -1,2 +1,2 @@
-SRC_URI = "git://git@github.com/Intel-BMC/phosphor-webui;protocol=ssh;branch=intel"
-SRCREV = "2145e7b53c1d90bbf8282e05865a41c719e4c972"
+SRC_URI = "git://git@github.com/Intel-BMC/phosphor-webui;protocol=ssh;branch=intel2"
+SRCREV = "b26d415f38684f86e19e09a8073f9d4244adcb97"

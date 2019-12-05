@@ -8,6 +8,8 @@ do_compile_prepend(){
 SRC_URI += " \
         file://intel.cfg \
         file://0001-arm-dts-add-DTS-for-Intel-ast2500-platforms.patch \
+        file://0001-arm-dts-add-DTS-for-Intel-ast2600-platforms.patch \
+        file://0001-arm-dts-base-aspeed-g6-dtsi-fixups.patch \
         file://0002-Enable-pass-through-on-GPIOE1-and-GPIOE3-free.patch \
         file://0003-Enable-GPIOE0-and-GPIOE2-pass-through-by-default.patch \
         file://0006-Allow-monitoring-of-power-control-input-GPIOs.patch \
@@ -44,7 +46,6 @@ SRC_URI += " \
         file://0055-Documentation-jtag-Add-ABI-documentation.patch \
         file://0056-Documentation-jtag-Add-JTAG-core-driver-ioctl-number.patch \
         file://0057-drivers-jtag-Add-JTAG-core-driver-Maintainers.patch \
-        file://0060-i2c-aspeed-fix-master-pending-state-handling.patch \
         file://0061-i2c-aspeed-add-buffer-mode-transfer-support.patch \
         file://0062-i2c-aspeed-add-DMA-mode-transfer-support.patch \
         file://0063-i2c-aspeed-add-general-call-support.patch \
@@ -57,7 +58,17 @@ SRC_URI += " \
         file://0074-media-aspeed-refine-HSYNC-VSYNC-polarity-setting-log.patch \
         file://0075-Refine-initialization-flow-in-I2C-driver.patch \
         file://0076-media-aspeed-clear-garbage-interrupts.patch \
+        file://0076-arm-ast2600-add-pwm_tacho-driver-from-aspeed.patch \
         file://0077-soc-aspeed-Add-read-only-property-support.patch \
+        file://0078-Fix-NCSI-driver-issue-caused-by-host-shutdown.patch \
+        file://0079-usb-gadget-aspeed-backport-aspeed-vhub-bug-fixes.patch \
+        file://0080-i2c-aspeed-filter-garbage-interrupts-out.patch \
+        file://0081-clk-ast2600-enable-BCLK-for-PCI-PCIe-bus-always.patch \
+        file://0082-ARM-dts-aspeed-g6-add-USB-virtual-hub-fixup.patch \
+        file://0083-usb-gadget-aspeed-add-ast2600-compatible-string.patch \
+        file://0084-ARM-dts-aspeed-g6-add-GFX-node.patch \
+        file://0085-drm-add-AST2600-GFX-support.patch \
+        file://0086-ADC-linux-driver-for-AST2600.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

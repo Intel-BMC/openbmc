@@ -1,9 +1,9 @@
 From a4413fe3ba94906243b632e0b9e0e9a91620dd22 Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Fri, 1 Mar 2019 11:46:09 -0700
-Subject: [PATCH] Update AST2500d JTAG driver. Step 1
+Subject: [PATCH] Add AST2500 JTAG driver
 
-Update AST2500d JTAG driver. Remove Legacy driver but keep headers.
+Update AST2500 JTAG driver. Remove Legacy driver but keep headers.
 
 Signed-off-by: Corona, Ernesto <ernesto.corona@intel.com>
 ---

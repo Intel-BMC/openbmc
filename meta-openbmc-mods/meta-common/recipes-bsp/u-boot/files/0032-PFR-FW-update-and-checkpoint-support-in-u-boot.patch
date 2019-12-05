@@ -1,7 +1,7 @@
-From fa89d568a5ad08fdf936a4ac0b2445ba4df5e948 Mon Sep 17 00:00:00 2001
+From bd0d8af493387ab1602a0a40b4a548981c1e4d00 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 24 Jul 2019 20:11:30 +0530
-Subject: [PATCH 1/1] PFR FW update and checkpoint support in u-boot
+Subject: [PATCH] PFR FW update and checkpoint support in u-boot
 
 1) Added firmware update ipmi commands support
 for PFR images. This enables PFR based firmware
@@ -45,7 +45,7 @@ index 0b2d936c23..9021d7fc08 100644
  obj-y += fw-update.o
 +obj-y += pfr-mgr.o
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 5f1bc625ff..8c3c9948a7 100644
+index dde5adbc70..6ef3ca9f73 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -16,6 +16,7 @@
@@ -448,7 +448,7 @@ index 0000000000..77131688e7
 +
 diff --git a/board/aspeed/ast-g5/pfr-mgr.h b/board/aspeed/ast-g5/pfr-mgr.h
 new file mode 100644
-index 0000000000..6cf8c6d5b9
+index 0000000000..5c5b98bbe0
 --- /dev/null
 +++ b/board/aspeed/ast-g5/pfr-mgr.h
 @@ -0,0 +1,73 @@
@@ -459,7 +459,7 @@ index 0000000000..6cf8c6d5b9
 +
 +/* CPLD I2C device defines */
 +#define PFR_CPLD_I2C_BUSNO		4
-+#define PFR_CPLD_SLAVE_ADDR		0xE0
++#define PFR_CPLD_SLAVE_ADDR		0x70
 +
 +/* CPLD registers */
 +#define PFR_CPLD_BOOT_CHECKPOINT_REG	0x0F

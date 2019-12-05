@@ -26,8 +26,7 @@ RPROVIDES_${PN}-system += "virtual-obmc-system-mgmt"
 
 SUMMARY_${PN}-chassis = "Intel Chassis"
 RDEPENDS_${PN}-chassis = " \
-        intel-chassis-control \
-        obmc-host-failure-reboots \
+        x86-power-control \
         "
 
 SUMMARY_${PN}-fans = "Intel Fans"

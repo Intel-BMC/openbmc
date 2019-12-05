@@ -1,0 +1,6 @@
+Common targets are:
+    intel-platforms
+    obmc-phosphor-image
+    qemu-helper-native
+    virtual/kernel
+    phosphor-ipmi-host

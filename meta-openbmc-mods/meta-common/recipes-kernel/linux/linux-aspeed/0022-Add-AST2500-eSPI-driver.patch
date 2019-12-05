@@ -1,8 +1,7 @@
 From 6e55e28db5eed85b7717aa4fc92c064f11429f6d Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Sat, 24 Feb 2018 11:12:32 +0800
-Subject: [PATCH] eSPI: add ASPEED AST2500 eSPI driver to boot a host with PCH
- runs on eSPI
+Subject: [PATCH] Add AST2500 eSPI driver
 
 When PCH works under eSPI mode, the PMC (Power Management Controller) in
 PCH is waiting for SUS_ACK from BMC after it alerts SUS_WARN. It is in
@@ -22,10 +21,12 @@ Also, it provides monitoring interface of PLTRST_N signal through
 Signed-off-by: Haiyue Wang <haiyue.wang@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 ---
  .../devicetree/bindings/misc/aspeed,espi-slave.txt |  19 +
  Documentation/misc-devices/espi-slave.rst          | 118 ++++++
  arch/arm/boot/dts/aspeed-g5.dtsi                   |   4 +
+ arch/arm/boot/dts/aspeed-g6.dtsi                   |  12 +
  drivers/misc/Kconfig                               |   8 +
  drivers/misc/Makefile                              |   1 +
  drivers/misc/aspeed-espi-slave.c                   | 420 +++++++++++++++++++++
@@ -39,12 +40,13 @@ new file mode 100644
 index 000000000000..8660e2ffbb89
 --- /dev/null
 +++ b/Documentation/devicetree/bindings/misc/aspeed,espi-slave.txt
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,20 @@
 +ASPEED eSPI Slave Controller
 +
 +Required properties:
 + - compatible: must be one of:
 +	- "aspeed,ast2500-espi-slave"
++	- "aspeed,ast2600-espi-slave"
 +
 + - reg: physical base address of the controller and length of memory mapped
 +   region
@@ -205,6 +207,36 @@ index 88f75736fe48..26671cc4dbd5 100644
  			};
  
  			lpc: lpc@1e789000 {
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 567f268a3032..48de17a24c74 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -3,6 +3,7 @@
+ 
+ #include <dt-bindings/interrupt-controller/arm-gic.h>
+ #include <dt-bindings/clock/ast2600-clock.h>
++#include <dt-bindings/gpio/aspeed-gpio.h>
+ 
+ / {
+ 	model = "Aspeed BMC";
+@@ -512,6 +513,17 @@
+ 				status = "disabled";
+ 			};
+ 
++			espi: espi@1e6ee000 {
++				compatible = "aspeed,ast2600-espi-slave";
++				reg = <0x1e6ee000 0x200>;
++				interrupts-extended = <&gic GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
++					<&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
++				status = "disabled";
++				clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
++				pinctrl-names = "default";
++				pinctrl-0 = <&pinctrl_espi_default>;
++			};
++
+ 			i2c: bus@1e78a000 {
+ 				compatible = "simple-bus";
+ 				#address-cells = <1>;
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
 index d681b7201f8c..50814caba1d3 100644
 --- a/drivers/misc/Kconfig
@@ -241,7 +273,7 @@ new file mode 100644
 index 000000000000..b0fc01692d3a
 --- /dev/null
 +++ b/drivers/misc/aspeed-espi-slave.c
-@@ -0,0 +1,420 @@
+@@ -0,0 +1,421 @@
 +// SPDX-License-Identifier: GPL-2.0
 +// Copyright (c) 2015-2019, Intel Corporation.
 +
@@ -644,6 +676,7 @@ index 000000000000..b0fc01692d3a
 +
 +static const struct of_device_id of_espi_match_table[] = {
 +	{ .compatible = "aspeed,ast2500-espi-slave" },
++	{ .compatible = "aspeed,ast2600-espi-slave" },
 +	{ }
 +};
 +MODULE_DEVICE_TABLE(of, of_espi_match_table);

@@ -1,4 +1,4 @@
-From a519a128b9a44b1798419bf3a653d58e266c60fb Mon Sep 17 00:00:00 2001
+From b8a8e561d7dba48f3f0a0eb34662b2450dcad35d Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Mon, 2 Jul 2018 19:23:25 -0700
 Subject: [PATCH] Added suport for multiple user manager services
@@ -11,11 +11,11 @@ Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.co
 ---
  Makefile.am      |   5 +-
  mainapp.cpp      |  89 ++++++-
- user_mgr.cpp     | 290 ++-------------------
+ user_mgr.cpp     | 295 ++-------------------
  user_mgr.hpp     |   9 +-
- user_service.cpp | 781 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ user_service.cpp | 786 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  user_service.hpp | 233 +++++++++++++++++
- 6 files changed, 1139 insertions(+), 268 deletions(-)
+ 6 files changed, 1144 insertions(+), 273 deletions(-)
  create mode 100644 user_service.cpp
  create mode 100644 user_service.hpp
 
@@ -150,7 +150,7 @@ index c9da030..03c406a 100644
      // Claim the bus now
      bus.request_name(USER_MANAGER_BUSNAME);
 diff --git a/user_mgr.cpp b/user_mgr.cpp
-index 17146e6..db6e7d5 100644
+index 2f22323..db6e7d5 100644
 --- a/user_mgr.cpp
 +++ b/user_mgr.cpp
 @@ -14,26 +14,20 @@
@@ -434,7 +434,7 @@ index 17146e6..db6e7d5 100644
  
      log<level::INFO>("User enabled/disabled state updated successfully",
                       entry("USER_NAME=%s", userName.c_str()),
-@@ -728,49 +570,8 @@ bool UserMgr::userLockedForFailedAttempt(const std::string &userName,
+@@ -728,54 +570,8 @@ bool UserMgr::userLockedForFailedAttempt(const std::string &userName,
  
  UserSSHLists UserMgr::getUserAndSshGrpList()
  {
@@ -462,10 +462,15 @@ index 17146e6..db6e7d5 100644
 -            // Any error, break the loop.
 -            break;
 -        }
+-#ifdef ENABLE_ROOT_USER_MGMT
 -        // Add all users whose UID >= 1000 and < 65534
 -        // and special UID 0.
 -        if ((pwp->pw_uid == 0) ||
 -            ((pwp->pw_uid >= 1000) && (pwp->pw_uid < 65534)))
+-#else
+-        // Add all users whose UID >=1000 and < 65534
+-        if ((pwp->pw_uid >= 1000) && (pwp->pw_uid < 65534))
+-#endif
 -        {
 -            std::string userName(pwp->pw_name);
 -            userList.emplace_back(userName);
@@ -486,7 +491,7 @@ index 17146e6..db6e7d5 100644
  }
  
  size_t UserMgr::getIpmiUsersCount()
-@@ -781,49 +582,14 @@ size_t UserMgr::getIpmiUsersCount()
+@@ -786,49 +582,14 @@ size_t UserMgr::getIpmiUsersCount()
  
  bool UserMgr::isUserEnabled(const std::string &userName)
  {
@@ -540,7 +545,7 @@ index 17146e6..db6e7d5 100644
  }
  
  DbusUserObj UserMgr::getPrivilegeMapperObject(void)
-@@ -1052,11 +818,9 @@ void UserMgr::initUserObjects(void)
+@@ -1057,11 +818,9 @@ void UserMgr::initUserObjects(void)
  {
      // All user management lock has to be based on /etc/shadow
      phosphor::user::shadow::Lock lock();
@@ -554,7 +559,7 @@ index 17146e6..db6e7d5 100644
  
      if (!userNameList.empty())
      {
-@@ -1111,7 +875,8 @@ void UserMgr::initUserObjects(void)
+@@ -1116,7 +875,8 @@ void UserMgr::initUserObjects(void)
      }
  }
  
@@ -564,7 +569,7 @@ index 17146e6..db6e7d5 100644
      Ifaces(bus, path, true), bus(bus), path(path)
  {
      UserMgrIface::allPrivileges(privMgr);
-@@ -1220,6 +985,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
+@@ -1225,6 +985,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
          }
          AccountPolicyIface::accountUnlockTimeout(value32);
      }
@@ -616,10 +621,10 @@ index b25e9f2..c24733b 100644
                                          "priv-user", "priv-callback"};
 diff --git a/user_service.cpp b/user_service.cpp
 new file mode 100644
-index 0000000..9bb602c
+index 0000000..c3c45bd
 --- /dev/null
 +++ b/user_service.cpp
-@@ -0,0 +1,781 @@
+@@ -0,0 +1,786 @@
 +/*
 +// Copyright (c) 2018 Intel Corporation
 +//
@@ -735,10 +740,15 @@ index 0000000..9bb602c
 +                // Any error, break the loop.
 +                break;
 +            }
++#ifdef ENABLE_ROOT_USER_MGMT
 +            // Add all users whose UID >= 1000 and < 65534
 +            // and special UID 0.
 +            if ((pwp->pw_uid == 0) ||
 +                ((pwp->pw_uid >= 1000) && (pwp->pw_uid < 65534)))
++#else
++            // Add all users whose UID >=1000 and < 65534
++            if ((pwp->pw_uid >= 1000) && (pwp->pw_uid < 65534))
++#endif
 +            {
 +                std::string userName(pwp->pw_name);
 +                userList.emplace_back(userName);

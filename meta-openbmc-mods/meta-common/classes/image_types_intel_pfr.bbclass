@@ -46,7 +46,7 @@ do_image_pfr () {
     ${PFR_SCRIPT_DIR}/pfr_image.py ${PFR_CFG_DIR}/pfr_manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash}
 
     # sign the PFM region
-    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/pfm_config.xml -o ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm.bin
+    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/pfm_config.xml -o ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm.bin -v
 
     # Add the signed PFM to rom image
     dd bs=1k conv=notrunc seek=${PFM_OFFSET_PAGE} if=${PFR_IMAGES_DIR}/pfm_signed.bin of=${PFR_IMAGES_DIR}/image-mtd-pfr
@@ -59,7 +59,7 @@ do_image_pfr () {
     dd if=${PFR_IMAGES_DIR}/bmc_compressed.bin bs=1k >> ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
 
     # Sign the BMC update capsule
-    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/bmc_config.xml -o ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
+    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/bmc_config.xml -o ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin -v
 
     # Add the signed bmc update capsule to full rom image @ 0x2a00000
     dd bs=1k conv=notrunc seek=${RC_IMAGE_PAGE} if=${PFR_IMAGES_DIR}/bmc_signed_cap.bin of=${PFR_IMAGES_DIR}/image-mtd-pfr

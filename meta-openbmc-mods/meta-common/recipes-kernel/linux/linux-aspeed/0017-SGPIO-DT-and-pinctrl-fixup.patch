@@ -105,6 +105,32 @@ index 271f3c96456a..128e0b5bbae2 100644
  			};
  
  			rtc: rtc@1e781000 {
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 1aab48fbf49e..567f268a3032 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -356,6 +356,21 @@
+ 				#interrupt-cells = <2>;
+ 			};
+ 
++			sgpio: sgpio@1e780500 {
++				#gpio-cells = <2>;
++				gpio-controller;
++				compatible = "aspeed,ast2500-sgpio";
++				reg = <0x1e780500 0x0100>;
++				#interrupt-cells = <2>;
++				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
++				interrupt-controller;
++				bus-frequency = <1000000>;
++				pinctrl-names = "default";
++				pinctrl-0 = <&pinctrl_sgpm1_default>;
++				clocks = <&syscon ASPEED_CLK_APB1>;
++				status = "disabled";
++			};
++
+ 			rtc: rtc@1e781000 {
+ 				compatible = "aspeed,ast2600-rtc";
+ 				reg = <0x1e781000 0x18>;
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
 index 95ea593fa29d..70284c5f9ad9 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c

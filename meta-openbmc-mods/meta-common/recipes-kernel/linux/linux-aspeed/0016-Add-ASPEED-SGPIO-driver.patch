@@ -1,7 +1,7 @@
 From ab104c6067683a3a251e2814991474243b7e1cb8 Mon Sep 17 00:00:00 2001
 From: "Feist, James" <james.feist@intel.com>
 Date: Tue, 4 Jun 2019 14:00:39 -0700
-Subject: [PATCH] gpio: aspeed: add ASPEED SGPIO driver
+Subject: [PATCH] Add ASPEED SGPIO driver
 
 Add SGPIO driver support for Aspeed SoCs.
 

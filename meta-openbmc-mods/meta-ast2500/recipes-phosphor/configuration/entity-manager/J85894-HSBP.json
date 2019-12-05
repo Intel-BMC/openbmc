@@ -22,7 +22,7 @@
                 "Pcie_Slot_3",
                 "Pcie_Slot_4"
             ],
-            "Name": "HSBP Mux 1",
+            "Name": "HSBP $index Mux 1",
             "Type": "PCA9545Mux"
         },
         {
@@ -34,7 +34,7 @@
                 "Pcie_Slot_7",
                 "Pcie_Slot_8"
             ],
-            "Name": "HSBP Mux 2",
+            "Name": "HSBP $index Mux 2",
             "Type": "PCA9545Mux"
         },
         {
@@ -72,7 +72,13 @@
     ],
     "Name": "J85894 HSBP $index",
     "PowerState": "On",
-    "Probe": "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'HSBPJ85'})",
+    "Probe": [
+        "FOUND('WC Baseboard')",
+        "OR",
+        "FOUND('WP Baseboard')",
+        "AND",
+        "xyz.openbmc_project.Inventory.Item.I2CDevice({'Bus': 4, 'Address': 82})"
+    ],
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$BOARD_MANUFACTURER",

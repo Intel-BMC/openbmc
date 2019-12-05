@@ -24,8 +24,10 @@ OBMC_IMAGE_EXTRA_INSTALL_append = " u-boot-fw-utils-aspeed"
 IMAGE_CLASSES += "image_types image_types_phosphor_auto qemuboot"
 IMAGE_CLASSES += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'image_types_intel_pfr', '', d)}"
 
-INITRAMFS_CTYPE ?= "lzma"
-INITRAMFS_IMAGE = "obmc-phosphor-initramfs"
+# do not generate an initramfs; use the above squashfs-xz as an initrd instead
+INITRAMFS_FSTYPES = ""
+INITRAMFS_CTYPE = ""
+INITRAMFS_IMAGE = ""
 
 MACHINE_FEATURES_BACKFILL_CONSIDERED = "qemu-usermode"
 

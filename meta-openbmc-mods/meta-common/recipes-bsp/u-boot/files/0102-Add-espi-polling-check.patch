@@ -1,0 +1,141 @@
+From ea6dad13d4d4b8c7a39829f75425290447e0f148 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 12 Nov 2019 16:46:01 -0800
+Subject: [PATCH] Add espi polling check
+
+Since interrupt in u-boot isn't working so this commit adds espi
+polling check into cli as a WA to handle host espi events.
+
+This is a temporary WA.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/ast-espi.c | 24 ++++++++++++++++++------
+ common/console.c                      |  3 +++
+ 2 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/ast-espi.c b/board/aspeed/ast2600_intel/ast-espi.c
+index 2778d7b67d54..c88098efcdb5 100644
+--- a/board/aspeed/ast2600_intel/ast-espi.c
++++ b/board/aspeed/ast2600_intel/ast-espi.c
+@@ -18,7 +18,7 @@
+ 
+ #define DEBUG_ESPI_ENABLED 1
+ #ifdef DEBUG_ESPI_ENABLED
+-#define DBG_ESPI debug
++#define DBG_ESPI printf
+ #else
+ #define DBG_ESPI(...)
+ #endif
+@@ -116,11 +116,13 @@
+ #define SCR0SIO 0x170
+ #define IRQ_SRC_ESPI 74 /* IRQ 74 */
+ 
+-static int espi_irq_handler(struct pt_regs *regs)
++int espi_irq_handler(struct pt_regs *regs)
+ {
+ 	uint32_t irq_status = readl(AST_ESPI_BASE + ESPI008);
+ 
++#if 0
+ 	DBG_ESPI("ISR irq_status : 0x%08X\n", irq_status);
++#endif
+ 
+ 	if (irq_status & AST_ESPI_VW_SYS_EVT) {
+ 		uint32_t sys_status = readl(AST_ESPI_BASE + ESPI11C);
+@@ -128,19 +130,21 @@ static int espi_irq_handler(struct pt_regs *regs)
+ 
+ 		DBG_ESPI("sys_status : 0x%08X\n", sys_status);
+ 		if (sys_status & AST_ESPI_HOST_RST_WARN) {
+-			DBG_ESPI("HOST_RST_WARN ev: %08X\n", sys_event);
++			DBG_ESPI("HOST_RST_WARN evt: 0x%08X\n", sys_event);
+ 			if (sys_event & AST_ESPI_HOST_RST_WARN) {
+ 				uint32_t v = readl(AST_ESPI_BASE + ESPI098)
+ 					     | AST_ESPI_HOST_RST_ACK;
+ 				writel(v, AST_ESPI_BASE + ESPI098);
++				DBG_ESPI("HOST_RST_WARN sent ack\n");
+ 			}
+ 		}
+ 		if (sys_status & AST_ESPI_OOB_RST_WARN) {
+-			DBG_ESPI("OOB_RST_WARN ev: %08X\n", sys_event);
++			DBG_ESPI("OOB_RST_WARN evt: 0x%08X\n", sys_event);
+ 			if (sys_event & AST_ESPI_OOB_RST_WARN) {
+ 				uint32_t v = readl(AST_ESPI_BASE + ESPI098)
+ 					     | AST_ESPI_OOB_RST_ACK;
+ 				writel(v, AST_ESPI_BASE + ESPI098);
++				DBG_ESPI("OOB_RST_WARN sent ack\n");
+ 			}
+ 		}
+ 		writel(sys_status, AST_ESPI_BASE + ESPI11C); // clear status
+@@ -152,16 +156,19 @@ static int espi_irq_handler(struct pt_regs *regs)
+ 
+ 		DBG_ESPI("sys1_status : 0x%08X\n", sys1_status);
+ 		if (sys1_status & AST_ESPI_SUS_WARN) {
+-			DBG_ESPI("SUS WARN ev: %08X\n", sys1_event);
++			DBG_ESPI("SUS WARN evt: 0x%08X\n", sys1_event);
+ 			if (sys1_event & AST_ESPI_SUS_WARN) {
+ 				uint32_t v = readl(AST_ESPI_BASE + ESPI104)
+ 					     | AST_ESPI_SUS_ACK;
+ 				writel(v, AST_ESPI_BASE + ESPI104);
++				DBG_ESPI("SUS_WARN sent ack\n");
+ 			}
+ 		}
+ 		writel(sys1_status, AST_ESPI_BASE + ESPI12C); // clear status
+ 	}
++
+ 	writel(irq_status, AST_ESPI_BASE + ESPI008); // clear irq_status
++
+ 	return 0;
+ }
+ 
+@@ -176,7 +183,7 @@ static void espi_handshake_ack(void)
+ 	}
+ 
+ 	if (readl(AST_ESPI_BASE + ESPI104) & AST_ESPI_SUS_WARN) {
+-		DBG_ESPI("Boot SUS WARN set %08x\n",
++		DBG_ESPI("Boot SUS WARN set 0x%08x\n",
+ 			 readl(AST_ESPI_BASE + ESPI104));
+ 		uint32_t v = readl(AST_ESPI_BASE + ESPI104) | AST_ESPI_SUS_ACK;
+ 		writel(v, AST_ESPI_BASE + ESPI104);
+@@ -189,6 +196,8 @@ void espi_init(void)
+ 	    & SCU_HW_STRAP_ESPI_ENABLED) {
+ 		uint32_t v;
+ 
++		DBG_ESPI("espi init\n");
++
+ 		/* Block flash access from Host */
+ 		v = readl(AST_ESPI_BASE + ESPI000) & ~AST_ESPI_FLASH_SW_CHRDY;
+ 		v |= AST_ESPI_FLASH_SW_READ | AST_ESPI_OOB_CHRDY;
+@@ -226,6 +235,9 @@ void espi_init(void)
+ 
+ 		irq_install_handler(IRQ_SRC_ESPI, espi_irq_handler, NULL);
+ 
++#if 1
++		espi_irq_handler(NULL);
++#endif
+ 	} else {
+ 		DBG_ESPI("No espi strap\n");
+ 	}
+diff --git a/common/console.c b/common/console.c
+index 0b0dd76256c7..90cdf7701c9d 100644
+--- a/common/console.c
++++ b/common/console.c
+@@ -308,6 +308,8 @@ int serial_printf(const char *fmt, ...)
+ 	return i;
+ }
+ 
++extern int espi_irq_handler(struct pt_regs *regs);
++
+ int fgetc(int file)
+ {
+ 	if (file < MAX_FILES) {
+@@ -315,6 +317,7 @@ int fgetc(int file)
+ 		 * Effectively poll for input wherever it may be available.
+ 		 */
+ 		for (;;) {
++			espi_irq_handler(NULL);
+ 			WATCHDOG_RESET();
+ #if CONFIG_IS_ENABLED(CONSOLE_MUX)
+ 			/*
+-- 
+2.7.4
+

@@ -15,19 +15,78 @@ enabled again.
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
  drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c |  1 +
- drivers/pinctrl/aspeed/pinctrl-aspeed.c    | 60 ++++++++++++++++++++++++++++++
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c |  1 +
+ drivers/pinctrl/aspeed/pinctrl-aspeed.c    | 60 ++++++++++++++++++++++
  drivers/pinctrl/aspeed/pinctrl-aspeed.h    |  3 ++
- 3 files changed, 64 insertions(+)
+ 4 files changed, 65 insertions(+)
 
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-index d8a804b9f958..5e7f53fab76e 100644
+index 0cab4c2576e2..a8d64184ace1 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-@@ -2805,6 +2805,7 @@ static const struct pinmux_ops aspeed_g5_pinmux_ops = {
+@@ -2780,6 +2780,22 @@ static int aspeed_g5_sig_expr_set(struct aspeed_pinmux_data *ctx,
+ 	return 0;
+ }
+ 
++#define GPIOE1 33
++#define GPIOE3 35
++static void aspeed_g5_gpio_disable_free(struct pinctrl_dev *pctldev,
++			      struct pinctrl_gpio_range *range,
++			      unsigned int offset)
++{
++	/*
++	 * If we're freeing GPIOE1 (33) or GPIOE3 (35) then re-enable the
++	 * pass-through mux setting; otherwise, do nothing.
++	 */
++	if (offset != GPIOE1 && offset != GPIOE3)
++		return;
++
++	aspeed_gpio_disable_free(pctldev, range, offset);
++}
++
+ static const struct aspeed_pin_config_map aspeed_g5_pin_config_map[] = {
+ 	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1, BIT_MASK(0)},
+ 	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0, BIT_MASK(0)},
+@@ -2815,6 +2837,7 @@ static const struct pinmux_ops aspeed_g5_pinmux_ops = {
  	.get_function_groups = aspeed_pinmux_get_fn_groups,
  	.set_mux = aspeed_pinmux_set_mux,
  	.gpio_request_enable = aspeed_gpio_request_enable,
-+	.gpio_disable_free = aspeed_gpio_disable_free,
++	.gpio_disable_free = aspeed_g5_gpio_disable_free,
+ 	.strict = true,
+ };
+ 
+diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
+index eb0c11a9fbf2..cae6fdd83c80 100644
+--- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
++++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
+@@ -2655,6 +2655,22 @@ static int aspeed_g6_sig_expr_set(struct aspeed_pinmux_data *ctx,
+ 	return 0;
+ }
+ 
++#define GPIOP1 121
++#define GPIOP3 123
++static void aspeed_g6_gpio_disable_free(struct pinctrl_dev *pctldev,
++			      struct pinctrl_gpio_range *range,
++			      unsigned int offset)
++{
++	/*
++	 * If we're freeing GPIOP1 (121) or GPIOP3 (123) then re-enable the
++	 * pass-through mux setting; otherwise, do nothing.
++	 */
++	if (offset != GPIOP1 && offset != GPIOP3)
++		return;
++
++	aspeed_gpio_disable_free(pctldev, range, offset);
++}
++
+ static const struct aspeed_pin_config_map aspeed_g6_pin_config_map[] = {
+ 	{ PIN_CONFIG_BIAS_PULL_DOWN,  0,   1, BIT_MASK(0)},
+ 	{ PIN_CONFIG_BIAS_PULL_DOWN, -1,   0, BIT_MASK(0)},
+@@ -2695,6 +2717,7 @@ static const struct pinmux_ops aspeed_g6_pinmux_ops = {
+ 	.get_function_groups = aspeed_pinmux_get_fn_groups,
+ 	.set_mux = aspeed_pinmux_set_mux,
+ 	.gpio_request_enable = aspeed_gpio_request_enable,
++	.gpio_disable_free = aspeed_g6_gpio_disable_free,
  	.strict = true,
  };
  
@@ -35,32 +94,25 @@ diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed.c b/drivers/pinctrl/aspeed/pi
 index 54933665b5f8..aa7d56e99824 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed.c
-@@ -356,6 +356,66 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
- 	return aspeed_sig_expr_enable(&pdata->pinmux, expr);
+@@ -375,6 +375,59 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
+ 	return 0;
  }
  
 +void aspeed_gpio_disable_free(struct pinctrl_dev *pctldev,
 +			      struct pinctrl_gpio_range *range,
 +			      unsigned int offset)
 +{
-+	const struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
++	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 +	const struct aspeed_pin_desc *pdesc = pdata->pins[offset].drv_data;
 +	const struct aspeed_sig_expr ***prios, **funcs, *expr;
 +	int ret;
 +
-+	/*
-+	 * If we're freeing GPIOE1 (33) or GPIOE3 (35) then re-enable the
-+	 * pass-through mux setting; otherwise, do nothing.
-+	 */
-+	if (offset != 33 && offset != 35)
++	if (!pdesc)
 +		return;
 +
 +	dev_dbg(pctldev->dev,
 +		"Freeing pass-through pin %s (%d). Re-enabling pass-through.\n",
 +		pdesc->name, offset);
-+
-+	if (!pdesc)
-+		return;
 +
 +	prios = pdesc->prios;
 +
@@ -106,7 +158,7 @@ diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed.h b/drivers/pinctrl/aspeed/pi
 index a5d83986f32e..c1104341e202 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed.h
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed.h
-@@ -67,6 +67,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
+@@ -101,6 +101,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
  int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
  		struct pinctrl_gpio_range *range,
  		unsigned int offset);

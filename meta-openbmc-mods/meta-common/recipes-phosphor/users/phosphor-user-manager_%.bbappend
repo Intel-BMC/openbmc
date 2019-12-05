@@ -1,8 +1,9 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
 #SRC_URI = "git://github.com/openbmc/phosphor-user-manager;nobranch=1"
-SRCREV = "1af1223304dbf7aaecd5f238227abee95cce8b39"
+SRCREV = "d4d655006c6179d47008d9b374debcedcc03a1c4"
 
+EXTRA_OECONF += "${@bb.utils.contains_any("IMAGE_FEATURES", [ 'debug-tweaks', 'allow-root-login' ], '', '--disable-root_user_mgmt', d)}"
 
 SRC_URI += " \
             file://0005-Added-suport-for-multiple-user-manager-services.patch \

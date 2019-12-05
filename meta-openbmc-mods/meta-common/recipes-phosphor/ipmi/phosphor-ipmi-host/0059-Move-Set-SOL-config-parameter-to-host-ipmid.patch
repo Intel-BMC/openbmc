@@ -42,7 +42,7 @@ diff --git a/transporthandler.cpp b/transporthandler.cpp
 index e88eb63..4a42e7b 100644
 --- a/transporthandler.cpp
 +++ b/transporthandler.cpp
-@@ -1168,8 +1168,323 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
+@@ -1469,8 +1469,323 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
  } // namespace transport
  } // namespace ipmi
  
@@ -366,10 +366,10 @@ index e88eb63..4a42e7b 100644
  void register_netfn_transport_functions()
  {
      ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
-@@ -1178,4 +1493,11 @@ void register_netfn_transport_functions()
+@@ -1479,4 +1794,11 @@ void register_netfn_transport_functions()
      ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
                            ipmi::transport::cmdGetLanConfigParameters,
-                           ipmi::Privilege::Admin, ipmi::transport::getLan);
+                           ipmi::Privilege::Operator, ipmi::transport::getLan);
 +
 +    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
 +                          ipmi::transport::cmdSetSolConfigParameters,

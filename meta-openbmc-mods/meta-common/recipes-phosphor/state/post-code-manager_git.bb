@@ -2,7 +2,7 @@ SUMMARY = "Phosphor post code manager"
 DESCRIPTION = "Post Code Manager"
 
 SRC_URI = "git://github.com/openbmc/phosphor-post-code-manager.git"
-SRCREV = "7f50dcaa6feb66cf5307b8a0e4742a36a50eed29"
+SRCREV = "3a0444002398714c3a5539c93355c74eb184b2b1"
 
 S = "${WORKDIR}/git"
 
@@ -31,4 +31,3 @@ RDEPENDS_${PN} += " \
     phosphor-logging \
     "
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
-SRC_URI += "file://0001-Implement-post-code-manager.patch"

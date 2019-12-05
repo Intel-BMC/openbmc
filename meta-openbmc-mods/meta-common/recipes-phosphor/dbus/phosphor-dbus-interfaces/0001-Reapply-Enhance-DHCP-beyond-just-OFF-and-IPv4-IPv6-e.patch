@@ -1,0 +1,47 @@
+From 3789a98fda6e3cafd377b0f4fa1c0c40bb94297e Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <jonathanx.mantey@intel.com>
+Date: Wed, 20 Nov 2019 10:56:44 -0500
+Subject: [PATCH] Reapply: "Enhance DHCP beyond just OFF and IPv4/IPv6
+ enabled."
+
+DHCP is not a binary option.  The network interface can have DHCP
+disabled, IPv4 only, IPv6 only, and IPv4/IPv6.
+
+Signed-off-by: Johnathan Mantey <jonathanx.mantey@intel.com>
+
+Reapplied ->
+Signed-off-by: Brad Bishop <bradleyb@fuzziesquirrel.com>
+Change-Id: I7654116aa3962de253225271190ce4a2fe229ce9
+---
+ .../Network/EthernetInterface.interface.yaml          | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
+index ee54145..56285ee 100644
+--- a/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
++++ b/xyz/openbmc_project/Network/EthernetInterface.interface.yaml
+@@ -23,7 +23,7 @@ properties:
+       description: >
+           Domain names of the ethernet interface.
+     - name: DHCPEnabled
+-      type: boolean
++      type: enum[self.DHCPConf]
+       description: >
+           Address mode of the ethernet interface.
+     - name: Nameservers
+@@ -69,4 +69,11 @@ enumerations:
+         - name: v4
+         - name: v6
+         - name: none
+-
++    - name: DHCPConf
++      description: >
++          A list of the permitted DHCP settings used by systemd.
++      values:
++        - name: both
++        - name: v4
++        - name: v6
++        - name: none
+-- 
+2.21.0
+
