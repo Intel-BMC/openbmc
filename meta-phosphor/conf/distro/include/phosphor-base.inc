@@ -113,7 +113,7 @@ DISTRO_FEATURES_DEFAULT = " \
         libc-inet-anl \
         "
 
-DISTRO_FEATURES = " \
+DISTRO_FEATURES += " \
         ${DISTRO_FEATURES_DEFAULT} \
         ${DISTRO_FEATURES_LIBC} \
         ${DISTRO_FEATURES_OBMC} \
@@ -133,7 +133,7 @@ include conf/distro/include/openbmc-phosphor/${MACHINE}.inc
 KERNEL_FEATURES_append = " phosphor-gpio-keys"
 KERNEL_FEATURES_remove_qemuall = " phosphor-gpio-keys"
 
-IMAGE_CLASSES_append = " image_types_phosphor"
+IMAGE_CLASSES_append = " image_types_phosphor phosphor-rootfs-postcommands"
 IMAGE_CLASSES_append_npcm7xx = " image_types_phosphor_nuvoton"
 
 IMAGE_INSTALL_append = " dbus-broker"

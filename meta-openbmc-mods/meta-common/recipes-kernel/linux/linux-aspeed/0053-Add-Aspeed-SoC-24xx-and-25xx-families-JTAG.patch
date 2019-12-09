@@ -1,8 +1,7 @@
 From 817a43d1b1e197e7eff43492599469bbc23bf0fd Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Mon, 3 Jun 2019 08:22:09 -0800
-Subject: [PATCH v29 2/6] Add Aspeed SoC 24xx and 25xx families JTAG  master
- driver
+Subject: [PATCH] Add Aspeed SoC 24xx and 25xx families JTAG
 
 Driver adds support of Aspeed 2500/2400 series SOC JTAG master controller.
 

@@ -8,7 +8,7 @@ DEPENDS = "intltool-native gperf-native libcap util-linux"
 
 SECTION = "base/shell"
 
-inherit useradd pkgconfig meson perlnative update-rc.d update-alternatives qemu systemd gettext bash-completion manpages distro_features_check
+inherit useradd pkgconfig meson perlnative update-rc.d update-alternatives qemu systemd gettext bash-completion manpages features_check
 
 # As this recipe builds udev, respect systemd being in DISTRO_FEATURES so
 # that we don't build both udev and systemd in world builds.
@@ -24,6 +24,7 @@ SRC_URI += "file://touchscreen.rules \
            file://0005-rules-watch-metadata-changes-in-ide-devices.patch \
            file://0001-unit-file.c-consider-symlink-on-filesystems-like-NFS.patch \
            file://99-default.preset \
+           file://0001-pstore-fix-use-after-free.patch \
            "
 
 # patches needed by musl
@@ -139,7 +140,7 @@ PACKAGECONFIG[importd] = "-Dimportd=true,-Dimportd=false"
 PACKAGECONFIG[iptc] = "-Dlibiptc=true,-Dlibiptc=false,iptables"
 PACKAGECONFIG[journal-upload] = "-Dlibcurl=true,-Dlibcurl=false,curl"
 PACKAGECONFIG[kmod] = "-Dkmod=true,-Dkmod=false,kmod"
-PACKAGECONFIG[ldconfig] = "-Dldconfig=true,-Dldconfig=false"
+PACKAGECONFIG[ldconfig] = "-Dldconfig=true,-Dldconfig=false,,ldconfig"
 PACKAGECONFIG[libidn] = "-Dlibidn=true,-Dlibidn=false,libidn"
 PACKAGECONFIG[localed] = "-Dlocaled=true,-Dlocaled=false"
 PACKAGECONFIG[logind] = "-Dlogind=true,-Dlogind=false"
@@ -316,7 +317,6 @@ PACKAGES =+ "\
     ${PN}-rpm-macros \
     ${PN}-binfmt \
     ${PN}-zsh-completion \
-    ${PN}-xorg-xinitrc \
     ${PN}-container \
     ${PN}-journal-gatewayd \
     ${PN}-journal-upload \
@@ -377,8 +377,6 @@ FILES_${PN}-kernel-install = "${bindir}/kernel-install \
                              "
 FILES_${PN}-rpm-macros = "${exec_prefix}/lib/rpm \
                          "
-
-FILES_${PN}-xorg-xinitrc = "${sysconfdir}/X11/xinit/xinitrc.d/*"
 
 FILES_${PN}-zsh-completion = "${datadir}/zsh/site-functions"
 
@@ -528,6 +526,7 @@ FILES_${PN} = " ${base_bindir}/* \
                 ${sysconfdir}/xdg/ \
                 ${sysconfdir}/init.d/README \
                 ${sysconfdir}/resolv-conf.systemd \
+                ${sysconfdir}/X11/xinit/xinitrc.d/* \
                 ${rootlibexecdir}/systemd/* \
                 ${systemd_unitdir}/* \
                 ${base_libdir}/security/*.so \

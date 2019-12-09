@@ -1,7 +1,7 @@
 From f588865f8180a6370ac639bdfc186ffc5b926246 Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Tue, 13 Feb 2018 14:28:12 +0800
-Subject: [PATCH] i2c: slave-mqueue: add mqueue driver to receive ipmi message
+Subject: [PATCH] Add I2C IPMB support
 
 Some protocols over I2C are designed for bi-directional transferring
 messages by using I2C Master Write protocol. Like the MCTP (Management

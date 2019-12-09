@@ -1,7 +1,7 @@
 From 5c82e0b33f2a373d5e19569635f108cfa096f53e Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Adrian=20Ambro=C5=BCewicz?= <adrian.ambrozewicz@intel.com>
 Date: Mon, 29 Jul 2019 10:19:00 +0200
-Subject: [PATCH] Add IO stats to USB Mass Storage gadget
+Subject: [PATCH] Add IO statistics to USB Mass storage gadget
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

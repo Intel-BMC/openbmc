@@ -38,6 +38,9 @@ IMAGE_INSTALL_append = " \
         psu-manager \
         kernel-panic-check \
         id-led-off \
+        hsbp-manager \
+        security-registers-check \
+        pch-time-sync \
         "
 
 IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"

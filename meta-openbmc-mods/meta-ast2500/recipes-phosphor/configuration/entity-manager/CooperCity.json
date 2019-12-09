@@ -1944,7 +1944,7 @@
     "Probe": [
         "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'CooperCity'})"
     ],
-    "ProductId": 145,
+    "ProductId": 157,
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",
@@ -1955,5 +1955,6 @@
     "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
         "AssetTag": "$PRODUCT_ASSET_TAG"
     },
+    "xyz.openbmc_project.Inventory.Item.Baseboard": {},
     "xyz.openbmc_project.Inventory.Item.System": {}
 }

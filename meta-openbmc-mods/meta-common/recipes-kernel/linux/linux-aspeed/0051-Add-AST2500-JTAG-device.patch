@@ -1,7 +1,7 @@
 From ce35414258a8541a8b81a4a8a929bcf9cdface97 Mon Sep 17 00:00:00 2001
 From: "Hunt, Bryan" <bryan.hunt@intel.com>
 Date: Mon, 6 May 2019 10:02:14 -0700
-Subject: [PATCH] Add AST2500d JTAG driver
+Subject: [PATCH] Add AST2500 JTAG device
 
 Adding aspeed jtag device
 

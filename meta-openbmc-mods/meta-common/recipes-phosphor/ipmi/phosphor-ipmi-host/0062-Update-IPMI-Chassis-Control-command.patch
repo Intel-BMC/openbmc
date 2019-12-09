@@ -1,4 +1,4 @@
-From 00fb92edcb4229eeb5b46c4eb206ba7d70e241fc Mon Sep 17 00:00:00 2001
+From 959030b7ee71a7b23d1c081a0aadaa4eedbc0f63 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Mon, 3 Jun 2019 17:01:47 -0700
 Subject: [PATCH] Update IPMI Chassis Control command
@@ -19,11 +19,11 @@ ipmitool power soft: soft power-off requested from system software
 Change-Id: Ic9fba3ca4abd9a758eb88f1e6ee09f7ca64ff80a
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- chassishandler.cpp | 206 ++++++++++++++---------------------------------------
- 1 file changed, 52 insertions(+), 154 deletions(-)
+ chassishandler.cpp | 205 +++++++++++++----------------------------------------
+ 1 file changed, 50 insertions(+), 155 deletions(-)
 
 diff --git a/chassishandler.cpp b/chassishandler.cpp
-index 88bf84b..ad564e2 100644
+index 053f29a..53b25b8 100644
 --- a/chassishandler.cpp
 +++ b/chassishandler.cpp
 @@ -31,6 +31,7 @@
@@ -34,7 +34,7 @@ index 88bf84b..ad564e2 100644
  #include <xyz/openbmc_project/State/Host/server.hpp>
  #include <xyz/openbmc_project/State/PowerOnHours/server.hpp>
  
-@@ -712,59 +713,63 @@ ipmi_ret_t ipmi_set_chassis_cap(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -712,59 +713,63 @@ ipmi::RspType<> ipmiSetChassisCap(bool intrusion, bool fpLockout,
  //------------------------------------------
  // Calls into Host State Manager Dbus object
  //------------------------------------------
@@ -133,8 +133,8 @@ index 88bf84b..ad564e2 100644
 +    return 0;
  }
  
- namespace power_policy
-@@ -1033,76 +1038,6 @@ ipmi::RspType<bool,    // Power is on
+ //------------------------------------------
+@@ -1065,76 +1070,6 @@ ipmi::RspType<bool,    // Power is on
          diagButtonDisableAllow, sleepButtonDisableAllow);
  }
  
@@ -211,7 +211,7 @@ index 88bf84b..ad564e2 100644
  /** @brief Implementation of chassis control command
   *
   *  @param - chassisControl command byte
-@@ -1115,61 +1050,24 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
+@@ -1147,63 +1082,23 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
      switch (chassisControl)
      {
          case CMD_POWER_ON:
@@ -279,11 +279,11 @@ index 88bf84b..ad564e2 100644
 -            // Request Host State Manager to do a soft power off
 -            rc = initiate_state_transition(State::Host::Transition::Off);
 +            rc = initiateHostStateTransition(State::Host::Transition::Off);
-+            break;
-+        case CMD_PULSE_DIAGNOSTIC_INTR:
              break;
- 
-         default:
+-
+         case CMD_PULSE_DIAGNOSTIC_INTR:
+             rc = setNmiProperty(true);
+             break;
 -- 
 2.7.4
 

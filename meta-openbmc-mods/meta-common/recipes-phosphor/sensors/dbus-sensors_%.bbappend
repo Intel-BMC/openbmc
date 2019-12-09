@@ -1,4 +1,4 @@
-SRCREV = "4316218ab824c3c60f566b38f620a6d778e45a83"
+SRCREV = "2424cb7c9752cbecc3d133a67cf1c20f8589f2c1"
 SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 DEPENDS_append = " libgpiod"

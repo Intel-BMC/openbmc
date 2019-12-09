@@ -13,15 +13,16 @@ the other UARTs wired up in a testable way.
 
 Signed-off-by: Oskar Senft <osk@google.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 ---
- .../ABI/stable/sysfs-driver-aspeed-uart-routing    |  14 +
- Documentation/misc-devices/aspeed-uart-routing.txt |  49 +++
- arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts      |   4 +
- arch/arm/boot/dts/aspeed-g5.dtsi                   |   6 +
- drivers/misc/Kconfig                               |   6 +
- drivers/misc/Makefile                              |   1 +
- drivers/misc/aspeed-uart-routing.c                 | 383 +++++++++++++++++++++
- 7 files changed, 463 insertions(+)
+ .../stable/sysfs-driver-aspeed-uart-routing   |  14 +
+ .../misc-devices/aspeed-uart-routing.txt      |  49 +++
+ arch/arm/boot/dts/aspeed-g5.dtsi              |   6 +
+ arch/arm/boot/dts/aspeed-g6.dtsi              |   6 +
+ drivers/misc/Kconfig                          |   6 +
+ drivers/misc/Makefile                         |   1 +
+ drivers/misc/aspeed-uart-routing.c            | 383 ++++++++++++++++++
+ 7 files changed, 465 insertions(+)
  create mode 100644 Documentation/ABI/stable/sysfs-driver-aspeed-uart-routing
  create mode 100644 Documentation/misc-devices/aspeed-uart-routing.txt
  create mode 100644 drivers/misc/aspeed-uart-routing.c
@@ -56,7 +57,7 @@ index 000000000000..afaf17cb7eda
 +=================================
 +
 +Supported chips:
-+ASPEED AST2500
++ASPEED AST2500/AST2600
 +
 +Author:
 +Google LLC
@@ -64,8 +65,8 @@ index 000000000000..afaf17cb7eda
 +Description
 +-----------
 +
-+The Aspeed AST2500 allows to dynamically route the inputs for the built-in
-+UARTS and physical serial I/O ports.
++The Aspeed AST2500/AST2600 allows to dynamically route the inputs for the
++built-in UARTS and physical serial I/O ports.
 +
 +This allows, for example, to connect the output of UART to another UART.
 +This can be used to enable host<->BMC communication via UARTs, e.g. to allow
@@ -101,21 +102,6 @@ index 000000000000..afaf17cb7eda
 +  >/sys/bus/platform/drivers/aspeed-uart-routing/*.uart_routing/uart1
 +$ cat /sys/bus/platform/drivers/aspeed-uart-routing/*.uart_routing/uart1
 +io1 io2 io3 io4 uart2 [uart3] uart4 io6
-diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
-index 0aa2ac82cae4..403f29a74281 100644
---- a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
-+++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
-@@ -260,6 +260,10 @@
- 	status = "okay";
- };
- 
-+&uart_routing {
-+	status = "okay";
-+};
-+
- &mac1 {
- 	status = "okay";
- 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
 index 26671cc4dbd5..8288002e4f02 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
@@ -133,6 +119,23 @@ index 26671cc4dbd5..8288002e4f02 100644
  			};
  
  			peci: bus@1e78b000 {
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 48de17a24c74..3a6ff98df8ea 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -311,6 +311,12 @@
+ 					compatible = "aspeed,ast2600-pinctrl";
+ 				};
+ 
++				uart_routing: uart_routing@9c {
++					compatible = "aspeed,ast2500-uart-routing";
++					reg = <0x9c 0x4>;
++					status = "disabled";
++				};
++
+ 				smp-memram@180 {
+ 					compatible = "aspeed,ast2600-smpmem";
+ 					reg = <0x180 0x40>;
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
 index 50814caba1d3..439f3b0de702 100644
 --- a/drivers/misc/Kconfig

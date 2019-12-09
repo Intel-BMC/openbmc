@@ -1,0 +1,519 @@
+From 3550c57e80ee30113060efa44d41c08fb29fdd25 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Tue, 19 Sep 2017 15:55:39 +0800
+Subject: [PATCH] arm: dts: add DTS for Intel ast2600 platforms
+
+Add the DTS file for Intel ast2600-based systems.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
+---
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 495 +++++++++++++++++++++++++
+ 1 file changed, 495 insertions(+)
+ create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
+
+diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
+new file mode 100644
+index 0000000..a1ea85a
+--- /dev/null
++++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
+@@ -0,0 +1,495 @@
++// SPDX-License-Identifier: GPL-2.0+
++/dts-v1/;
++
++#include "aspeed-g6.dtsi"
++#include <dt-bindings/gpio/aspeed-gpio.h>
++#include <dt-bindings/i2c/i2c.h>
++
++/ {
++	model = "AST2600 EVB";
++	compatible = "aspeed,ast2600";
++
++	chosen {
++		stdout-path = &uart5;
++		bootargs = "console=tty0 console=ttyS4,115200n8 root=/dev/ram rw init=/linuxrc";
++	};
++
++	memory@80000000 {
++		device_type = "memory";
++		reg = <0x80000000 0x40000000>;
++	};
++
++	reserved-memory {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges;
++
++		gfx_memory: framebuffer {
++			size = <0x01000000>;
++			alignment = <0x01000000>;
++			compatible = "shared-dma-pool";
++			reusable;
++		};
++	};
++
++	reserved-memory {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges;
++		video_memory: video {
++			size = <0x04000000>;
++			alignment = <0x01000000>;
++			compatible = "shared-dma-pool";
++			no-map;
++		};
++	};
++
++	iio-hwmon {
++		compatible = "iio-hwmon";
++		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
++			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
++			<&adc1 8>, <&adc1 9>, <&adc1 10>, <&adc1 11>,
++			<&adc1 12>, <&adc1 13>, <&adc1 14>, <&adc1 15>;
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		identify {
++			default-state = "off";
++			gpios = <&gpio1 ASPEED_GPIO(B, 7) GPIO_ACTIVE_LOW>;
++		};
++
++		status_amber {
++			default-state = "off";
++			gpios = <&gpio1 ASPEED_GPIO(G, 3) GPIO_ACTIVE_LOW>;
++		};
++
++		status_green {
++			default-state = "keep";
++			gpios = <&gpio1 ASPEED_GPIO(G, 2) GPIO_ACTIVE_LOW>;
++		};
++	};
++/*
++	beeper {
++		compatible = "pwm-beeper";
++		pwms = <&timer 7 1000000 0>;
++	}; */
++};
++
++&fmc {
++	status = "okay";
++	flash: m25p80@0 {
++		compatible = "m25p80", "jedec,spi-nor";
++		reg = <0x0>;
++		#address-cells = <1>;
++		#size-cells = <1>;
++		spi-max-frequency = <10000000>;
++		m25p,fast-read;
++#include "openbmc-flash-layout-intel-64MB.dtsi"
++	};
++};
++
++&espi {
++	status = "okay";
++};
++
++&peci0 {
++	status = "okay";
++	gpios = <&gpio0 ASPEED_GPIO(F, 6) 0>;
++};
++
++&syscon {
++	uart-clock-high-speed;
++	status = "okay";
++};
++
++#if 0
++ GPIO Alias: (runtime alias -> schematic name)
++	ID_BUTTON -> FP_ID_BTN_N
++	CPU_CATERR -> FM_PLT_BMC_THERMTRIP_N
++	PCH_BMC_THERMTRIP -> FM_PLT_BMC_THERMTRIP_N
++	RESET_BUTTON -> FP_BMC_RST_BTN_N
++	RESET_OUT -> RST_BMC_RSTBTN_OUT_R_N
++	POWER_BUTTON -> FP_BMC_PWR_BTN_R_N
++	POWER_OUT -> FM_BMC_PWR_BTN_N
++	PREQ_N -> DBP_ASD_BMC_PREQ_R_N
++	POST_COMPLETE -> FM_BIOS_POST_CMPLT_BMC_N
++	CPU_ERR0 -> FM_CPU_ERR0_LVT3_N
++	CPU_ERR1 -> FM_CPU_ERR1_LVT3_N
++	CPU_ERR2 -> FM_CPU_ERR2_LVT3_N
++	DEBUG_EN_N -> FM_JTAG_TCK_MUX_SEL_R
++	NMI_OUT -> IRQ_BMC_CPU_NMI_R
++	PLTRST_N -> RST_PLTRST_BMC_N
++	PRDY_N -> DBP_ASD_BMC_PRDY_R_N
++	PWR_DEBUG_N -> 
++	XDP_PRST_N ->
++	SYSPWROK -> 
++	RSMRST_N -> 
++	SIO_S3 -> FM_SLPS3_R_N
++	SIO_S5 -> FM_SLPS4_R_N
++	SIO_ONCONTROL -> FM_BMC_ONCTL_R_N
++	SIO_POWER_GOOD -> PWRGD_CPU0_LVC3_R
++	PS_PWROK -> PWRGD_BMC_PS_PWROK_R
++	P3VBAT_BRIDGE_EN ->
++	TCK_MUX_SEL ->
++	SMI -> IRQ_SMI_ACTIVE_BMC_N
++	NMI_BUTTON -> FP_NMI_BTN_N
++#endif
++&gpio0 {
++	status = "okay";
++	/* Enable GPIOP0 and GPIOP2 pass-through by default */
++	/* pinctrl-names = "pass-through";
++	pinctrl-0 = <&pinctrl_thru0_default
++			&pinctrl_thru1_default>; */
++	gpio-line-names =
++	/*A0-A7*/	"","","","","SMB_CPU_PIROM_SCL","SMB_CPU_PIROM_SDA","SMB_IPMB_STBY_LVC3_R_SCL","SMB_IPMB_STBY_LVC3_R_SDA",
++	/*B0-B7*/	"FM_1200VA_OC","NMI_OUT","IRQ_SMB3_M2_ALERT_N","","RGMII_BMC_RMM4_LVC3_R_MDC","RGMII_BMC_RMM4_LVC3_R_MDIO","FM_BMC_BMCINIT_R","FP_ID_LED_N",
++	/*C0-C7*/	"FM_FORCE_BMC_UPDATE_N","RST_RGMII_PHYRST_N","FM_TPM_EN_PULSE","FM_BMC_CRASHLOG_TRIG_N","IRQ_BMC_PCH_NMI_R","FM_CPU1_DISABLE_COD_N","","",
++	/*D0-D7*/	"CPU_ERR0","CPU_ERR1","CPU_ERR2","PRDY_N","FM_SPD_SWITCH_CTRL_N","","","",
++	/*E0-E7*/	"FM_SKT1_FAULT_LED","FM_SKT0_FAULT_LED","CLK_50M_CKMNG_BMCB","FM_BMC_BOARD_REV_ID2_N","","","","",
++	/*F0-F7*/	"FM_BMC_BOARD_SKU_ID0_N","FM_BMC_BOARD_SKU_ID1_N","FM_BMC_BOARD_SKU_ID2_N","FM_BMC_BOARD_SKU_ID3_N","FM_BMC_BOARD_SKU_ID4_N","FM_BMC_BOARD_SKU_ID5_N","ID_BUTTON","PS_PWROK",
++	/*G0-G7*/	"FM_SMB_BMC_NVME_LVC3_ALERT_N","RST_BMC_I2C_M2_R_N","FP_LED_STATUS_GREEN_N","FP_LED_STATUS_AMBER_N","FM_BMC_BOARD_REV_ID0_N","FM_BMC_BOARD_REV_ID1_N","FM_BMC_CPU_FBRK_OUT_R_N","DBP_PRESENT_IN_R2_N",
++	/*H0-H7*/	"SGPIO_BMC_CLK_R","SGPIO_BMC_LD_R","SGPIO_BMC_DOUT_R","SGPIO_BMC_DIN","PLTRST_N","CPU_CATERR","PCH_BMC_THERMTRIP","",
++	/*I0-I7*/	"JTAG_ASD_NTRST_R_N","JTAG_ASD_TDI_R","JTAG_ASD_TCK_R","JTAG_ASD_TMS_R","JTAG_ASD_TDO","FM_BMC_PWRBTN_OUT_R_N","FM_BMC_PWR_BTN_N","",
++	/*J0-J7*/	"SMB_CHASSENSOR_STBY_LVC3_SCL","SMB_CHASSENSOR_STBY_LVC3_SDA","","","","","","",
++	/*K0-K7*/	"SMB_HSBP_STBY_LVC3_R_SCL","SMB_HSBP_STBY_LVC3_R_SDA","SMB_SMLINK0_STBY_LVC3_R2_SCL","SMB_SMLINK0_STBY_LVC3_R2_SDA","SMB_TEMPSENSOR_STBY_LVC3_R_SCL","SMB_TEMPSENSOR_STBY_LVC3_R_SDA","SMB_PMBUS_SML1_STBY_LVC3_R_SCL","SMB_PMBUS_SML1_STBY_LVC3_R_SDA",
++	/*L0-L7*/	"SMB_PCIE_STBY_LVC3_R_SCL","SMB_PCIE_STBY_LVC3_R_SDA","SMB_HOST_STBY_BMC_LVC3_R_SCL","SMB_HOST_STBY_BMC_LVC3_R_SDA","PREQ_N","DEBUG_EN_N","V_BMC_GFX_HSYNC_R","V_BMC_GFX_VSYNC_R",
++	/*M0-M7*/	"SPA_CTS_N","SPA_DCD_N","SPA_DSR_N","PU_SPA_RI_N","SPA_DTR_N","SPA_RTS_N","SPA_SOUT","SPA_SIN",
++	/*N0-N7*/	"SPB_CTS_N","SPB_DCD_N","SPB_DSR_N","PU_SPB_RI_N","SPB_DTR_N","SPB_RTS_N","SPB_SOUT","SPB_SIN",
++	/*O0-O7*/	"FAN_BMC_PWM0","FAN_BMC_PWM1","FAN_BMC_PWM2","FAN_BMC_PWM3","FAN_BMC_PWM4","FAN_BMC_PWM5","NMI_BUTTON","SPEAKER_BMC_R",
++	/*P0-P7*/	"RESET_BUTTON","RESET_OUT","POWER_BUTTON","POWER_OUT","FAN_BMC_PWM6","FAN_BMC_PWM7","FAN_BMC_PWM8","FAN_BMC_PWM9",
++	/*Q0-Q7*/	"FAN_BMC_TACH0","FAN_BMC_TACH1","FAN_BMC_TACH2","FAN_BMC_TACH3","FAN_BMC_TACH4","FAN_BMC_TACH5","FAN_BMC_TACH6","FAN_BMC_TACH7",
++	/*R0-R7*/	"FAN_BMC_TACH8","FAN_BMC_TACH9","","","","","","",
++	/*S0-S7*/	"RST_BMC_PCIE_MUX_N","FM_BMC_EUP_LOT6_N","","","","A_P3V_BAT_SCALED_EN","REMOTE_DEBUG_ENABLE","FM_PCHHOT_N",
++	/*T0-T7*/	"A_P12V_PSU_SCALED","A_P12V_AUX_SCALED","A_P3V3_SCALED","A_P5V_SCALED","A_PVNN_PCH_AUX_SENSOR","A_P1V05_PCH_AUX_SENSOR","A_P1V8_AUX_SENSOR","A_P3V_BAT_SCALED",
++	/*U0-U7*/	"A_PVCCIN_CPU0_SENSOR","A_PVCCIN_CPU1_SENSOR","A_PVCCINFAON_CPU0_SENSOR","A_PVCCINFAON_CPU1_SENSOR","A_PVCCFA_EHV_FIVRA_CPU0_SENSOR","A_PVCCFA_EHV_FIVRA_CPU1_SENSOR","A_PVCCD_HV_CPU0_SENSOR","A_PVCCD_HV_CPU1_SENSOR",
++	/*V0-V7*/	"SIO_S3","SIO_S5","TP_BMC_SIO_PWREQ_N","SIO_ONCONTROL","SIO_POWER_GOOD","LED_BMC_HB_LED_N","FM_BMC_SUSACK_N","",
++	/*W0-W7*/	"LPC_LAD0_ESPI_R_IO0","LPC_LAD1_ESPI_R_IO1","LPC_LAD2_ESPI_R_IO2","LPC_LAD3_ESPI_R_IO3","CLK_24M_66M_LPC0_ESPI_BMC","LPC_LFRAME_N_ESPI_CS0_BMC_N","IRQ_LPC_SERIRQ_ESPI_ALERT_N","RST_LPC_LRST_ESPI_RST_BMC_R_N",
++	/*X0-X7*/	"","SMI","POST_COMPLETE","","","","","",
++	/*Y0-Y7*/	"","IRQ_SML0_ALERT_BMC_R2_N","","IRQ_SML1_PMBUS_BMC_ALERT_N","SPI_BMC_BOOT_R_IO2","SPI_BMC_BOOT_R_IO3","PU_SPI_BMC_BOOT_ABR","PU_SPI_BMC_BOOT_WP_N",
++	/*Z0-Z7*/	"PWRGD_P3V3_RISER1","PWRGD_P3V3_RISER2","","HW_STRAP_5","HW_STRAP_6","HW_STRAP_7","HW_STRAP_2","HW_STRAP_3";
++};
++
++&gpio1 {
++	status = "disabled";
++	gpio-line-names = /* GPIO18 A-E */
++	/*A0-A7*/	"","","RST_EMMC_BMC_R_N","FM_SYS_FAN6_PRSNT_D_N","FM_SYS_FAN0_PRSNT_D_N","FM_SYS_FAN1_PRSNT_D_N","FM_SYS_FAN2_PRSNT_D_N","FM_SYS_FAN3_PRSNT_D_N",
++	/*B0-B7*/	"FM_SYS_FAN4_PRSNT_D_N","FM_SYS_FAN5_PRSNT_D_N","","FM_SYS_FAN7_PRSNT_D_N","RGMII_BMC_RMM4_TX_R_CLK","RGMII_BMC_RMM4_TX_R_CTRL","RGMII_BMC_RMM4_R_TXD0","RGMII_BMC_RMM4_R_TXD1",
++	/*C0-C7*/	"RGMII_BMC_RMM4_R_TXD2","RGMII_BMC_RMM4_R_TXD3","RGMII_BMC_RMM4_RX_CLK","RGMII_BMC_RMM4_RX_CTRL","RGMII_BMC_RMM4_RXD0","RGMII_BMC_RMM4_RXD1","RGMII_BMC_RMM4_RXD2","RGMII_BMC_RMM4_RXD3",
++	/*D0-D7*/	"EMMC_BMC_R_CLK","EMMC_BMC_R_CMD","EMMC_BMC_R_DATA0","EMMC_BMC_R_DATA1","EMMC_BMC_R_DATA2","EMMC_BMC_R_DATA3","EMMC_BMC_CD_N","EMMC_BMC_WP_N",
++	/*E0-E3*/	"EMMC_BMC_R_DATA4","EMMC_BMC_R_DATA5","EMMC_BMC_R_DATA6","EMMC_BMC_R_DATA7";
++};
++
++&sgpio {
++	status = "okay";
++	gpio-line-names =
++	/* SGPIO output lines */
++	/*OA0-OA7*/	"","","","","","","","",
++	/*OB0-OB7*/	"LED_CPU1_CH1_DIMM1_FAULT","LED_CPU1_CH1_DIMM2_FAULT","LED_CPU1_CH2_DIMM1_FAULT","LED_CPU1_CH2_DIMM2_FAULT","LED_CPU1_CH3_DIMM1_FAULT","LED_CPU1_CH3_DIMM2_FAULT","LED_CPU1_CH4_DIMM1_FAULT","LED_CPU1_CH4_DIMM2_FAULT",
++	/*OC0-OC7*/	"LED_CPU1_CH5_DIMM1_FAULT","LED_CPU1_CH5_DIMM2_FAULT","LED_CPU1_CH6_DIMM1_FAULT","LED_CPU1_CH6_DIMM2_FAULT","LED_FAN1_FAULT","LED_FAN2_FAULT","LED_FAN3_FAULT","LED_FAN4_FAULT",
++	/*OD0-OD7*/	"LED_FAN5_FAULT","LED_FAN6_FAULT","LED_FAN7_FAULT","LED_FAN8_FAULT","LED_CPU2_CH1_DIMM1_FAULT","LED_CPU1_CH1_DIMM2_FAULT","LED_CPU2_CH2_DIMM1_FAULT","LED_CPU2_CH2_DIMM2_FAULT",
++	/*OE0-OE7*/	"LED_CPU2_CH3_DIMM1_FAULT","LED_CPU2_CH3_DIMM2_FAULT","LED_CPU2_CH4_DIMM1_FAULT","LED_CPU2_CH4_DIMM2_FAULT","LED_CPU2_CH5_DIMM1_FAULT","LED_CPU2_CH5_DIMM2_FAULT","LED_CPU2_CH6_DIMM1_FAULT","LED_CPU2_CH6_DIMM2_FAULT",
++	/*OF0-OF7*/	"LED_CPU3_CH1_DIMM1_FAULT","LED_CPU3_CH1_DIMM2_FAULT","LED_CPU3_CH2_DIMM1_FAULT","LED_CPU3_CH2_DIMM2_FAULT","LED_CPU3_CH3_DIMM1_FAULT","LED_CPU3_CH3_DIMM2_FAULT","LED_CPU3_CH4_DIMM1_FAULT","LED_CPU3_CH4_DIMM2_FAULT",
++	/*OG0-OG7*/	"LED_CPU3_CH5_DIMM1_FAULT","LED_CPU3_CH5_DIMM2_FAULT","LED_CPU3_CH6_DIMM1_FAULT","LED_CPU3_CH6_DIMM2_FAULT","LED_CPU4_CH1_DIMM1_FAULT","LED_CPU4_CH1_DIMM2_FAULT","LED_CPU4_CH2_DIMM1_FAULT","LED_CPU4_CH2_DIMM2_FAULT",
++	/*OH0-OH7*/	"LED_CPU4_CH3_DIMM1_FAULT","LED_CPU4_CH3_DIMM2_FAULT","LED_CPU4_CH4_DIMM1_FAULT","LED_CPU4_CH4_DIMM2_FAULT","LED_CPU4_CH5_DIMM1_FAULT","LED_CPU4_CH5_DIMM2_FAULT","LED_CPU4_CH6_DIMM1_FAULT","LED_CPU4_CH6_DIMM2_FAULT",
++	/*OI0-OI7*/	"","","","","","","","",
++	/*OJ0-OJ7*/	"","","","","","","","",
++	/*DUMMY*/	"","","","","","","","",
++	/*DUMMY*/	"","","","","","","","",
++
++	/* SGPIO input lines */
++  /* Some lines have been renamed from the net names:
++  CPU1_PRESENCE -> FM_CPU0_SKTOCC_LVT3_N
++  CPU1_THERMTRIP -> H_CPU0_THERMTRIP_LVC1_N
++  CPU1_VRHOT -> IRQ_CPU0_VRHOT_N
++  CPU1_FIVR_FAULT -> H_CPU0_MON_FAIL_PLD_LVC1_N
++  CPU1_MEM_ABCD_VRHOT -> ??
++  CPU1_MEM_EFGH_VRHOT -> ??
++  CPU2_PRESENCE -> FM_CPU1_SKTOCC_LVT3_N
++  CPU2_THERMTRIP -> H_CPU1_THERMTRIP_LVC1_N
++  CPU2_VRHOT -> IRQ_CPU1_VRHOT_N
++  CPU2_FIVR_FAULT -> H_CPU1_MON_FAIL_PLD_LVC1_N
++  CPU2_MEM_ABCD_VRHOT -> ??
++  CPU2_MEM_EFGH_VRHOT -> ??
++
++	/*IA0-IA7*/	"CPU1_PRESENCE","CPU1_THERMTRIP","CPU1_VRHOT","CPU1_FIVR_FAULT","IRQ_CPU0_MEM_VRHOT_N","H_CPU0_MEMHOT_OUT_LVC1_N","FM_CPU0_PROC_ID0","FM_CPU0_PROC_ID1",
++	/*IB0-IB7*/	"WCPU_MISMATCH","IRQ_PSYS_CRIT_N","CPU2_PRESENCE","CPU2_THERMTRIP","CPU2_VRHOT","CPU2_FIVR_FAULT","IRQ_CPU1_MEM_VRHOT_N","H_CPU1_MEMHOT_OUT_LVC1_N",
++	/*IC0-IC7*/	"FM_CPU1_PROC_ID0","FM_CPU1_PROC_ID1","","","","","","",
++	/*ID0-ID7*/	"","","","","","","","",
++	/*IE0-IE7*/	"","","","","","","","",
++	/*IF0-IF7*/	"FPGA_REV_TEST_0","FPGA_REV_TEST_1","FPGA_REV_TEST_2","FPGA_REV_TEST_3","FPGA_REV_TEST_4","FPGA_REV_TEST_5","FPGA_REV_TEST_6","FPGA_REV_TEST_7",
++	/*IG0-IG7*/	"FPGA_REV_0","FPGA_REV_1","FPGA_REV_2","FPGA_REV_3","FPGA_REV_4","FPGA_REV_5","FPGA_REV_6","FPGA_REV_7",
++	/*IH0-IH7*/	"","WMEMX_PWR_FLT","WCPUX_MEM_PWR_FLT","PWRGD_P3V3_FF","WPSU_PWR_FLT","","","WPCH_PWR_FLT",
++	/*II0-II7*/	"FM_CPU0_PKGID0","FM_CPU0_PKGID1","FM_CPU0_PKGID2","H_CPU0_MEMTRIP_LVC1_N","FM_CPU1_PKGID0","FM_CPU1_PKGID1","FM_CPU1_PKGID2","H_CPU1_MEMTRIP_LVC1_N",
++	/*IJ0-IJ7*/	"","","","","","","","";
++};
++
++&kcs3 {
++	kcs_addr = <0xCA2>;
++	status = "okay";
++};
++
++&kcs4 {
++	kcs_addr = <0xCA4>;
++	status = "okay";
++};
++
++&lpc_sio {
++	status = "okay";
++};
++
++&lpc_snoop {
++	snoop-ports = <0x80>;
++	status = "okay";
++};
++
++&mbox {
++	status = "okay";
++};
++
++&mdio1 {
++	status = "okay";
++
++	ethphy1: ethernet-phy@0 {
++		compatible = "ethernet-phy-ieee802.3-c22";
++		reg = <0>;
++	};
++};
++
++&mac1 {
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_rgmii2_default>;
++	clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>,
++		 <&syscon ASPEED_CLK_GATE_MAC2RCLK>;
++	clock-names = "MACCLK", "RCLK";
++	phy-mode = "rgmii";
++	phy-handle = <&ethphy1>;
++};
++
++&mdio2 {
++	status = "okay";
++
++	ethphy2: ethernet-phy@1 {
++		compatible = "ethernet-phy-ieee802.3-c22";
++		reg = <0>;
++	};
++};
++
++&adc0 {
++	status = "okay";
++};
++
++&adc1 {
++	status = "okay";
++};
++
++&uart1 {
++	status = "okay";
++	// Workaround for A0
++	compatible = "snps,dw-apb-uart";
++	pinctrl-0 = <&pinctrl_txd1_default
++		     &pinctrl_rxd1_default
++		     &pinctrl_nrts1_default
++		     &pinctrl_ndtr1_default
++		     &pinctrl_ndsr1_default
++		     &pinctrl_ncts1_default
++		     &pinctrl_ndcd1_default
++		     &pinctrl_nri1_default>;
++};
++
++&uart2 {
++	status = "okay";
++	// Workaround for A0
++	compatible = "snps,dw-apb-uart";
++	pinctrl-0 = <&pinctrl_txd2_default
++		     &pinctrl_rxd2_default
++		     &pinctrl_nrts2_default
++		     &pinctrl_ndtr2_default
++		     &pinctrl_ndsr2_default
++		     &pinctrl_ncts2_default
++		     &pinctrl_ndcd2_default
++		     &pinctrl_nri2_default>;
++};
++
++&uart3 {
++	status = "okay";
++	// Workaround for A0
++	compatible = "snps,dw-apb-uart";
++	pinctrl-0 = <>;
++};
++
++&uart4 {
++	status = "okay";
++	// Workaround for A0
++	compatible = "snps,dw-apb-uart";
++	pinctrl-0 = <>;
++};
++
++&uart5 {
++	status = "okay";
++	// Workaround for A0
++	compatible = "snps,dw-apb-uart";
++};
++
++&uart_routing {
++	status = "okay";
++};
++
++&emmc_controller{
++	status = "okay";
++};
++
++&emmc {
++	non-removable;
++	bus-width = <4>;
++	max-frequency = <52000000>;
++};
++
++&i2c0 {
++	/* SMB_CHASSENSOR_STBY_LVC3 */
++	multi-master;
++	status = "okay";
++};
++
++&i2c4 {
++	/* SMB_HSBP_STBY_LVC3_R */
++	multi-master;
++	status = "okay";
++
++	hsbp0@10 {
++		compatible = "slave-mqueue";
++		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
++	};
++};
++
++&i2c5 {
++	/* SMB_SMLINK0_STBY_LVC3_R2 */
++	bus-frequency = <1000000>;
++	multi-master;
++	status = "okay";
++
++	smlink0@10 {
++		compatible = "slave-mqueue";
++		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
++	};
++};
++
++&i2c6 {
++	/* SMB_TEMPSENSOR_STBY_LVC3_R */
++	multi-master;
++	status = "okay";
++};
++
++&i2c7 {
++	/* SMB_PMBUS_SML1_STBY_LVC3_R */
++	multi-master;
++	#retries = <3>;
++
++	status = "okay";
++};
++
++&i2c8 {
++	/* SMB_PCIE_STBY_LVC3_R */
++	multi-master;
++	status = "okay";
++};
++
++&i2c9 {
++	/* SMB_HOST_STBY_BMC_LVC3_R */
++	multi-master;
++	status = "okay";
++};
++
++&i2c12 {
++	/* SMB_CPU_PIROM */
++	multi-master;
++	status = "okay";
++};
++
++&i2c13 {
++	/* SMB_IPMB_STBY_LVC3_R */
++	multi-master;
++	status = "okay";
++};
++
++&i3c0 {
++	/* I3C_SPD_DDRABCD_CPU0_BMC ; FIXME: i3c driver hangs kernel on probe...*/
++	status = "disabled";
++};
++
++&i3c1 {
++	/* I3C_SPD_DDREFGH_CPU0_BMC */
++	status = "disabled";
++};
++
++&i3c2 {
++	/* I3C_SPD_DDRABCD_CPU1_BMC */
++	status = "disabled";
++};
++
++&i3c3 {
++	/* I3C_SPD_DDREFGH_CPU1_BMC */
++	status = "disabled";
++};
++
++&gfx {
++	status = "okay";
++	memory-region = <&gfx_memory>;
++};
++
++&pwm_tacho {
++	status = "disabled"; /* FIXME: disabled because of bug in driver */
++	pinctrl-names = "default";
++	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_pwm1_default
++			 &pinctrl_pwm2_default &pinctrl_pwm3_default
++			 &pinctrl_pwm4_default &pinctrl_pwm5_default
++			 &pinctrl_pwm12g1_default &pinctrl_pwm13g1_default
++			 &pinctrl_pwm14g1_default &pinctrl_pwm15g1_default>;
++
++	fan@0 {
++		reg = <0x00>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x00 0x01>;
++	};
++	fan@1 {
++		reg = <0x01>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x02 0x03>;
++	};
++	fan@2 {
++		reg = <0x02>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x04 0x05>;
++	};
++	fan@3 {
++		reg = <0x03>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x06 0x07>;
++	};
++	fan@4 {
++		reg = <0x04>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x08 0x09>;
++	};
++	fan@5 {
++		reg = <0x05>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x0A 0x0B>;
++	};
++	fan@6 {
++		reg = <0x06>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x18 0x19>;
++	};
++	fan@7 {
++		reg = <0x07>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x1A 0x1B>;
++	};
++	fan@8 {
++		reg = <0x08>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x1C 0x1D>;
++	};
++	fan@9 {
++		reg = <0x09>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x1E 0x1F>;
++	};
++};
++
++&vhub {
++	status = "okay";
++};
+-- 
+2.7.4
+

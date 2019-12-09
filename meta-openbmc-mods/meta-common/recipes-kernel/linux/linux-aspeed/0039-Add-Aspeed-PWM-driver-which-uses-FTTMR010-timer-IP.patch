@@ -471,7 +471,7 @@ index 000000000000..4c929a25e27c
 +	struct pwm_chip *chip = &priv->chip;
 +	unsigned int i;
 +
-+	for (i = chip->variant.chan_min; i < chip->variant.chan_max; i++) {
++	for (i = priv->variant.chan_min; i < priv->variant.chan_max; i++) {
 +		struct pwm_device *pwm = &chip->pwms[i];
 +		struct pwm_fttmr010_chan *chan = pwm_get_chip_data(pwm);
 +

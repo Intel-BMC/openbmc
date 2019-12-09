@@ -26,11 +26,20 @@ if grep -q 'CPU part\s*: 0xb76' /proc/cpuinfo; then
     case $BOARD_ID in
     12) NAME="D50TNP1SB";;
     40) NAME="CooperCity";;
+    42) NAME="WilsonCity";;
     45) NAME="WilsonCity";;
     60) NAME="M50CYP2SB2U";;
     62) NAME="WilsonPoint";;
     *)  NAME="S2600WFT";;
     esac
+
+elif grep -q 'CPU part\s*: 0xc07' /proc/cpuinfo; then
+    # AST2600
+    case $BOARD_ID in
+    62) NAME="ArcherCity";;
+    *)  NAME="AST2600EVB";;
+    esac
+
 fi
 
 if [ -z "$NAME" ]; then

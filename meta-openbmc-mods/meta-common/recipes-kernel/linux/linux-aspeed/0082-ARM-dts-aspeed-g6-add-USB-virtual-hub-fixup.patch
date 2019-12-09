@@ -1,0 +1,53 @@
+From 4594ddeadebe0c818c94671295308c51f00a8e7e Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 20 Nov 2019 13:06:58 -0800
+Subject: [PATCH] ARM: dts: aspeed-g6: add USB virtual hub fixup
+
+This commit adds dt and pinctrl fixup for USB virtual hub.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi |  5 +++++
+ arch/arm/boot/dts/aspeed-g6.dtsi         | 10 ++++++++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi b/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi
+index 045ce66ca876..6ea66aaf9dd0 100644
+--- a/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi
+@@ -1112,6 +1112,11 @@
+ 		groups = "UART9";
+ 	};
+ 
++	pinctrl_usb2adp_default: usb2adp_default {
++		function = "USB2ADP";
++		groups = "USBA";
++	};
++
+ 	pinctrl_vb_default: vb_default {
+ 		function = "VB";
+ 		groups = "VB";
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 88bd02058585..b2549f2a619b 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -253,6 +253,16 @@
+ 			status = "disabled";
+ 		};
+ 
++		vhub: usb-vhub@1e6a0000 {
++			compatible = "aspeed,ast2600-usb-vhub";
++			reg = <0x1e6a0000 0x300>;
++			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
++			pinctrl-names = "default";
++			pinctrl-0 = <&pinctrl_usb2adp_default>;
++			status = "disabled";
++		};
++
+ 		apb {
+ 			compatible = "simple-bus";
+ 			#address-cells = <1>;
+-- 
+2.7.4
+

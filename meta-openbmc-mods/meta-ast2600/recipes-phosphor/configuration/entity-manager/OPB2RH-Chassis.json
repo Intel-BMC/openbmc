@@ -1,0 +1,49 @@
+{
+    "Exposes": [
+        {
+            "Address": "0x56",
+            "Bus": 9,
+            "Class": "MCUTemp",
+            "Name": "PDB MCU Temp",
+            "Reg": "0x22",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "MCUTempSensor"
+        }
+    ],
+    "Name": "OPB2RH Chassis",
+    "Probe": [
+        "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'FCXXPDBASSMBL'})"
+    ],
+    "Type": "Chassis",
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "Intel Corporation",
+        "Model": "OPB2RH",
+        "PartNumber": "R1234",
+        "SerialNumber": "12345"
+    }
+}

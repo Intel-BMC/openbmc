@@ -1,4 +1,4 @@
-From e34e3f667607700dfe0a670bd0e49f98be0d2586 Mon Sep 17 00:00:00 2001
+From 9c7935cd0d6d888e86c33958a7dada2f5afcb543 Mon Sep 17 00:00:00 2001
 From: Yuan Li <yuan.li@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2500 platforms
@@ -14,16 +14,16 @@ Signed-off-by: Zhu, Yunge <yunge.zhu@linux.intel.com>
 Signed-off-by: Qiang XU <qiang.xu@linux.intel.com>
 Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts | 454 ++++++++++++++++++++++++++
- 1 file changed, 454 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts | 470 +++++++++++++++++++++++++
+ 1 file changed, 470 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 new file mode 100644
-index 0000000..b3e8d80
+index 0000000..4f3ef45
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
-@@ -0,0 +1,454 @@
+@@ -0,0 +1,470 @@
 +/dts-v1/;
 +
 +#include "aspeed-g5.dtsi"
@@ -31,8 +31,8 @@ index 0000000..b3e8d80
 +#include <dt-bindings/i2c/i2c.h>
 +
 +/ {
-+	model = "Purley BMC";
-+	compatible = "intel,purley-bmc", "aspeed,ast2500";
++	model = "Intel AST2500 BMC";
++	compatible = "intel,ast2500-bmc", "aspeed,ast2500";
 +
 +	aliases {
 +		serial4 = &uart5;
@@ -151,6 +151,18 @@ index 0000000..b3e8d80
 +			bit-shift = <10>;
 +			read-only;
 +		};
++		p2a-bridge {
++			offset = <0x180>;
++			bit-mask = <0x1>;
++			bit-shift = <1>;
++			read-only;
++		};
++		boot-2nd-flash {
++			offset = <0x70>;
++			bit-mask = <0x1>;
++			bit-shift = <17>;
++			read-only;
++		};
 +	};
 +};
 +
@@ -179,7 +191,7 @@ index 0000000..b3e8d80
 +	/*P0-P7*/	"","","","","","","","",
 +	/*Q0-Q7*/	"","","","","","","","PWR_DEBUG_N",
 +	/*R0-R7*/	"","XDP_PRST_N","","","","","","",
-+	/*S0-S7*/	"","SYSPWROK","RSMRST_N","","","","","",
++	/*S0-S7*/	"REMOTE_DEBUG_ENABLE","SYSPWROK","RSMRST_N","","","","","",
 +	/*T0-T7*/	"","","","","","","","",
 +	/*U0-U7*/	"","","","","","","","",
 +	/*V0-V7*/	"","","","","","","","",
@@ -242,6 +254,10 @@ index 0000000..b3e8d80
 +};
 +
 +&mbox {
++	status = "okay";
++};
++
++&uart_routing {
 +	status = "okay";
 +};
 +

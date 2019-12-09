@@ -1,0 +1,645 @@
+From 1365492683b47f63d470d0666fee258a5c7ca3c3 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Thu, 12 Sep 2019 15:26:08 -0700
+Subject: [PATCH 04/52] Add Aspeed fmc-spi driver
+
+Add the Aspeed fmc-spi driver from the Apeed SDK v5.02
+
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+---
+ arch/arm/boot/dts/aspeed-g6.dtsi |  43 ++-
+ drivers/spi/Kconfig              |   6 +
+ drivers/spi/Makefile             |   1 +
+ drivers/spi/fmc_spi.c            | 530 +++++++++++++++++++++++++++++++
+ 4 files changed, 579 insertions(+), 1 deletion(-)
+ create mode 100644 drivers/spi/fmc_spi.c
+
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 42f644ac8111..1aab48fbf49e 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -90,7 +90,7 @@
+ 			    <0x40464000 0x2000>,
+ 			    <0x40466000 0x2000>;
+ 			};
+-
++#if 1
+ 		fmc: spi@1e620000 {
+ 			reg = < 0x1e620000 0xc4
+ 				0x20000000 0x10000000 >;
+@@ -169,6 +169,47 @@
+ 				status = "disabled";
+ 			};
+ 		};
++#else
++		spi0: spi@1e620000 {
++			/* reg : cs0 : cs1 : cs2  */
++			reg = <0x1e620000 0x100
++			       0x20000000 0x40
++			       0x28000000 0x40>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "aspeed,fmc-spi";
++			clocks = <&syscon ASPEED_CLK_AHB>;
++			status = "disable";
++			number_of_chip_select = /bits/ 16 <2>;
++			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
++		};
++
++		spi1: spi1@1e630000 {
++			/* reg : cs0 : cs1 */
++			reg = <0x1e630000 0x100
++			       0x30000000 0x20
++			       0x32000000 0x20>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "aspeed,fmc-spi";
++			clocks = <&syscon ASPEED_CLK_AHB>;
++			status = "disable";
++			number_of_chip_select = /bits/ 16 <2>;
++		};
++
++		spi2: spi2@1e631000 {
++			/* reg : cs0 : cs1 */
++			reg = <0x1e631000 0x100
++			       0x38000000 0x20
++			       0x3A000000 0x20>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "aspeed,fmc-spi";
++			clocks = <&syscon ASPEED_CLK_AHB>;
++			status = "disable";
++			number_of_chip_select = /bits/ 16 <2>;
++		};
++#endif
+ 
+ 		mdio0: mdio@1e650000 {
+ 			compatible = "aspeed,ast2600-mdio";
+diff --git a/drivers/spi/Kconfig b/drivers/spi/Kconfig
+index 6ee514fd0920..9f32c31ffa3c 100644
+--- a/drivers/spi/Kconfig
++++ b/drivers/spi/Kconfig
+@@ -57,6 +57,12 @@ config SPI_MEM
+ 
+ comment "SPI Master Controller Drivers"
+ 
++config SPI_FMC
++	tristate "Aspeed FMC SPI Controller"
++	depends on ARCH_ASPEED
++	help
++	  This selects a driver for the AST FMC SPI Controller
++
+ config SPI_ALTERA
+ 	tristate "Altera SPI Controller"
+ 	help
+diff --git a/drivers/spi/Makefile b/drivers/spi/Makefile
+index adbebee93a75..224b9b71e29c 100644
+--- a/drivers/spi/Makefile
++++ b/drivers/spi/Makefile
+@@ -13,6 +13,7 @@ obj-$(CONFIG_SPI_SPIDEV)		+= spidev.o
+ obj-$(CONFIG_SPI_LOOPBACK_TEST)		+= spi-loopback-test.o
+ 
+ # SPI master controller drivers (bus)
++obj-$(CONFIG_SPI_FMC)			+= fmc_spi.o
+ obj-$(CONFIG_SPI_ALTERA)		+= spi-altera.o
+ obj-$(CONFIG_SPI_ARMADA_3700)		+= spi-armada-3700.o
+ obj-$(CONFIG_SPI_ATMEL)			+= spi-atmel.o
+diff --git a/drivers/spi/fmc_spi.c b/drivers/spi/fmc_spi.c
+new file mode 100644
+index 000000000000..f21f7a00496e
+--- /dev/null
++++ b/drivers/spi/fmc_spi.c
+@@ -0,0 +1,530 @@
++/*
++ * fmc_spi.c - FMC SPI driver for the Aspeed SoC
++ *
++ * Copyright (C) ASPEED Technology Inc.
++ * Ryan Chen <ryan_chen@aspeedtech.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ *
++ */
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/clk.h>
++#include <linux/sched.h>
++#include <linux/kernel.h>
++#include <linux/delay.h>
++#include <linux/interrupt.h>
++#include <linux/ioport.h>
++#include <linux/platform_device.h>
++#include <linux/err.h>
++#include <linux/errno.h>
++#include <linux/wait.h>
++#include <linux/delay.h>
++#include <linux/spi/spi.h>
++#include <linux/spi/flash.h>
++
++#include <linux/of_address.h>
++#include <linux/of_irq.h>
++#include <linux/of_platform.h>
++
++/******************************************************************************/
++/* AST_SPI_CONFIG 0x00 : SPI00 CE Type Setting Register */
++#define AST_G5_SPI_CONF_CE1_WEN (0x1 << 17)
++#define AST_G5_SPI_CONF_CE0_WEN (0x1 << 16)
++
++#define SPI_CONF_CE0_WEN (0x1)
++
++/* Register offsets */
++#define FMC_SPI_CONFIG 0x00
++#define FMC_SPI_CTRL 0x04
++#define FMC_SPI_DMA_STS 0x08
++
++#define FMC_SPI_CE0_CTRL 0x10
++#define FMC_SPI_CE1_CTRL 0x14
++
++#define AST_SPI_DMA_CTRL 0x80
++#define AST_SPI_DMA_FLASH_BASE 0x84
++#define AST_SPI_DMA_DRAM_BASE 0x88
++#define AST_SPI_DMA_LENGTH 0x8c
++
++/* AST_FMC_CONFIG 0x00 : FMC00 CE Type Setting Register */
++#define FMC_CONF_LAGACY_DIS (0x1 << 31)
++#define FMC_CONF_CE1_WEN (0x1 << 17)
++#define FMC_CONF_CE0_WEN (0x1 << 16)
++#define FMC_CONF_CE1_SPI (0x2 << 2)
++#define FMC_CONF_CE0_SPI (0x2)
++
++/* FMC_SPI_CTRL	: 0x04 : FMC04 CE Control Register */
++#define FMC_CTRL_CE1_4BYTE_MODE (0x1 << 1)
++#define FMC_CTRL_CE0_4BYTE_MODE (0x1)
++
++/* FMC_SPI_DMA_STS	: 0x08 : FMC08 Interrupt Control and Status Register */
++#define FMC_STS_DMA_READY 0x0800
++#define FMC_STS_DMA_CLEAR 0x0800
++
++/* FMC_CE0_CTRL	for SPI 0x10, 0x14, 0x18, 0x1c, 0x20 */
++#define SPI_IO_MODE_MASK (3 << 28)
++#define SPI_SINGLE_BIT (0 << 28)
++#define SPI_DUAL_MODE (0x2 << 28)
++#define SPI_DUAL_IO_MODE (0x3 << 28)
++#define SPI_QUAD_MODE (0x4 << 28)
++#define SPI_QUAD_IO_MODE (0x5 << 28)
++
++#define SPI_CE_WIDTH(x) (x << 24)
++#define SPI_CMD_DATA_MASK (0xff << 16)
++#define SPI_CMD_DATA(x) (x << 16)
++#define SPI_DUMMY_CMD (1 << 15)
++#define SPI_DUMMY_HIGH (1 << 14)
++//#define SPI_CLK_DIV				(1 << 13)		?? TODO ask....
++//#define SPI_ADDR_CYCLE			(1 << 13)		?? TODO ask....
++#define SPI_CMD_MERGE_DIS (1 << 12)
++#define SPI_CLK_DIV(x) (x << 8)
++#define SPI_CLK_DIV_MASK (0xf << 8)
++
++#define SPI_DUMMY_LOW_MASK (0x3 << 6)
++#define SPI_DUMMY_LOW(x) ((x) << 6)
++#define SPI_LSB_FIRST_CTRL (1 << 5)
++#define SPI_CPOL_1 (1 << 4)
++#define SPI_DUAL_DATA (1 << 3)
++#define SPI_CE_INACTIVE (1 << 2)
++#define SPI_CMD_MODE_MASK (0x3)
++#define SPI_CMD_NORMAL_READ_MODE 0
++#define SPI_CMD_READ_CMD_MODE 1
++#define SPI_CMD_WRITE_CMD_MODE 2
++#define SPI_CMD_USER_MODE 3
++
++/* AST_SPI_DMA_CTRL				0x80 */
++#define FMC_DMA_ENABLE (0x1)
++
++/******************************************************************************/
++struct fmc_spi_host {
++	void __iomem *base;
++	void __iomem *ctrl_reg;
++	u32 buff[5];
++	struct spi_master *master;
++	struct spi_device *spi_dev;
++	struct device *dev;
++	u32 ahb_clk;
++	spinlock_t lock;
++};
++
++static u32 ast_spi_calculate_divisor(struct fmc_spi_host *host,
++				     u32 max_speed_hz)
++{
++	// [0] ->15 : HCLK , HCLK/16
++	u8 SPI_DIV[16] = {
++		16, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 0
++	};
++	u32 i, spi_cdvr = 0;
++
++	for (i = 1; i < 17; i++) {
++		if (max_speed_hz >= (host->ahb_clk / i)) {
++			spi_cdvr = SPI_DIV[i - 1];
++			break;
++		}
++	}
++
++	//	printk("hclk is %d, divisor is %d, target :%d , cal speed %d\n", host->ahb_clk, spi_cdvr, spi->max_speed_hz, hclk/i);
++	return spi_cdvr;
++}
++
++/* the spi->mode bits understood by this driver: */
++#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
++
++static int fmc_spi_setup(struct spi_device *spi)
++{
++	struct fmc_spi_host *host =
++		(struct fmc_spi_host *)spi_master_get_devdata(spi->master);
++	unsigned int bits = spi->bits_per_word;
++	u32 fmc_config = 0;
++	u32 spi_ctrl = 0;
++	u32 divisor;
++
++	//	dev_dbg(host->dev, "fmc_spi_setup() cs: %d, spi->mode %d \n", spi->chip_select, spi->mode);
++	//	printk("fmc_spi_setup() cs: %d, spi->mode %d spi->max_speed_hz %d , spi->bits_per_word %d \n", spi->chip_select, spi->mode, spi->max_speed_hz, spi->bits_per_word);
++
++	switch (spi->chip_select) {
++	case 0:
++		fmc_config |= FMC_CONF_CE0_WEN | FMC_CONF_CE0_SPI;
++		host->ctrl_reg = host->base + FMC_SPI_CE0_CTRL;
++		break;
++	case 1:
++		fmc_config |= FMC_CONF_CE1_WEN | FMC_CONF_CE1_SPI;
++		host->ctrl_reg = host->base + FMC_SPI_CE0_CTRL;
++		break;
++	default:
++		dev_dbg(&spi->dev,
++			"setup: invalid chipselect %u (%u defined)\n",
++			spi->chip_select, spi->master->num_chipselect);
++		return -EINVAL;
++		break;
++	}
++	writel(fmc_config, host->base);
++
++	if (bits == 0)
++		bits = 8;
++
++	if (bits < 8 || bits > 16) {
++		dev_dbg(&spi->dev,
++			"setup: invalid bits_per_word %u (8 to 16)\n", bits);
++		return -EINVAL;
++	}
++
++	if (spi->mode & ~MODEBITS) {
++		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
++			spi->mode & ~MODEBITS);
++		return -EINVAL;
++	}
++
++	/* see notes above re chipselect */
++	if ((spi->chip_select == 0) && (spi->mode & SPI_CS_HIGH)) {
++		dev_dbg(&spi->dev, "setup: can't be active-high\n");
++		return -EINVAL;
++	}
++
++	/*
++	 * Pre-new_1 chips start out at half the peripheral
++	 * bus speed.
++	 */
++
++	if (spi->max_speed_hz) {
++		/* Set the SPI slaves select and characteristic control register */
++		divisor = ast_spi_calculate_divisor(host, spi->max_speed_hz);
++	} else {
++		/* speed zero means "as slow as possible" */
++		divisor = 15;
++	}
++
++	spi_ctrl &= ~SPI_CLK_DIV_MASK;
++	//	printk("set div %x \n",divisor);
++	//TODO MASK first
++	spi_ctrl |= SPI_CLK_DIV(divisor);
++
++	/*  only support mode 0 (CPOL=0, CPHA=0) and cannot support mode 1 ~ mode 3 */
++
++#if 0
++	if (SPI_CPHA & spi->mode)
++		cpha = SPI_CPHA_1;
++	else
++		cpha = SPI_CPHA_0;
++#endif
++
++	//	if (SPI_CPOL & spi->mode)
++	//		spi_ctrl |= SPI_CPOL_1;
++	//	else
++	//		spi_ctrl &= ~SPI_CPOL_1;
++
++	//ISSUE : ast spi ctrl couldn't use mode 3, so fix mode 0
++	spi_ctrl &= ~SPI_CPOL_1;
++
++	if (SPI_LSB_FIRST & spi->mode)
++		spi_ctrl |= SPI_LSB_FIRST_CTRL;
++	else
++		spi_ctrl &= ~SPI_LSB_FIRST_CTRL;
++
++	/* Configure SPI controller */
++	writel(spi_ctrl, host->ctrl_reg);
++
++	//	printk("ctrl  %x, ", spi_ctrl);
++	return 0;
++}
++
++static int fmc_spi_transfer(struct spi_device *spi, struct spi_message *msg)
++{
++	struct fmc_spi_host *host =
++		(struct fmc_spi_host *)spi_master_get_devdata(spi->master);
++	struct spi_transfer *xfer;
++	const u8 *tx_buf;
++	u8 *rx_buf;
++	unsigned long flags;
++
++	int i = 0, j = 0;
++
++	//	dev_dbg(host->dev, "xfer %s \n", dev_name(&spi->dev));
++	//	printk("xfer spi->chip_select %d \n", spi->chip_select);
++
++	host->spi_dev = spi;
++	spin_lock_irqsave(&host->lock, flags);
++
++	writel(readl(host->ctrl_reg) | SPI_CMD_USER_MODE, host->ctrl_reg);
++	msg->actual_length = 0;
++	msg->status = 0;
++
++	list_for_each_entry (xfer, &msg->transfers, transfer_list) {
++		dev_dbg(host->dev,
++			"xfer[%d] %p: width %d, len %u, tx %p/%08x, rx %p/%08x\n",
++			j, xfer, xfer->bits_per_word, xfer->len, xfer->tx_buf,
++			xfer->tx_dma, xfer->rx_buf, xfer->rx_dma);
++
++		tx_buf = xfer->tx_buf;
++		rx_buf = xfer->rx_buf;
++
++		if (tx_buf != 0) {
++#if 0
++			printk("tx : ");
++			if(xfer->len > 10) {
++				for(i=0;i<10;i++)
++					printk("%x ",tx_buf[i]);
++			} else {
++				for(i=0;i<xfer->len;i++)
++					printk("%x ",tx_buf[i]);
++			}
++			printk("\n");
++#endif
++			for (i = 0; i < xfer->len; i++) {
++				writeb(tx_buf[i],
++				       (void *)host->buff
++					       [host->spi_dev->chip_select]);
++			}
++		}
++		//Issue need clarify
++		udelay(1);
++		if (rx_buf != 0) {
++			for (i = 0; i < xfer->len; i++) {
++				rx_buf[i] = readb(
++					(void *)host->buff
++						[host->spi_dev->chip_select]);
++			}
++#if 0
++			printk("rx : ");
++			if(xfer->len > 10) {
++				for(i=0;i<10;i++)
++					printk(" %x",rx_buf[i]);
++			} else {
++				for(i=0;i<xfer->len;i++)
++					printk(" %x",rx_buf[i]);
++			}
++			printk("\n");
++#endif
++		}
++		dev_dbg(host->dev, "old msg->actual_length %d , +len %d \n",
++			msg->actual_length, xfer->len);
++		msg->actual_length += xfer->len;
++		dev_dbg(host->dev, "new msg->actual_length %d \n",
++			msg->actual_length);
++		//		j++;
++	}
++
++	//	writel( SPI_CE_INACTIVE | readl(host->spi_data->ctrl_reg),host->spi_data->ctrl_reg);
++	writel(readl(host->ctrl_reg) & ~SPI_CMD_USER_MODE, host->ctrl_reg);
++	msg->status = 0;
++
++	msg->complete(msg->context);
++
++	//	spin_unlock(&host->lock);
++	spin_unlock_irqrestore(&host->lock, flags);
++
++	return 0;
++}
++
++static void fmc_spi_cleanup(struct spi_device *spi)
++{
++	struct fmc_spi_host *host = spi_master_get_devdata(spi->master);
++	unsigned long flags;
++	dev_dbg(host->dev, "fmc_spi_cleanup() \n");
++
++	spin_lock_irqsave(&host->lock, flags);
++	//        if (host->stay == spi) {
++	//                host->stay = NULL;
++	//                cs_deactivate(host, spi);
++	//        }
++	spin_unlock_irqrestore(&host->lock, flags);
++}
++
++#if 0
++static int fmc_spi_flash_read(struct spi_device *spi,
++				 struct spi_flash_read_message *msg)
++{
++//	struct fmc_spi_host 	*host = spi_master_get_devdata(spi->master);
++	int ret = 0;
++
++//	printk("read msg->from %x,  msg->len %x , msg->buf %x , msg->addr_width %d , msg->dummy_bytes %x , msg->read_opcode %x \n", msg->from, msg->len, msg->buf, msg->addr_width, msg->dummy_bytes, msg->read_opcode);
++
++//	memcpy_fromio(msg->buf, b53spi->mmio_base + msg->from, msg->len);
++	msg->retlen = msg->len;
++
++	return ret;
++}
++#endif
++
++static int fmc_spi_probe(struct platform_device *pdev)
++{
++	struct resource *res;
++	struct fmc_spi_host *host;
++	struct spi_master *master;
++	struct clk *clk;
++	int cs_num = 0;
++	int err = 0;
++
++	dev_dbg(&pdev->dev, "fmc_spi_probe() \n");
++
++	master = spi_alloc_master(&pdev->dev, sizeof(struct fmc_spi_host));
++	if (NULL == master) {
++		dev_err(&pdev->dev, "No memory for spi_master\n");
++		err = -ENOMEM;
++		goto err_nomem;
++	}
++
++	/* the spi->mode bits understood by this driver: */
++	master->mode_bits =
++		SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_RX_DUAL | SPI_TX_DUAL;
++	master->bits_per_word_mask = SPI_BPW_MASK(8);
++
++	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_RX_DUAL;
++	//	 master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
++	master->dev.of_node = pdev->dev.of_node;
++	master->bus_num = pdev->id;
++	//	 master->num_chipselect = master->dev.of_node ? 0 : 4;
++	platform_set_drvdata(pdev, master);
++
++	host = spi_master_get_devdata(master);
++	memset(host, 0, sizeof(struct fmc_spi_host));
++
++	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	if (!res) {
++		dev_err(&pdev->dev, "cannot get IORESOURCE_MEM 0\n");
++		err = -ENXIO;
++		goto err_no_io_res;
++	}
++
++	host->base = devm_ioremap_resource(&pdev->dev, res);
++	if (!host->base) {
++		dev_err(&pdev->dev, "cannot remap register\n");
++		err = -EIO;
++		goto err_no_io_res;
++	}
++
++	clk = devm_clk_get(&pdev->dev, NULL);
++	if (IS_ERR(clk)) {
++		dev_err(&pdev->dev, "no clock defined\n");
++		return -ENODEV;
++	}
++	host->ahb_clk = clk_get_rate(clk);
++
++	dev_dbg(&pdev->dev, "remap phy %x, virt %x \n", (u32)res->start,
++		(u32)host->base);
++
++	host->master = spi_master_get(master);
++
++	if (of_property_read_u16(pdev->dev.of_node, "number_of_chip_select",
++				 &host->master->num_chipselect))
++		goto err_register;
++
++	for (cs_num = 0; cs_num < host->master->num_chipselect; cs_num++) {
++		res = platform_get_resource(pdev, IORESOURCE_MEM, cs_num + 1);
++		if (!res) {
++			dev_err(&pdev->dev, "cannot get IORESOURCE_IO 0\n");
++			return -ENXIO;
++		}
++
++		host->buff[cs_num] =
++			(u32)devm_ioremap_resource(&pdev->dev, res);
++		if (!host->buff[cs_num]) {
++			dev_err(&pdev->dev, "cannot remap buffer \n");
++			err = -EIO;
++			goto err_no_io_res;
++		}
++
++		dev_dbg(&pdev->dev, "remap io phy %x, virt %x \n",
++			(u32)res->start, (u32)host->buff[cs_num]);
++	}
++
++	host->master->bus_num = pdev->id;
++	host->dev = &pdev->dev;
++
++	/* Setup the state for bitbang driver */
++	host->master->setup = fmc_spi_setup;
++	host->master->transfer = fmc_spi_transfer;
++	host->master->cleanup = fmc_spi_cleanup;
++	//	host->master->spi_flash_read = fmc_spi_flash_read;
++
++	platform_set_drvdata(pdev, host);
++
++	/* Register our spi controller */
++	err = devm_spi_register_master(&pdev->dev, host->master);
++	if (err) {
++		dev_err(&pdev->dev, "failed to register SPI master\n");
++		goto err_register;
++	}
++
++	dev_dbg(&pdev->dev, "fmc_spi : driver load \n");
++
++	return 0;
++
++err_register:
++	spi_master_put(host->master);
++	iounmap(host->base);
++	for (cs_num = 0; cs_num < host->master->num_chipselect; cs_num++) {
++		iounmap((void *)host->buff[cs_num]);
++	}
++
++err_no_io_res:
++	kfree(master);
++	kfree(host);
++
++err_nomem:
++	return err;
++}
++
++static int fmc_spi_remove(struct platform_device *pdev)
++{
++	struct resource *res0;
++	struct fmc_spi_host *host = platform_get_drvdata(pdev);
++
++	dev_dbg(host->dev, "fmc_spi_remove()\n");
++
++	if (!host)
++		return -1;
++
++	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
++	release_mem_region(res0->start, res0->end - res0->start + 1);
++	iounmap(host->base);
++	iounmap(host->buff);
++
++	platform_set_drvdata(pdev, NULL);
++	spi_unregister_master(host->master);
++	spi_master_put(host->master);
++	return 0;
++}
++
++#ifdef CONFIG_PM
++static int fmc_spi_suspend(struct platform_device *pdev, pm_message_t msg)
++{
++	return 0;
++}
++
++static int fmc_spi_resume(struct platform_device *pdev)
++{
++	return 0;
++}
++#else
++#define fmc_spi_suspend NULL
++#define fmc_spi_resume NULL
++#endif
++
++static const struct of_device_id fmc_spi_of_match[] = {
++	{ .compatible = "aspeed,fmc-spi" },
++	{},
++};
++
++static struct platform_driver fmc_spi_driver = {
++	.probe = fmc_spi_probe,
++	.remove = fmc_spi_remove,
++#ifdef CONFIG_PM
++	.suspend = fmc_spi_suspend,
++	.resume = fmc_spi_resume,
++#endif
++	.driver = {
++		.name		= KBUILD_MODNAME,
++		.of_match_table = fmc_spi_of_match,
++	},
++};
++
++module_platform_driver(fmc_spi_driver);
++
++MODULE_DESCRIPTION("FMC SPI Driver");
++MODULE_AUTHOR("Ryan Chen");
++MODULE_LICENSE("GPL");
+-- 
+2.17.1
+

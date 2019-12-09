@@ -1,7 +1,7 @@
 From f57d473a30f208754457bdb63512c307f7499ac8 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Mon, 4 Jun 2018 13:45:42 -0700
-Subject: [PATCH] New flash map for Intel
+Subject: [PATCH] New flash map for intel
 
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>

@@ -1,8 +1,7 @@
 From 2a22feac440070b7feaf0a6fe7e7e555d57ca19b Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Wed, 10 Mar 2019 11:45:04 -0800
-Subject: [PATCH v29 3/6] Documentation: jtag: Add bindings for Aspeed SoC
- 24xx and 25xx families JTAG master driver
+Subject: [PATCH] Documentation: jtag: Add bindings for Aspeed SoC
 
 It has been tested on Mellanox system with BMC equipped with
 Aspeed 2520 SoC for programming CPLD devices.

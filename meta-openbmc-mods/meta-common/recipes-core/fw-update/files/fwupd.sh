@@ -13,6 +13,36 @@ usage() {
         exit 1
 }
 
+logevent_update_started() {
+echo
+cat <<EOF | logger-systemd --journald
+REDFISH_MESSAGE_ID=OpenBMC.0.1.FirmwareUpdateStarted
+PRIORITY=2
+MESSAGE=$1 firmware update to version $2 started.
+REDFISH_MESSAGE_ARGS=$1,$2
+EOF
+}
+
+logevent_update_completed() {
+echo
+cat <<EOF | logger-systemd --journald
+REDFISH_MESSAGE_ID=OpenBMC.0.1.FirmwareUpdateCompleted
+PRIORITY=2
+MESSAGE=$1 firmware update to version $2 completed.
+REDFISH_MESSAGE_ARGS=$1,$2
+EOF
+}
+
+logevent_update_failed() {
+echo
+cat <<EOF | logger-systemd --journald
+REDFISH_MESSAGE_ID=OpenBMC.0.1.FirmwareUpdateFailed
+PRIORITY=4
+MESSAGE=$1 firmware update to version $2 failed.
+REDFISH_MESSAGE_ARGS=$1,$2
+EOF
+}
+
 if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then usage; fi
 if [ $# -eq 0 ]; then
 	# set DEFURI in $HOME/.fwupd.defaults
@@ -138,17 +168,28 @@ rm -f $LOCAL_PATH
 echo "Setting update intent in PFR CPLD"
 sleep 5 # delay for sync and to get the above echo messages
 # write to PFRCPLD about BMC update intent.
-i2cset -y 4 0x70 0x13 $upd_intent_val
+i2cset -y 4 0x38 0x13 $upd_intent_val
 
 else # Non-PFR image update section
+version="unknown"
+component="BMC"
+manifest_file=$(dirname "${REMOTE_PATH}")"/MANIFEST"
+if [ -e $manifest_file ]; then
+    version=`awk -F= -v key="version" '$1==key {print $2}' $manifest_file`
+fi
+
+logevent_update_started $component $version
+
 # do a quick sanity check on the image
 if [ $(stat -c "%s" "$LOCAL_PATH") -lt 10000000 ]; then
     echo "Update file "$LOCAL_PATH" seems to be too small"
+    logevent_update_failed $component $version
     exit 1
 fi
 dtc -I dtb -O dtb "$LOCAL_PATH" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "Update file $LOCAL_PATH doesn't seem to be in the proper format"
+    logevent_update_failed $component $version
     exit 1
 fi
 
@@ -163,9 +204,21 @@ case "$BOOTADDR" in
 esac
 echo "Updating $(basename $TGT) (use bootm $BOOTADDR)"
 flash_erase $TGT 0 0
+if [ $? -ne 0 ]; then
+    echo "Erasing the flash failed"
+    logevent_update_failed $component $version
+    exit 1
+fi
 echo "Writing $(stat -c "%s" "$LOCAL_PATH") bytes"
 cat "$LOCAL_PATH" > "$TGT"
+if [ $? -ne 0 ]; then
+    echo "Writing to flash failed"
+    logevent_update_failed $component $version
+    exit 1
+fi
 fw_setenv "bootcmd" "bootm ${BOOTADDR}"
+
+logevent_update_completed $component $version
 
 # reboot
 reboot

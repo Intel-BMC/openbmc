@@ -1,0 +1,32 @@
+From 7a9aa0e35180a14d352516a92166743a2b063533 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 20 Nov 2019 12:49:46 -0800
+Subject: [PATCH] usb: gadget: aspeed: add ast2600 compatible string
+
+This commit adds "aspeed,ast2600-usb-vhub" compatible string to
+use it for AST2600 USB virtual hub driver. AST2600 support total 7
+downstream device ports so this driver should be modified later to
+support the additional ports.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/usb/gadget/udc/aspeed-vhub/core.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/usb/gadget/udc/aspeed-vhub/core.c b/drivers/usb/gadget/udc/aspeed-vhub/core.c
+index 90b134d5dca9..905e1cfd3d51 100644
+--- a/drivers/usb/gadget/udc/aspeed-vhub/core.c
++++ b/drivers/usb/gadget/udc/aspeed-vhub/core.c
+@@ -407,6 +407,9 @@ static const struct of_device_id ast_vhub_dt_ids[] = {
+ 	{
+ 		.compatible = "aspeed,ast2500-usb-vhub",
+ 	},
++	{
++		.compatible = "aspeed,ast2600-usb-vhub",
++	},
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(of, ast_vhub_dt_ids);
+-- 
+2.7.4
+

@@ -11,9 +11,9 @@ OBMC_MACHINE_FEATURES += "\
 VIRTUAL-RUNTIME_skeleton_workbook = "${MACHINE}-config"
 VIRTUAL-RUNTIME_obmc-inventory-manager = "entity-manager"
 VIRTUAL-RUNTIME_obmc-led-monitor = ""
-VIRTUAL-RUNTIME_obmc-host-state-manager = "intel-chassis-control"
-VIRTUAL-RUNTIME_obmc-chassis-state-manager = "intel-chassis-control"
-VIRTUAL-RUNTIME_obmc-discover-system-state = "intel-chassis-control"
+VIRTUAL-RUNTIME_obmc-host-state-manager = "x86-power-control"
+VIRTUAL-RUNTIME_obmc-chassis-state-manager = "x86-power-control"
+VIRTUAL-RUNTIME_obmc-discover-system-state = "x86-power-control"
 VIRTUAL-RUNTIME_obmc-settings-mgmt = "settings"
 
 PREFERRED_PROVIDER_virtual/obmc-host-ipmi-hw = "phosphor-ipmi-kcs"

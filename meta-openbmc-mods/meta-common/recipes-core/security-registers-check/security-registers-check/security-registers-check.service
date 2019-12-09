@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for security registers
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/security-registers-check.sh
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

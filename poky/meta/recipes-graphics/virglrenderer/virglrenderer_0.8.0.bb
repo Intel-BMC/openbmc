@@ -1,4 +1,8 @@
 SUMMARY = "VirGL virtual OpenGL renderer"
+DESCRIPTION = "Virgil is a research project to investigate the possibility of \
+creating a virtual 3D GPU for use inside qemu virtual machines, that allows \
+the guest operating system to use the capabilities of the host GPU to \
+accelerate 3D rendering."
 HOMEPAGE = "https://virgil3d.github.io/"
 
 LICENSE = "MIT"
@@ -12,7 +16,7 @@ SRC_URI = "git://anongit.freedesktop.org/virglrenderer \
 
 S = "${WORKDIR}/git"
 
-inherit autotools pkgconfig distro_features_check
+inherit autotools pkgconfig features_check
 
 BBCLASSEXTEND = "native nativesdk"
 
