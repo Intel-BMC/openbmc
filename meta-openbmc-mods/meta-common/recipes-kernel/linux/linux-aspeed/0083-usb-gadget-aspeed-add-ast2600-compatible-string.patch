@@ -1,4 +1,4 @@
-From 7a9aa0e35180a14d352516a92166743a2b063533 Mon Sep 17 00:00:00 2001
+From eedb53957b507bda2b9f6025149d2052e0598f76 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 20 Nov 2019 12:49:46 -0800
 Subject: [PATCH] usb: gadget: aspeed: add ast2600 compatible string
@@ -14,7 +14,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 3 insertions(+)
 
 diff --git a/drivers/usb/gadget/udc/aspeed-vhub/core.c b/drivers/usb/gadget/udc/aspeed-vhub/core.c
-index 90b134d5dca9..905e1cfd3d51 100644
+index 90b134d..905e1cf 100644
 --- a/drivers/usb/gadget/udc/aspeed-vhub/core.c
 +++ b/drivers/usb/gadget/udc/aspeed-vhub/core.c
 @@ -407,6 +407,9 @@ static const struct of_device_id ast_vhub_dt_ids[] = {

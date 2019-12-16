@@ -48,7 +48,13 @@ if [ $# -eq 0 ]; then
 	# set DEFURI in $HOME/.fwupd.defaults
     URI="$DEFURI"
 else
-    URI="$1"
+    if [[ "$1" == *"/"* ]]; then
+        URI=$1 # local file
+        local_file=1 ;
+    else
+        URI="file:////tmp/images/$1/image-runtime"
+        local_file=0 ;
+    fi
 fi
 
 PROTO=$(echo "$URI" | sed 's,\([a-z]*\)://.*$,\1,')
@@ -60,10 +66,12 @@ else
     REMOTE_PATH=$(echo "$REMOTE" | sed 's,[^/]*/\(.*\)$,\1,')
 fi
 LOCAL_PATH="/tmp/$(basename $REMOTE_PATH)"
+echo "URI=$URI"
 echo "PROTO=$PROTO"
 echo "REMOTE=$REMOTE"
 echo "REMOTE_HOST=$REMOTE_HOST"
 echo "REMOTE_PATH=$REMOTE_PATH"
+echo "LOCAL_PATH=$LOCAL_PATH"
 if [ ! -e $LOCAL_PATH ] || [ $(stat -c %s $LOCAL_PATH) -eq 0 ]; then
     echo "Download '$REMOTE_PATH' from $PROTO $REMOTE_HOST $REMOTE_PATH"
     case "$PROTO" in
@@ -105,25 +113,37 @@ fi
 
 # PFR image update section
 # this file being created at build time for PFR images
-if [ -e /usr/share/pfr ]
-then
+if [ -e /usr/share/pfr ] && [ $local_file -eq 0 ]; then
+    if [ -e /tmp/fwupd_progress ]; then
+        echo "Firmware update already in progress"
+        exit 1
+    fi
+touch /tmp/fwupd_progress
+
 # read the image type from the uploaded image
 # Byte at location 0x8 gives image type
-img_type=$(hexdump -s 8 -n 1 $LOCAL_PATH | cut -b12,1 | sed '2d;')
+img_type=$(busctl get-property xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/$1 xyz.openbmc_project.Software.Version Purpose | cut -d " " -f 2 | cut -d "." -f 6 | sed 's/.\{1\}$//')
+img_target=$(busctl get-property xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/$1 xyz.openbmc_project.Software.Activation RequestedActivation | cut -d " " -f 2| cut -d "." -f 6 | sed 's/.\{1\}$//')
+
 echo "image-type=$img_type"
+echo "image-target=$img_target"
 
 # BMC image - max size 32MB
-if [ "$img_type" = '04' ]; then
+if [ "$img_type" = 'BMC' ]; then
     echo "BMC firmware image"
     # 32MB - 33554432
     img_size=33554432
-    upd_intent_val=0x08
+    if [ "$img_target" = 'StandbySpare' ]; then
+        upd_intent_val=0x10
+    else
+        upd_intent_val=0x08
+    fi
     # page is at 4KB boundary
     img_page_offset=0
     erase_offset=0
     blk_cnt=0x200
 # CPLD image- max size 4MB
-elif [ "$img_type" = '00' ]; then
+elif [ "$img_type" = 'Other' ]; then
     echo "CPLD firmware image"
     # 4MB - 4194304
     img_size=4194304
@@ -134,11 +154,15 @@ elif [ "$img_type" = '00' ]; then
     erase_offset=0x3000000
     blk_cnt=0x40
 # BIOS image- max size 16MB
-elif [ "$img_type" = '02' ]; then
+elif [ "$img_type" = 'Host' ]; then
     echo "BIOS firmware image"
     # 16MB- 16777216
     img_size=16777216
-    upd_intent_val=0x01
+    if [ "$img_target" = 'StandbySpare' ]; then
+        upd_intent_val=0x02
+    else
+        upd_intent_val=0x01
+    fi
     # dd command accepts the offset in decimal
     # below is the page offset in 4KB boundary
     img_page_offset=8192
@@ -146,18 +170,21 @@ elif [ "$img_type" = '02' ]; then
     blk_cnt=0x100
 else
     echo "${img_type}:Unknown image type, exiting the firmware update script"
+    rm -rf /tmp/fwupd_progress
     exit 1
 fi
 
-# do a quick sanity check on the image
+# do a size check on the image
 if [ $(stat -c "%s" "$LOCAL_PATH") -gt $img_size ]; then
     echo "Update file "$LOCAL_PATH" is bigger than the supported image size"
+    rm -rf /tmp/fwupd_progress
     exit 1
 fi
 
 TGT="/dev/mtd/image-stg"
-echo "Updating $(basename $TGT)"
+echo "Update $(basename $TGT)"
 flash_erase $TGT $erase_offset $blk_cnt
+sync
 echo "Writing $(stat -c "%s" "$LOCAL_PATH") bytes"
 # cat "$LOCAL_PATH" > "$TGT"
 dd bs=4k seek=$img_page_offset if=$LOCAL_PATH of=$TGT
@@ -165,8 +192,12 @@ sync
 echo "Written $(stat -c "%s" "$LOCAL_PATH") bytes"
 # remove the updated image from /tmp
 rm -f $LOCAL_PATH
-echo "Setting update intent in PFR CPLD"
+echo "Writing $upd_intent_val to update intent register in PFR RoT"
 sleep 5 # delay for sync and to get the above echo messages
+
+# remove the file which used as lock
+rm -rf /tmp/fwupd_progress
+
 # write to PFRCPLD about BMC update intent.
 i2cset -y 4 0x38 0x13 $upd_intent_val
 
@@ -197,11 +228,13 @@ fi
 BOOTADDR=$(fw_printenv bootcmd | awk '{print $2}')
 
 TGT="/dev/mtd/image-a"
-case "$BOOTADDR" in
-	20080000) TGT="/dev/mtd/image-b"; BOOTADDR="22480000" ;;
-	22480000) TGT="/dev/mtd/image-a"; BOOTADDR="20080000" ;;
-	*)        TGT="/dev/mtd/image-a"; BOOTADDR="20080000" ;;
-esac
+if [ ! -e /usr/share/pfr ]; then
+    case "$BOOTADDR" in
+        20080000) TGT="/dev/mtd/image-b"; BOOTADDR="22480000" ;;
+        22480000) TGT="/dev/mtd/image-a"; BOOTADDR="20080000" ;;
+        *)        TGT="/dev/mtd/image-a"; BOOTADDR="20080000" ;;
+    esac
+fi
 echo "Updating $(basename $TGT) (use bootm $BOOTADDR)"
 flash_erase $TGT 0 0
 if [ $? -ne 0 ]; then

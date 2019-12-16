@@ -5,7 +5,7 @@ LICENSE = "CLOSED"
 LIC_FILES_CHKSUM = ""
 inherit cmake systemd
 
-SRC_URI = "git://git@github.com/Intel-BMC/at-scale-debug;protocol=ssh"
+SRC_URI = "git://github.com/Intel-BMC/at-scale-debug;protocol=ssh"
 
 DEPENDS = "boost sdbusplus libpeci"
 

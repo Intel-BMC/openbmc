@@ -1,8 +1,8 @@
 SUMMARY = "Virtual Media Service"
 DESCRIPTION = "Virtual Media Service"
 
-SRC_URI = "git://git@github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "e1dbcef575309efeb04d275565a6e9649f3b89dd"
+SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
+SRCREV = "eddf621897090ba346b1aaa81a4b8be12076ab60"
 
 S = "${WORKDIR}/git/virtual-media/"
 PV = "1.0+git${SRCPV}"

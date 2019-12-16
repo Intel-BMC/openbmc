@@ -1,0 +1,11 @@
+[Unit]
+Description=Overlay sync to NV storage
+
+[Service]
+# Run rsync periodically to sync the overlay to NV storage
+ExecStart=bash -c 'while true; do rsync -a --delete /tmp/.overlay/ /tmp/.rwfs/.overlay; sleep 20; done'
+# On shutdown, archive the bash history so we don't lose it and run one last sync
+ExecStop=bash -c 'history -a; rsync -a --delete /tmp/.overlay/ /tmp/.rwfs/.overlay'
+
+[Install]
+WantedBy=multi-user.target

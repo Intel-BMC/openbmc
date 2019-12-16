@@ -1,7 +1,7 @@
-From 27b94aa1df83abad63cbba69525273194b14ab9c Mon Sep 17 00:00:00 2001
+From 1c8cb6b7c99ad85f470aa87095fcfb4de822ddb1 Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Wed, 16 Oct 2019 14:24:20 +0800
-Subject: [PATCH] Move Set SOL config parameter to host-ipmid
+Subject: [PATCH 1/1] Move Set SOL config parameter to host-ipmid
 
 Move Set SOL config parameter command from net-ipmid to host-ipmid,
 so that BIOS in Intel platform can enable or disable SOL through KCS.
@@ -21,13 +21,14 @@ After reboot BMC, "Progress" property in dbus interface change back
 to 0 and other properties will not reset to default value.
 
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
  host-ipmid-whitelist.conf |   1 +
- transporthandler.cpp      | 322 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 323 insertions(+)
+ transporthandler.cpp      | 294 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 295 insertions(+)
 
 diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
-index e8df7c7..f030ef4 100644
+index 5397115..c93f3b1 100644
 --- a/host-ipmid-whitelist.conf
 +++ b/host-ipmid-whitelist.conf
 @@ -41,6 +41,7 @@
@@ -39,10 +40,10 @@ index e8df7c7..f030ef4 100644
  0x2C:0x01    //<Group Extension>:<Get DCMI Capabilities>
  0x2C:0x02    //<Group Extension>:<Get Power Reading>
 diff --git a/transporthandler.cpp b/transporthandler.cpp
-index e88eb63..4a42e7b 100644
+index 61065ad..59e38ea 100644
 --- a/transporthandler.cpp
 +++ b/transporthandler.cpp
-@@ -1469,8 +1469,323 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
+@@ -1469,8 +1469,298 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
  } // namespace transport
  } // namespace ipmi
  
@@ -134,31 +135,6 @@ index e88eb63..4a42e7b 100644
 +    }
 +
 +    return 0;
-+}
-+
-+void initializeSOLInProgress()
-+{
-+    ipmi::ChannelInfo chInfo;
-+    for (int chNum = 0; chNum < ipmi::maxIpmiChannels; chNum++)
-+    {
-+        if (!ipmi::isValidChannel(static_cast<uint8_t>(chNum)))
-+        {
-+            continue;
-+        }
-+        ipmi_ret_t compCode =
-+            ipmi::getChannelInfo(static_cast<uint8_t>(chNum), chInfo);
-+        if (compCode != IPMI_CC_OK ||
-+            chInfo.mediumType !=
-+                static_cast<uint8_t>(ipmi::EChannelMediumType::lan8032))
-+        {
-+            continue;
-+        }
-+        if (setSOLParameter("Progress", static_cast<uint8_t>(0), chNum) < 0)
-+        {
-+            phosphor::logging::log<phosphor::logging::level::ERR>(
-+                "Error initialize sol progress");
-+        }
-+    }
 +}
 +
 +static const constexpr uint8_t encryptMask = 0x80;
@@ -366,7 +342,7 @@ index e88eb63..4a42e7b 100644
  void register_netfn_transport_functions()
  {
      ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
-@@ -1479,4 +1794,11 @@ void register_netfn_transport_functions()
+@@ -1479,4 +1769,8 @@ void register_netfn_transport_functions()
      ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
                            ipmi::transport::cmdGetLanConfigParameters,
                            ipmi::Privilege::Operator, ipmi::transport::getLan);
@@ -374,10 +350,7 @@ index e88eb63..4a42e7b 100644
 +    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
 +                          ipmi::transport::cmdSetSolConfigParameters,
 +                          ipmi::Privilege::Admin, setSOLConfParams);
-+
-+    // Initialize dbus property progress to 0 every time sol manager restart.
-+    initializeSOLInProgress();
  }
 -- 
-2.7.4
+2.17.1
 

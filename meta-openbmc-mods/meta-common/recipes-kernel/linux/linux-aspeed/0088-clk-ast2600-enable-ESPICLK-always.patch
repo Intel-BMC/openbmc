@@ -1,0 +1,30 @@
+From 37efef00064a228c3e723b0eece22d72f2632705 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 6 Dec 2019 13:51:37 -0800
+Subject: [PATCH] clk: ast2600: enable ESPICLK always
+
+To support continous eSPI H/W handshaking, this patch enables
+ESPICLK always so that there discontinuity of eSPI handshaking while
+boot BMC.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/clk/clk-ast2600.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/clk/clk-ast2600.c b/drivers/clk/clk-ast2600.c
+index 8201d65..21967bc 100644
+--- a/drivers/clk/clk-ast2600.c
++++ b/drivers/clk/clk-ast2600.c
+@@ -87,7 +87,7 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
+ 	[ASPEED_CLK_GATE_EMMCCLK]	= { 27, 16, "emmcclk-gate",	NULL,	 0 },	/* For card clk */
+ 	/* Reserved 28/29/30 */
+ 	[ASPEED_CLK_GATE_LCLK]		= { 32, 32, "lclk-gate",	NULL,	 0 }, /* LPC */
+-	[ASPEED_CLK_GATE_ESPICLK]	= { 33, -1, "espiclk-gate",	NULL,	 0 }, /* eSPI */
++	[ASPEED_CLK_GATE_ESPICLK]	= { 33, -1, "espiclk-gate",	NULL,	 CLK_IS_CRITICAL }, /* eSPI */
+ 	[ASPEED_CLK_GATE_REF1CLK]	= { 34, -1, "ref1clk-gate",	"clkin", CLK_IS_CRITICAL },
+ 	/* Reserved 35 */
+ 	[ASPEED_CLK_GATE_SDCLK]		= { 36, 56, "sdclk-gate",	NULL,	 0 },	/* SDIO/SD */
+-- 
+2.7.4
+

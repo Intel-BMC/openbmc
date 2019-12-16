@@ -1,0 +1,36 @@
+From 14931c741e837871672bad0208591ea571b0a6ea Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 26 Nov 2019 16:37:36 -0800
+Subject: [PATCH] ARM: dts: aspeed-g6: add video node
+
+This commit adds video node.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g6.dtsi | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 4e8d25f..239c904 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -340,6 +340,16 @@
+ 				status = "disabled";
+ 			};
+ 
++			video: video@1e700000 {
++				compatible = "aspeed,ast2600-video-engine";
++				reg = <0x1e700000 0x1000>;
++				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
++					 <&syscon ASPEED_CLK_GATE_ECLK>;
++				clock-names = "vclk", "eclk";
++				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
++				status = "disabled";
++			};
++
+ 			gpio0: gpio@1e780000 {
+ 				#gpio-cells = <2>;
+ 				gpio-controller;
+-- 
+2.7.4
+

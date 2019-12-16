@@ -63,12 +63,14 @@ SRC_URI += " \
         file://0078-Fix-NCSI-driver-issue-caused-by-host-shutdown.patch \
         file://0079-usb-gadget-aspeed-backport-aspeed-vhub-bug-fixes.patch \
         file://0080-i2c-aspeed-filter-garbage-interrupts-out.patch \
-        file://0081-clk-ast2600-enable-BCLK-for-PCI-PCIe-bus-always.patch \
         file://0082-ARM-dts-aspeed-g6-add-USB-virtual-hub-fixup.patch \
         file://0083-usb-gadget-aspeed-add-ast2600-compatible-string.patch \
         file://0084-ARM-dts-aspeed-g6-add-GFX-node.patch \
         file://0085-drm-add-AST2600-GFX-support.patch \
         file://0086-ADC-linux-driver-for-AST2600.patch \
+        file://0086-ARM-dts-aspeed-g6-add-video-node.patch \
+        file://0087-media-aspeed-add-aspeed-ast2600-video-engine-compati.patch \
+        file://0088-clk-ast2600-enable-ESPICLK-always.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

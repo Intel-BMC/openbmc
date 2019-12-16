@@ -1,0 +1,51 @@
+From e074cf61bd6a726c8cb513336507047ece5423d0 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Thu, 12 Dec 2019 12:54:18 +0800
+Subject: [PATCH] ast2600: intel-layout-environment-addr
+
+Tested:
+Both kernel and u-boot work at the area /dev/mtd/u-boot-env
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ include/configs/aspeed-common.h   | 5 ++++-
+ include/configs/evb_ast2600_spl.h | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
+index d1eb468..8ad9deb 100644
+--- a/include/configs/aspeed-common.h
++++ b/include/configs/aspeed-common.h
+@@ -56,12 +56,15 @@
+ #define CONFIG_BOOTCOMMAND		"bootm 20080000"
+ #endif
+ #define CONFIG_ENV_OVERWRITE
++#define CONFIG_ENV_OFFSET		0x2400000
++#define CONFIG_ENV_SIZE			0x10000
++#define CONFIG_ENV_SECT_SIZE		(4 << 10)
+ 
+ #define CONFIG_SYS_BOOTM_LEN 		(0x800000 * 2)
+ 
+ #define CONFIG_EXTRA_ENV_SETTINGS \
+ 	"verify=yes\0"	\
+-	"spi_dma=no\0" \
++	"spi_dma=yes\0" \
+ 	""
+ 
+ /*
+diff --git a/include/configs/evb_ast2600_spl.h b/include/configs/evb_ast2600_spl.h
+index 8bbd6e1..8529f46 100644
+--- a/include/configs/evb_ast2600_spl.h
++++ b/include/configs/evb_ast2600_spl.h
+@@ -19,7 +19,7 @@
+ 
+ /* Environment */
+ #define CONFIG_ENV_SIZE			0x10000
+-#define CONFIG_ENV_OFFSET		0x90000
++#define CONFIG_ENV_OFFSET		0x2400000
+ #define CONFIG_ENV_SECT_SIZE		(4 << 10)
+ 
+ #ifdef CONFIG_SPL_TINY
+-- 
+2.7.4
+
