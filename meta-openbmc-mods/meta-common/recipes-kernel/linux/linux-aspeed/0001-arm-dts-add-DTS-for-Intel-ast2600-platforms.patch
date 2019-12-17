@@ -1,4 +1,4 @@
-From 3550c57e80ee30113060efa44d41c08fb29fdd25 Mon Sep 17 00:00:00 2001
+From 57363b496c6eb832b0c3407ee997fdee09f4007f Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2600 platforms
@@ -9,16 +9,16 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
 Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 495 +++++++++++++++++++++++++
- 1 file changed, 495 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 507 +++++++++++++++++++++++++
+ 1 file changed, 507 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 new file mode 100644
-index 0000000..a1ea85a
+index 000000000000..1ad46e8bc69b
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
-@@ -0,0 +1,495 @@
+@@ -0,0 +1,507 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/dts-v1/;
 +
@@ -47,6 +47,13 @@ index 0000000..a1ea85a
 +
 +		gfx_memory: framebuffer {
 +			size = <0x01000000>;
++			alignment = <0x01000000>;
++			compatible = "shared-dma-pool";
++			reusable;
++		};
++
++		video_engine_memory: jpegbuffer {
++			size = <0x02000000>;	/* 32M */
 +			alignment = <0x01000000>;
 +			compatible = "shared-dma-pool";
 +			reusable;
@@ -112,7 +119,7 @@ index 0000000..a1ea85a
 +};
 +
 +&espi {
-+	status = "okay";
++	status = "disabled"; /* FIXME: Use H/W handshaking */
 +};
 +
 +&peci0 {
@@ -509,6 +516,11 @@ index 0000000..a1ea85a
 +		reg = <0x09>;
 +		aspeed,fan-tach-ch = /bits/ 8 <0x1E 0x1F>;
 +	};
++};
++
++&video {
++	status = "okay";
++	memory-region = <&video_engine_memory>;
 +};
 +
 +&vhub {

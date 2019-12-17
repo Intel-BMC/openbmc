@@ -1,4 +1,4 @@
-From 14a4e77c801be8adbfc0726667a8051957e7a7dd Mon Sep 17 00:00:00 2001
+From 8ed59cc252af9a87d2d7b3e45a949030d91761b7 Mon Sep 17 00:00:00 2001
 From: Chen Yugang <yugang.chen@linux.intel.com>
 Date: Tue, 3 Dec 2019 13:41:37 +0800
 Subject: [PATCH] ADC linux driver for AST2600

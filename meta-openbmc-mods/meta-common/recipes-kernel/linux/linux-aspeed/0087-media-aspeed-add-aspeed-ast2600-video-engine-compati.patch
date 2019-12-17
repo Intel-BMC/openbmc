@@ -1,0 +1,29 @@
+From 9ca66177376464ce7c1bbe95c392c4509331ad74 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 26 Nov 2019 16:39:16 -0800
+Subject: [PATCH] media: aspeed: add aspeed,ast2600-video-engine compatible
+ string
+
+This commit adds "aspeed,ast2600-video-engine" compatible string
+to support AST2600 video engine H/W.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/media/platform/aspeed-video.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/media/platform/aspeed-video.c b/drivers/media/platform/aspeed-video.c
+index 0473f31..5fa48d3 100644
+--- a/drivers/media/platform/aspeed-video.c
++++ b/drivers/media/platform/aspeed-video.c
+@@ -1717,6 +1717,7 @@ static int aspeed_video_remove(struct platform_device *pdev)
+ static const struct of_device_id aspeed_video_of_match[] = {
+ 	{ .compatible = "aspeed,ast2400-video-engine" },
+ 	{ .compatible = "aspeed,ast2500-video-engine" },
++	{ .compatible = "aspeed,ast2600-video-engine" },
+ 	{}
+ };
+ MODULE_DEVICE_TABLE(of, aspeed_video_of_match);
+-- 
+2.7.4
+

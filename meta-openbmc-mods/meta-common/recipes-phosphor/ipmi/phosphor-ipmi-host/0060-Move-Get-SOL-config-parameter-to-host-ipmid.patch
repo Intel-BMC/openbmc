@@ -1,7 +1,7 @@
-From e8ad148601fc3b45fac9092fdd45c537433e662f Mon Sep 17 00:00:00 2001
+From b5400c4bc756a800fbeb4cc53117956fb59dc57d Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Thu, 11 Jul 2019 00:32:58 +0800
-Subject: [PATCH] Move Get SOL config parameter to host-ipmid
+Subject: [PATCH 1/1] Move Get SOL config parameter to host-ipmid
 
 Move Get SOL config parameter command from net-ipmid to host-ipmid.
 
@@ -22,16 +22,17 @@ Payload Channel                 : 1 (0x01)
 Payload Port                    : 623
 
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
  host-ipmid-whitelist.conf |   1 +
- transporthandler.cpp      | 191 ++++++++++++++++++++++++++++++++++++++++++++++
+ transporthandler.cpp      | 191 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 192 insertions(+)
 
 diff --git a/host-ipmid-whitelist.conf b/host-ipmid-whitelist.conf
-index 44c2181..0fcac4e 100644
+index c93f3b1..730437d 100644
 --- a/host-ipmid-whitelist.conf
 +++ b/host-ipmid-whitelist.conf
-@@ -41,6 +41,7 @@
+@@ -42,6 +42,7 @@
  0x0A:0x49    //<Storage>:<Set SEL Time>
  0x0C:0x02    //<Transport>:<Get LAN Configuration Parameters>
  0x0C:0x21    //<Transport>:<Set SOL Configuration Parameters>
@@ -40,10 +41,10 @@ index 44c2181..0fcac4e 100644
  0x2C:0x01    //<Group Extension>:<Get DCMI Capabilities>
  0x2C:0x02    //<Group Extension>:<Get Power Reading>
 diff --git a/transporthandler.cpp b/transporthandler.cpp
-index 25062ae..9ba2868 100644
+index 59e38ea..b64953f 100644
 --- a/transporthandler.cpp
 +++ b/transporthandler.cpp
-@@ -1719,6 +1719,28 @@ static int getSOLParameter(const std::string& property, ipmi::Value& value,
+@@ -1559,6 +1559,28 @@ static int getSOLParameter(const std::string& property, ipmi::Value& value,
      return 0;
  }
  
@@ -69,10 +70,10 @@ index 25062ae..9ba2868 100644
 +    return 0;
 +}
 +
- void initializeSOLInProgress()
- {
-     ipmi::ChannelInfo chInfo;
-@@ -1913,6 +1935,171 @@ ipmi::RspType<> setSOLConfParams(ipmi::Context::ptr ctx, uint4_t chNum,
+ static const constexpr uint8_t encryptMask = 0x80;
+ static const constexpr uint8_t encryptShift = 7;
+ static const constexpr uint8_t authMask = 0x40;
+@@ -1761,6 +1783,171 @@ ipmi::RspType<> setSOLConfParams(ipmi::Context::ptr ctx, uint4_t chNum,
      return ipmi::responseSuccess();
  }
  
@@ -243,18 +244,16 @@ index 25062ae..9ba2868 100644
 +
  void register_netfn_transport_functions()
  {
-     // As this timer is only for transport handler
-@@ -1934,6 +2121,10 @@ void register_netfn_transport_functions()
+     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
+@@ -1773,4 +1960,8 @@ void register_netfn_transport_functions()
+     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
                            ipmi::transport::cmdSetSolConfigParameters,
                            ipmi::Privilege::Admin, setSOLConfParams);
- 
++
 +    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
 +                          ipmi::transport::cmdGetSolConfigParameters,
 +                          ipmi::Privilege::User, getSOLConfParams);
-+
-     // Initialize dbus property progress to 0 every time sol manager restart.
-     initializeSOLInProgress();
- 
+ }
 -- 
-2.7.4
+2.17.1
 

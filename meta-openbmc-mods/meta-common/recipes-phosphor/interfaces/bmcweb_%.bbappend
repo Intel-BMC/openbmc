@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "274dfe625f862e8ded2d4eb88dd856cf66bf54bf"
+SRCREV = "97d57aaa0b95a110c71016d190f95f853051126a"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -8,6 +8,9 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 USERADD_PARAM_${PN} = "-r -s /usr/sbin/nologin -d /home/bmcweb -m -G shadow bmcweb"
 
 GROUPADD_PARAM_${PN} = "web; redfish "
+
+SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
+            "
 
 # Enable CPU Log and Raw PECI support
 EXTRA_OECMAKE += "-DBMCWEB_ENABLE_REDFISH_CPU_LOG=ON"

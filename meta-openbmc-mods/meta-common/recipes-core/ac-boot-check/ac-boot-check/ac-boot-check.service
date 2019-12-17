@@ -1,6 +1,6 @@
 [Unit]
 Description=Check for AC boot
-After=settings.service
+After=xyz.openbmc_project.Settings.service
 
 [Service]
 Type=oneshot

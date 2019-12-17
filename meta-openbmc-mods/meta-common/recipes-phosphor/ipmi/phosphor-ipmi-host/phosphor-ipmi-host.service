@@ -1,16 +1,5 @@
 [Unit]
 Description=Phosphor Inband IPMI
-# TODO openbmc/openbmc#2059 - The wants/after below should be based on providers
-Wants=mapper-wait@-xyz-openbmc_project-control-host0-boot.service
-After=mapper-wait@-xyz-openbmc_project-control-host0-boot.service
-Wants=mapper-wait@-xyz-openbmc_project-control-host0-boot-one_time.service
-After=mapper-wait@-xyz-openbmc_project-control-host0-boot-one_time.service
-Wants=mapper-wait@-xyz-openbmc_project-control-host0-power_restore_policy.service
-After=mapper-wait@-xyz-openbmc_project-control-host0-power_restore_policy.service
-Wants=mapper-wait@-xyz-openbmc_project-control-security-restriction_mode.service
-After=mapper-wait@-xyz-openbmc_project-control-security-restriction_mode.service
-Wants=mapper-wait@-xyz-openbmc_project-state-os.service
-After=mapper-wait@-xyz-openbmc_project-state-os.service
 
 [Service]
 Restart=always
@@ -23,4 +12,4 @@ RuntimeDirectoryPreserve = yes
 StateDirectory = ipmi
 
 [Install]
-WantedBy={SYSTEMD_DEFAULT_TARGET}
+WantedBy=basic.target

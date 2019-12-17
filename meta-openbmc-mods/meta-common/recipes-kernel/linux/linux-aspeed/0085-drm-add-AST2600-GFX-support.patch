@@ -1,4 +1,4 @@
-From 0709e2bab2d763b75683a823c97f4016253ebe6b Mon Sep 17 00:00:00 2001
+From 4090d7ab2e7282ff5680c3e574e644964a8ae7d6 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 20 Nov 2019 14:58:24 -0800
 Subject: [PATCH] drm: add AST2600 GFX support
@@ -13,7 +13,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  3 files changed, 18 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/gpu/drm/aspeed/aspeed_gfx.h b/drivers/gpu/drm/aspeed/aspeed_gfx.h
-index a10358bb61ec..eebd72eb1220 100644
+index a10358b..eebd72e 100644
 --- a/drivers/gpu/drm/aspeed/aspeed_gfx.h
 +++ b/drivers/gpu/drm/aspeed/aspeed_gfx.h
 @@ -13,11 +13,15 @@ struct aspeed_gfx {
@@ -33,7 +33,7 @@ index a10358bb61ec..eebd72eb1220 100644
  #define CRT_CTRL2		0x64 /* CRT Control II */
  #define CRT_STATUS		0x68 /* CRT Status */
 diff --git a/drivers/gpu/drm/aspeed/aspeed_gfx_crtc.c b/drivers/gpu/drm/aspeed/aspeed_gfx_crtc.c
-index 15db9e426ec4..2c95c720f34a 100644
+index 15db9e4..2c95c72 100644
 --- a/drivers/gpu/drm/aspeed/aspeed_gfx_crtc.c
 +++ b/drivers/gpu/drm/aspeed/aspeed_gfx_crtc.c
 @@ -59,8 +59,8 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
@@ -57,7 +57,7 @@ index 15db9e426ec4..2c95c720f34a 100644
  
  static void aspeed_gfx_crtc_mode_set_nofb(struct aspeed_gfx *priv)
 diff --git a/drivers/gpu/drm/aspeed/aspeed_gfx_drv.c b/drivers/gpu/drm/aspeed/aspeed_gfx_drv.c
-index eeb22eccd1fc..aa44e01ac245 100644
+index eeb22ec..aa44e01 100644
 --- a/drivers/gpu/drm/aspeed/aspeed_gfx_drv.c
 +++ b/drivers/gpu/drm/aspeed/aspeed_gfx_drv.c
 @@ -112,8 +112,14 @@ static int aspeed_gfx_load(struct drm_device *drm)

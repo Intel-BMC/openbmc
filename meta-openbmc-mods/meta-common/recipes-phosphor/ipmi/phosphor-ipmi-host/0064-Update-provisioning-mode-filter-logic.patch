@@ -1,7 +1,7 @@
-From 3279300bb9afd1f169b35b7830d7f054045ab35f Mon Sep 17 00:00:00 2001
+From dcfce847654bd7e2475ad74bedf569b6120701dd Mon Sep 17 00:00:00 2001
 From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Date: Tue, 18 Jun 2019 19:42:30 +0530
-Subject: [PATCH] Update provisioning mode filter logic
+Subject: [PATCH 1/1] Update provisioning mode filter logic
 
 Updated provisioning mode filtering logic support. Based on the
 RestrictionMode property, Host (system) interface commands will be
@@ -20,12 +20,13 @@ whitelist (Note: New whitelist conf is under review).
 
 Change-Id: I7a14e827d70e2d8d6975e600a0fd00e2a790bc22
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- whitelist-filter.cpp | 155 ++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 122 insertions(+), 33 deletions(-)
+ whitelist-filter.cpp | 191 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 136 insertions(+), 55 deletions(-)
 
 diff --git a/whitelist-filter.cpp b/whitelist-filter.cpp
-index 9f1e7c8..2c56087 100644
+index 9f1e7c8..53461b4 100644
 --- a/whitelist-filter.cpp
 +++ b/whitelist-filter.cpp
 @@ -25,6 +25,7 @@ namespace
@@ -36,7 +37,7 @@ index 9f1e7c8..2c56087 100644
    public:
      WhitelistFilter();
      ~WhitelistFilter() = default;
-@@ -35,17 +36,26 @@ class WhitelistFilter
+@@ -35,17 +36,24 @@ class WhitelistFilter
  
    private:
      void postInit();
@@ -53,8 +54,7 @@ index 9f1e7c8..2c56087 100644
 +                RestrictionMode::Modes::ProvisionedHostWhitelist;
 +    bool postCompleted = false;
      std::shared_ptr<sdbusplus::asio::connection> bus;
-     std::unique_ptr<settings::Objects> objects;
-+    std::unique_ptr<settings::Objects> postCompleteObj;
+-    std::unique_ptr<settings::Objects> objects;
      std::unique_ptr<sdbusplus::bus::match::match> modeChangeMatch;
 +    std::unique_ptr<sdbusplus::bus::match::match> postCompleteMatch;
  
@@ -65,7 +65,7 @@ index 9f1e7c8..2c56087 100644
  };
  
  WhitelistFilter::WhitelistFilter()
-@@ -63,16 +73,22 @@ WhitelistFilter::WhitelistFilter()
+@@ -63,43 +71,83 @@ WhitelistFilter::WhitelistFilter()
      post_work([this]() { postInit(); });
  }
  
@@ -73,24 +73,40 @@ index 9f1e7c8..2c56087 100644
 +void WhitelistFilter::cacheRestrictedAndPostCompleteMode()
  {
      using namespace sdbusplus::xyz::openbmc_project::Control::Security::server;
++
      std::string restrictionModeSetting;
      std::string restrictionModeService;
 +    std::string systemOsStatusPath;
 +    std::string systemOsStatusService;
      try
      {
-         restrictionModeSetting = objects->map.at(restrictionModeIntf).at(0);
-         restrictionModeService =
-             objects->service(restrictionModeSetting, restrictionModeIntf);
+-        restrictionModeSetting = objects->map.at(restrictionModeIntf).at(0);
++        auto objects = settings::Objects(
++            *bus, std::vector<settings::Interface>({restrictionModeIntf}));
++        auto postCompleteObj = settings::Objects(
++            *bus, std::vector<settings::Interface>({systemOsStatusIntf}));
 +
-+        systemOsStatusPath = postCompleteObj->map.at(systemOsStatusIntf).at(0);
++        restrictionModeSetting = objects.map.at(restrictionModeIntf).at(0);
+         restrictionModeService =
+-            objects->service(restrictionModeSetting, restrictionModeIntf);
++            objects.service(restrictionModeSetting, restrictionModeIntf);
++
++        systemOsStatusPath = postCompleteObj.map.at(systemOsStatusIntf).at(0);
 +        systemOsStatusService =
-+            postCompleteObj->service(systemOsStatusPath, systemOsStatusIntf);
++            postCompleteObj.service(systemOsStatusPath, systemOsStatusIntf);
      }
      catch (const std::out_of_range& e)
      {
-@@ -80,26 +96,50 @@ void WhitelistFilter::cacheRestrictedMode()
-             "Could not look up restriction mode interface from cache");
+-        log<level::ERR>(
+-            "Could not look up restriction mode interface from cache");
++        log<level::INFO>(
++            "Could not initialize provisioning mode, defaulting to restricted");
++        return;
++    }
++    catch (const std::exception&)
++    {
++        log<level::INFO>(
++            "Could not initialize provisioning mode, defaulting to restricted");
          return;
      }
 +
@@ -98,11 +114,11 @@ index 9f1e7c8..2c56087 100644
          [this](boost::system::error_code ec, ipmi::Value v) {
              if (ec)
              {
-                 log<level::ERR>("Error in RestrictionMode Get");
-                 // Fail-safe to true.
+-                log<level::ERR>("Error in RestrictionMode Get");
+-                // Fail-safe to true.
 -                restrictedMode = true;
-+                restrictionMode =
-+                    RestrictionMode::Modes::ProvisionedHostWhitelist;
++                log<level::INFO>("Could not initialize provisioning mode, "
++                                 "defaulting to restricted");
                  return;
              }
              auto mode = std::get<std::string>(v);
@@ -147,7 +163,7 @@ index 9f1e7c8..2c56087 100644
  }
  
  void WhitelistFilter::handleRestrictedModeChange(sdbusplus::message::message& m)
-@@ -112,23 +152,44 @@ void WhitelistFilter::handleRestrictedModeChange(sdbusplus::message::message& m)
+@@ -112,61 +160,94 @@ void WhitelistFilter::handleRestrictedModeChange(sdbusplus::message::message& m)
      {
          if (property.first == "RestrictionMode")
          {
@@ -164,16 +180,24 @@ index 9f1e7c8..2c56087 100644
 +            log<level::INFO>(
 +                "Updated restriction mode",
 +                entry("VALUE=%d", static_cast<int>(restrictionMode)));
-+        }
-+    }
-+}
+         }
+     }
+ }
+-
+-void WhitelistFilter::postInit()
 +void WhitelistFilter::handlePostCompleteChange(sdbusplus::message::message& m)
-+{
+ {
+-    objects = std::make_unique<settings::Objects>(
+-        *bus, std::vector<settings::Interface>({restrictionModeIntf}));
+-    if (!objects)
 +    std::string intf;
 +    std::vector<std::pair<std::string, ipmi::Value>> propertyList;
 +    m.read(intf, propertyList);
 +    for (const auto& property : propertyList)
-+    {
+     {
+-        log<level::ERR>(
+-            "Failed to create settings object; defaulting to restricted mode");
+-        return;
 +        if (property.first == "OperatingSystemState")
 +        {
 +            std::string value = std::get<std::string>(property.second);
@@ -187,47 +211,38 @@ index 9f1e7c8..2c56087 100644
 +            }
 +            log<level::INFO>(postCompleted ? "Updated to POST Complete"
 +                                           : "Updated to !POST Complete");
-         }
++        }
      }
- }
 -
- void WhitelistFilter::postInit()
- {
-     objects = std::make_unique<settings::Objects>(
-         *bus, std::vector<settings::Interface>({restrictionModeIntf}));
--    if (!objects)
-+    postCompleteObj = std::make_unique<settings::Objects>(
-+        *bus, std::vector<settings::Interface>({systemOsStatusIntf}));
-+    if (!objects || !postCompleteObj)
-     {
-         log<level::ERR>(
-             "Failed to create settings object; defaulting to restricted mode");
-@@ -136,37 +197,65 @@ void WhitelistFilter::postInit()
-     }
- 
++}
++void WhitelistFilter::postInit()
++{
      // Initialize restricted mode
 -    cacheRestrictedMode();
 +    cacheRestrictedAndPostCompleteMode();
      // Wait for changes on Restricted mode
 -    std::string filterStr;
-+    std::string filterStrModeChange;
-+    std::string filterStrPostComplete;
-     try
-     {
+-    try
+-    {
 -        filterStr = sdbusplus::bus::match::rules::propertiesChanged(
-+        filterStrModeChange = sdbusplus::bus::match::rules::propertiesChanged(
-             objects->map.at(restrictionModeIntf).at(0), restrictionModeIntf);
-+        filterStrPostComplete = sdbusplus::bus::match::rules::propertiesChanged(
-+            postCompleteObj->map.at(systemOsStatusIntf).at(0),
-+            systemOsStatusIntf);
-     }
-     catch (const std::out_of_range& e)
-     {
+-            objects->map.at(restrictionModeIntf).at(0), restrictionModeIntf);
+-    }
+-    catch (const std::out_of_range& e)
+-    {
 -        log<level::ERR>("Failed to determine restriction mode filter string");
-+        log<level::ERR>("Failed to determine restriction mode / POST complete "
-+                        "filter string");
-         return;
-     }
+-        return;
+-    }
++    namespace rules = sdbusplus::bus::match::rules;
++    const std::string filterStrModeChange =
++        rules::type::signal() + rules::member("PropertiesChanged") +
++        rules::interface("org.freedesktop.DBus.Properties") +
++        rules::argN(0, restrictionModeIntf);
++
++    const std::string filterStrPostComplete =
++        rules::type::signal() + rules::member("PropertiesChanged") +
++        rules::interface("org.freedesktop.DBus.Properties") +
++        rules::argN(0, systemOsStatusIntf);
++
      modeChangeMatch = std::make_unique<sdbusplus::bus::match::match>(
 -        *bus, filterStr, [this](sdbusplus::message::message& m) {
 +        *bus, filterStrModeChange, [this](sdbusplus::message::message& m) {
@@ -252,16 +267,16 @@ index 9f1e7c8..2c56087 100644
 -                whitelist.cbegin(), whitelist.cend(),
 -                std::make_pair(request->ctx->netFn, request->ctx->cmd)))
 +        if (!postCompleted)
++        {
++            // Allow all commands, till POST is not completed
++            return ipmi::ccSuccess;
++        }
++        switch (restrictionMode)
          {
 -            log<level::ERR>("Net function not whitelisted",
 -                            entry("NETFN=0x%X", int(request->ctx->netFn)),
 -                            entry("CMD=0x%X", int(request->ctx->cmd)));
 -            return ipmi::ccInsufficientPrivilege;
-+            // Allow all commands, till POST is not completed
-+            return ipmi::ccSuccess;
-+        }
-+        switch (restrictionMode)
-+        {
 +            case RestrictionMode::Modes::ProvisionedHostWhitelist:
 +            {
 +                if (!std::binary_search(
@@ -282,5 +297,5 @@ index 9f1e7c8..2c56087 100644
      }
      return ipmi::ccSuccess;
 -- 
-2.7.4
+2.17.1
 

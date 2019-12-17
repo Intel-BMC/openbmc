@@ -1,4 +1,4 @@
-From 6825259fc0ac015c6544f6070ceaf9cc263c1853 Mon Sep 17 00:00:00 2001
+From b080287881fd76acd54b7971d1f0910907c4f673 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 8 Nov 2019 15:57:27 -0800
 Subject: [PATCH] i2c: aspeed: filter garbage interrupts out
@@ -8,11 +8,11 @@ in datasheet so filter them out.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- drivers/i2c/busses/i2c-aspeed.c | 19 +++++++++++++++++++
- 1 file changed, 19 insertions(+)
+ drivers/i2c/busses/i2c-aspeed.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 62b803e15ce2..e7cba33c0c87 100644
+index 15a9e1b..916ff7f 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
 @@ -87,7 +87,11 @@
@@ -39,15 +39,7 @@ index 62b803e15ce2..e7cba33c0c87 100644
  
  /* 0x14 : I2CD Command/Status Register   */
  #define ASPEED_I2CD_SCL_LINE_STS			BIT(18)
-@@ -1018,9 +1027,19 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
- 
- 	spin_lock(&bus->lock);
- 	irq_received = readl(bus->base + ASPEED_I2C_INTR_STS_REG);
-+	if (!irq_received) {
-+		spin_unlock(&bus->lock);
-+		return IRQ_NONE;
-+	}
-+
+@@ -1032,6 +1041,11 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
  	/* Ack all interrupts except for Rx done */
  	writel(irq_received & ~ASPEED_I2CD_INTR_RX_DONE,
  	       bus->base + ASPEED_I2C_INTR_STS_REG);

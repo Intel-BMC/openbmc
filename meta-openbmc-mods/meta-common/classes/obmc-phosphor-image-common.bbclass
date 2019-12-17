@@ -13,11 +13,11 @@ IMAGE_INSTALL_append = " \
         dbus-sensors \
         phosphor-webui \
         rest-dbus-static \
+        at-scale-debug \
         phosphor-pid-control \
         phosphor-host-postd \
         phosphor-certificate-manager \
         phosphor-sel-logger \
-        smbios-mdrv1 \
         smbios-mdrv2 \
         obmc-ikvm \
         system-watchdog \
@@ -41,6 +41,7 @@ IMAGE_INSTALL_append = " \
         hsbp-manager \
         security-registers-check \
         pch-time-sync \
+        nv-sync \
         "
 
 IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"

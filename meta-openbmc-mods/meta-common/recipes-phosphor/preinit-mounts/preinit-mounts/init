@@ -45,14 +45,21 @@ fi
 # list of things that need to be rw at boot
 NV_OVERLAYS="/etc /var /home"
 
-# place to mount the real ubifs backing store
+# place to mount the overlay backing store
+OVERLAY_MNT=/tmp/.overlay
+OVERLAY_SIZE=16384
+# place to mount NV
 RWFS_MNT=/tmp/.rwfs
+# NV overlay storage
+OVERLAY_SYNC=${RWFS_MNT}/.overlay
 
 if grep -q "$RWFS_MNT" /proc/mounts; then
     # quit - we have already run
     exit 0
 fi
-mkdir -p "$RWFS_MNT"
+mkdir -p "$OVERLAY_MNT"
+# TODO: remount the overlay with a size limit?
+# mount -t tmpfs -o rw,size=${OVERLAY_SIZE} oltmp ${OVERLAY_MNT}
 
 mtd_by_name() {
     local name="$1"
@@ -73,10 +80,10 @@ NV_MTD_NUM="$(mtdnum_by_name ${NV_MTD})"
 nvrw() {
     local p="$1"
     # Clear the work dir doing overlay mount
-    rm -rf "${RWFS_MNT}${p}.work"
-    mkdir -p "${RWFS_MNT}${p}" "${RWFS_MNT}${p}.work"
-    local mname=$(echo "rwnv${p}" | sed 's,/,,g')
-    local opts="lowerdir=${p},upperdir=${RWFS_MNT}${p},workdir=${RWFS_MNT}${p}.work,sync"
+    rm -rf "${OVERLAY_MNT}${p}.work"
+    mkdir -p "${OVERLAY_MNT}${p}" "${OVERLAY_MNT}${p}.work"
+    local mname=$(echo "ol${p}" | sed 's,/,,g')
+    local opts="lowerdir=${p},upperdir=${OVERLAY_MNT}${p},workdir=${OVERLAY_MNT}${p}.work,sync"
     mount -t overlay -o "$opts" "$mname" "$p"
 }
 
@@ -84,19 +91,19 @@ targeted_clean() {
     log "restore-defaults: targeted_clean"
     # Do not delete FRU info, ssh/ssl certs, or machine-id
     (
-        cd "${RWFS_MNT}/etc"
+        cd "${OVERLAY_SYNC}/etc"
         find . ! -regex '.*\(/ssl\|/dropbear\|/machine-id\(_bkup\)\?\|/fru\).*' -exec rm -rf {} +
     )
     # nothing should be in the workdir, but clear it just in case
-    rm -rf "${RWFS_MNT}/etc.work"
+    rm -rf "${OVERLAY_SYNC}/etc.work"
 
     # clean everything out of /home
-    rm -rf "${RWFS_MNT}/home" "${RWFS_MNT}/home.work"
+    rm -rf "${OVERLAY_SYNC}/home" "${OVERLAY_SYNC}/home.work"
 
     # clean everything out of /var
-    rm -rf "${RWFS_MNT}/var" "${RWFS_MNT}/var.work"
+    rm -rf "${OVERLAY_SYNC}/var" "${OVERLAY_SYNC}/var.work"
 
-    echo "Files remaining: $(find $RWFS_MNT/)"
+    echo "Files remaining: $(find $OVERLAY_SYNC/)"
     sync
 }
 
@@ -104,7 +111,7 @@ full_clean() {
     log "restore-defaults: full_clean"
     local OVL=''
     for OVL in $NV_OVERLAYS; do
-        rm -rf "${RWFS_MNT}${OVL}" "${RWFS_MNT}${OVL}.work"
+        rm -rf "${OVERLAY_SYNC}${OVL}" "${OVERLAY_SYNC}${OVL}.work"
     done
     sync
 }
@@ -153,7 +160,8 @@ clear_ubenv() {
     flash_erase /dev/mtd/u-boot-env 0 0
 }
 
-# mount a UBIFS on the UBI volume
+# mount NV filesystem
+mkdir -p "$RWFS_MNT"
 prepare_ubi_volume $NV_MTD_NUM
 mount -t ubifs -o sync "/dev/ubi${NV_MTD_NUM}_0" "$RWFS_MNT"
 if [ $? -ne 0 ]; then
@@ -178,20 +186,13 @@ elif [ $restore_op -eq 3 ]; then
 fi
 rm -f $RESTORE_FLAG
 
+# Restore the overlay saved in the sync
+rsync -a --delete "${OVERLAY_SYNC}/" "${OVERLAY_MNT}"
+log "Restored overlay from sync location"
+
 for FS in $NV_OVERLAYS; do
     nvrw "$FS"
 done
-
-# at first boot, fix up /var/volatile/{log,tmp} to be RW (due to yocto nonsense)
-if [ -L /var/log ]; then
-    # remove symlink /var/log -> volatile/log; make /var/log non-volatile
-    rm /var/log
-    mkdir -p /var/log
-    # remove symlink /var/tmp -> volatile/tmp; symlink to /tmp/var
-    rm /var/tmp
-    ln -s /tmp/var /var/tmp
-fi
-mkdir -p /tmp/var
 
 # work around bug where /etc/machine-id will be mounted with a temporary file
 # if rootfs is read-only and the file is empty
@@ -205,9 +206,9 @@ if [ ! -s "$MACHINE_ID" ]; then
     # work around - Bug: Overlay fs fails for machine-id due to
     # origin mismatch. Clean it up, from overlay fs before re-creating
     # the same.
-    if [ -e "$RWFS_MNT$MACHINE_ID" ]; then
+    if [ -e "$OVERLAY_MNT$MACHINE_ID" ]; then
         umount "/etc"
-        rm -f "$RWFS_MNT$MACHINE_ID"
+        rm -f "$OVERLAY_MNT$MACHINE_ID"
         nvrw "/etc"
         # Restore the machine-id from backup, else generate it.
         if [ -s "${MACHINE_ID}_bkup" ]; then
@@ -237,6 +238,6 @@ if ! grep -q sofs /proc/mounts; then
     fi
 fi
 
-log "Finished mounting non-volatile overlays"
+log "Finished mounting nv and overlays"
 
 exec /lib/systemd/systemd
