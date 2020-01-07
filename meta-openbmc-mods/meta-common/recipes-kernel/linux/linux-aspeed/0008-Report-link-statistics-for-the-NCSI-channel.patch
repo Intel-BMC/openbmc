@@ -1,4 +1,4 @@
-From f3300099b6638df5829e75b1fbfbb6e7ebc8b2b9 Mon Sep 17 00:00:00 2001
+From b08fba62b18ecb04d3e7dafac6bd819dd9b90d35 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
 Date: Thu, 1 Aug 2019 11:29:41 -0700
 Subject: [PATCH] Report link statistics for the NCSI channel
@@ -14,10 +14,10 @@ Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
  1 file changed, 21 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/ethernet/faraday/ftgmac100.c b/drivers/net/ethernet/faraday/ftgmac100.c
-index 9b7af94a40bb..4cd679233795 100644
+index 2e5fba354412..b1eb3abe759b 100644
 --- a/drivers/net/ethernet/faraday/ftgmac100.c
 +++ b/drivers/net/ethernet/faraday/ftgmac100.c
-@@ -1216,10 +1216,30 @@ static int ftgmac100_set_pauseparam(struct net_device *netdev,
+@@ -1218,10 +1218,30 @@ static int ftgmac100_set_pauseparam(struct net_device *netdev,
  	return 0;
  }
  

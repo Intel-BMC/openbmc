@@ -1,4 +1,4 @@
-From ce35414258a8541a8b81a4a8a929bcf9cdface97 Mon Sep 17 00:00:00 2001
+From fe860284fb5e062b430dc7b882144f69cb605353 Mon Sep 17 00:00:00 2001
 From: "Hunt, Bryan" <bryan.hunt@intel.com>
 Date: Mon, 6 May 2019 10:02:14 -0700
 Subject: [PATCH] Add AST2500 JTAG device
@@ -11,10 +11,10 @@ Signed-off-by: Hunt, Bryan <bryan.hunt@intel.com>
  1 file changed, 9 insertions(+)
 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 19739183c1c8..3d615708a0cd 100644
+index 751a8f0316d6..eb1f9c9d9cca 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -419,6 +419,15 @@
+@@ -418,6 +418,15 @@
  				pinctrl-0 = <&pinctrl_espi_default>;
  			};
  

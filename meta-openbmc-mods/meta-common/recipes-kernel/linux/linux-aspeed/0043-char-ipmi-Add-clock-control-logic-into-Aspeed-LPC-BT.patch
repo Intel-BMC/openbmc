@@ -1,4 +1,4 @@
-From 4d90c5ba05ee3e8a4bf5e4c1a5fdcf2664b1800b Mon Sep 17 00:00:00 2001
+From 301c1aaba9e59eb593406d878451e3ea4fe355bb Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:04:16 -0700
 Subject: [PATCH] char: ipmi: Add clock control logic into Aspeed LPC BT driver
@@ -17,11 +17,11 @@ BT driver.
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 ---
- .../bindings/ipmi/aspeed,ast2400-ibt-bmc.txt  |  3 +++
- arch/arm/boot/dts/aspeed-g4.dtsi              |  1 +
- arch/arm/boot/dts/aspeed-g5.dtsi              |  1 +
- arch/arm/boot/dts/aspeed-g6.dtsi              |  1 +
- drivers/char/ipmi/bt-bmc.c                    | 24 ++++++++++++++++++-
+ .../bindings/ipmi/aspeed,ast2400-ibt-bmc.txt       |  3 +++
+ arch/arm/boot/dts/aspeed-g4.dtsi                   |  1 +
+ arch/arm/boot/dts/aspeed-g5.dtsi                   |  1 +
+ arch/arm/boot/dts/aspeed-g6.dtsi                   |  1 +
+ drivers/char/ipmi/bt-bmc.c                         | 24 +++++++++++++++++++++-
  5 files changed, 29 insertions(+), 1 deletion(-)
 
 diff --git a/Documentation/devicetree/bindings/ipmi/aspeed,ast2400-ibt-bmc.txt b/Documentation/devicetree/bindings/ipmi/aspeed,ast2400-ibt-bmc.txt
@@ -44,10 +44,10 @@ index 028268fd99ee..d13887d60f19 100644
 +		clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
  	};
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 78251541a109..b3b6720fb6fb 100644
+index 054d97229626..db962ab435af 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -387,6 +387,7 @@
+@@ -386,6 +386,7 @@
  					ibt: ibt@c0  {
  						compatible = "aspeed,ast2400-ibt-bmc";
  						reg = <0xc0 0x18>;
@@ -56,10 +56,10 @@ index 78251541a109..b3b6720fb6fb 100644
  						status = "disabled";
  					};
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 653e03a0fa4c..49f792eafdd1 100644
+index 45202bc3d60c..c4724ec27041 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -500,6 +500,7 @@
+@@ -499,6 +499,7 @@
  					ibt: ibt@c0 {
  						compatible = "aspeed,ast2500-ibt-bmc";
  						reg = <0xc0 0x18>;
@@ -68,10 +68,10 @@ index 653e03a0fa4c..49f792eafdd1 100644
  						status = "disabled";
  					};
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 653e03a0fa4c..49f792eafdd1 100644
+index 8cc978058f16..a557a7e6fe8d 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -546,6 +546,7 @@
+@@ -524,6 +524,7 @@
  					ibt: ibt@c0 {
  						compatible = "aspeed,ast2600-ibt-bmc";
  						reg = <0xc0 0x18>;
@@ -80,7 +80,7 @@ index 653e03a0fa4c..49f792eafdd1 100644
  						status = "disabled";
  					};
 diff --git a/drivers/char/ipmi/bt-bmc.c b/drivers/char/ipmi/bt-bmc.c
-index 40b9927c072c..a4ec9d1743d7 100644
+index 0e600449931b..87bf3ff28542 100644
 --- a/drivers/char/ipmi/bt-bmc.c
 +++ b/drivers/char/ipmi/bt-bmc.c
 @@ -5,6 +5,7 @@

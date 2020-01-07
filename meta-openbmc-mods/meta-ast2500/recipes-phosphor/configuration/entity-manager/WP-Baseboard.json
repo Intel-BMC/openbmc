@@ -1748,7 +1748,7 @@
             "Type": "TMP75"
         },
         {
-            "Address": "0x49",
+            "Address": "0x4e",
             "Bus": 6,
             "Name": "Left Rear Board Temp",
             "Thresholds": [

@@ -1,4 +1,4 @@
-From 89112c3971a540302834e5e987a1dec236bd752d Mon Sep 17 00:00:00 2001
+From 65c8090f2b418892aee9f239729fa417bd508a00 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 3 Oct 2018 10:17:58 -0700
 Subject: [PATCH] arm: dts: aspeed: Swap the mac nodes numbering
@@ -13,10 +13,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  2 files changed, 16 insertions(+), 16 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 71563972d2fe..78251541a109 100644
+index a70bee24d058..054d97229626 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -121,14 +121,6 @@
+@@ -120,14 +120,6 @@
  			reg = <0x1e6c2000 0x80>;
  		};
  
@@ -31,7 +31,7 @@ index 71563972d2fe..78251541a109 100644
  		mac1: ethernet@1e680000 {
  			compatible = "aspeed,ast2400-mac", "faraday,ftgmac100";
  			reg = <0x1e680000 0x180>;
-@@ -137,6 +129,14 @@
+@@ -136,6 +128,14 @@
  			status = "disabled";
  		};
  
@@ -47,10 +47,10 @@ index 71563972d2fe..78251541a109 100644
  			compatible = "aspeed,ast2400-ehci", "generic-ehci";
  			reg = <0x1e6a1000 0x100>;
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 8288002e4f02..6d2c4494ce04 100644
+index 797013debaa7..27ed188296a1 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -149,14 +149,6 @@
+@@ -148,14 +148,6 @@
  			reg = <0x1e6c2000 0x80>;
  		};
  
@@ -65,7 +65,7 @@ index 8288002e4f02..6d2c4494ce04 100644
  		mac1: ethernet@1e680000 {
  			compatible = "aspeed,ast2500-mac", "faraday,ftgmac100";
  			reg = <0x1e680000 0x180>;
-@@ -165,6 +157,14 @@
+@@ -164,6 +156,14 @@
  			status = "disabled";
  		};
  

@@ -1,4 +1,4 @@
-From d5efb0ec2b28bc1074472ab4eaa937dcbe490f6a Mon Sep 17 00:00:00 2001
+From 8618c2cd920d10681859bacf8af56c71f168b5a2 Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Sun, 10 Mar 2019 11:48:18 -0800
 Subject: [PATCH] Documentation jtag: Add JTAG core driver ioctl number
@@ -40,10 +40,10 @@ Cc: Bryan Hunt <bryan.hunt@intel.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/Documentation/ioctl/ioctl-number.rst b/Documentation/ioctl/ioctl-number.rst
-index 7f8dcae7a230..4d25966d44e5 100644
+index de23fc0f0fce..339d198c5adf 100644
 --- a/Documentation/ioctl/ioctl-number.rst
 +++ b/Documentation/ioctl/ioctl-number.rst
-@@ -332,6 +332,8 @@ Code  Seq#    Include File                                           Comments
+@@ -333,6 +333,8 @@ Code  Seq#    Include File                                           Comments
                                                                       <mailto:vgo@ratio.de>
  0xB1  00-1F                                                          PPPoX
                                                                       <mailto:mostrows@styx.uwaterloo.ca>

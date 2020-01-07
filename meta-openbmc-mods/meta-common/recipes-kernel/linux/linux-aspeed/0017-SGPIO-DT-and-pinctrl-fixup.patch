@@ -1,4 +1,4 @@
-From 4c5ab7c103b693096ae719abd16bc80b81043beb Mon Sep 17 00:00:00 2001
+From 89b5ebd26fc44b4bf820aa507bc88eec028ba218 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Wed, 16 May 2018 10:03:14 -0700
 Subject: [PATCH] SGPIO DT and pinctrl fixup
@@ -9,15 +9,16 @@ Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  arch/arm/boot/dts/aspeed-g4.dtsi           | 56 +++++++++++-------------------
- arch/arm/boot/dts/aspeed-g5.dtsi           |  5 +++
+ arch/arm/boot/dts/aspeed-g5.dtsi           |  3 +-
+ arch/arm/boot/dts/aspeed-g6.dtsi           | 15 ++++++++
  drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c | 48 ++++++++++++-------------
- 3 files changed, 49 insertions(+), 60 deletions(-)
+ 4 files changed, 60 insertions(+), 62 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index cc78564b2f8d..ee86b41af291 100644
+index b875c0785833..e9fd66ab3099 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -255,6 +255,20 @@
+@@ -254,6 +254,20 @@
  				#interrupt-cells = <2>;
  			};
  
@@ -38,7 +39,7 @@ index cc78564b2f8d..ee86b41af291 100644
  			timer: timer@1e782000 {
  				/* This timer is a Faraday FTTMR010 derivative */
  				compatible = "aspeed,ast2400-timer";
-@@ -1228,44 +1242,14 @@
+@@ -1227,44 +1241,14 @@
  		groups = "SD2";
  	};
  
@@ -90,33 +91,31 @@ index cc78564b2f8d..ee86b41af291 100644
  
  	pinctrl_sioonctrl_default: sioonctrl_default {
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 271f3c96456a..128e0b5bbae2 100644
+index 452ec323534f..20b2eb8052b7 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -326,6 +326,11 @@
+@@ -326,8 +326,7 @@
  				reg = <0x1e780200 0x0100>;
- 				interrupts = <40>;
+ 				clocks = <&syscon ASPEED_CLK_APB>;
  				interrupt-controller;
-+				clocks = <&syscon ASPEED_CLK_APB>;
+-				ngpios = <8>;
+-				bus-frequency = <12000000>;
 +				bus-frequency = <1000000>;
-+				pinctrl-names = "default";
-+				pinctrl-0 = <&pinctrl_sgpm_default>;
-+				status = "disabled";
- 			};
- 
- 			rtc: rtc@1e781000 {
+ 				pinctrl-names = "default";
+ 				pinctrl-0 = <&pinctrl_sgpm_default>;
+ 				status = "disabled";
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 1aab48fbf49e..567f268a3032 100644
+index 54add29d8217..459070693aba 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -356,6 +356,21 @@
+@@ -339,6 +339,21 @@
  				#interrupt-cells = <2>;
  			};
  
 +			sgpio: sgpio@1e780500 {
 +				#gpio-cells = <2>;
 +				gpio-controller;
-+				compatible = "aspeed,ast2500-sgpio";
++				compatible = "aspeed,ast2600-sgpio";
 +				reg = <0x1e780500 0x0100>;
 +				#interrupt-cells = <2>;
 +				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
@@ -132,7 +131,7 @@ index 1aab48fbf49e..567f268a3032 100644
  				compatible = "aspeed,ast2600-rtc";
  				reg = <0x1e781000 0x18>;
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
-index 95ea593fa29d..70284c5f9ad9 100644
+index bfed0e274643..10dadfd0e6e1 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g4.c
 @@ -430,16 +430,22 @@ SSSF_PIN_DECL(E16, GPIOF6, TXD4, SIG_DESC_SET(SCU80, 30));

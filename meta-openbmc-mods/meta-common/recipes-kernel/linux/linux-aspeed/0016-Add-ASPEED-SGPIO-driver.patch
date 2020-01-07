@@ -1,4 +1,4 @@
-From ab104c6067683a3a251e2814991474243b7e1cb8 Mon Sep 17 00:00:00 2001
+From a49e262cca260d15dc245fdd1870c89068042063 Mon Sep 17 00:00:00 2001
 From: "Feist, James" <james.feist@intel.com>
 Date: Tue, 4 Jun 2019 14:00:39 -0700
 Subject: [PATCH] Add ASPEED SGPIO driver
@@ -10,17 +10,17 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  drivers/gpio/Kconfig        |   8 +
  drivers/gpio/Makefile       |   1 +
- drivers/gpio/sgpio-aspeed.c | 703 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 712 insertions(+)
+ drivers/gpio/sgpio-aspeed.c | 704 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 713 insertions(+)
  create mode 100644 drivers/gpio/sgpio-aspeed.c
 
 diff --git a/drivers/gpio/Kconfig b/drivers/gpio/Kconfig
-index bb13c266c329..4061686d8651 100644
+index 7138290cdd36..0235b20a95f6 100644
 --- a/drivers/gpio/Kconfig
 +++ b/drivers/gpio/Kconfig
-@@ -120,6 +120,14 @@ config GPIO_ASPEED
+@@ -128,6 +128,14 @@ config GPIO_ASPEED_SGPIO
  	help
- 	  Say Y here to support Aspeed AST2400 and AST2500 GPIO controllers.
+ 	  Say Y here to support Aspeed AST2500 SGPIO functionality.
  
 +config SGPIO_ASPEED
 +	tristate "ASPEED SGPIO support"
@@ -34,23 +34,23 @@ index bb13c266c329..4061686d8651 100644
  	tristate "Atheros AR71XX/AR724X/AR913X GPIO support"
  	default y if ATH79
 diff --git a/drivers/gpio/Makefile b/drivers/gpio/Makefile
-index a4e91175c708..bebbd8205c11 100644
+index e4599f90f702..0e80c8cd5ae7 100644
 --- a/drivers/gpio/Makefile
 +++ b/drivers/gpio/Makefile
-@@ -32,6 +32,7 @@ obj-$(CONFIG_GPIO_AMD_FCH)		+= gpio-amd-fch.o
- obj-$(CONFIG_GPIO_AMDPT)		+= gpio-amdpt.o
+@@ -33,6 +33,7 @@ obj-$(CONFIG_GPIO_AMDPT)		+= gpio-amdpt.o
  obj-$(CONFIG_GPIO_ARIZONA)		+= gpio-arizona.o
  obj-$(CONFIG_GPIO_ASPEED)		+= gpio-aspeed.o
+ obj-$(CONFIG_GPIO_ASPEED_SGPIO)		+= gpio-aspeed-sgpio.o
 +obj-$(CONFIG_SGPIO_ASPEED)		+= sgpio-aspeed.o
  obj-$(CONFIG_GPIO_ATH79)		+= gpio-ath79.o
  obj-$(CONFIG_GPIO_BCM_KONA)		+= gpio-bcm-kona.o
  obj-$(CONFIG_GPIO_BD70528)		+= gpio-bd70528.o
 diff --git a/drivers/gpio/sgpio-aspeed.c b/drivers/gpio/sgpio-aspeed.c
 new file mode 100644
-index 000000000000..b6e9ccee774d
+index 000000000000..5028e9144a75
 --- /dev/null
 +++ b/drivers/gpio/sgpio-aspeed.c
-@@ -0,0 +1,703 @@
+@@ -0,0 +1,704 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +// Copyright (c) 2019 Intel Corporation
 +
@@ -650,6 +650,7 @@ index 000000000000..b6e9ccee774d
 +static const struct of_device_id aspeed_sgpio_of_table[] = {
 +	{ .compatible = "aspeed,ast2400-sgpio", .data = &ast2400_config },
 +	{ .compatible = "aspeed,ast2500-sgpio", .data = &ast2500_config },
++	{ .compatible = "aspeed,ast2600-sgpio", .data = &ast2500_config },
 +	{ }
 +};
 +MODULE_DEVICE_TABLE(of, aspeed_sgpio_of_table);

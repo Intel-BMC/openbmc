@@ -19,12 +19,10 @@ SRC_URI += " \
         file://0015-New-flash-map-for-intel.patch \
         file://0016-Add-ASPEED-SGPIO-driver.patch \
         file://0017-SGPIO-DT-and-pinctrl-fixup.patch \
-        file://0018-Update-PECI-drivers-to-sync-with-linux-upstreaming-v.patch \
         file://0019-Add-I2C-IPMB-support.patch \
         file://0020-misc-aspeed-add-lpc-mbox-driver.patch \
         file://0021-Initial-Port-of-Aspeed-LPC-SIO-driver.patch \
         file://0022-Add-AST2500-eSPI-driver.patch \
-        file://0026-Add-support-for-new-PECI-commands.patch \
         file://0028-Add-AST2500-JTAG-driver.patch \
         file://0030-Add-dump-debug-code-into-I2C-drivers.patch \
         file://0031-Add-high-speed-baud-rate-support-for-UART.patch \
@@ -61,7 +59,6 @@ SRC_URI += " \
         file://0076-arm-ast2600-add-pwm_tacho-driver-from-aspeed.patch \
         file://0077-soc-aspeed-Add-read-only-property-support.patch \
         file://0078-Fix-NCSI-driver-issue-caused-by-host-shutdown.patch \
-        file://0079-usb-gadget-aspeed-backport-aspeed-vhub-bug-fixes.patch \
         file://0080-i2c-aspeed-filter-garbage-interrupts-out.patch \
         file://0082-ARM-dts-aspeed-g6-add-USB-virtual-hub-fixup.patch \
         file://0083-usb-gadget-aspeed-add-ast2600-compatible-string.patch \
@@ -71,6 +68,7 @@ SRC_URI += " \
         file://0086-ARM-dts-aspeed-g6-add-video-node.patch \
         file://0087-media-aspeed-add-aspeed-ast2600-video-engine-compati.patch \
         file://0088-clk-ast2600-enable-ESPICLK-always.patch \
+        file://0089-ast2600-enable-high-speed-uart-in-kernel.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

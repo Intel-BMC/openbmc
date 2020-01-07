@@ -2,7 +2,7 @@ SUMMARY = "Phosphor post code manager"
 DESCRIPTION = "Post Code Manager"
 
 SRC_URI = "git://github.com/openbmc/phosphor-post-code-manager.git"
-SRCREV = "3a0444002398714c3a5539c93355c74eb184b2b1"
+SRCREV = "655837973feb51da3767f5f246ec198877900b0b"
 
 S = "${WORKDIR}/git"
 

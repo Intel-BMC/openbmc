@@ -2,8 +2,11 @@
 
 # this script checks the gpio id and loads the correct baseboard fru
 FRUPATH="/etc/fru"
+PRODIDPATH="/var/cache/private"
 fruFile="$FRUPATH/baseboard.fru.bin"
-if [ -f $fruFile ]; then
+prodIDFile="$PRODIDPATH/prodID"
+
+if [ -f $fruFile -a -f $prodIDFile ]; then
     exit 0
 fi
 
@@ -24,20 +27,29 @@ BOARD_ID=$(read_id)
 if grep -q 'CPU part\s*: 0xb76' /proc/cpuinfo; then
     # AST2500
     case $BOARD_ID in
-    12) NAME="D50TNP1SB";;
-    40) NAME="CooperCity";;
-    42) NAME="WilsonCity";;
-    45) NAME="WilsonCity";;
-    60) NAME="M50CYP2SB2U";;
-    62) NAME="WilsonPoint";;
-    *)  NAME="S2600WFT";;
+        12) NAME="D50TNP1SB"
+            PRODID="0x99";;
+        40) NAME="CooperCity"
+            PRODID="0x9d";;
+        42) NAME="WilsonCity"
+            PRODID="0x91";;
+        45) NAME="WilsonCity"
+            PRODID="0x91";;
+        60) NAME="M50CYP2SB2U"
+            PRODID="0x98";;
+        62) NAME="WilsonPoint"
+            PRODID="0x9a";;
+        *)  NAME="S2600WFT"
+            PRODID="0x7b";;
     esac
 
 elif grep -q 'CPU part\s*: 0xc07' /proc/cpuinfo; then
     # AST2600
     case $BOARD_ID in
-    62) NAME="ArcherCity";;
-    *)  NAME="AST2600EVB";;
+        62) NAME="ArcherCity"
+            PRODID="0x9c";;
+        *)  NAME="AST2600EVB"
+            PRODID="0x00";;
     esac
 
 fi
@@ -46,8 +58,17 @@ if [ -z "$NAME" ]; then
     NAME="Unknown"
 fi
 
-cd /tmp
-mkdir -p $FRUPATH
-mkfru $NAME
-mv $NAME.fru.bin $fruFile
+if [ ! -e $prodIDFile ]
+then
+    echo $PRODID >$prodIDFile
+fi
+
+if [ ! -f $fruFile ]
+then
+    cd /tmp
+    mkdir -p $FRUPATH
+    mkfru $NAME
+    mv $NAME.fru.bin $fruFile
+fi
+
 

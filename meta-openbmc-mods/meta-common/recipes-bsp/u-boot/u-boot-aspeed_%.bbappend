@@ -5,6 +5,7 @@ FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files:"
 SRC_URI_remove_intel-ast2500 = " file://0001-configs-ast-Add-redundnant-env.patch"
 
 SRC_URI_append_intel-ast2500 = " \
+    file://fw_env.config \
     file://0001-flash-use-readX-writeX-not-udelay.patch \
     file://0002-intel-layout-environment-addr.patch \
     file://0004-Make-sure-debug-uart-is-using-24MHz-clock-source.patch \
@@ -46,6 +47,9 @@ PFR_SRC_URI = " \
     file://0035-PFR-platform-EXTRST-reset-mask-selection.patch \
     "
 SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
+do_install_append () {
+    install -m 0644 ${WORKDIR}/fw_env.config ${S}/tools/env/fw_env.config
+}
 
 require recipes-core/os-release/version-vars.inc
 

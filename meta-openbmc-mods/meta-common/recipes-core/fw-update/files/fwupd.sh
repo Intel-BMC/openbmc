@@ -124,9 +124,10 @@ touch /tmp/fwupd_progress
 # Byte at location 0x8 gives image type
 img_type=$(busctl get-property xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/$1 xyz.openbmc_project.Software.Version Purpose | cut -d " " -f 2 | cut -d "." -f 6 | sed 's/.\{1\}$//')
 img_target=$(busctl get-property xyz.openbmc_project.Software.BMC.Updater /xyz/openbmc_project/software/$1 xyz.openbmc_project.Software.Activation RequestedActivation | cut -d " " -f 2| cut -d "." -f 6 | sed 's/.\{1\}$//')
-
+apply_time=$(busctl get-property xyz.openbmc_project.Settings /xyz/openbmc_project/software/apply_time xyz.openbmc_project.Software.ApplyTime RequestedApplyTime | cut -d " " -f 2 | cut -d "." -f 6 | sed 's/.\{1\}$//')
 echo "image-type=$img_type"
 echo "image-target=$img_target"
+echo "apply_time=$apply_time"
 
 # BMC image - max size 32MB
 if [ "$img_type" = 'BMC' ]; then
@@ -172,6 +173,10 @@ else
     echo "${img_type}:Unknown image type, exiting the firmware update script"
     rm -rf /tmp/fwupd_progress
     exit 1
+fi
+
+if [ "$apply_time" == 'OnReset' ]; then
+    upd_intent_val=$(( "$upd_intent_val"|0x80 ))
 fi
 
 # do a size check on the image

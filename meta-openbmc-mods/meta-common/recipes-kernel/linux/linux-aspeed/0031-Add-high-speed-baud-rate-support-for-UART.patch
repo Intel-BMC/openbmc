@@ -1,4 +1,4 @@
-From d80fcbb3e9d95a7e926598290012eea88a7c474d Mon Sep 17 00:00:00 2001
+From 0bc792097e73c07bc324e2c9b0172fb27b51a087 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Wed, 2 Jan 2019 15:06:43 +0800
 Subject: [PATCH] Add high speed baud rate support for UART
@@ -19,7 +19,7 @@ Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
  2 files changed, 39 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/clk/clk-aspeed.c b/drivers/clk/clk-aspeed.c
-index 9bd5155598d6..24d56a724969 100644
+index 411ff5fb2c07..5e1c87bc8a99 100644
 --- a/drivers/clk/clk-aspeed.c
 +++ b/drivers/clk/clk-aspeed.c
 @@ -14,7 +14,9 @@
@@ -118,13 +118,13 @@ index 9bd5155598d6..24d56a724969 100644
  				map,
  				gd->clock_idx,
 diff --git a/include/dt-bindings/clock/aspeed-clock.h b/include/dt-bindings/clock/aspeed-clock.h
-index 64e245fb113f..df2f9fdfe5c1 100644
+index 9ff4f6e4558c..41d531dd0b48 100644
 --- a/include/dt-bindings/clock/aspeed-clock.h
 +++ b/include/dt-bindings/clock/aspeed-clock.h
 @@ -41,6 +41,8 @@
  #define ASPEED_CLK_24M			35
- #define ASPEED_CLK_GATE_MAC1RCLK	36
- #define ASPEED_CLK_GATE_MAC2RCLK	37
+ #define ASPEED_CLK_MAC1RCLK		36
+ #define ASPEED_CLK_MAC2RCLK		37
 +#define ASPEED_CLK_UART_HS		38
 +#define ASPEED_CLK_MAX			39
  

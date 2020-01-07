@@ -9,7 +9,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "eddf621897090ba346b1aaa81a4b8be12076ab60"
+SRCREV = "5a03fdc6a119b65ecf320622ce2809e340749fa9"
 
 inherit cmake systemd
 SYSTEMD_SERVICE_${PN} = "srvcfg-manager.service"

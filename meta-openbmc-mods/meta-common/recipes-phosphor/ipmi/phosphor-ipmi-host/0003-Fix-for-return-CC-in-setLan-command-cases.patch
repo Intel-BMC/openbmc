@@ -1,0 +1,69 @@
+From 8b3cb6842746d43c0cab3d32821dc5239768642f Mon Sep 17 00:00:00 2001
+From: "Joshi, Mansi" <mansi.joshi@linux.intel.com>
+Date: Wed, 18 Dec 2019 15:10:25 +0530
+Subject: [PATCH] Fix for return CC in setLan command cases
+
+Issue: When DHCP is enabled, setting ip and setting subnet mask returns
+completion code 0xff. Setting default gateway returns 0x00.
+
+Fix: Returns CC 0xd5 because this parameter is R/W. It is only unable
+to be updated because the current state blocks it (i.e. 0xd5).
+
+Tested:
+ipmitool raw 0x0c 0x01 0x03 0x03 0x00 0x00 0x00 0x00 //setting ip
+0xd5 //Command, or request parameter, not supported in present state.
+
+ipmitool raw 0x0c 0x01 0x03 0x06 0xff 0xff 0xf0 0x00 //subnet mask
+0xd5 //Command, or request parameter, not supported in present state.
+
+ipmitool raw 0x0c 0x01 0x03 0x0c 0x0a 0xfe 0xef 0x77 //default gateway
+0xd5 //Command, or request parameter, not supported in present state.
+
+%% original patch: 0065-Fix-for-return-CC-in-setLan-command-cases.patch
+---
+ transporthandler.cpp | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 7407396..7b9ff3d 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -1423,6 +1423,11 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+         }
+         case LanParam::IP:
+         {
++            std::string dhcp = channelCall<getDHCPProperty>(channel);
++            if ((dhcp == dhcpv4) || (dhcp == dhcpv4v6))
++            {
++                return responseCommandNotAvailable();
++            }
+             in_addr ip;
+             std::array<uint8_t, sizeof(ip)> bytes;
+             if (req.unpack(bytes) != 0 || !req.fullyUnpacked())
+@@ -1477,6 +1482,11 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+         }
+         case LanParam::SubnetMask:
+         {
++            std::string dhcp = channelCall<getDHCPProperty>(channel);
++            if ((dhcp == dhcpv4) || (dhcp == dhcpv4v6))
++            {
++                return responseCommandNotAvailable();
++            }
+             in_addr netmask;
+             std::array<uint8_t, sizeof(netmask)> bytes;
+             if (req.unpack(bytes) != 0 || !req.fullyUnpacked())
+@@ -1490,6 +1500,11 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+         }
+         case LanParam::Gateway1:
+         {
++            std::string dhcp = channelCall<getDHCPProperty>(channel);
++            if ((dhcp == dhcpv4) || (dhcp == dhcpv4v6))
++            {
++                return responseCommandNotAvailable();
++            }
+             in_addr gateway;
+             std::array<uint8_t, sizeof(gateway)> bytes;
+             if (req.unpack(bytes) != 0 || !req.fullyUnpacked())
+-- 
+2.7.4
+

@@ -1,4 +1,4 @@
-From ae2bcda6000d7ec278ea78d1eda6e8aacbe5a741 Mon Sep 17 00:00:00 2001
+From 12ef9a4189cd44212a5a5bd2e1c6fce0756ace9f Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Fri, 3 May 2019 16:12:39 -0700
 Subject: [PATCH] Enable pass-through on GPIOE1 and GPIOE3 free
@@ -14,14 +14,14 @@ enabled again.
 
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c |  1 +
- drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c |  1 +
- drivers/pinctrl/aspeed/pinctrl-aspeed.c    | 60 ++++++++++++++++++++++
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c | 17 ++++++++++
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c | 17 ++++++++++
+ drivers/pinctrl/aspeed/pinctrl-aspeed.c    | 53 ++++++++++++++++++++++++++++++
  drivers/pinctrl/aspeed/pinctrl-aspeed.h    |  3 ++
- 4 files changed, 65 insertions(+)
+ 4 files changed, 90 insertions(+)
 
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-index 0cab4c2576e2..a8d64184ace1 100644
+index 0cab4c2576e2..c5406e2da320 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 @@ -2780,6 +2780,22 @@ static int aspeed_g5_sig_expr_set(struct aspeed_pinmux_data *ctx,
@@ -47,7 +47,7 @@ index 0cab4c2576e2..a8d64184ace1 100644
  static const struct aspeed_pin_config_map aspeed_g5_pin_config_map[] = {
  	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1, BIT_MASK(0)},
  	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0, BIT_MASK(0)},
-@@ -2815,6 +2837,7 @@ static const struct pinmux_ops aspeed_g5_pinmux_ops = {
+@@ -2815,6 +2831,7 @@ static const struct pinmux_ops aspeed_g5_pinmux_ops = {
  	.get_function_groups = aspeed_pinmux_get_fn_groups,
  	.set_mux = aspeed_pinmux_set_mux,
  	.gpio_request_enable = aspeed_gpio_request_enable,
@@ -56,7 +56,7 @@ index 0cab4c2576e2..a8d64184ace1 100644
  };
  
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
-index eb0c11a9fbf2..cae6fdd83c80 100644
+index fb96e8d2e6c8..bcd8c5656265 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
 @@ -2655,6 +2655,22 @@ static int aspeed_g6_sig_expr_set(struct aspeed_pinmux_data *ctx,
@@ -82,7 +82,7 @@ index eb0c11a9fbf2..cae6fdd83c80 100644
  static const struct aspeed_pin_config_map aspeed_g6_pin_config_map[] = {
  	{ PIN_CONFIG_BIAS_PULL_DOWN,  0,   1, BIT_MASK(0)},
  	{ PIN_CONFIG_BIAS_PULL_DOWN, -1,   0, BIT_MASK(0)},
-@@ -2695,6 +2717,7 @@ static const struct pinmux_ops aspeed_g6_pinmux_ops = {
+@@ -2695,6 +2711,7 @@ static const struct pinmux_ops aspeed_g6_pinmux_ops = {
  	.get_function_groups = aspeed_pinmux_get_fn_groups,
  	.set_mux = aspeed_pinmux_set_mux,
  	.gpio_request_enable = aspeed_gpio_request_enable,
@@ -91,7 +91,7 @@ index eb0c11a9fbf2..cae6fdd83c80 100644
  };
  
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed.c b/drivers/pinctrl/aspeed/pinctrl-aspeed.c
-index 54933665b5f8..aa7d56e99824 100644
+index 53f3f8aec695..ca53f3743d16 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed.c
 @@ -375,6 +375,59 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
@@ -155,7 +155,7 @@ index 54933665b5f8..aa7d56e99824 100644
  			 struct pinctrl_desc *pdesc,
  			 struct aspeed_pinctrl_data *pdata)
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed.h b/drivers/pinctrl/aspeed/pinctrl-aspeed.h
-index a5d83986f32e..c1104341e202 100644
+index 4dcde3bc29c8..bd497c20a15f 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed.h
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed.h
 @@ -101,6 +101,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,

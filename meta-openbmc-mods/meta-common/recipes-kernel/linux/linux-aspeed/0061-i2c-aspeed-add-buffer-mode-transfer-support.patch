@@ -1,4 +1,4 @@
-From b4a70701c6bc4eb5bbbf622716498948ae2211bc Mon Sep 17 00:00:00 2001
+From fcee7b9515140486ad8c58beedf88cf12cd09b8b Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Tue, 11 Jun 2019 15:07:08 -0700
 Subject: [PATCH] i2c: aspeed: add buffer mode transfer support
@@ -108,10 +108,10 @@ index 7da7e813b2b0..0ff3539cee95 100644
 +	};
  };
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index ae6f24fd5ba3..c8235c1b381b 100644
+index fc6f4e009db7..0b30c8546e64 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -519,12 +519,21 @@
+@@ -518,12 +518,21 @@
  };
  
  &i2c {
@@ -138,7 +138,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  	};
  
  	i2c0: i2c-bus@40 {
-@@ -532,7 +541,7 @@
+@@ -531,7 +540,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -147,7 +147,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -548,7 +557,7 @@
+@@ -547,7 +556,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -156,7 +156,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -564,7 +573,7 @@
+@@ -563,7 +572,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -165,7 +165,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -581,7 +590,7 @@
+@@ -580,7 +589,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -174,7 +174,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -598,7 +607,7 @@
+@@ -597,7 +606,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -183,7 +183,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -615,7 +624,7 @@
+@@ -614,7 +623,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -192,7 +192,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -632,7 +641,7 @@
+@@ -631,7 +640,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -201,7 +201,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -649,7 +658,7 @@
+@@ -648,7 +657,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -210,7 +210,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -666,7 +675,7 @@
+@@ -665,7 +674,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -219,7 +219,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -683,7 +692,7 @@
+@@ -682,7 +691,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -228,7 +228,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -700,7 +709,7 @@
+@@ -699,7 +708,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -237,7 +237,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -717,7 +726,7 @@
+@@ -716,7 +725,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -246,7 +246,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -734,7 +743,7 @@
+@@ -733,7 +742,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -255,7 +255,7 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		compatible = "aspeed,ast2400-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -751,7 +760,7 @@
+@@ -750,7 +759,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -265,10 +265,10 @@ index ae6f24fd5ba3..c8235c1b381b 100644
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 8f87c848b7f4..af5f54f9ade2 100644
+index eb1f9c9d9cca..51593a0a8a23 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -616,12 +616,21 @@
+@@ -615,12 +615,21 @@
  };
  
  &i2c {
@@ -295,7 +295,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  	};
  
  	i2c0: i2c-bus@40 {
-@@ -629,7 +638,7 @@
+@@ -628,7 +637,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -304,7 +304,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -645,7 +654,7 @@
+@@ -644,7 +653,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -313,7 +313,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -661,7 +670,7 @@
+@@ -660,7 +669,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -322,7 +322,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -678,7 +687,7 @@
+@@ -677,7 +686,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -331,7 +331,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -695,7 +704,7 @@
+@@ -694,7 +703,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -340,7 +340,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -712,7 +721,7 @@
+@@ -711,7 +720,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -349,7 +349,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -729,7 +738,7 @@
+@@ -728,7 +737,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -358,7 +358,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -746,7 +755,7 @@
+@@ -745,7 +754,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -367,7 +367,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -763,7 +772,7 @@
+@@ -762,7 +771,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -376,7 +376,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -780,7 +789,7 @@
+@@ -779,7 +788,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -385,7 +385,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -797,7 +806,7 @@
+@@ -796,7 +805,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -394,7 +394,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -814,7 +823,7 @@
+@@ -813,7 +822,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -403,7 +403,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -831,7 +840,7 @@
+@@ -830,7 +839,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -412,7 +412,7 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		compatible = "aspeed,ast2500-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -848,7 +857,7 @@
+@@ -847,7 +856,7 @@
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
  
@@ -422,10 +422,10 @@ index 8f87c848b7f4..af5f54f9ade2 100644
  		clocks = <&syscon ASPEED_CLK_APB>;
  		resets = <&syscon ASPEED_RESET_I2C>;
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 6db29ee769d5..b3a0085cd066 100644
+index 0e35c4598df5..eeace4b7b725 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -594,7 +594,7 @@
+@@ -713,7 +713,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -434,7 +434,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -609,7 +609,7 @@
+@@ -728,7 +728,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -443,7 +443,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -624,7 +624,7 @@
+@@ -743,7 +743,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -452,7 +452,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -639,7 +639,7 @@
+@@ -758,7 +758,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -461,7 +461,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -654,7 +654,7 @@
+@@ -773,7 +773,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -470,7 +470,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -669,7 +669,7 @@
+@@ -788,7 +788,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -479,7 +479,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -684,7 +684,7 @@
+@@ -803,7 +803,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -488,7 +488,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -699,7 +699,7 @@
+@@ -818,7 +818,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -497,7 +497,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -714,7 +714,7 @@
+@@ -833,7 +833,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -506,7 +506,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -729,7 +729,7 @@
+@@ -848,7 +848,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -515,7 +515,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -744,7 +744,7 @@
+@@ -863,7 +863,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -524,7 +524,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -759,7 +759,7 @@
+@@ -878,7 +878,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -533,7 +533,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -774,7 +774,7 @@
+@@ -893,7 +893,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -542,7 +542,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -789,7 +789,7 @@
+@@ -908,7 +908,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -551,7 +551,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -804,7 +804,7 @@
+@@ -923,7 +923,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;
@@ -560,7 +560,7 @@ index 6db29ee769d5..b3a0085cd066 100644
  		compatible = "aspeed,ast2600-i2c-bus";
  		clocks = <&syscon ASPEED_CLK_APB2>;
  		resets = <&syscon ASPEED_RESET_I2C>;
-@@ -819,7 +819,7 @@
+@@ -938,7 +938,7 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  		#interrupt-cells = <1>;

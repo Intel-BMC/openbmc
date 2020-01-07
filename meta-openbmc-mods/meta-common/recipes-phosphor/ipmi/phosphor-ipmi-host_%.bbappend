@@ -2,7 +2,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
 SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "225dec858e52f0e8319acfe72d7b3630adcc7a0d"
+SRCREV = "ebc53cb165ea26aa48f0bbf01d9bce0e4abb0b7d"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://host-ipmid-whitelist.conf \
@@ -15,6 +15,8 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
             file://0064-Update-provisioning-mode-filter-logic.patch \
             file://0001-Modify-Get-Lan-Configuration-IP-Address-Source-to-us.patch \
+            file://0002-Fixed-issue-in-setLan-command-for-IP-source.patch \
+            file://0003-Fix-for-return-CC-in-setLan-command-cases.patch \
             "
 
 EXTRA_OECONF_append = " --disable-i2c-whitelist-check"

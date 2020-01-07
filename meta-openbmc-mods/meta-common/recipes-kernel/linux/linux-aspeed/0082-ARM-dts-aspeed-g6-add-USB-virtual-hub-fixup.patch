@@ -1,4 +1,4 @@
-From f034e4129e5ad6b102be4cbe2add0fe46bfe413e Mon Sep 17 00:00:00 2001
+From e0e33dfafe30f6dfb175caaf6be99aa9cbfe295a Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 20 Nov 2019 13:06:58 -0800
 Subject: [PATCH] ARM: dts: aspeed-g6: add USB virtual hub fixup
@@ -12,7 +12,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  2 files changed, 15 insertions(+)
 
 diff --git a/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi b/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi
-index 045ce66..6ea66aa 100644
+index 045ce66ca876..6ea66aaf9dd0 100644
 --- a/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6-pinctrl.dtsi
 @@ -1112,6 +1112,11 @@
@@ -28,10 +28,10 @@ index 045ce66..6ea66aa 100644
  		function = "VB";
  		groups = "VB";
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 88bd020..b2549f2 100644
+index 33fcd89db6b8..b880e8e8f999 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -253,6 +253,16 @@
+@@ -272,6 +272,16 @@
  			status = "disabled";
  		};
  

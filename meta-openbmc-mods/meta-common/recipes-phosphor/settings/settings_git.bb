@@ -1,7 +1,7 @@
 SUMMARY = "Settings"
 
 SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "eddf621897090ba346b1aaa81a4b8be12076ab60"
+SRCREV = "5a03fdc6a119b65ecf320622ce2809e340749fa9"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"

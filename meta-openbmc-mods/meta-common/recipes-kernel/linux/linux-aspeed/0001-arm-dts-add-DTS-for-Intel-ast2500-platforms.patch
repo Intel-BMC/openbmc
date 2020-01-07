@@ -1,4 +1,4 @@
-From 9c7935cd0d6d888e86c33958a7dada2f5afcb543 Mon Sep 17 00:00:00 2001
+From 89dec433cd2fcfcb8690b315bb4e787d53de2296 Mon Sep 17 00:00:00 2001
 From: Yuan Li <yuan.li@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2500 platforms
@@ -13,14 +13,15 @@ Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 Signed-off-by: Zhu, Yunge <yunge.zhu@linux.intel.com>
 Signed-off-by: Qiang XU <qiang.xu@linux.intel.com>
 Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts | 470 +++++++++++++++++++++++++
- 1 file changed, 470 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts | 471 +++++++++++++++++++++++++
+ 1 file changed, 471 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 new file mode 100644
-index 0000000..4f3ef45
+index 0000000..6ded94d
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 @@ -0,0 +1,470 @@
@@ -181,7 +182,7 @@ index 0000000..4f3ef45
 +	/*F0-F7*/	"NMI_OUT","","","","CPU_ERR0","CPU_ERR1","PLTRST_N","PRDY_N",
 +	/*G0-G7*/	"CPU_ERR2","CPU_CATERR","PCH_BMC_THERMTRIP","","","FM_BMC_BOARD_SKU_ID5_N","","",
 +	/*H0-H7*/	"","","","","","","","",
-+	/*I0-I7*/	"","","","","","","","",
++	/*I0-I7*/	"FM_SYS_FAN0_PRSNT_D_N","FM_SYS_FAN1_PRSNT_D_N","FM_SYS_FAN2_PRSNT_D_N","FM_SYS_FAN3_PRSNT_D_N","FM_SYS_FAN4_PRSNT_D_N","FM_SYS_FAN5_PRSNT_D_N","","",
 +	/*J0-J7*/	"","","","","","","","",
 +	/*K0-K7*/	"","","","","","","","",
 +	/*L0-L7*/	"","","","","","","","",

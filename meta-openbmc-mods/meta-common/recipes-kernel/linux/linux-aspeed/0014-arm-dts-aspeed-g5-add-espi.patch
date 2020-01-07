@@ -1,43 +1,18 @@
-From b70fe24abeef901b3ba8e32b5e5d8aaf35ec061d Mon Sep 17 00:00:00 2001
+From ea37c85db4d2a593d4f3392e21ec2cc108b111e5 Mon Sep 17 00:00:00 2001
 From: Juston Li <juston.li@intel.com>
 Date: Mon, 27 Mar 2017 11:16:00 -0700
 Subject: [PATCH] arm: dts: aspeed-g5: add espi
 
 Signed-off-by: Juston Li <juston.li@intel.com>
 ---
- arch/arm/boot/dts/aspeed-g5.dtsi | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ arch/arm/boot/dts/aspeed-g5.dtsi | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 00f05bd3375d..271f3c96456a 100644
+index 6580b232771e..452ec323534f 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -311,7 +311,7 @@
- 				#gpio-cells = <2>;
- 				gpio-controller;
- 				compatible = "aspeed,ast2500-gpio";
--				reg = <0x1e780000 0x1000>;
-+				reg = <0x1e780000 0x0200>;
- 				interrupts = <20>;
- 				gpio-ranges = <&pinctrl 0 0 232>;
- 				clocks = <&syscon ASPEED_CLK_APB>;
-@@ -319,6 +319,15 @@
- 				#interrupt-cells = <2>;
- 			};
- 
-+			sgpio: sgpio@1e780200 {
-+				#gpio-cells = <2>;
-+				gpio-controller;
-+				compatible = "aspeed,ast2500-sgpio";
-+				reg = <0x1e780200 0x0100>;
-+				interrupts = <40>;
-+				interrupt-controller;
-+			};
-+
- 			rtc: rtc@1e781000 {
- 				compatible = "aspeed,ast2500-rtc";
- 				reg = <0x1e781000 0x18>;
-@@ -394,6 +403,13 @@
+@@ -408,6 +408,13 @@
  				status = "disabled";
  			};
  
