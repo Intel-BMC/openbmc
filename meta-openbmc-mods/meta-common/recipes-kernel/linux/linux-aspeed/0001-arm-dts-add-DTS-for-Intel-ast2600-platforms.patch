@@ -150,10 +150,10 @@ index 000000000000..1ad46e8bc69b
 +	NMI_OUT -> IRQ_BMC_CPU_NMI_R
 +	PLTRST_N -> RST_PLTRST_BMC_N
 +	PRDY_N -> DBP_ASD_BMC_PRDY_R_N
-+	PWR_DEBUG_N -> 
++	PWR_DEBUG_N ->
 +	XDP_PRST_N ->
-+	SYSPWROK -> 
-+	RSMRST_N -> 
++	SYSPWROK ->
++	RSMRST_N ->
 +	SIO_S3 -> FM_SLPS3_R_N
 +	SIO_S5 -> FM_SLPS4_R_N
 +	SIO_ONCONTROL -> FM_BMC_ONCTL_R_N
@@ -290,7 +290,7 @@ index 000000000000..1ad46e8bc69b
 +	pinctrl-names = "default";
 +	pinctrl-0 = <&pinctrl_rgmii2_default>;
 +	clocks = <&syscon ASPEED_CLK_GATE_MAC2CLK>,
-+		 <&syscon ASPEED_CLK_GATE_MAC2RCLK>;
++		 <&syscon ASPEED_CLK_MAC2RCLK>;
 +	clock-names = "MACCLK", "RCLK";
 +	phy-mode = "rgmii";
 +	phy-handle = <&ethphy1>;

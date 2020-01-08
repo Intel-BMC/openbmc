@@ -1,4 +1,4 @@
-From 89e1d083726d4d56703a6787f4707d61a2c0efd1 Mon Sep 17 00:00:00 2001
+From 0bda96c5fe3064c71f190bc484e2ce59c51d5585 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 19 Jul 2019 12:54:38 -0700
 Subject: [PATCH] gpio: aspeed: temporary fix for gpiochip range setting
@@ -14,7 +14,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/gpio/gpio-aspeed.c b/drivers/gpio/gpio-aspeed.c
-index ac33f8134fe6..4f1a40b3a73f 100644
+index 39c50c53dae3..05945470bd89 100644
 --- a/drivers/gpio/gpio-aspeed.c
 +++ b/drivers/gpio/gpio-aspeed.c
 @@ -1181,7 +1181,7 @@ static int __init aspeed_gpio_probe(struct platform_device *pdev)
@@ -27,10 +27,10 @@ index ac33f8134fe6..4f1a40b3a73f 100644
  	/* Allocate a cache of the output registers */
  	banks = DIV_ROUND_UP(gpio->chip.ngpio, 32);
 diff --git a/drivers/gpio/sgpio-aspeed.c b/drivers/gpio/sgpio-aspeed.c
-index d2dbfce531a4..792ef0d70ecf 100644
+index 5028e9144a75..850539da43f5 100644
 --- a/drivers/gpio/sgpio-aspeed.c
 +++ b/drivers/gpio/sgpio-aspeed.c
-@@ -678,7 +678,7 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
+@@ -681,7 +681,7 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
  	gpio->chip.set = aspeed_sgpio_set;
  	gpio->chip.set_config = aspeed_sgpio_set_config;
  	gpio->chip.label = dev_name(&pdev->dev);

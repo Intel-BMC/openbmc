@@ -1,4 +1,4 @@
-From 3e698a7666ec54582d0e2b4842f3e7f27fabe303 Mon Sep 17 00:00:00 2001
+From 3eaf814c51f85aaad0d181d27ff686ce35b31d6a Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Tue, 29 Oct 2019 11:28:29 +0800
 Subject: [PATCH] Fix NCSI driver issue caused by host shutdown due to
@@ -16,10 +16,10 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
  1 file changed, 13 insertions(+), 5 deletions(-)
 
 diff --git a/net/ncsi/ncsi-manage.c b/net/ncsi/ncsi-manage.c
-index 755aab66dcab..2c5294582ef6 100644
+index 70fe02697544..4e16a0015f26 100644
 --- a/net/ncsi/ncsi-manage.c
 +++ b/net/ncsi/ncsi-manage.c
-@@ -133,18 +133,15 @@ static void ncsi_channel_monitor(struct timer_list *t)
+@@ -132,18 +132,15 @@ static void ncsi_channel_monitor(struct timer_list *t)
  		netdev_err(ndp->ndev.dev, "NCSI Channel %d timed out!\n",
  			   nc->id);
  		ncsi_report_link(ndp, true);
@@ -40,7 +40,7 @@ index 755aab66dcab..2c5294582ef6 100644
  		list_add_tail_rcu(&nc->link, &ndp->channel_queue);
  		spin_unlock_irqrestore(&ndp->lock, flags);
  		ncsi_process_next_channel(ndp);
-@@ -425,6 +422,7 @@ static void ncsi_request_timeout(struct timer_list *t)
+@@ -424,6 +421,7 @@ static void ncsi_request_timeout(struct timer_list *t)
  {
  	struct ncsi_request *nr = from_timer(nr, t, timer);
  	struct ncsi_dev_priv *ndp = nr->ndp;
@@ -48,7 +48,7 @@ index 755aab66dcab..2c5294582ef6 100644
  	struct ncsi_cmd_pkt *cmd;
  	struct ncsi_package *np;
  	struct ncsi_channel *nc;
-@@ -439,6 +437,16 @@ static void ncsi_request_timeout(struct timer_list *t)
+@@ -438,6 +436,16 @@ static void ncsi_request_timeout(struct timer_list *t)
  		spin_unlock_irqrestore(&ndp->lock, flags);
  		return;
  	}

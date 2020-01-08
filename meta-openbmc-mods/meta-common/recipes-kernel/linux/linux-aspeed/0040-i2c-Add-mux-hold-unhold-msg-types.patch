@@ -1,4 +1,4 @@
-From be693c1c21979c067623434aa653f85a83c8eac7 Mon Sep 17 00:00:00 2001
+From ee9cee93b96b791f52295d7763985fdb10903e2b Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 15 Feb 2019 16:05:09 -0800
 Subject: [PATCH] i2c: Add mux hold/unhold msg types
@@ -48,10 +48,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  6 files changed, 214 insertions(+), 16 deletions(-)
 
 diff --git a/drivers/i2c/i2c-core-base.c b/drivers/i2c/i2c-core-base.c
-index 9c440fa6a3dd..53ff27cae5d3 100644
+index 5f6a4985f2bc..d1cd7afe4068 100644
 --- a/drivers/i2c/i2c-core-base.c
 +++ b/drivers/i2c/i2c-core-base.c
-@@ -1299,6 +1299,25 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
+@@ -1297,6 +1297,25 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
  }
  EXPORT_SYMBOL_GPL(i2c_handle_smbus_host_notify);
  
@@ -77,7 +77,7 @@ index 9c440fa6a3dd..53ff27cae5d3 100644
  static int i2c_register_adapter(struct i2c_adapter *adap)
  {
  	int res = -EINVAL;
-@@ -1381,6 +1400,9 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
+@@ -1379,6 +1398,9 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
  	bus_for_each_drv(&i2c_bus_type, NULL, adap, __process_new_adapter);
  	mutex_unlock(&core_lock);
  
@@ -87,7 +87,7 @@ index 9c440fa6a3dd..53ff27cae5d3 100644
  	return 0;
  
  out_reg:
-@@ -1601,6 +1623,8 @@ void i2c_del_adapter(struct i2c_adapter *adap)
+@@ -1599,6 +1621,8 @@ void i2c_del_adapter(struct i2c_adapter *adap)
  	idr_remove(&i2c_adapter_idr, adap->nr);
  	mutex_unlock(&core_lock);
  
@@ -96,7 +96,7 @@ index 9c440fa6a3dd..53ff27cae5d3 100644
  	/* Clear the device structure in case this adapter is ever going to be
  	   added again */
  	memset(&adap->dev, 0, sizeof(adap->dev));
-@@ -1950,7 +1974,9 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs,
+@@ -1948,7 +1972,9 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs,
   */
  int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  {
@@ -106,7 +106,7 @@ index 9c440fa6a3dd..53ff27cae5d3 100644
  	int ret, try;
  
  	if (WARN_ON(!msgs || num < 1))
-@@ -1963,6 +1989,25 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+@@ -1961,6 +1987,25 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  	if (adap->quirks && i2c_check_for_quirks(adap, msgs, num))
  		return -EOPNOTSUPP;
  
@@ -132,7 +132,7 @@ index 9c440fa6a3dd..53ff27cae5d3 100644
  	/*
  	 * i2c_trace_msg_key gets enabled when tracepoint i2c_transfer gets
  	 * enabled.  This is an efficient way of keeping the for-loop from
-@@ -1999,6 +2044,9 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+@@ -1997,6 +2042,9 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  		trace_i2c_result(adap, num, ret);
  	}
  
@@ -142,7 +142,7 @@ index 9c440fa6a3dd..53ff27cae5d3 100644
  	return ret;
  }
  EXPORT_SYMBOL(__i2c_transfer);
-@@ -2017,6 +2065,7 @@ EXPORT_SYMBOL(__i2c_transfer);
+@@ -2015,6 +2063,7 @@ EXPORT_SYMBOL(__i2c_transfer);
   */
  int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  {
@@ -150,7 +150,7 @@ index 9c440fa6a3dd..53ff27cae5d3 100644
  	int ret;
  
  	if (!adap->algo->master_xfer) {
-@@ -2040,12 +2089,25 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+@@ -2038,12 +2087,25 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
  	 *    one (discarding status on the second message) or errno
  	 *    (discarding status on the first one).
  	 */
@@ -431,7 +431,7 @@ index c5a977320f82..47f8763d6ed2 100644
  	int max_adapters;
  	struct i2c_adapter *adapter[0];
 diff --git a/include/linux/i2c.h b/include/linux/i2c.h
-index fa5552c2307b..92c795ce9081 100644
+index 1361637c369d..b4055d133338 100644
 --- a/include/linux/i2c.h
 +++ b/include/linux/i2c.h
 @@ -711,6 +711,13 @@ struct i2c_adapter {

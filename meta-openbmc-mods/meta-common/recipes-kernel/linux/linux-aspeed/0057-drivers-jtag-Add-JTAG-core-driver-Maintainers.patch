@@ -1,7 +1,7 @@
-From 01fc94b1193f4e97d498e2bcb05dfe21b991b01d Mon Sep 17 00:00:00 2001
+From fcf8f7fd3cb4e0b08cb1540f9ff9e5988cd285d1 Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Sun, 10 Mar 2019 11:49:37 -0800
-Subject: [PATCH v29 6/6] drivers: jtag: Add JTAG core driver Maintainers
+Subject: [PATCH] drivers: jtag: Add JTAG core driver Maintainers
 
 JTAG class driver provide infrastructure to support hardware/software
 JTAG platform drivers. It provide user layer API interface for flashing
@@ -24,10 +24,10 @@ Cc: Bryan Hunt <bryan.hunt@intel.com>
  1 file changed, 11 insertions(+)
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index f5c5eaa69f2f..92b0932c4b9f 100644
+index 3bbdae50eb7e..34ab3522801c 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -8709,6 +8709,17 @@ L:	linux-serial@vger.kernel.org
+@@ -8819,6 +8819,17 @@ L:	linux-serial@vger.kernel.org
  S:	Orphan
  F:	drivers/tty/serial/jsm/
  

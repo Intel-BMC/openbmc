@@ -1,4 +1,4 @@
-From 9a6eafbba9f5d972065f65431093ec74968cae39 Mon Sep 17 00:00:00 2001
+From cd62ca008a771bd6b7aeb06526c37d8435f86648 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:36:34 -0700
 Subject: [PATCH] char: ipmi: Add clock control logic into Aspeed LPC KCS
@@ -21,9 +21,9 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
  .../devicetree/bindings/ipmi/aspeed-kcs-bmc.txt    |  3 ++
  arch/arm/boot/dts/aspeed-g4.dtsi                   | 35 ++++++++++++++++++++
  arch/arm/boot/dts/aspeed-g5.dtsi                   |  6 +++-
- arch/arm/boot/dts/aspeed-g6.dtsi                   |  4 ++
+ arch/arm/boot/dts/aspeed-g6.dtsi                   |  6 ++++
  drivers/char/ipmi/kcs_bmc_aspeed.c                 | 37 ++++++++++++++++++----
- 5 files changed, 77 insertions(+), 8 deletions(-)
+ 5 files changed, 79 insertions(+), 8 deletions(-)
 
 diff --git a/Documentation/devicetree/bindings/ipmi/aspeed-kcs-bmc.txt b/Documentation/devicetree/bindings/ipmi/aspeed-kcs-bmc.txt
 index d98a9bf45d6c..3453eb0bf8f2 100644
@@ -47,10 +47,10 @@ index d98a9bf45d6c..3453eb0bf8f2 100644
          kcs_addr = <0xCA2>;
          status = "okay";
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index 58c5148194a3..14e5dc260a3b 100644
+index 24a20384b5e8..fc6f4e009db7 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -348,6 +348,33 @@
+@@ -347,6 +347,33 @@
  				lpc_bmc: lpc-bmc@0 {
  					compatible = "aspeed,ast2400-lpc-bmc";
  					reg = <0x0 0x80>;
@@ -84,7 +84,7 @@ index 58c5148194a3..14e5dc260a3b 100644
  				};
  
  				lpc_host: lpc-host@80 {
-@@ -359,6 +386,14 @@
+@@ -358,6 +385,14 @@
  					#size-cells = <1>;
  					ranges = <0x0 0x80 0x1e0>;
  
@@ -100,10 +100,10 @@ index 58c5148194a3..14e5dc260a3b 100644
  						compatible = "aspeed,ast2400-lpc-ctrl";
  						reg = <0x0 0x80>;
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 955789d8c736..19739183c1c8 100644
+index 18d2a465c0ed..751a8f0316d6 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -135,7 +135,7 @@
+@@ -134,7 +134,7 @@
  		};
  
  		vic: interrupt-controller@1e6c0080 {
@@ -112,7 +112,7 @@ index 955789d8c736..19739183c1c8 100644
  			interrupt-controller;
  			#interrupt-cells = <1>;
  			valid-sources = <0xfefff7ff 0x0807ffff>;
-@@ -440,18 +440,21 @@
+@@ -439,18 +439,21 @@
  						compatible = "aspeed,ast2500-kcs-bmc";
  						interrupts = <8>;
  						kcs_chan = <1>;
@@ -134,7 +134,7 @@ index 955789d8c736..19739183c1c8 100644
  						status = "disabled";
  					};
  				};
-@@ -469,6 +472,7 @@
+@@ -468,6 +471,7 @@
  						compatible = "aspeed,ast2500-kcs-bmc";
  						interrupts = <8>;
  						kcs_chan = <4>;
@@ -143,10 +143,10 @@ index 955789d8c736..19739183c1c8 100644
  					};
  
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 955789d8c736..19739183c1c8 100644
+index 4035d7bd647e..0e35c4598df5 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -356,18 +477,23 @@
+@@ -463,18 +463,23 @@
  					kcs1: kcs1@0 {
  						compatible = "aspeed,ast2600-kcs-bmc";
  						interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
@@ -170,7 +170,7 @@ index 955789d8c736..19739183c1c8 100644
  						kcs_chan = <3>;
  						status = "disabled";
  					};
-@@ -385,6 +511,7 @@
+@@ -492,6 +497,7 @@
  					kcs4: kcs4@0 {
  						compatible = "aspeed,ast2600-kcs-bmc";
  						interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
@@ -179,7 +179,7 @@ index 955789d8c736..19739183c1c8 100644
  						status = "disabled";
  					};
 diff --git a/drivers/char/ipmi/kcs_bmc_aspeed.c b/drivers/char/ipmi/kcs_bmc_aspeed.c
-index 3c955946e647..bd1912dc5a21 100644
+index a0a8bb89c9b3..94cfb879f520 100644
 --- a/drivers/char/ipmi/kcs_bmc_aspeed.c
 +++ b/drivers/char/ipmi/kcs_bmc_aspeed.c
 @@ -1,11 +1,10 @@

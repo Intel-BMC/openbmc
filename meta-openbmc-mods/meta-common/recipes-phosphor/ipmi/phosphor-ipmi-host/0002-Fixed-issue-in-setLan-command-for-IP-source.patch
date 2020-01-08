@@ -1,0 +1,62 @@
+From 12ebdc2d53a18d286e34abf0f1553ca423ca6ca5 Mon Sep 17 00:00:00 2001
+From: Rajashekar Gade Reddy <raja.sekhar.reddy.gade@linux.intel.com>
+Date: Wed, 18 Dec 2019 12:01:36 +0530
+Subject: [PATCH] Fixed issue in setLan command for IP source.
+
+Issue: returns success completion code for multiple requests which
+is not correct as per IPMI spec.
+
+Fix: Added proper conditional checks
+
+Tested:
+//IP Address Source: 0x0 (unspecified)
+ipmitool -I lanplus -U root -P 0penBmc -H <ip_addr> raw 0x0c 0x01 0x03 0x04 0x0
+0xCC// Invalid data field in request
+
+//IP Address Source: 0x1 (static address)
+ipmitool -I lanplus -U root -P 0penBmc -H <ip_addr> raw 0x0c 0x01 0x03 0x04 0x1
+0x00 //Success
+
+//IP Address Source: 0x2 (address obtained by BMC running DHCP)
+ipmitool -I lanplus -U root -P 0penBmc -H <ip_addr> raw 0x0c 0x01 0x03 0x04 0x2
+0x00 //Success
+
+//IP Address Source: 0x3 (address loaded by the BIOS or system software)
+ipmitool -I lanplus -U root -P 0penBmc -H <ip_addr> raw 0x0c 0x01 0x03 0x04 0x3
+0xCC// Invalid data field in request
+
+//IP Address Source: 0x4 (address obtained by BMC running other address assignment protocol)
+ipmitool -I lanplus -U root -P 0penBmc -H <ip_addr> raw 0x0c 0x01 0x03 0x04 0x4
+0xCC// Invalid data field in request
+
+ipmitool -I lanplus -U root -P 0penBmc -H <ip_addr> raw 0x0c 0x01 0x03 0x04 0x5
+0x80 // param not supported
+
+Signed-off-by: Rajashekar Gade Reddy <raja.sekhar.reddy.gade@linux.intel.com>
+
+%% original patch: 0002-Fixed-issue-in-setLan-command-for-IP-source.patch
+---
+ transporthandler.cpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 7407396..2df3e45 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -1453,9 +1453,12 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+                     return responseSuccess();
+                 }
+                 case IPSrc::Unspecified:
+-                case IPSrc::Static:
+                 case IPSrc::BIOS:
+                 case IPSrc::BMC:
++                {
++                    return responseInvalidFieldRequest();
++                }
++                case IPSrc::Static:
+                 {
+                     channelCall<setDHCPProperty>(channel, dhcpoff);
+                     return responseSuccess();
+-- 
+2.17.1
+

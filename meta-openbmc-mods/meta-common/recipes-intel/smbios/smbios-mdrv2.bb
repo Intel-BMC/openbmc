@@ -2,7 +2,7 @@ SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
 SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "eddf621897090ba346b1aaa81a4b8be12076ab60"
+SRCREV = "5a03fdc6a119b65ecf320622ce2809e340749fa9"
 
 S = "${WORKDIR}/git/services/smbios-mdrv2/"
 

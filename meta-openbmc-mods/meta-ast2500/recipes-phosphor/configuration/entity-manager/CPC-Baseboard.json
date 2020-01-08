@@ -1940,9 +1940,11 @@
             "Type": "XeonCPU"
         }
     ],
-    "Name": "CooperCity Baseboard",
+    "Name": "CPC Baseboard",
     "Probe": [
-        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'CooperCity'})"
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'CooperCity'})",
+        "OR",
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*CPC'})"
     ],
     "ProductId": 157,
     "Type": "Board",

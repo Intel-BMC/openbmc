@@ -1,4 +1,4 @@
-From 8b9bca54ec03fb80834eb8d15dd599293af6d971 Mon Sep 17 00:00:00 2001
+From a57f401058e452f9abb6f3233e7f2776af1e6b8d Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 29 Jun 2018 11:00:02 -0700
 Subject: [PATCH] Add dump debug code into I2C drivers
@@ -20,10 +20,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  2 files changed, 50 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index c2a6e5a27314..e1719b1f2020 100644
+index a7be6f24450b..c113ffa8d5df 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
-@@ -163,6 +163,21 @@ struct aspeed_i2c_bus {
+@@ -169,6 +169,21 @@ struct aspeed_i2c_bus {
  #endif /* CONFIG_I2C_SLAVE */
  };
  
@@ -45,7 +45,7 @@ index c2a6e5a27314..e1719b1f2020 100644
  static int aspeed_i2c_reset(struct aspeed_i2c_bus *bus);
  
  static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
-@@ -652,6 +667,7 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
+@@ -657,6 +672,7 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
  {
  	struct aspeed_i2c_bus *bus = i2c_get_adapdata(adap);
  	unsigned long time_left, flags;
@@ -53,7 +53,7 @@ index c2a6e5a27314..e1719b1f2020 100644
  
  	spin_lock_irqsave(&bus->lock, flags);
  	bus->cmd_err = 0;
-@@ -694,6 +710,11 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
+@@ -708,6 +724,11 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
  		return -ETIMEDOUT;
  	}
  
@@ -65,7 +65,7 @@ index c2a6e5a27314..e1719b1f2020 100644
  	return bus->master_xfer_result;
  }
  
-@@ -1065,6 +1086,11 @@ static struct platform_driver aspeed_i2c_bus_driver = {
+@@ -1079,6 +1100,11 @@ static struct platform_driver aspeed_i2c_bus_driver = {
  };
  module_platform_driver(aspeed_i2c_bus_driver);
  

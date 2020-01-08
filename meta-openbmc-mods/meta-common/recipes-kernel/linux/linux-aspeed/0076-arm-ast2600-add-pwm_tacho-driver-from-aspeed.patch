@@ -1,4 +1,4 @@
-From d5c421c1fc4c3bfd724a92e8563bc4fac128362c Mon Sep 17 00:00:00 2001
+From a17a084c4889dcc7cb43ef5f93032997cfcee4f0 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Fri, 27 Sep 2019 13:09:48 -0700
 Subject: [PATCH] arm: ast2600: add pwm_tacho driver from aspeed
@@ -12,15 +12,15 @@ Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
  arch/arm/boot/dts/aspeed-g6.dtsi    |   10 +
  drivers/hwmon/Kconfig               |   11 +
  drivers/hwmon/Makefile              |    1 +
- drivers/hwmon/aspeed-g6-pwm-tacho.c | 1025 +++++++++++++++++++++++++++
+ drivers/hwmon/aspeed-g6-pwm-tacho.c | 1025 +++++++++++++++++++++++++++++++++++
  4 files changed, 1047 insertions(+)
  create mode 100644 drivers/hwmon/aspeed-g6-pwm-tacho.c
 
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 03a991c97f00..b793b2f294a4 100644
+index eeace4b7b725..33fcd89db6b8 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -257,6 +257,16 @@
+@@ -278,6 +278,16 @@
  			#size-cells = <1>;
  			ranges;
  
@@ -38,10 +38,10 @@ index 03a991c97f00..b793b2f294a4 100644
  				compatible = "aspeed,ast2600-scu", "syscon", "simple-mfd";
  				reg = <0x1e6e2000 0x1000>;
 diff --git a/drivers/hwmon/Kconfig b/drivers/hwmon/Kconfig
-index 7399c3cef30c..b5365f5602b9 100644
+index e244a7901392..8312b3798b82 100644
 --- a/drivers/hwmon/Kconfig
 +++ b/drivers/hwmon/Kconfig
-@@ -361,6 +361,17 @@ config SENSORS_ASPEED
+@@ -371,6 +371,17 @@ config SENSORS_ASPEED
  	  This driver can also be built as a module. If so, the module
  	  will be called aspeed_pwm_tacho.
  
@@ -60,11 +60,11 @@ index 7399c3cef30c..b5365f5602b9 100644
  	tristate "Attansic ATXP1 VID controller"
  	depends on I2C
 diff --git a/drivers/hwmon/Makefile b/drivers/hwmon/Makefile
-index 22e0882ffc70..d21a69797a86 100644
+index 1c7ab361adc7..e74ea925fb56 100644
 --- a/drivers/hwmon/Makefile
 +++ b/drivers/hwmon/Makefile
-@@ -50,6 +50,7 @@ obj-$(CONFIG_SENSORS_ARM_SCMI)	+= scmi-hwmon.o
- obj-$(CONFIG_SENSORS_ARM_SCPI)	+= scpi-hwmon.o
+@@ -50,6 +50,7 @@ obj-$(CONFIG_SENSORS_ARM_SCPI)	+= scpi-hwmon.o
+ obj-$(CONFIG_SENSORS_AS370)	+= as370-hwmon.o
  obj-$(CONFIG_SENSORS_ASC7621)	+= asc7621.o
  obj-$(CONFIG_SENSORS_ASPEED)	+= aspeed-pwm-tacho.o
 +obj-$(CONFIG_SENSORS_ASPEED_G6)	+= aspeed-g6-pwm-tacho.o
@@ -73,7 +73,7 @@ index 22e0882ffc70..d21a69797a86 100644
  obj-$(CONFIG_SENSORS_DA9052_ADC)+= da9052-hwmon.o
 diff --git a/drivers/hwmon/aspeed-g6-pwm-tacho.c b/drivers/hwmon/aspeed-g6-pwm-tacho.c
 new file mode 100644
-index 000000000000..d6aa5a36ca88
+index 000000000000..1894f6ad5edb
 --- /dev/null
 +++ b/drivers/hwmon/aspeed-g6-pwm-tacho.c
 @@ -0,0 +1,1025 @@
@@ -137,9 +137,9 @@ index 000000000000..d6aa5a36ca88
 +#define  PWM_LOOP_BIT_MASK				(0xf << 24)	//loop bit [7:0]
 +#define  PWM_PERIOD_BIT					(24)	//pwm period bit [7:0]
 +#define  PWM_PERIOD_BIT_MASK			(0xff << 24)	//pwm period bit [7:0]
-+#define  PWM_RISING_FALLING_AS_WDT_BIT  (16)	
++#define  PWM_RISING_FALLING_AS_WDT_BIT  (16)
 +#define  PWM_RISING_FALLING_AS_WDT_MASK (0xff << 16)	//pwm rising/falling point bit [7:0] as WDT
-+#define  PWM_RISING_FALLING_MASK		(0xffff)	
++#define  PWM_RISING_FALLING_MASK		(0xffff)
 +#define  PWM_RISING_FALLING_BIT			(8)	//pwm falling point bit [7:0]
 +#define  PWM_RISING_RISING_BIT			(0)	//pwm rising point bit [7:0]
 +
@@ -153,7 +153,7 @@ index 000000000000..d6aa5a36ca88
 +#define  TACHO_DEBOUNCE_MASK			(0x3 << 26) //{tacho de-bounce}
 +#define  TECHIO_EDGE_MASK				(0x3 << 24) //tacho edge}
 +#define  TECHIO_EDGE_BIT				(24) //tacho edge}
-+#define  TACHO_CLK_DIV_T_MASK			(0xf << 20) 
++#define  TACHO_CLK_DIV_T_MASK			(0xf << 20)
 +#define  TACHO_CLK_DIV_BIT				(20)
 +#define  TACHO_THRESHOLD_MASK			(0xfffff)	//tacho threshold bit
 +/*
@@ -208,7 +208,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[1] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -220,7 +220,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[2] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -232,7 +232,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[3] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -244,7 +244,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[4] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -256,7 +256,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[5] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -268,7 +268,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[6] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -280,7 +280,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[7] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -292,7 +292,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[8] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -304,7 +304,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[9] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -316,7 +316,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[10] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -328,7 +328,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[11] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -340,7 +340,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[12] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -352,7 +352,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[13] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -364,7 +364,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[14] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -376,7 +376,7 @@ index 000000000000..d6aa5a36ca88
 +		.falling = 0x0a,
 +	},
 +	[15] = {
-+		.load_wdt_rising_falling_pt = 0x10,	
++		.load_wdt_rising_falling_pt = 0x10,
 +		.load_wdt_selection = 0,
 +		.load_wdt_enable = 0,
 +		.duty_sync_enable = 0,
@@ -401,7 +401,7 @@ index 000000000000..d6aa5a36ca88
 +	int limited_inverse;
 +	u16 threshold;
 +	u8	tacho_edge;
-+	u8	tacho_debounce;	
++	u8	tacho_debounce;
 +	u8	divide;
 +};
 +
@@ -418,105 +418,105 @@ index 000000000000..d6aa5a36ca88
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[2] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[3] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[4] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[5] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[6] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[7] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[8] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[9] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[10] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[11] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[12] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[13] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[14] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +	[15] = {
 +		.limited_inverse = 0,
 +		.threshold = 0,
 +		.tacho_edge = 0,
-+		.tacho_debounce = 0,		
++		.tacho_debounce = 0,
 +		.divide = 8,
 +	},
 +};
@@ -524,7 +524,7 @@ index 000000000000..d6aa5a36ca88
 +struct aspeed_pwm_tachometer_data {
 +	struct regmap *regmap;
 +	unsigned long clk_freq;
-+	struct reset_control *reset;	
++	struct reset_control *reset;
 +	bool pwm_present[16];
 +	bool fan_tach_present[16];
 +	struct aspeed_pwm_channel_params *pwm_channel;
@@ -589,7 +589,7 @@ index 000000000000..d6aa5a36ca88
 +		//check pwm clk and to change tacho devide 25KZ
 +		for(i = 0; i < 12; i++) {
 +			divide_val = 1;
-+		 	for(j = 1; j <= i; j++)
++			for (j = 1; j <= i; j++)
 +				divide_val *= 4;
 +//			printk("i : %d , priv->clk_freq/divide_val %d ",i, priv->clk_freq/divide_val);
 +			if((priv->clk_freq/divide_val) < 250000)
@@ -600,7 +600,7 @@ index 000000000000..d6aa5a36ca88
 +//		printk("tacho divide_val %d , i %x max tacho clk %d \n", divide_val, i, priv->clk_freq / divide_val);
 +		priv->tacho_channel[fan_tach_ch].divide = i;
 +
-+		reg_value = TACHO_ENABLE | 
++		reg_value = TACHO_ENABLE |
 +				(priv->tacho_channel[fan_tach_ch].tacho_edge << TECHIO_EDGE_BIT) |
 +				(priv->tacho_channel[fan_tach_ch].divide << TACHO_CLK_DIV_BIT) |
 +				(priv->tacho_channel[fan_tach_ch].tacho_debounce << TACHO_DEBOUNCE_BIT);
@@ -609,7 +609,7 @@ index 000000000000..d6aa5a36ca88
 +			reg_value |= TACHO_INVERS_LIMIT;
 +
 +		if(priv->tacho_channel[fan_tach_ch].threshold)
-+			reg_value |= (TACHO_IER | priv->tacho_channel[fan_tach_ch].threshold); 
++			reg_value |= (TACHO_IER | priv->tacho_channel[fan_tach_ch].threshold);
 +
 +		regmap_write(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch), reg_value);
 +	} else
@@ -624,7 +624,7 @@ index 000000000000..d6aa5a36ca88
 +	if (fan_ctrl == 0) {
 +		aspeed_set_pwm_channel_enable(priv->regmap, index, false);
 +	} else {
-+		duty_value = (priv->pwm_channel[index].period << PWM_PERIOD_BIT) | 
++		duty_value = (priv->pwm_channel[index].period << PWM_PERIOD_BIT) |
 +					(0 << PWM_RISING_RISING_BIT) | (fan_ctrl << PWM_RISING_FALLING_BIT);
 +
 +		ctrl_value = (priv->pwm_channel[index].divide_h << 8) | priv->pwm_channel[index].divide_l;
@@ -876,7 +876,7 @@ index 000000000000..d6aa5a36ca88
 +{
 +	priv->pwm_present[pwm_channel] = true;
 +
-+	//use default 
++	//use default
 +	aspeed_set_pwm_channel_fan_ctrl(priv, pwm_channel, priv->pwm_channel[pwm_channel].falling);
 +}
 +
@@ -1043,7 +1043,7 @@ index 000000000000..d6aa5a36ca88
 +	if (!priv)
 +		return -ENOMEM;
 +
-+	priv->pwm_channel = default_pwm_params;	
++	priv->pwm_channel = default_pwm_params;
 +	priv->tacho_channel = default_tacho_params;
 +	priv->regmap = devm_regmap_init(dev, NULL, (__force void *)regs,
 +			&aspeed_pwm_tachometer_regmap_config);
@@ -1103,5 +1103,5 @@ index 000000000000..d6aa5a36ca88
 +MODULE_DESCRIPTION("ASPEED PWM and Fan Tachometer device driver");
 +MODULE_LICENSE("GPL");
 -- 
-2.17.1
+2.7.4
 

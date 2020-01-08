@@ -1,4 +1,4 @@
-From e9d15bf9fdec1cd17c2ed335566b7d463d63fbdb Mon Sep 17 00:00:00 2001
+From 5f984831a3f451e299ecaf42d65dee36ff0ffeee Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Fri, 24 May 2019 12:42:59 -0700
 Subject: [PATCH] Allow monitoring of power control input GPIOs
@@ -24,10 +24,11 @@ and read the GPIO value.
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
  drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)
 
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
-index 5e7f53fab76e..b08b5325edb1 100644
+index c5406e2da320..fde74c23ca7f 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
 @@ -279,7 +279,7 @@ FUNC_GROUP_DECL(SD2, F19, E21, F20, D20, D21, E20, G18, C21);
@@ -76,7 +77,7 @@ index 5e7f53fab76e..b08b5325edb1 100644
  SIG_EXPR_LIST_DECL_SINGLE(P21, DASHP21, DASHP21, SIG_DESC_SET(SCU94, 11));
  PIN_DECL_2(P21, GPIOY3, SIOONCTRL, DASHP21);
 diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
-index cae6fdd83c80..6ff185d63ab7 100644
+index bcd8c5656265..c18ceb52c289 100644
 --- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
 +++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g6.c
 @@ -762,7 +762,7 @@ SSSF_PIN_DECL(AC23, GPIOO7, PWM7, SIG_DESC_SET(SCU41C, 23));

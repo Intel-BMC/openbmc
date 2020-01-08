@@ -1,4 +1,4 @@
-From 8ed59cc252af9a87d2d7b3e45a949030d91761b7 Mon Sep 17 00:00:00 2001
+From 278db13a36f128b84f76fc0f0f13860b5bf62588 Mon Sep 17 00:00:00 2001
 From: Chen Yugang <yugang.chen@linux.intel.com>
 Date: Tue, 3 Dec 2019 13:41:37 +0800
 Subject: [PATCH] ADC linux driver for AST2600
@@ -13,10 +13,10 @@ Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
  2 files changed, 99 insertions(+), 14 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 34281b1..4e8d25f 100644
+index 3e2153416e11..5acc1085526d 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -320,12 +320,22 @@
+@@ -339,12 +339,22 @@
  				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
  			};
  
@@ -42,7 +42,7 @@ index 34281b1..4e8d25f 100644
  				status = "disabled";
  			};
 diff --git a/drivers/iio/adc/aspeed_adc.c b/drivers/iio/adc/aspeed_adc.c
-index d3fc39d..1dd5a97 100644
+index d3fc39df535d..1dd5a97a16bc 100644
 --- a/drivers/iio/adc/aspeed_adc.c
 +++ b/drivers/iio/adc/aspeed_adc.c
 @@ -1,8 +1,12 @@

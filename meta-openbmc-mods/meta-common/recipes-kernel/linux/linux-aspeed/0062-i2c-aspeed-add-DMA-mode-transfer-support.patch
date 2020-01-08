@@ -1,4 +1,4 @@
-From 09aece99e18a0fd0612c865394424afa74050171 Mon Sep 17 00:00:00 2001
+From 0d237f4b5111aa192a1ae9aaee6e6779761906bc Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Tue, 18 Jun 2019 08:47:50 -0700
 Subject: [PATCH] i2c: aspeed: add DMA mode transfer support
@@ -61,7 +61,7 @@ index 0ff3539cee95..d3f4a39f7ba6 100644
 +	};
  };
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index e37f0764d184..4567ec3498dc 100644
+index 1b338492c68a..8dc6723bfaaf 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
 @@ -10,6 +10,8 @@
@@ -91,7 +91,7 @@ index e37f0764d184..4567ec3498dc 100644
  #define ASPEED_I2CD_RX_BUFF_ENABLE			BIT(7)
  #define ASPEED_I2CD_TX_BUFF_ENABLE			BIT(6)
  #define ASPEED_I2CD_M_STOP_CMD				BIT(5)
-@@ -129,6 +135,14 @@
+@@ -135,6 +141,14 @@
  #define ASPEED_I2CD_BUF_TX_COUNT_MASK			GENMASK(15, 8)
  #define ASPEED_I2CD_BUF_OFFSET_MASK			GENMASK(5, 0)
  
@@ -106,7 +106,7 @@ index e37f0764d184..4567ec3498dc 100644
  enum aspeed_i2c_master_state {
  	ASPEED_I2C_MASTER_INACTIVE,
  	ASPEED_I2C_MASTER_PENDING,
-@@ -179,6 +193,12 @@ struct aspeed_i2c_bus {
+@@ -185,6 +199,12 @@ struct aspeed_i2c_bus {
  	size_t				buf_size;
  	u8				buf_offset;
  	u8				buf_page;
@@ -119,7 +119,7 @@ index e37f0764d184..4567ec3498dc 100644
  #if IS_ENABLED(CONFIG_I2C_SLAVE)
  	struct i2c_client		*slave;
  	enum aspeed_i2c_slave_state	slave_state;
-@@ -298,9 +318,13 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -304,9 +324,13 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  
  	/* Slave was sent something. */
  	if (irq_status & ASPEED_I2CD_INTR_RX_DONE) {
@@ -134,7 +134,7 @@ index e37f0764d184..4567ec3498dc 100644
  			value = readb(bus->buf_base);
  		else
  			value = readl(bus->base + ASPEED_I2C_BYTE_BUF_REG) >> 8;
-@@ -320,7 +344,18 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -326,7 +350,18 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  	if (irq_status & ASPEED_I2CD_INTR_NORMAL_STOP) {
  		if (bus->slave_state == ASPEED_I2C_SLAVE_WRITE_RECEIVED &&
  		    irq_status & ASPEED_I2CD_INTR_RX_DONE) {
@@ -154,7 +154,7 @@ index e37f0764d184..4567ec3498dc 100644
  				len = FIELD_GET(ASPEED_I2CD_BUF_RX_COUNT_MASK,
  						readl(bus->base +
  						      ASPEED_I2C_BUF_CTRL_REG));
-@@ -364,7 +399,15 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -370,7 +405,15 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  	case ASPEED_I2C_SLAVE_WRITE_REQUESTED:
  		bus->slave_state = ASPEED_I2C_SLAVE_WRITE_RECEIVED;
  		i2c_slave_event(slave, I2C_SLAVE_WRITE_REQUESTED, &value);
@@ -171,7 +171,7 @@ index e37f0764d184..4567ec3498dc 100644
  			writel(FIELD_PREP(ASPEED_I2CD_BUF_RX_SIZE_MASK,
  					  bus->buf_size - 1) |
  			       FIELD_PREP(ASPEED_I2CD_BUF_OFFSET_MASK,
-@@ -376,7 +419,25 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -382,7 +425,25 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		break;
  	case ASPEED_I2C_SLAVE_WRITE_RECEIVED:
  		i2c_slave_event(slave, I2C_SLAVE_WRITE_RECEIVED, &value);
@@ -198,7 +198,7 @@ index e37f0764d184..4567ec3498dc 100644
  			len = FIELD_GET(ASPEED_I2CD_BUF_RX_COUNT_MASK,
  					readl(bus->base +
  					      ASPEED_I2C_BUF_CTRL_REG));
-@@ -440,7 +501,23 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
+@@ -446,7 +507,23 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
  	if (msg->flags & I2C_M_RD) {
  		command |= ASPEED_I2CD_M_RX_CMD;
  
@@ -223,7 +223,7 @@ index e37f0764d184..4567ec3498dc 100644
  			command |= ASPEED_I2CD_RX_BUFF_ENABLE;
  
  			if (msg->len > bus->buf_size) {
-@@ -461,7 +538,26 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
+@@ -467,7 +544,26 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
  				command |= ASPEED_I2CD_M_S_RX_CMD_LAST;
  		}
  	} else {
@@ -251,7 +251,7 @@ index e37f0764d184..4567ec3498dc 100644
  			int i;
  
  			command |= ASPEED_I2CD_TX_BUFF_ENABLE;
-@@ -497,7 +593,8 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
+@@ -503,7 +599,8 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
  		}
  	}
  
@@ -261,7 +261,7 @@ index e37f0764d184..4567ec3498dc 100644
  		writel(slave_addr, bus->base + ASPEED_I2C_BYTE_BUF_REG);
  	writel(command, bus->base + ASPEED_I2C_CMD_REG);
  }
-@@ -653,7 +750,28 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -649,7 +746,28 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		if (bus->buf_index < msg->len) {
  			command = ASPEED_I2CD_M_TX_CMD;
  
@@ -291,7 +291,7 @@ index e37f0764d184..4567ec3498dc 100644
  				u8 wbuf[4];
  				int i;
  
-@@ -704,7 +822,15 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -700,7 +818,15 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		}
  		irq_handled |= ASPEED_I2CD_INTR_RX_DONE;
  
@@ -308,7 +308,7 @@ index e37f0764d184..4567ec3498dc 100644
  			len = FIELD_GET(ASPEED_I2CD_BUF_RX_COUNT_MASK,
  					readl(bus->base +
  					      ASPEED_I2C_BUF_CTRL_REG));
-@@ -732,7 +858,25 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -728,7 +854,25 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  		if (bus->buf_index < msg->len) {
  			command = ASPEED_I2CD_M_RX_CMD;
  			bus->master_state = ASPEED_I2C_MASTER_RX;
@@ -335,7 +335,7 @@ index e37f0764d184..4567ec3498dc 100644
  				command |= ASPEED_I2CD_RX_BUFF_ENABLE;
  
  				if (msg->len - bus->buf_index >
-@@ -1222,7 +1366,51 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+@@ -1235,7 +1379,51 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
  			sram_enabled = false;
  	}
  
@@ -388,7 +388,7 @@ index e37f0764d184..4567ec3498dc 100644
  		struct resource *res = platform_get_resource(pdev,
  							     IORESOURCE_MEM, 1);
  
-@@ -1262,24 +1450,33 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+@@ -1275,24 +1463,33 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
  	 */
  	ret = aspeed_i2c_init(bus, pdev);
  	if (ret < 0)
@@ -426,7 +426,7 @@ index e37f0764d184..4567ec3498dc 100644
  }
  
  static int aspeed_i2c_remove_bus(struct platform_device *pdev)
-@@ -1297,6 +1494,10 @@ static int aspeed_i2c_remove_bus(struct platform_device *pdev)
+@@ -1310,6 +1507,10 @@ static int aspeed_i2c_remove_bus(struct platform_device *pdev)
  
  	reset_control_assert(bus->rst);
  

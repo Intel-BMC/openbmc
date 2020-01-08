@@ -1,4 +1,4 @@
-From 58d4715d6ac08a20f68044875fdc3afaf75ee2a1 Mon Sep 17 00:00:00 2001
+From 5e5758fe5929766a9b4677b86f9343a777526fe8 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Thu, 12 Sep 2019 15:55:39 +0800
 Subject: [PATCH] arm: dts: base aspeed g6 dtsi fixups
@@ -8,15 +8,15 @@ This mostly includes entries for the drivers that are not upstream.
 
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-g6.dtsi          | 207 +++++++++++++++++++++-
- include/dt-bindings/clock/ast2600-clock.h |   8 +
- 2 files changed, 213 insertions(+), 2 deletions(-)
+ arch/arm/boot/dts/aspeed-g6.dtsi          | 129 +++++++++++++++++++++++++++++-
+ include/dt-bindings/clock/ast2600-clock.h |   8 ++
+ 2 files changed, 135 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 8ac435b3dbde..5de3af52830d 100644
+index 2af9efa1faa1..54add29d8217 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -28,6 +28,13 @@
+@@ -28,6 +28,12 @@
  		i2c13 = &i2c13;
  		i2c14 = &i2c14;
  		i2c15 = &i2c15;
@@ -26,11 +26,10 @@ index 8ac435b3dbde..5de3af52830d 100644
 +		i3c3 = &i3c3;
 +		i3c4 = &i3c4;
 +		i3c5 = &i3c5;
-+		peci0 = &peci0;
  		serial0 = &uart1;
  		serial1 = &uart2;
  		serial2 = &uart3;
-@@ -273,11 +284,21 @@
+@@ -297,11 +303,21 @@
  				quality = <100>;
  			};
  
@@ -53,7 +52,7 @@ index 8ac435b3dbde..5de3af52830d 100644
  				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
  				gpio-ranges = <&pinctrl 0 0 208>;
  				ngpios = <208>;
-@@ -290,7 +311,7 @@
+@@ -314,7 +330,7 @@
  				#gpio-cells = <2>;
  				gpio-controller;
  				compatible = "aspeed,ast2600-gpio";
@@ -62,17 +61,10 @@ index 8ac435b3dbde..5de3af52830d 100644
  				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
  				gpio-ranges = <&pinctrl 0 208 36>;
  				ngpios = <36>;
-@@ -338,6 +407,20 @@
- 				status = "disabled";
+@@ -398,6 +414,13 @@
+ 				ranges = <0x0 0x1e78b000 0x100>;
  			};
  
-+			peci: bus@1e78b000 {
-+				compatible = "simple-bus";
-+				#address-cells = <1>;
-+				#size-cells = <1>;
-+				ranges = <0x0 0x1e78b000 0x60>;
-+			};
-+
 +			i3c: bus@1e7a0000 {
 +				compatible = "simple-bus";
 +				#address-cells = <1>;
@@ -83,7 +75,7 @@ index 8ac435b3dbde..5de3af52830d 100644
  			lpc: lpc@1e789000 {
  				compatible = "aspeed,ast2600-lpc", "simple-mfd";
  				reg = <0x1e789000 0x1000>;
-@@ -426,6 +509,20 @@
+@@ -486,6 +509,20 @@
  					sio_regs: regs {
  						compatible = "aspeed,bmc-misc";
  					};
@@ -104,32 +96,7 @@ index 8ac435b3dbde..5de3af52830d 100644
  				};
  			};
  
-@@ -529,6 +626,24 @@
- 
- #include "aspeed-g6-pinctrl.dtsi"
- 
-+&peci {
-+	peci0: peci-bus@0 {
-+		compatible = "aspeed,ast2500-peci";
-+		reg = <0x0 0x100>;
-+		#address-cells = <1>;
-+		#size-cells = <0>;
-+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
-+		clocks = <&syscon ASPEED_CLK_GATE_REF0CLK>, <&syscon ASPEED_CLK_AHB>;
-+		resets = <&syscon ASPEED_RESET_PECI>;
-+		clock-frequency = <24000000>;
-+		msg-timing = <1>;
-+		addr-timing = <1>;
-+		rd-sampling-point = <8>;
-+		cmd-timeout-ms = <1000>;
-+		status = "disabled";
-+	};
-+};
-+
- &i2c {
- 	i2c0: i2c-bus@40 {
- 		#address-cells = <1>;
-@@ -770,3 +885,91 @@
+@@ -871,3 +908,91 @@
  		status = "disabled";
  	};
  };
@@ -222,10 +189,10 @@ index 8ac435b3dbde..5de3af52830d 100644
 +	};
 +};
 diff --git a/include/dt-bindings/clock/ast2600-clock.h b/include/dt-bindings/clock/ast2600-clock.h
-index ac567fc84a87..94350356cfb1 100644
+index 62b9520a00fd..3d90582a813f 100644
 --- a/include/dt-bindings/clock/ast2600-clock.h
 +++ b/include/dt-bindings/clock/ast2600-clock.h
-@@ -92,6 +92,14 @@
+@@ -91,6 +91,14 @@
  /* Only list resets here that are not part of a gate */
  #define ASPEED_RESET_ADC		55
  #define ASPEED_RESET_JTAG_MASTER2	54
@@ -241,5 +208,5 @@ index ac567fc84a87..94350356cfb1 100644
  #define ASPEED_RESET_PWM		37
  #define ASPEED_RESET_PECI		36
 -- 
-2.17.1
+2.7.4
 

@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef MCTP_FILEIO
+#ifdef MCTP_HAVE_FILEIO
 #include <fcntl.h>
 #endif
 
@@ -197,7 +197,7 @@ static int mctp_binding_smbus_tx(struct mctp_binding *b,
 	return 0;
 }
 
-#ifdef MCTP_FILEIO
+#ifdef MCTP_HAVE_FILEIO
 int mctp_smbus_read(struct mctp_binding_smbus *smbus)
 {
 	ssize_t len = 0;
@@ -251,7 +251,7 @@ int mctp_smbus_read(struct mctp_binding_smbus *smbus)
 			break;
 		}
 
-		smbus->rx_pkt = mctp_pktbuf_alloc(0);
+		smbus->rx_pkt = mctp_pktbuf_alloc(&(smbus->binding), 0);
 		assert(smbus->rx_pkt);
 
 		if (mctp_pktbuf_push(smbus->rx_pkt, &smbus->rxbuf[sizeof(*hdr)],
@@ -264,7 +264,6 @@ int mctp_smbus_read(struct mctp_binding_smbus *smbus)
 
 		mctp_bus_rx(&(smbus->binding), smbus->rx_pkt);
 
-		mctp_pktbuf_free(smbus->rx_pkt);
 		smbus->rx_pkt = NULL;
 
 	} while (0);
@@ -284,11 +283,84 @@ int mctp_smbus_get_in_fd(struct mctp_binding_smbus *smbus)
 	return smbus->in_fd;
 }
 
+
+int mctp_smbus_set_in_fd(struct mctp_binding_smbus *smbus, int fd)
+{
+	smbus->in_fd = fd;
+}
+
+int mctp_smbus_set_out_fd(struct mctp_binding_smbus *smbus, int fd)
+{
+	smbus->out_fd = fd;
+}
+
 int mctp_smbus_get_out_fd(struct mctp_binding_smbus *smbus)
 {
 	return smbus->out_fd;
 }
 
+int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus)
+{
+	char filename[60];
+	size_t filename_size = 0;
+	char slave_mqueue[20];
+	size_t mqueue_size = 0;
+	int fd = 0;
+	size_t size = sizeof(filename);
+	int address_7_bit = MCTP_SOURCE_SLAVE_ADDRESS >> 1;
+	int ret = -1;
+
+	snprintf(filename, size,
+		 "/sys/bus/i2c/devices/i2c-%d/%d-%04x/slave-mqueue", in_bus,
+		 in_bus, (address_7_bit << 8) + address_7_bit);
+
+	ret = open(filename, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+	if (ret >= 0) {
+		return ret;
+	}
+
+	// Device doesn't exist.  Create it.
+	filename_size = sizeof(filename);
+	snprintf(filename, filename_size,
+		 "/sys/bus/i2c/devices/i2c-%d/new_device", in_bus);
+	filename[filename_size - 1] = '\0';
+
+	fd = open(filename, O_WRONLY);
+	if (fd < 0) {
+		mctp_prerr("can't open root device %s: %m", filename);
+		return -1;
+	}
+
+	mqueue_size = sizeof(slave_mqueue);
+	snprintf(slave_mqueue, mqueue_size, "slave-mqueue %#04x",
+		 (address_7_bit << 8) + address_7_bit);
+
+	size = write(fd, slave_mqueue, mqueue_size);
+	close(fd);
+	if (size != mqueue_size) {
+		mctp_prerr("can't create mqueue device on %s: %m", filename);
+		return -1;
+	}
+
+	size = sizeof(filename);
+	snprintf(filename, size,
+		 "/sys/bus/i2c/devices/i2c-%d/%d-%04x/slave-mqueue", in_bus,
+		 in_bus, (address_7_bit << 8) + address_7_bit);
+
+	return open(filename, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+}
+
+int mctp_smbus_open_out_bus(struct mctp_binding_smbus *smbus, int out_bus)
+{
+	char filename[60];
+	size_t size = sizeof(filename);
+	snprintf(filename, size, "/dev/i2c-%d", out_bus);
+	filename[size - 1] = '\0';
+
+	return open(filename, O_RDWR | O_NONBLOCK);
+}
+
+/*
 int mctp_smbus_open_bus(struct mctp_binding_smbus *smbus, int out_bus_num,
 			int root_bus_num)
 {
@@ -359,13 +431,12 @@ int mctp_smbus_open_bus(struct mctp_binding_smbus *smbus, int out_bus_num,
 
 	return 0;
 }
+*/
 #endif
 
 void mctp_smbus_register_bus(struct mctp_binding_smbus *smbus,
 			     struct mctp *mctp, mctp_eid_t eid)
 {
-	assert(smbus->out_fd >= 0);
-	assert(smbus->in_fd >= 0);
 	smbus->bus_id = mctp_register_bus(mctp, &smbus->binding, eid);
 	mctp_binding_set_tx_enabled(&smbus->binding, true);
 }
@@ -375,15 +446,17 @@ struct mctp_binding_smbus *mctp_smbus_init(void)
 	struct mctp_binding_smbus *smbus;
 
 	smbus = __mctp_alloc(sizeof(*smbus));
+	memset(&(smbus->binding), 0, sizeof(smbus->binding));
+
 	smbus->in_fd = -1;
 	smbus->out_fd = -1;
 
 	smbus->rx_pkt = NULL;
 	smbus->binding.name = "smbus";
 	smbus->binding.version = 1;
+	smbus->binding.pkt_size = sizeof(smbus->rxbuf);
 
 	smbus->binding.tx = mctp_binding_smbus_tx;
-
 	return smbus;
 }
 

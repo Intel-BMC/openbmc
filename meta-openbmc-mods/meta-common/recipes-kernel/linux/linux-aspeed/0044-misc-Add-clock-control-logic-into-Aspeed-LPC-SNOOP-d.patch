@@ -1,4 +1,4 @@
-From f2e7fb51e4832a0da2fdb8fb267471b54581312b Mon Sep 17 00:00:00 2001
+From 404f73827714e324a21250b1a855fdc10fcfaf51 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 13 Mar 2019 15:27:48 -0700
 Subject: [PATCH] misc: Add clock control logic into Aspeed LPC SNOOP driver
@@ -21,14 +21,13 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
  arch/arm/boot/dts/aspeed-g5.dtsi      |  1 +
  arch/arm/boot/dts/aspeed-g6.dtsi      |  1 +
  drivers/soc/aspeed/aspeed-lpc-snoop.c | 30 +++++++++++++++++++++++++++---
- 3 files changed, 29 insertions(+), 3 deletions(-)
  4 files changed, 30 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
-index b3b6720fb6fb..58c5148194a3 100644
+index db962ab435af..24a20384b5e8 100644
 --- a/arch/arm/boot/dts/aspeed-g4.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g4.dtsi
-@@ -370,6 +370,7 @@
+@@ -369,6 +369,7 @@
  						compatible = "aspeed,ast2400-lpc-snoop";
  						reg = <0x0 0x80>;
  						interrupts = <8>;
@@ -37,10 +36,10 @@ index b3b6720fb6fb..58c5148194a3 100644
  					};
  
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 49f792eafdd1..955789d8c736 100644
+index c4724ec27041..18d2a465c0ed 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -483,6 +483,7 @@
+@@ -482,6 +482,7 @@
  						compatible = "aspeed,ast2500-lpc-snoop";
  						reg = <0x0 0x80>;
  						interrupts = <8>;
@@ -49,10 +48,10 @@ index 49f792eafdd1..955789d8c736 100644
  					};
  
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 49f792eafdd1..955789d8c736 100644
+index a557a7e6fe8d..4035d7bd647e 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -400,6 +527,7 @@
+@@ -507,6 +507,7 @@
  						compatible = "aspeed,ast2600-lpc-snoop";
  						reg = <0x0 0x80>;
  						interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
@@ -61,7 +60,7 @@ index 49f792eafdd1..955789d8c736 100644
  					};
  
 diff --git a/drivers/soc/aspeed/aspeed-lpc-snoop.c b/drivers/soc/aspeed/aspeed-lpc-snoop.c
-index 48f7ac238861..96ea52db25be 100644
+index c7b4ac066b40..ed272677fc82 100644
 --- a/drivers/soc/aspeed/aspeed-lpc-snoop.c
 +++ b/drivers/soc/aspeed/aspeed-lpc-snoop.c
 @@ -11,6 +11,7 @@
