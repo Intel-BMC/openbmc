@@ -527,9 +527,9 @@
             "Type": "ADC"
         },
         {
-            "BindGpioIntrusion": "Chassis Intrusion GPIO",
             "Class": "Gpio",
             "Name": "Chassis Intrusion Sensor",
+            "GpioPolarity": "Low",
             "Type": "ChassisIntrusionSensor"
         },
         {
@@ -816,13 +816,6 @@
             "Direction": "Input",
             "Index": 141,
             "Name": "SYS FAN7 PRSNT",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 143,
-            "Name": "Chassis Intrusion GPIO",
             "Polarity": "Low",
             "Type": "Gpio"
         },
@@ -1417,7 +1410,6 @@
         "OR",
         "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*CYP'})"
     ],
-    "ProductId": 152,
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",
@@ -1425,5 +1417,11 @@
         "PartNumber": "$PRODUCT_PART_NUMBER",
         "SerialNumber": "$PRODUCT_SERIAL_NUMBER"
     },
-    "xyz.openbmc_project.Inventory.Item.Baseboard": {}
+    "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
+        "AssetTag": "$PRODUCT_ASSET_TAG"
+    },
+    "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
+        "ProductId": 152
+    },
+    "xyz.openbmc_project.Inventory.Item.System": {}
 }

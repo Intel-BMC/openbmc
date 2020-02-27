@@ -1,0 +1,27 @@
+From e21ee4b456addc93a9afed0cb52ac2a53d3b785a Mon Sep 17 00:00:00 2001
+From: arun-pm <arun.p.m@linux.intel.com>
+Date: Thu, 30 Jan 2020 10:32:13 +0530
+Subject: [PATCH] Disabling boot delay
+
+Boot delay is changed to -2 so that BMC will not stop in u-boot by pressing
+ESC key.
+---
+ include/configs/ast-common.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/configs/ast-common.h b/include/configs/ast-common.h
+index 0bc7f2d75f..dce6bbf5aa 100644
+--- a/include/configs/ast-common.h
++++ b/include/configs/ast-common.h
+@@ -70,7 +70,7 @@
+ /*
+  * Environment Config
+  */
+-#define CONFIG_BOOTDELAY		2
++#define CONFIG_BOOTDELAY		-2
+ 
+ /*
+  * Miscellaneous configurable options
+-- 
+2.17.1
+

@@ -39,14 +39,18 @@ SRC_URI_append_intel-ast2500 = " \
     file://0036-Re-Enable-KCS.patch \
     file://0037-aspeed-ast-scu.c-fix-MAC1LINK-and-MAC2LINK-pin-pads-.patch \
     file://0038-Increase-default-fan-speed-for-cooper-city.patch \
-    file://0039-AST2500-increase-boot-speed.patch \
+    file://0040-Initialize-the-BMC-host-mailbox-at-reset-time.patch \
     "
 PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \
     file://0032-PFR-FW-update-and-checkpoint-support-in-u-boot.patch \
     file://0035-PFR-platform-EXTRST-reset-mask-selection.patch \
     "
+AUTOBOOT_SRC_URI = " \
+    file://0041-Disabling-boot-delay.patch \
+    "
 SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
+SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', AUTOBOOT_SRC_URI, d)}"
 do_install_append () {
     install -m 0644 ${WORKDIR}/fw_env.config ${S}/tools/env/fw_env.config
 }

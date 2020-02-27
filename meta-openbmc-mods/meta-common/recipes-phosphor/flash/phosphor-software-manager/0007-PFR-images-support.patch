@@ -99,12 +99,15 @@ diff --git a/item_updater.cpp b/item_updater.cpp
 index 21fb6e0..fd76a7f 100644
 --- a/item_updater.cpp
 +++ b/item_updater.cpp
-@@ -64,7 +64,8 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
+@@ -64,10 +64,10 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
                      auto value = SVersion::convertVersionPurposeFromString(
                          variant_ns::get<std::string>(property.second));
                      if (value == VersionPurpose::BMC ||
+-#ifdef HOST_BIOS_UPGRADE
++#if defined(HOST_BIOS_UPGRADE) || defined(PFR_UPDATE)
+                         value == VersionPurpose::Host ||
+ #endif
 -                        value == VersionPurpose::System)
-+                        value == VersionPurpose::Host ||
 +                        value == VersionPurpose::Other)
                      {
                          purpose = value;

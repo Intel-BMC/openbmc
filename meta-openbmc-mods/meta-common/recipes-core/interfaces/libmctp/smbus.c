@@ -52,6 +52,7 @@ struct mctp_binding_smbus {
 #define SMBUS_PEC_BYTE_SIZE 1
 #define SMBUS_COMMAND_CODE_SIZE 1
 #define SMBUS_LENGTH_FIELD_SIZE 1
+#define SMBUS_ADDR_OFFSET_SLAVE 0x1000
 
 struct mctp_smbus_header_tx {
 	uint8_t source_slave_address;
@@ -312,7 +313,7 @@ int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus)
 
 	snprintf(filename, size,
 		 "/sys/bus/i2c/devices/i2c-%d/%d-%04x/slave-mqueue", in_bus,
-		 in_bus, (address_7_bit << 8) + address_7_bit);
+		 in_bus, SMBUS_ADDR_OFFSET_SLAVE | address_7_bit);
 
 	ret = open(filename, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 	if (ret >= 0) {
@@ -333,7 +334,7 @@ int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus)
 
 	mqueue_size = sizeof(slave_mqueue);
 	snprintf(slave_mqueue, mqueue_size, "slave-mqueue %#04x",
-		 (address_7_bit << 8) + address_7_bit);
+		 SMBUS_ADDR_OFFSET_SLAVE | address_7_bit);
 
 	size = write(fd, slave_mqueue, mqueue_size);
 	close(fd);
@@ -345,7 +346,7 @@ int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus)
 	size = sizeof(filename);
 	snprintf(filename, size,
 		 "/sys/bus/i2c/devices/i2c-%d/%d-%04x/slave-mqueue", in_bus,
-		 in_bus, (address_7_bit << 8) + address_7_bit);
+		 in_bus, SMBUS_ADDR_OFFSET_SLAVE | address_7_bit);
 
 	return open(filename, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 }
@@ -375,7 +376,7 @@ int mctp_smbus_open_bus(struct mctp_binding_smbus *smbus, int out_bus_num,
 	snprintf(filename, size,
 		 "/sys/bus/i2c/devices/i2c-%d/%d-%04x/slave-mqueue",
 		 root_bus_num, root_bus_num,
-		 (address_7_bit << 8) + address_7_bit);
+		 SMBUS_ADDR_OFFSET_SLAVE | address_7_bit);
 
 	smbus->in_fd = open(filename, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
 	if (smbus->in_fd < 0) {
@@ -394,7 +395,7 @@ int mctp_smbus_open_bus(struct mctp_binding_smbus *smbus, int out_bus_num,
 
 		mqueue_size = sizeof(slave_mqueue);
 		snprintf(slave_mqueue, mqueue_size, "slave-mqueue %#04x",
-			 (address_7_bit << 8) + address_7_bit);
+			 SMBUS_ADDR_OFFSET_SLAVE | address_7_bit);
 
 		size = write(fd, slave_mqueue, mqueue_size);
 		close(fd);
@@ -408,7 +409,7 @@ int mctp_smbus_open_bus(struct mctp_binding_smbus *smbus, int out_bus_num,
 		snprintf(filename, size,
 			 "/sys/bus/i2c/devices/i2c-%d/%d-%04x/slave-mqueue",
 			 root_bus_num, root_bus_num,
-			 (address_7_bit << 8) + address_7_bit);
+			 SMBUS_ADDR_OFFSET_SLAVE | address_7_bit);
 
 		smbus->in_fd =
 			open(filename, O_RDONLY | O_NONBLOCK | O_CLOEXEC);

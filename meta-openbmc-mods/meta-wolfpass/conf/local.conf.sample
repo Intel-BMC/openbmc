@@ -4,7 +4,9 @@ MACHINE ??= "intel-ast2500"
 DISTRO ?= "openbmc-phosphor"
 PACKAGE_CLASSES ?= "package_rpm"
 SANITY_TESTED_DISTROS_append ?= " RedHatEnterpriseWorkstation-6.*"
-EXTRA_IMAGE_FEATURES = "debug-tweaks validation-unsecure"
+EXTRA_IMAGE_FEATURES = "validation-unsecure"
+# Uncomment the following line to enable debug features / default user account.
+#EXTRA_IMAGE_FEATURES += "debug-tweaks"
 USER_CLASSES ?= "buildstats image-mklibs image-prelink"
 PATCHRESOLVE = "noop"
 BB_DISKMON_DIRS = "\

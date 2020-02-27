@@ -18,6 +18,7 @@ SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.State.Boot.PostCode.service"
 DEPENDS += " \
     autoconf-archive-native \
     systemd \
+    boost \
     sdbusplus \
     sdbusplus-native \
     phosphor-dbus-interfaces \

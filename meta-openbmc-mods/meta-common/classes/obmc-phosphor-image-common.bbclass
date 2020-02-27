@@ -4,7 +4,6 @@ inherit systemd-watchdog
 IMAGE_INSTALL_append = " \
         bmcweb \
         dbus-broker \
-        dtc \
         entity-manager \
         ipmitool \
         intel-ipmi-oem \
@@ -12,7 +11,6 @@ IMAGE_INSTALL_append = " \
         phosphor-node-manager-proxy \
         dbus-sensors \
         phosphor-webui \
-        rest-dbus-static \
         at-scale-debug \
         phosphor-pid-control \
         phosphor-host-postd \
@@ -42,6 +40,8 @@ IMAGE_INSTALL_append = " \
         security-registers-check \
         pch-time-sync \
         nv-sync \
+        security-manager \
+        multi-node-nl \
         "
 
 IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"

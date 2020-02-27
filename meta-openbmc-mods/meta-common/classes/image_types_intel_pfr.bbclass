@@ -74,7 +74,7 @@ do_image_pfr () {
     mv ${PFR_IMAGES_DIR}/image-mtd-pfr ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}.bin
 }
 
-do_image_pfr[vardepsexclude] += "DATETIME"
+do_image_pfr[vardepsexclude] += "DATE DATETIME"
 do_image_pfr[vardeps] += "IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
 do_image_pfr[depends] += " \
                          obmc-intel-pfr-image-native:do_populate_sysroot \

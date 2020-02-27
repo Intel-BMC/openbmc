@@ -14,7 +14,6 @@ SRC_URI += " \
         file://0003-Enable-GPIOE0-and-GPIOE2-pass-through-by-default.patch \
         file://0006-Allow-monitoring-of-power-control-input-GPIOs.patch \
         file://0007-aspeed-pwm-tacho-change-default-fan-speed.patch \
-        file://0008-Report-link-statistics-for-the-NCSI-channel.patch \
         file://0014-arm-dts-aspeed-g5-add-espi.patch \
         file://0015-New-flash-map-for-intel.patch \
         file://0016-Add-ASPEED-SGPIO-driver.patch \
@@ -53,15 +52,11 @@ SRC_URI += " \
         file://0070-gpio-aspeed-temporary-fix-for-gpiochip-range-setting.patch \
         file://0072-pmbus-add-fault-and-beep-attributes.patch \
         file://0073-Add-IO-statistics-to-USB-Mass-storage-gadget.patch \
-        file://0074-media-aspeed-refine-HSYNC-VSYNC-polarity-setting-log.patch \
         file://0075-Refine-initialization-flow-in-I2C-driver.patch \
-        file://0076-media-aspeed-clear-garbage-interrupts.patch \
         file://0076-arm-ast2600-add-pwm_tacho-driver-from-aspeed.patch \
         file://0077-soc-aspeed-Add-read-only-property-support.patch \
         file://0078-Fix-NCSI-driver-issue-caused-by-host-shutdown.patch \
         file://0080-i2c-aspeed-filter-garbage-interrupts-out.patch \
-        file://0082-ARM-dts-aspeed-g6-add-USB-virtual-hub-fixup.patch \
-        file://0083-usb-gadget-aspeed-add-ast2600-compatible-string.patch \
         file://0084-ARM-dts-aspeed-g6-add-GFX-node.patch \
         file://0085-drm-add-AST2600-GFX-support.patch \
         file://0086-ADC-linux-driver-for-AST2600.patch \
@@ -69,6 +64,12 @@ SRC_URI += " \
         file://0087-media-aspeed-add-aspeed-ast2600-video-engine-compati.patch \
         file://0088-clk-ast2600-enable-ESPICLK-always.patch \
         file://0089-ast2600-enable-high-speed-uart-in-kernel.patch \
+        file://0090-peci-cpupower-driver-1.patch \
+        file://0092-SPI-Quad-IO-driver-support-AST2600.patch \
+        file://0093-ipmi-ipmb_dev_int-add-quick-fix-for-raw-I2C-type-reg.patch \
+        file://0094-Return-link-speed-and-duplex-settings-for-the-NCSI-c.patch \
+        file://0096-Fix-truncated-WrEndPointConfig-MMIO-command.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"
+SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'file://debug.cfg', '', d)}"

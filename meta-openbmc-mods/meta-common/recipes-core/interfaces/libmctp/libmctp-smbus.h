@@ -20,6 +20,10 @@ int mctp_smbus_read(struct mctp_binding_smbus *smbus);
 int mctp_smbus_open_bus(struct mctp_binding_smbus *smbus, int out_bus_num,
 			int root_bus_num);
 void mctp_smbus_free(struct mctp_binding_smbus *smbus);
+int mctp_smbus_open_in_bus(struct mctp_binding_smbus *smbus, int in_bus);
+int mctp_smbus_open_out_bus(struct mctp_binding_smbus *smbus, int out_bus);
+int mctp_smbus_set_in_fd(struct mctp_binding_smbus *smbus, int fd);
+int mctp_smbus_set_out_fd(struct mctp_binding_smbus *smbus, int fd);
 
 #ifdef __cplusplus
 }

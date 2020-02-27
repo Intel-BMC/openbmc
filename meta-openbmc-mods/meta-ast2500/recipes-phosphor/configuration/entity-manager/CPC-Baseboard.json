@@ -620,13 +620,6 @@
             "Type": "CFMSensor"
         },
         {
-            "Direction": "Input",
-            "Index": 40,
-            "Name": "NMI Input",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
             "Name": "System Fan connector 1",
             "Pwm": 0,
             "Tachs": [
@@ -860,38 +853,6 @@
             "Type": "IpmbSensor"
         },
         {
-            "Address": "0x4A",
-            "Class": "IRBridgeTemp",
-            "Name": "CPU1 VR P1V8",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "IpmbSensor"
-        },
-        {
             "Address": "0xCC",
             "Class": "MpsBridgeTemp",
             "Name": "CPU2 P12V PVCCIN VR Temp",
@@ -991,38 +952,6 @@
             "Address": "0xEC",
             "Class": "PxeBridgeTemp",
             "Name": "CPU2 VR Mem EFGH Temp",
-            "Thresholds": [
-                {
-                    "Direction": "greater than",
-                    "Name": "upper critical",
-                    "Severity": 1,
-                    "Value": 115
-                },
-                {
-                    "Direction": "greater than",
-                    "Name": "upper non critical",
-                    "Severity": 0,
-                    "Value": 110
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower non critical",
-                    "Severity": 0,
-                    "Value": 5
-                },
-                {
-                    "Direction": "less than",
-                    "Name": "lower critical",
-                    "Severity": 1,
-                    "Value": 0
-                }
-            ],
-            "Type": "IpmbSensor"
-        },
-        {
-            "Address": "0x4C",
-            "Class": "IRBridgeTemp",
-            "Name": "CPU2 VR P1V8",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -1625,8 +1554,7 @@
             "ILimitMin": 30,
             "Inputs": [
                 "CPU1 VR Mem ABCD Temp",
-                "CPU1 VR Mem ABCD Temp",
-                "CPU1 VR P1V8"
+                "CPU1 VR Mem ABCD Temp"
             ],
             "Name": "CPU 1 VR Temp",
             "NegativeHysteresis": 5.0,
@@ -1652,8 +1580,7 @@
             "ILimitMin": 30,
             "Inputs": [
                 "CPU2 VR Mem ABCD Temp",
-                "CPU2 VR Mem ABCD Temp",
-                "CPU2 VR P1V8"
+                "CPU2 VR Mem ABCD Temp"
             ],
             "Name": "CPU 2 VR Temp",
             "NegativeHysteresis": 5.0,
@@ -1946,7 +1873,6 @@
         "OR",
         "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*CPC'})"
     ],
-    "ProductId": 157,
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",
@@ -1957,6 +1883,8 @@
     "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
         "AssetTag": "$PRODUCT_ASSET_TAG"
     },
-    "xyz.openbmc_project.Inventory.Item.Baseboard": {},
+    "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
+        "ProductId": 157
+},
     "xyz.openbmc_project.Inventory.Item.System": {}
 }

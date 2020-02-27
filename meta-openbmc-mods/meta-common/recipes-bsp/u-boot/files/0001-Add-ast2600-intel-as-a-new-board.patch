@@ -1,28 +1,29 @@
-From 069a20560bf9efbd358503c76f043fcdd3a68a94 Mon Sep 17 00:00:00 2001
+From efa949f82a1dd32b83eafe3fe58038abc04ecdbf Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Thu, 24 Oct 2019 14:06:33 -0700
 Subject: [PATCH] Add ast2600-intel as a new board
 
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
  arch/arm/dts/Makefile                          |   3 +
- arch/arm/dts/ast2600-intel.dts                 | 170 +++++++++++
+ arch/arm/dts/ast2600-intel.dts                 | 157 ++++++++++
  arch/arm/lib/interrupts.c                      |   5 +
  arch/arm/mach-aspeed/ast2600/Kconfig           |   9 +
  arch/arm/mach-aspeed/ast2600/aspeed_scu_info.c |   1 +
  board/aspeed/ast2600_intel/Kconfig             |  13 +
  board/aspeed/ast2600_intel/Makefile            |   4 +
- board/aspeed/ast2600_intel/ast-espi.c          | 282 +++++++++++++++++
+ board/aspeed/ast2600_intel/ast-espi.c          | 298 ++++++++++++++++++
  board/aspeed/ast2600_intel/ast-irq.c           | 399 +++++++++++++++++++++++++
  board/aspeed/ast2600_intel/ast-irq.h           |   8 +
  board/aspeed/ast2600_intel/ast-timer.c         |  59 ++++
- board/aspeed/ast2600_intel/intel.c             | 171 +++++++++++
+ board/aspeed/ast2600_intel/intel.c             | 176 +++++++++++
  cmd/Kconfig                                    |   2 +-
  common/autoboot.c                              |  10 +
  common/board_r.c                               |   8 +-
  include/configs/evb_ast2600.h                  |   2 +-
- 16 files changed, 1140 insertions(+), 6 deletions(-)
+ 16 files changed, 1148 insertions(+), 6 deletions(-)
  create mode 100644 arch/arm/dts/ast2600-intel.dts
  create mode 100644 board/aspeed/ast2600_intel/Kconfig
  create mode 100644 board/aspeed/ast2600_intel/Makefile
@@ -48,10 +49,10 @@ index d1d4dca340f8..38fe8113469e 100644
  
 diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
 new file mode 100644
-index 000000000000..0d362ac7c150
+index 000000000000..99788b21e444
 --- /dev/null
 +++ b/arch/arm/dts/ast2600-intel.dts
-@@ -0,0 +1,170 @@
+@@ -0,0 +1,157 @@
 +/dts-v1/;
 +
 +#include "ast2600-u-boot.dtsi"
@@ -209,19 +210,6 @@ index 000000000000..0d362ac7c150
 +	pinctrl-names = "default";
 +	pinctrl-0 = <&pinctrl_i2c9_default>;
 +};
-+
-+#if 0
-+&pcie_bridge0 {
-+	status = "okay";
-+};
-+#else
-+&pcie_bridge1 {
-+	status = "okay";
-+};
-+#endif
-+&h2x {
-+	status = "okay";
-+};
 diff --git a/arch/arm/lib/interrupts.c b/arch/arm/lib/interrupts.c
 index ee775ce5d264..8c985532afb4 100644
 --- a/arch/arm/lib/interrupts.c
@@ -322,10 +310,10 @@ index 000000000000..37d2f0064f38
 +obj-y += ast-timer.o
 diff --git a/board/aspeed/ast2600_intel/ast-espi.c b/board/aspeed/ast2600_intel/ast-espi.c
 new file mode 100644
-index 000000000000..8dc12d7c9fe8
+index 000000000000..1852dd3d86e2
 --- /dev/null
 +++ b/board/aspeed/ast2600_intel/ast-espi.c
-@@ -0,0 +1,282 @@
+@@ -0,0 +1,298 @@
 +/*
 + * Copyright 2018 Intel Corporation
 + *
@@ -341,11 +329,11 @@ index 000000000000..8dc12d7c9fe8
 +#define AST_LPC_BASE			0x1e6e9000
 +#define AST_ESPI_BASE			0x1e6ee000
 +#define AST_SCU_BASE			0x1e6e2000
-+#define AST_SCU_HW_STRAP1		0x510
++#define AST_SCU_HW_STRAP2		0x510
 +#define SCU_HW_STRAP_ESPI_ENABLED	0x40
 +
-+#define USE_HW_HANDSHAKE		1
-+#define DEBUG_ESPI_ENABLED		1
++#define USE_HW_HANDSHAKE		0
++#define DEBUG_ESPI_ENABLED		0
 +#if DEBUG_ESPI_ENABLED
 +#define DBG_ESPI printf
 +#else
@@ -431,7 +419,8 @@ index 000000000000..8dc12d7c9fe8
 +
 +/* ESPI008 bits ISR */
 +#define AST_ESPI_VW_SYS_EVT		BIT(8)
-+#define AST_ESPI_VW_SYS_EV1		BIT(9)
++#define AST_ESPI_VW_GPIO_EVT		BIT(9)
++#define AST_ESPI_VW_SYS_EV1		BIT(22)
 +#define AST_ESPI_HW_RST			BIT(31)
 +
 +/* ESPI080 bits */
@@ -479,7 +468,15 @@ index 000000000000..8dc12d7c9fe8
 +{
 +	uint32_t irq_status = readl(AST_ESPI_BASE + ESPI008);
 +
-+	DBG_ESPI("ISR irq_status : 0x%08X\n", irq_status);
++	DBG_ESPI("espi_irq_handler, ESPI008=0X%x, ESPI00c=0X%x,\
++		ESPI100=0X%x, ESPI11c=0X%x, ESPI094=0X%x,\
++		ESPI12c=0X%x, irq_status=0x%x\n",
++		readl(AST_ESPI_BASE + ESPI008),
++		readl(AST_ESPI_BASE + ESPI00C),
++		readl(AST_ESPI_BASE + ESPI100),
++		readl(AST_ESPI_BASE + ESPI11C),
++		readl(AST_ESPI_BASE + ESPI094),
++		readl(AST_ESPI_BASE + ESPI12C), irq_status);
 +
 +	if (irq_status & AST_ESPI_VW_SYS_EVT) {
 +		uint32_t sys_status = readl(AST_ESPI_BASE + ESPI11C);
@@ -542,13 +539,22 @@ index 000000000000..8dc12d7c9fe8
 +
 +	writel(irq_status, AST_ESPI_BASE + ESPI008); /* clear irq_status */
 +
++	DBG_ESPI("end espi_irq_handler, ESPI008=0X%x, ESPI00c=0X%x,\
++		ESPI100=0X%x, ESPI11c=0X%x, ESPI094=0X%x,\
++		ESPI12c=0X%x, irq_status=0X%x\n",
++		readl(AST_ESPI_BASE + ESPI008),
++		readl(AST_ESPI_BASE + ESPI00C),
++		readl(AST_ESPI_BASE + ESPI100),
++		readl(AST_ESPI_BASE + ESPI11C),
++		readl(AST_ESPI_BASE + ESPI094),
++		readl(AST_ESPI_BASE + ESPI12C), irq_status);
 +	return 0;
 +}
 +
 +void espi_init(void)
 +{
-+	if (1 || !readl(AST_SCU_BASE + AST_SCU_HW_STRAP1)
-+	    & SCU_HW_STRAP_ESPI_ENABLED) {
++	if (!readl(AST_SCU_BASE + AST_SCU_HW_STRAP2) &
++	    SCU_HW_STRAP_ESPI_ENABLED) {
 +		uint32_t v;
 +
 +		DBG_ESPI("espi init\n");
@@ -600,8 +606,6 @@ index 000000000000..8dc12d7c9fe8
 +
 +		writel(AST_ESPI_IEN_HW_RST | AST_ESPI_IEN_SYS1_EV |
 +		       AST_ESPI_IEN_SYS_EV, AST_ESPI_BASE + ESPI00C);
-+
-+		espi_handshake_ack();
 +
 +		irq_install_handler(IRQ_SRC_ESPI, espi_irq_handler, NULL);
 +	} else {
@@ -1094,10 +1098,10 @@ index 000000000000..cf8c69aba5d3
 +}
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
 new file mode 100644
-index 000000000000..100eb1ec5d21
+index 000000000000..b5d8dd36d20b
 --- /dev/null
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,176 @@
 +/* Intel customizations of Das U-Boot */
 +#include <common.h>
 +#include <asm/gpio.h>
@@ -1196,18 +1200,23 @@ index 000000000000..100eb1ec5d21
 +	writel(value, AST_LPC_BASE + HICRB);
 +}
 +
-+#define AST_GPIO_BASE 0x1e780000
-+#define SGPIO_CLK_DIV(N) ((N) << 16)
-+#define SGPIO_BYTES(N) ((N) << 6)
-+#define SGPIO_ENABLE 1
-+#define GPIO254 0x554
++#define AST_GPIO_BASE		0x1e780000
 +
 +static void sgpio_init(void)
 +{
++#define SGPIO_CLK_DIV(N)	((N) << 16)
++#define SGPIO_BYTES(N)		((N) << 6)
++#define SGPIO_ENABLE		1
++#define GPIO554			0x554
++#define SCU_414			0x414 /* Multi-function Pin Control #5 */
++#define SCU_414_SGPM_MASK	GENMASK(27, 24)
++
 +	uint32_t value;
-+	/* set the gpio clock to pclk/(2*(5+1)) or ~2 MHz */
++	/* set the sgpio clock to pclk/(2*(5+1)) or ~2 MHz */
 +	value = SGPIO_CLK_DIV(256) | SGPIO_BYTES(10) | SGPIO_ENABLE;
-+	writel(value, AST_GPIO_BASE + GPIO254);
++	writel(value, AST_GPIO_BASE + GPIO554);
++	writel(readl(SCU_BASE | SCU_414) | SCU_414_SGPM_MASK,
++	       SCU_BASE | SCU_414);
 +}
 +
 +void espi_init(void);
@@ -1238,8 +1247,8 @@ index 000000000000..100eb1ec5d21
 +
 +int board_early_init_r(void)
 +{
-+	printf("board_early_init_r\n");
-+	timer_enable(0, 1, timer_handler);
++	debug("board_early_init_r\n");
++	/* timer_enable(0, 1, timer_handler); */
 +
 +	espi_init();
 +

@@ -41,6 +41,7 @@
             "Address": "0x4b",
             "Bus": "$bus",
             "Name": "HSBP $index Temp",
+            "PowerState": "On",
             "Thresholds": [
                 {
                     "Direction": "greater than",

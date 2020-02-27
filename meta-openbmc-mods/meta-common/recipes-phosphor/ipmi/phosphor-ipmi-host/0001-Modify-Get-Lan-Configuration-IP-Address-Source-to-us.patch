@@ -1,4 +1,4 @@
-From 3db78afe49a662ce7e90f3f5ce40d625a54d576b Mon Sep 17 00:00:00 2001
+From 8e9fba263179ccc87be7212c7dbd87cd7a37ac30 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
 Date: Thu, 14 Nov 2019 11:24:19 -0800
 Subject: [PATCH] Modify Get Lan Configuration IP Address Source to use correct
@@ -27,24 +27,24 @@ ipmitool raw 0xc 2 3 4 0 0  # returns correct state
 Change-Id: Ia66f7fcf3d5ad0a383b06658b18e8ce2b282e052
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- transporthandler.cpp | 88 ++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 73 insertions(+), 15 deletions(-)
+ transporthandler.cpp | 97 ++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 79 insertions(+), 18 deletions(-)
 
 diff --git a/transporthandler.cpp b/transporthandler.cpp
-index 09df184..8dc5677 100644
+index 16ce2b2..ccc2a97 100644
 --- a/transporthandler.cpp
 +++ b/transporthandler.cpp
 @@ -109,6 +109,18 @@ constexpr auto INTF_NEIGHBOR_CREATE_STATIC =
  constexpr auto INTF_VLAN = "xyz.openbmc_project.Network.VLAN";
  constexpr auto INTF_VLAN_CREATE = "xyz.openbmc_project.Network.VLAN.Create";
  
-+static const char* dhcpv4v6 =
++static constexpr auto dhcpv4v6 =
 +    "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.both";
-+static const char* dhcpv6 =
++static constexpr auto dhcpv6 =
 +    "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v6";
-+static const char* dhcpv4 =
++static constexpr auto dhcpv4 =
 +    "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.v4";
-+static const char* dhcpoff =
++static constexpr auto dhcpoff =
 +    "xyz.openbmc_project.Network.EthernetInterface.DHCPConf.none";
 +
 +static std::array<const char*, 4> dhcpEnumerations = {dhcpv4v6, dhcpv4, dhcpv6,
@@ -134,7 +134,17 @@ index 09df184..8dc5677 100644
  }
  
  /** @brief Creates a new VLAN on the specified interface
-@@ -1395,7 +1445,11 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+@@ -1401,7 +1451,8 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+         }
+         case LanParam::IP:
+         {
+-            if (channelCall<getDHCPProperty>(channel))
++            std::string dhcpSetting = channelCall<getDHCPProperty>(channel);
++            if ((dhcpSetting == dhcpv4) || (dhcpSetting == dhcpv4v6))
+             {
+                 return responseCommandNotAvailable();
+             }
+@@ -1431,7 +1482,11 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
              {
                  case IPSrc::DHCP:
                  {
@@ -147,7 +157,7 @@ index 09df184..8dc5677 100644
                      return responseSuccess();
                  }
                  case IPSrc::Unspecified:
-@@ -1403,7 +1457,7 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+@@ -1439,7 +1494,7 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
                  case IPSrc::BIOS:
                  case IPSrc::BMC:
                  {
@@ -156,27 +166,47 @@ index 09df184..8dc5677 100644
                      return responseSuccess();
                  }
              }
-@@ -1540,7 +1594,8 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+@@ -1464,7 +1519,8 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+         }
+         case LanParam::SubnetMask:
+         {
+-            if (channelCall<getDHCPProperty>(channel))
++            std::string dhcpSetting = channelCall<getDHCPProperty>(channel);
++            if ((dhcpSetting == dhcpv4) || (dhcpSetting == dhcpv4v6))
+             {
+                 return responseCommandNotAvailable();
+             }
+@@ -1481,7 +1537,8 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
+         }
+         case LanParam::Gateway1:
+         {
+-            if (channelCall<getDHCPProperty>(channel))
++            std::string dhcpSetting = channelCall<getDHCPProperty>(channel);
++            if ((dhcpSetting == dhcpv4) || (dhcpSetting == dhcpv4v6))
+             {
+                 return responseCommandNotAvailable();
+             }
+@@ -1606,7 +1663,8 @@ RspType<> setLan(uint4_t channelBits, uint4_t, uint8_t parameter,
                  return responseReqDataLenInvalid();
              }
              std::bitset<8> expected;
 -            if (channelCall<getDHCPProperty>(channel))
 +            std::string dhcp = channelCall<getDHCPProperty>(channel);
-+            if ((dhcp == dhcpv4v6) | (dhcp == dhcpv6))
++            if ((dhcp == dhcpv4v6) || (dhcp == dhcpv6))
              {
                  expected[IPv6RouterControlFlag::Dynamic] = 1;
              }
-@@ -1690,7 +1745,8 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
+@@ -1756,7 +1814,8 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
          case LanParam::IPSrc:
          {
              auto src = IPSrc::Static;
 -            if (channelCall<getDHCPProperty>(channel))
-+            std::string dhcpSetting = channelCall<getDHCPProperty>(channel);
-+            if ((dhcpSetting == dhcpv4) || (dhcpSetting == dhcpv4v6))
++            std::string dhcp = channelCall<getDHCPProperty>(channel);
++            if ((dhcp == dhcpv4) || (dhcp == dhcpv4v6))
              {
                  src = IPSrc::DHCP;
              }
-@@ -1811,7 +1867,8 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
+@@ -1877,7 +1936,8 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
          case LanParam::IPv6RouterControl:
          {
              std::bitset<8> control;
@@ -186,7 +216,7 @@ index 09df184..8dc5677 100644
              {
                  control[IPv6RouterControlFlag::Dynamic] = 1;
              }
-@@ -1825,7 +1882,8 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
+@@ -1891,7 +1951,8 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
          case LanParam::IPv6StaticRouter1IP:
          {
              in6_addr gateway{};
@@ -197,5 +227,5 @@ index 09df184..8dc5677 100644
                  gateway =
                      channelCall<getGatewayProperty<AF_INET6>>(channel).value_or(
 -- 
-2.21.0
+2.24.1
 

@@ -1,4 +1,4 @@
-From 78ad5c6291df33b7cba0e6be9a2b6ed6e7bbd571 Mon Sep 17 00:00:00 2001
+From b43bdeb5f3aa297549655e67f0e6a5db5f592e34 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Thu, 11 Jul 2019 14:04:39 -0700
 Subject: [PATCH] i2c: aspeed: add SLAVE_ADDR_RECEIVED_PENDING interrupt
@@ -15,7 +15,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 13 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 71ebf3bbf38b..a15f54f64b50 100644
+index 830b3d2cabad..a308d5896632 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
 @@ -87,6 +87,7 @@
@@ -26,7 +26,7 @@ index 71ebf3bbf38b..a15f54f64b50 100644
  #define ASPEED_I2CD_INTR_SLAVE_INACTIVE_TIMEOUT		BIT(15)
  #define ASPEED_I2CD_INTR_SDA_DL_TIMEOUT			BIT(14)
  #define ASPEED_I2CD_INTR_BUS_RECOVER_DONE		BIT(13)
-@@ -360,6 +361,18 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -468,6 +469,18 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  	dev_dbg(bus->dev, "slave irq status 0x%08x, cmd 0x%08x\n",
  		irq_status, command);
  
@@ -44,7 +44,7 @@ index 71ebf3bbf38b..a15f54f64b50 100644
 +
  	/* Slave was sent something. */
  	if (irq_status & ASPEED_I2CD_INTR_RX_DONE) {
- 		if (bus->dma_buf &&
+ 		aspeed_i2c_slave_handle_rx_done(bus, irq_status, &value);
 -- 
 2.7.4
 

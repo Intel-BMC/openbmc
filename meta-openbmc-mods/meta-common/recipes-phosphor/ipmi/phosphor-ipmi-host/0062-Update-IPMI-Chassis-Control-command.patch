@@ -1,11 +1,13 @@
-From 959030b7ee71a7b23d1c081a0aadaa4eedbc0f63 Mon Sep 17 00:00:00 2001
+From 92bdbcd90a445e49ba2f8e483d44ec41152d32b4 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Mon, 3 Jun 2019 17:01:47 -0700
 Subject: [PATCH] Update IPMI Chassis Control command
 
 This change updates the IPMI Chassis Control command to use the new
-chassis state transitions. This allows each chassis control action
+host state transitions. This allows each chassis control action
 to more closely follow the behavior defined in the IPMI spec.
+
+ref: https://gerrit.openbmc-project.xyz/c/openbmc/docs/+/22358
 
 Tested:
 Ran each IPMI chassis control command to confirm the expected
@@ -19,11 +21,11 @@ ipmitool power soft: soft power-off requested from system software
 Change-Id: Ic9fba3ca4abd9a758eb88f1e6ee09f7ca64ff80a
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- chassishandler.cpp | 205 +++++++++++++----------------------------------------
- 1 file changed, 50 insertions(+), 155 deletions(-)
+ chassishandler.cpp | 206 +++++++++++++----------------------------------------
+ 1 file changed, 50 insertions(+), 156 deletions(-)
 
 diff --git a/chassishandler.cpp b/chassishandler.cpp
-index 053f29a..53b25b8 100644
+index 0326806..8bfab88 100644
 --- a/chassishandler.cpp
 +++ b/chassishandler.cpp
 @@ -31,6 +31,7 @@
@@ -34,7 +36,7 @@ index 053f29a..53b25b8 100644
  #include <xyz/openbmc_project/State/Host/server.hpp>
  #include <xyz/openbmc_project/State/PowerOnHours/server.hpp>
  
-@@ -712,59 +713,63 @@ ipmi::RspType<> ipmiSetChassisCap(bool intrusion, bool fpLockout,
+@@ -717,59 +718,63 @@ ipmi::RspType<> ipmiSetChassisCap(bool intrusion, bool fpLockout,
  //------------------------------------------
  // Calls into Host State Manager Dbus object
  //------------------------------------------
@@ -108,10 +110,11 @@ index 053f29a..53b25b8 100644
 -                            HOST_STATE_MANAGER_IFACE, PROPERTY, "s",
 -                            request.c_str());
 -    if (rc < 0)
-+    try
-     {
+-    {
 -        log<level::ERR>("Failed to initiate transition",
 -                        entry("ERRNO=0x%X, REQUEST=%s", -rc, request.c_str()));
++    try
++    {
 +        ipmi::setDbusProperty(*getSdBus(), service, chassisStatePath,
 +                              chassisStateIntf, "RequestedPowerTransition",
 +                              request);
@@ -134,7 +137,7 @@ index 053f29a..53b25b8 100644
  }
  
  //------------------------------------------
-@@ -1065,76 +1070,6 @@ ipmi::RspType<bool,    // Power is on
+@@ -1071,76 +1076,6 @@ ipmi::RspType<bool,    // Power is on
          diagButtonDisableAllow, sleepButtonDisableAllow);
  }
  
@@ -211,7 +214,7 @@ index 053f29a..53b25b8 100644
  /** @brief Implementation of chassis control command
   *
   *  @param - chassisControl command byte
-@@ -1147,63 +1082,23 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
+@@ -1153,63 +1088,22 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
      switch (chassisControl)
      {
          case CMD_POWER_ON:
@@ -256,8 +259,8 @@ index 053f29a..53b25b8 100644
              break;
 -
          case CMD_HARD_RESET:
-+            rc = initiateChassisStateTransition(
-+                State::Chassis::Transition::Reset);
++            rc = initiateHostStateTransition(
++                State::Host::Transition::ForceWarmReboot);
 +            break;
          case CMD_POWER_CYCLE:
 -            // SPEC has a section that says certain implementations can trigger
@@ -271,8 +274,7 @@ index 053f29a..53b25b8 100644
 -            indicate_no_softoff_needed();
 -
 -            rc = initiate_state_transition(State::Host::Transition::Reboot);
-+            rc = initiateChassisStateTransition(
-+                State::Chassis::Transition::PowerCycle);
++            rc = initiateHostStateTransition(State::Host::Transition::Reboot);
              break;
 -
          case CMD_SOFT_OFF_VIA_OVER_TEMP:

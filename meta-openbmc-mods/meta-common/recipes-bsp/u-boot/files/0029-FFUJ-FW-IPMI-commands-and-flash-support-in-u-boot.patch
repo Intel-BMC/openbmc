@@ -1,4 +1,4 @@
-From 513ff559cd6fedd29412fb59b6f436f617620511 Mon Sep 17 00:00:00 2001
+From 0f64b0e0c0a122ce23b5ccc518f514ec296bc7f5 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 21 May 2019 00:53:04 +0530
 Subject: [PATCH] FFUJ: FW IPMI commands and flash support in u-boot
@@ -28,7 +28,6 @@ Tested:
    image transfer via KCS and flashing.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
-
 ---
  arch/arm/include/asm/arch-aspeed/ast-g5-intel.h |   1 +
  board/aspeed/ast-g5/Makefile                    |   2 +
@@ -38,9 +37,9 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
  board/aspeed/ast-g5/ipmi-fwupd.h                |  81 ++++
  board/aspeed/ast-g5/ipmi-handler.c              |  66 +++-
  board/aspeed/ast-g5/ipmi-handler.h              |   3 +-
- common/autoboot.c                               |  11 +
+ common/autoboot.c                               |  13 +
  configs/ast_g5_phy_defconfig                    |   1 +
- 10 files changed, 1091 insertions(+), 12 deletions(-)
+ 10 files changed, 1093 insertions(+), 12 deletions(-)
  create mode 100644 board/aspeed/ast-g5/fw-update.c
  create mode 100644 board/aspeed/ast-g5/fw-update.h
  create mode 100644 board/aspeed/ast-g5/ipmi-fwupd.c
@@ -1237,10 +1236,10 @@ index 9d46d9b..8eea930 100644
  
  /* BMC IPMB LUNs */
 diff --git a/common/autoboot.c b/common/autoboot.c
-index d66c0fa..45a600e 100644
+index d66c0fa..3647d5f 100644
 --- a/common/autoboot.c
 +++ b/common/autoboot.c
-@@ -349,6 +349,17 @@ void autoboot_command(const char *s)
+@@ -349,6 +349,19 @@ void autoboot_command(const char *s)
  {
  	debug("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
  
@@ -1251,6 +1250,8 @@ index d66c0fa..45a600e 100644
 +	 * This will make sure debug mode intact during FFUJ.
 +	 */
 +	if (intel_force_firmware_jumper_enabled()) {
++		printf("#### Force firmware update mode is enabled, "
++					"Serial console is disabled. ####\n");
 +		start_fw_update_loop();
 +	}
 +#endif
@@ -1267,3 +1268,6 @@ index 1b96ab7..5965a9b 100644
  CONFIG_CMD_I2C=y
  CONFIG_SYS_I2C_AST=y
 +CONFIG_LIB_RAND=y
+-- 
+2.7.4
+

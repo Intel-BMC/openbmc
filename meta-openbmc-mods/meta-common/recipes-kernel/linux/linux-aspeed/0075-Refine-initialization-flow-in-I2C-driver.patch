@@ -1,4 +1,4 @@
-From 83c1fcb7dacb59d22b41356e3b7009ff2387d448 Mon Sep 17 00:00:00 2001
+From 93ba2aeb9ad3899e2b72877daa47376a6bf192b6 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 23 Sep 2019 13:48:49 -0700
 Subject: [PATCH] Refine initialization flow in I2C driver
@@ -15,12 +15,12 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 9 insertions(+), 11 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index a15f54f64b50..62b803e15ce2 100644
+index a308d5896632..b32611088c82 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
-@@ -1454,6 +1454,11 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
- 	if (IS_ERR(bus->base))
- 		return PTR_ERR(bus->base);
+@@ -1588,6 +1588,11 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ 
+ 	bus->dev = &pdev->dev;
  
 +	/* Disable bus and clean up any left over interrupt state. */
 +	writel(0, bus->base + ASPEED_I2C_FUN_CTRL_REG);
@@ -30,9 +30,9 @@ index a15f54f64b50..62b803e15ce2 100644
  	parent_clk = devm_clk_get(&pdev->dev, NULL);
  	if (IS_ERR(parent_clk))
  		return PTR_ERR(parent_clk);
-@@ -1576,17 +1581,6 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
- 
- 	bus->dev = &pdev->dev;
+@@ -1630,17 +1635,6 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ 	strlcpy(bus->adap.name, pdev->name, sizeof(bus->adap.name));
+ 	i2c_set_adapdata(&bus->adap, bus);
  
 -	/* Clean up any left over interrupt state. */
 -	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
@@ -48,7 +48,7 @@ index a15f54f64b50..62b803e15ce2 100644
  	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
  	ret = devm_request_irq(&pdev->dev, irq, aspeed_i2c_bus_irq,
  			       0, dev_name(&pdev->dev), bus);
-@@ -1599,6 +1593,10 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+@@ -1653,6 +1647,10 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
  
  	platform_set_drvdata(pdev, bus);
  

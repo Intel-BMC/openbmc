@@ -1,20 +1,23 @@
-From b08fba62b18ecb04d3e7dafac6bd819dd9b90d35 Mon Sep 17 00:00:00 2001
+From f280c15c79e7d13e4a59d413a3091eb21b56dd92 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
-Date: Thu, 1 Aug 2019 11:29:41 -0700
-Subject: [PATCH] Report link statistics for the NCSI channel
+Date: Mon, 27 Jan 2020 09:03:56 -0800
+Subject: [PATCH] Return link speed and duplex settings for the NCSI channel
 
-The ftgmac driver does not report the link statistics for the NCSI
-channel used for the shared NICs attached to the BMC. Report a fixed
-value for the NSCI interface.
+The ftgmac100_open function initializes state for the NCSI
+channel. The get link settings function does not return this
+data. This caused the link speed, and the duplex value to be returned
+incorrectly by the PHY driver (0 Mbps, and duplex off).
 
-Change-Id: Idb65ca1ce07f06a883417ee44df30ea2c8483107
+Update the driver to return either the PHY settings when not using
+NCSI, or the NCSI values that were assigned when the driver is opened.
+
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
  drivers/net/ethernet/faraday/ftgmac100.c | 22 +++++++++++++++++++++-
  1 file changed, 21 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/ethernet/faraday/ftgmac100.c b/drivers/net/ethernet/faraday/ftgmac100.c
-index 2e5fba354412..b1eb3abe759b 100644
+index 8ed85037f021..a53878eecfc8 100644
 --- a/drivers/net/ethernet/faraday/ftgmac100.c
 +++ b/drivers/net/ethernet/faraday/ftgmac100.c
 @@ -1218,10 +1218,30 @@ static int ftgmac100_set_pauseparam(struct net_device *netdev,
@@ -31,8 +34,8 @@ index 2e5fba354412..b1eb3abe759b 100644
 +	if (phydev) {
 +		phy_ethtool_ksettings_get(phydev, cmd);
 +	} else if (priv->use_ncsi) {
-+		cmd->base.speed = SPEED_100;
-+		cmd->base.duplex = DUPLEX_FULL;
++		cmd->base.speed = priv->cur_speed;
++		cmd->base.duplex = priv->cur_duplex;
 +		cmd->base.autoneg = 0;
 +	} else {
 +		retval = -ENODEV;
@@ -50,5 +53,5 @@ index 2e5fba354412..b1eb3abe759b 100644
  	.nway_reset		= phy_ethtool_nway_reset,
  	.get_ringparam		= ftgmac100_get_ringparam,
 -- 
-2.7.4
+2.24.1
 

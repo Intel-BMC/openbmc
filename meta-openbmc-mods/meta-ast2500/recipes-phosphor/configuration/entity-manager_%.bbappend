@@ -8,7 +8,8 @@ SRC_URI_append = " file://0001-Blacklist-DIMM-Bus.patch \
                    file://CYP-baseboard.json \
                    file://J85894-HSBP.json \
                    file://CPC-Baseboard.json \
-                   file://MIDPLANE-2U2X12SWITCH.json"
+                   file://MIDPLANE-2U2X12SWITCH.json \
+                   file://WC-Chassis.json"
 
 RDEPENDS_${PN} += " default-fru"
 

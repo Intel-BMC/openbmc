@@ -1,4 +1,4 @@
-From 1d0c60f1aa8b7b25d8d0d6f6f6443d307d543600 Mon Sep 17 00:00:00 2001
+From 34308f4078361987adfb854bdc6876abdaf323cb Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Sat, 24 Feb 2018 11:12:32 +0800
 Subject: [PATCH] Add AST2500 eSPI driver
@@ -26,11 +26,12 @@ Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
  .../devicetree/bindings/misc/aspeed,espi-slave.txt |  20 +
  Documentation/misc-devices/espi-slave.rst          | 118 ++++++
  arch/arm/boot/dts/aspeed-g5.dtsi                   |   4 +
- arch/arm/boot/dts/aspeed-g6.dtsi                   |  12 +
+ arch/arm/boot/dts/aspeed-g6.dtsi                   |  14 +
  drivers/misc/Kconfig                               |   8 +
  drivers/misc/Makefile                              |   1 +
- drivers/misc/aspeed-espi-slave.c                   | 421 +++++++++++++++++++++
- 7 files changed, 584 insertions(+)
+ drivers/misc/aspeed-espi-slave.c                   | 468 +++++++++++++++++++++
+ include/dt-bindings/clock/ast2600-clock.h          |   1 +
+ 8 files changed, 634 insertions(+)
  create mode 100644 Documentation/devicetree/bindings/misc/aspeed,espi-slave.txt
  create mode 100644 Documentation/misc-devices/espi-slave.rst
  create mode 100644 drivers/misc/aspeed-espi-slave.c
@@ -208,7 +209,7 @@ index c15be82c3a9d..bd2037e52a94 100644
  
  			lpc: lpc@1e789000 {
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 459070693aba..e4c1ab3d274e 100644
+index 62d101dc6926..753770912f0a 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
 @@ -3,6 +3,7 @@
@@ -219,7 +220,7 @@ index 459070693aba..e4c1ab3d274e 100644
  
  / {
  	model = "Aspeed BMC";
-@@ -651,6 +652,17 @@
+@@ -674,6 +675,19 @@
  				status = "disabled";
  			};
  
@@ -230,8 +231,10 @@ index 459070693aba..e4c1ab3d274e 100644
 +					<&gpio0 ASPEED_GPIO(W, 7) IRQ_TYPE_EDGE_FALLING>;
 +				status = "disabled";
 +				clocks = <&syscon ASPEED_CLK_GATE_ESPICLK>;
++				resets = <&syscon ASPEED_RESET_ESPI>;
 +				pinctrl-names = "default";
-+				pinctrl-0 = <&pinctrl_espi_default>;
++				pinctrl-0 = <&pinctrl_espi_default>,
++					    <&pinctrl_espialt_default>;
 +			};
 +
  			i2c: bus@1e78a000 {
@@ -270,10 +273,10 @@ index b9e6d4c3e906..53864687e8fd 100644
  obj-y				+= cardreader/
 diff --git a/drivers/misc/aspeed-espi-slave.c b/drivers/misc/aspeed-espi-slave.c
 new file mode 100644
-index 000000000000..d70332d1fef3
+index 000000000000..87bc81948694
 --- /dev/null
 +++ b/drivers/misc/aspeed-espi-slave.c
-@@ -0,0 +1,421 @@
+@@ -0,0 +1,468 @@
 +// SPDX-License-Identifier: GPL-2.0
 +// Copyright (c) 2015-2019, Intel Corporation.
 +
@@ -286,6 +289,7 @@ index 000000000000..d70332d1fef3
 +#include <linux/of.h>
 +#include <linux/platform_device.h>
 +#include <linux/regmap.h>
++#include <linux/reset.h>
 +#include <linux/sched/signal.h>
 +#include <linux/spinlock.h>
 +#include <linux/uaccess.h>
@@ -361,7 +365,9 @@ index 000000000000..d70332d1fef3
 +	struct regmap		*map;
 +	struct clk		*clk;
 +	struct device		*dev;
++	struct reset_control	*reset;
 +	int			irq;
++	int			rst_irq;
 +
 +	/* for PLTRST_N signal monitoring interface */
 +	struct miscdevice	pltrstn_miscdev;
@@ -469,11 +475,17 @@ index 000000000000..d70332d1fef3
 +	}
 +
 +	if (sts & ASPEED_ESPI_HW_RESET) {
++		if (priv->rst_irq < 0) {
++			regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
++					  ASPEED_ESPI_CTRL_SW_RESET, 0);
++			regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
++					  ASPEED_ESPI_CTRL_SW_RESET,
++					  ASPEED_ESPI_CTRL_SW_RESET);
++		}
++
 +		regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
-+				  ASPEED_ESPI_CTRL_SW_RESET, 0);
-+		regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
-+				  ASPEED_ESPI_CTRL_SW_RESET,
-+				  ASPEED_ESPI_CTRL_SW_RESET);
++				  ASPEED_ESPI_CTRL_OOB_CHRDY,
++				  ASPEED_ESPI_CTRL_OOB_CHRDY);
 +		aspeed_espi_boot_ack(priv);
 +		sts_handled |= ASPEED_ESPI_HW_RESET;
 +	}
@@ -504,8 +516,26 @@ index 000000000000..d70332d1fef3
 +		     ASPEED_ESPI_SYSEVT1_INT_MASK);
 +
 +	regmap_write(priv->map, ASPEED_ESPI_INT_EN, ASPEED_ESPI_INT_MASK);
++}
 +
-+	aspeed_espi_boot_ack(priv);
++static irqreturn_t aspeed_espi_reset_isr(int irq, void *arg)
++{
++	struct aspeed_espi *priv = arg;
++
++	reset_control_assert(priv->reset);
++	reset_control_deassert(priv->reset);
++
++	regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
++			  ASPEED_ESPI_CTRL_SW_RESET, 0);
++	regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
++			  ASPEED_ESPI_CTRL_SW_RESET, ASPEED_ESPI_CTRL_SW_RESET);
++
++	regmap_write_bits(priv->map, ASPEED_ESPI_CTRL,
++			  ASPEED_ESPI_CTRL_OOB_CHRDY, 0);
++
++	aspeed_espi_config_irq(priv);
++
++	return IRQ_HANDLED;
 +}
 +
 +static inline struct aspeed_espi *to_aspeed_espi(struct file *filp)
@@ -610,12 +640,29 @@ index 000000000000..d70332d1fef3
 +	if (priv->irq < 0)
 +		return priv->irq;
 +
-+	aspeed_espi_config_irq(priv);
-+
 +	ret = devm_request_irq(&pdev->dev, priv->irq, aspeed_espi_irq, 0,
 +			       "aspeed-espi-irq", priv);
 +	if (ret)
 +		return ret;
++
++	if (of_device_is_compatible(pdev->dev.of_node,
++				    "aspeed,ast2600-espi-slave")) {
++		priv->rst_irq = platform_get_irq(pdev, 1);
++		if (priv->rst_irq < 0)
++			return priv->rst_irq;
++
++		ret = devm_request_irq(&pdev->dev, priv->rst_irq,
++				       aspeed_espi_reset_isr, 0,
++				       "aspeed-espi-rst-irq", priv);
++		if (ret)
++			return ret;
++
++		priv->reset = devm_reset_control_get(&pdev->dev, NULL);
++		if (IS_ERR(priv->reset))
++			return PTR_ERR(priv->reset);
++	} else {
++		priv->rst_irq = -ENOTSUPP;
++	}
 +
 +	priv->clk = devm_clk_get(&pdev->dev, NULL);
 +	if (IS_ERR(priv->clk)) {
@@ -653,6 +700,9 @@ index 000000000000..d70332d1fef3
 +		dev_err(&pdev->dev, "Unable to register device\n");
 +		goto err_clk_disable_out;
 +	}
++
++	aspeed_espi_config_irq(priv);
++	aspeed_espi_boot_ack(priv);
 +
 +	dev_info(&pdev->dev, "eSPI registered, irq %d\n", priv->irq);
 +
@@ -695,6 +745,18 @@ index 000000000000..d70332d1fef3
 +MODULE_AUTHOR("Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>");
 +MODULE_DESCRIPTION("Aspeed eSPI driver");
 +MODULE_LICENSE("GPL v2");
+diff --git a/include/dt-bindings/clock/ast2600-clock.h b/include/dt-bindings/clock/ast2600-clock.h
+index 3d90582a813f..1e18364de03d 100644
+--- a/include/dt-bindings/clock/ast2600-clock.h
++++ b/include/dt-bindings/clock/ast2600-clock.h
+@@ -104,6 +104,7 @@
+ #define ASPEED_RESET_PECI		36
+ #define ASPEED_RESET_MII		35
+ #define ASPEED_RESET_I2C		34
++#define ASPEED_RESET_ESPI		32
+ #define ASPEED_RESET_H2X		31
+ #define ASPEED_RESET_GP_MCU		30
+ #define ASPEED_RESET_DP_MCU		29
 -- 
 2.7.4
 

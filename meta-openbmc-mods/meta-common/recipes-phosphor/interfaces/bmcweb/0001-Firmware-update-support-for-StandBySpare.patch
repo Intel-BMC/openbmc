@@ -1,6 +1,6 @@
-From ba9d7f8443716887bc101e300b06c570f7da8159 Mon Sep 17 00:00:00 2001
-From: Vikram Bodireddy <vikram.bodireddy@linux.intel.com>
-Date: Thu, 5 Dec 2019 15:13:52 +0530
+From 17caf10b048450979dcd95a9f9333bbaa8c307ec Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 10 Jan 2020 08:16:10 +0530
 Subject: [PATCH] Firmware update support for StandBySpare
 
 Firmware update support for StandBySpare. This will
@@ -28,12 +28,13 @@ Tested:
 
 Change-Id: I59f317ac001ebf56bbf30e7f43dbec5d69fa249a
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- redfish-core/lib/update_service.hpp | 285 ++++++++++++++++++++++++++++++------
- 1 file changed, 241 insertions(+), 44 deletions(-)
+ redfish-core/lib/update_service.hpp | 284 ++++++++++++++++++++++++++++++------
+ 1 file changed, 241 insertions(+), 43 deletions(-)
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index 57dcc07..c189d5a 100644
+index ec9600e..9daf6ce 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
 @@ -30,6 +30,17 @@ static std::unique_ptr<sdbusplus::bus::match::match> fwUpdateMatcher;
@@ -448,18 +449,17 @@ index 57dcc07..c189d5a 100644
  
          std::string filepath(
              "/tmp/images/" +
-@@ -569,9 +770,7 @@ class SoftwareInventoryCollection : public Node
-             "xyz.openbmc_project.ObjectMapper",
+@@ -574,8 +775,7 @@ class SoftwareInventoryCollection : public Node
              "/xyz/openbmc_project/object_mapper",
-             "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
--            static_cast<int32_t>(0),
+             "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+             "/xyz/openbmc_project/software", static_cast<int32_t>(0),
 -            std::array<const char *, 1>{
 -                "xyz.openbmc_project.Software.Version"});
-+            static_cast<int32_t>(0), std::array<const char *, 1>{versionIntf});
++            std::array<const char *, 1>{versionIntf});
      }
  };
  
-@@ -756,7 +955,7 @@ class SoftwareInventory : public Node
+@@ -760,7 +960,7 @@ class SoftwareInventory : public Node
                          },
                          obj.second[0].first, obj.first,
                          "org.freedesktop.DBus.Properties", "GetAll",
@@ -468,7 +468,7 @@ index 57dcc07..c189d5a 100644
                  }
                  if (!found)
                  {
-@@ -778,9 +977,7 @@ class SoftwareInventory : public Node
+@@ -781,9 +981,7 @@ class SoftwareInventory : public Node
              "xyz.openbmc_project.ObjectMapper",
              "/xyz/openbmc_project/object_mapper",
              "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
