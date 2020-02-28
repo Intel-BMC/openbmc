@@ -13,8 +13,9 @@ jobs:
       run: |
         sudo apt update
         sudo apt-get install gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat
+        sudo apt autoremove
         rm -rf build
         export TEMPLATECONF=meta-openbmc-mods/meta-wht/conf
         source oe-init-build-env
-        echo "INHERIT += \"rm_work\"" >> conf/local.conf
+        echo "INHERIT += \"rm_work_and_downloads\"" >> conf/local.conf
         bitbake intel-platforms
