@@ -1,0 +1,191 @@
+From 0e415f23b7a97e9a0f0fa616b6bcccec6035bbed Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Tue, 29 Oct 2019 16:20:28 -0700
+Subject: [PATCH] Added enable/disable control of the Network Interface Card
+
+Implemented enable/disable function to perform
+"ip link set eth(x) up"
+"ip link set eth(x) down"
+functionality from DBus.
+
+Tested:
+
+Confirmed Redfish PATCH commands on the InterfaceEnabled property
+changes the NIC state. Confirmed the NIC is DOWN/UP using "ip link".
+Confirmed "ip link" state changes can be obsserved from dbus-send
+commands, and from Redfish GET actions.
+
+Confirmed the link is inactive after a reboot.
+
+Confirmed link stays down despite assigning an IP manually.
+
+Confirmed link stays down despite enabling DHCP.
+
+Change-Id: I4152b53055e6546f7a6ca81b5a5eef6f689bcc66
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ ethernet_interface.cpp | 70 ++++++++++++++++++++++++++++++++++++++++--
+ ethernet_interface.hpp |  7 ++++-
+ 2 files changed, 74 insertions(+), 3 deletions(-)
+
+diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
+index ba6195e..671e8c4 100644
+--- a/ethernet_interface.cpp
++++ b/ethernet_interface.cpp
+@@ -60,6 +60,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+ #if NIC_SUPPORTS_ETHTOOL
+     InterfaceInfo ifInfo = EthernetInterface::getInterfaceInfo();
+ 
++    EthernetInterfaceIntf::nICEnabled(std::get<3>(ifInfo));
+     EthernetInterfaceIntf::autoNeg(std::get<2>(ifInfo));
+     EthernetInterfaceIntf::speed(std::get<0>(ifInfo));
+ #endif
+@@ -300,6 +301,7 @@ InterfaceInfo EthernetInterface::getInterfaceInfo() const
+     LinkSpeed speed{0};
+     Autoneg autoneg{0};
+     DuplexMode duplex{0};
++    NICEnabled nicEnabled{false};
+     do
+     {
+         sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+@@ -324,13 +326,21 @@ InterfaceInfo EthernetInterface::getInterfaceInfo() const
+         speed = edata.speed;
+         duplex = edata.duplex;
+         autoneg = edata.autoneg;
++
++        if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0)
++        {
++            log<level::ERR>("ioctl failed for SIOCGIFFLAGS:",
++                            entry("ERROR=%s", strerror(errno)));
++            break;
++        }
++        nicEnabled = static_cast<bool>(ifr.ifr_flags & IFF_UP);
+     } while (0);
+ 
+-    if (sock)
++    if (sock >= 0)
+     {
+         close(sock);
+     }
+-    return std::make_tuple(speed, duplex, autoneg);
++    return std::make_tuple(speed, duplex, autoneg, nicEnabled);
+ }
+ #endif
+ 
+@@ -355,9 +365,11 @@ std::string
+     {
+         log<level::ERR>("ioctl failed for SIOCGIFHWADDR:",
+                         entry("ERROR=%s", strerror(errno)));
++        close(sock);
+         elog<InternalFailure>();
+     }
+ 
++    close(sock);
+     static_assert(sizeof(ifr.ifr_hwaddr.sa_data) >= sizeof(ether_addr));
+     std::string_view hwaddr(reinterpret_cast<char*>(ifr.ifr_hwaddr.sa_data),
+                             sizeof(ifr.ifr_hwaddr.sa_data));
+@@ -514,6 +526,55 @@ EthernetInterface::DHCPConf EthernetInterface::dHCPEnabled(DHCPConf value)
+     return value;
+ }
+ 
++bool EthernetInterface::nICEnabled(bool value)
++{
++    if (value == EthernetInterfaceIntf::nICEnabled())
++    {
++        return value;
++    }
++
++    int sock{-1};
++    ifreq ifr{0};
++    EthernetInterfaceIntf::nICEnabled(value);
++    sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
++    if (sock < 0)
++    {
++        log<level::ERR>("socket creation  failed:",
++                        entry("ERROR=%s", strerror(errno)));
++        return value;
++    }
++
++    do
++    {
++        std::strncpy(ifr.ifr_name, interfaceName().c_str(), IF_NAMESIZE);
++        if (ioctl(sock, SIOCGIFFLAGS, &ifr) != 0)
++        {
++            log<level::ERR>("ioctl failed for SIOCGIFFLAGS:",
++                            entry("ERROR=%s", strerror(errno)));
++            break;
++        }
++
++        ifr.ifr_flags &= ~IFF_UP;
++        if (value)
++        {
++            ifr.ifr_flags |= IFF_UP;
++        }
++
++        if (ioctl(sock, SIOCSIFFLAGS, &ifr) != 0)
++        {
++            log<level::ERR>("ioctl failed for SIOCSIFFLAGS:",
++                            entry("ERROR=%s", strerror(errno)));
++            break;
++        }
++    } while (0);
++
++    close(sock);
++    writeConfigurationFile();
++    manager.restartSystemdUnit(networkdService);
++
++    return value;
++}
++
+ ServerList EthernetInterface::nameservers(ServerList value)
+ {
+     for (const auto& nameserverip : value)
+@@ -704,6 +765,11 @@ void EthernetInterface::writeConfigurationFile()
+         stream << "MACAddress=" << mac << "\n";
+     }
+ 
++    if (!nICEnabled())
++    {
++        stream << "Unmanaged=yes\n";
++    }
++
+     // write the network section
+     stream << "[Network]\n";
+ #ifdef LINK_LOCAL_AUTOCONFIGURATION
+diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
+index a962751..3dee311 100644
+--- a/ethernet_interface.hpp
++++ b/ethernet_interface.hpp
+@@ -59,9 +59,10 @@ class Neighbor;
+ using LinkSpeed = uint16_t;
+ using DuplexMode = uint8_t;
+ using Autoneg = uint8_t;
++using NICEnabled = bool;
+ using VlanId = uint32_t;
+ using InterfaceName = std::string;
+-using InterfaceInfo = std::tuple<LinkSpeed, DuplexMode, Autoneg>;
++using InterfaceInfo = std::tuple<LinkSpeed, DuplexMode, Autoneg, NICEnabled>;
+ using AddressMap = std::map<std::string, std::shared_ptr<IPAddress>>;
+ using NeighborMap = std::map<std::string, std::shared_ptr<Neighbor>>;
+ using VlanInterfaceMap =
+@@ -186,6 +187,9 @@ class EthernetInterface : public Ifaces
+      */
+     void disableDHCP(IP::Protocol protocol);
+ 
++    /** Set value of NICEnabled */
++    bool nICEnabled(bool value) override;
++
+     /** @brief sets the MAC address.
+      *  @param[in] value - MAC address which needs to be set on the system.
+      *  @returns macAddress of the interface or throws an error.
+@@ -241,6 +245,7 @@ class EthernetInterface : public Ifaces
+     using ChannelAccessIntf::maxPrivilege;
+     using EthernetInterfaceIntf::dHCPEnabled;
+     using EthernetInterfaceIntf::interfaceName;
++    using EthernetInterfaceIntf::nICEnabled;
+     using MacAddressIntf::mACAddress;
+ 
+     /** @brief Absolute path of the resolv conf file */
+-- 
+2.24.1
+

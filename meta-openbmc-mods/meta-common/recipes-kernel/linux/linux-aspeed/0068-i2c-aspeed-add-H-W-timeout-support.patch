@@ -1,4 +1,4 @@
-From 3e359be7e8a96b068479d01aa671ff642d291bca Mon Sep 17 00:00:00 2001
+From b429cf11ecb2f6009dd9e062ea5e053718802d93 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Thu, 11 Jul 2019 13:53:34 -0700
 Subject: [PATCH] i2c: aspeed: add H/W timeout support
@@ -11,7 +11,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 76 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 891b2b5c4b7a..71ebf3bbf38b 100644
+index 4420899e2c2d..830b3d2cabad 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
 @@ -55,6 +55,7 @@
@@ -79,10 +79,10 @@ index 891b2b5c4b7a..71ebf3bbf38b 100644
 +	return 0;
 +}
 +
- static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
- {
- 	u32 command, irq_handled = 0;
-@@ -313,6 +331,14 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ static inline void
+ aspeed_i2c_slave_handle_rx_done(struct aspeed_i2c_bus *bus, u32 irq_status,
+ 				u8 *value)
+@@ -421,6 +439,14 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  	if (!slave)
  		return 0;
  
@@ -97,7 +97,7 @@ index 891b2b5c4b7a..71ebf3bbf38b 100644
  	command = readl(bus->base + ASPEED_I2C_CMD_REG);
  
  	/* Slave was requested, restart state machine. */
-@@ -655,7 +681,7 @@ static void aspeed_i2c_next_msg_or_stop(struct aspeed_i2c_bus *bus)
+@@ -681,7 +707,7 @@ static void aspeed_i2c_next_msg_or_stop(struct aspeed_i2c_bus *bus)
  	}
  }
  
@@ -106,7 +106,7 @@ index 891b2b5c4b7a..71ebf3bbf38b 100644
  {
  	if (irq_status & ASPEED_I2CD_INTR_ARBIT_LOSS)
  		return -EAGAIN;
-@@ -686,9 +712,9 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+@@ -840,9 +866,9 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
  	 * should clear the command queue effectively taking us back to the
  	 * INACTIVE state.
  	 */
@@ -118,7 +118,7 @@ index 891b2b5c4b7a..71ebf3bbf38b 100644
  			irq_status);
  		irq_handled |= (irq_status & ASPEED_I2CD_INTR_MASTER_ERRORS);
  		if (bus->master_state != ASPEED_I2C_MASTER_INACTIVE) {
-@@ -1264,6 +1290,7 @@ static u32 aspeed_i2c_25xx_get_clk_reg_val(struct device *dev, u32 divisor)
+@@ -1307,6 +1333,7 @@ static u32 aspeed_i2c_25xx_get_clk_reg_val(struct device *dev, u32 divisor)
  /* precondition: bus.lock has been acquired. */
  static int aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus)
  {
@@ -126,7 +126,7 @@ index 891b2b5c4b7a..71ebf3bbf38b 100644
  	u32 divisor, clk_reg_val;
  
  	divisor = DIV_ROUND_UP(bus->parent_clk_frequency, bus->bus_frequency);
-@@ -1272,8 +1299,46 @@ static int aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus)
+@@ -1315,8 +1342,46 @@ static int aspeed_i2c_init_clk(struct aspeed_i2c_bus *bus)
  			ASPEED_I2CD_TIME_THDSTA_MASK |
  			ASPEED_I2CD_TIME_TACST_MASK);
  	clk_reg_val |= bus->get_clk_reg_val(bus->dev, divisor);
@@ -174,7 +174,7 @@ index 891b2b5c4b7a..71ebf3bbf38b 100644
  
  	return 0;
  }
-@@ -1288,6 +1353,11 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
+@@ -1331,6 +1396,11 @@ static int aspeed_i2c_init(struct aspeed_i2c_bus *bus,
  	/* Disable everything. */
  	writel(0, bus->base + ASPEED_I2C_FUN_CTRL_REG);
  

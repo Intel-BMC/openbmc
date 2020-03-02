@@ -1,0 +1,136 @@
+From 879834a305bd5c0cbf3c60f8fe235cea8783fe35 Mon Sep 17 00:00:00 2001
+From: arun-pm <arun.p.m@linux.intel.com>
+Date: Tue, 3 Dec 2019 17:22:28 +0530
+Subject: [PATCH] SPI Quad IO driver support AST2600
+
+This commit adds spi driver quad io support for AST2600
+
+Note:- Removed n25q00 Quad I/O support for the time being due to clock issue
+ with chip 'Micron 8UA15 - rw182 (128MB)' while enabling Quad I/O mode.
+
+Signed-off-by: arun-pm <arun.p.m@linux.intel.com>
+---
+ drivers/mtd/spi-nor/aspeed-smc.c | 49 ++++++++++++++++++++++++++++++++++------
+ drivers/mtd/spi-nor/spi-nor.c    |  7 +++++-
+ 2 files changed, 48 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/mtd/spi-nor/aspeed-smc.c b/drivers/mtd/spi-nor/aspeed-smc.c
+index 0805dcab8cb1..305c1940e822 100644
+--- a/drivers/mtd/spi-nor/aspeed-smc.c
++++ b/drivers/mtd/spi-nor/aspeed-smc.c
+@@ -21,6 +21,11 @@
+ #include <linux/sysfs.h>
+ 
+ #define DEVICE_NAME	"aspeed-smc"
++#define AST2600A0 0x05000303
++#define AST2600A0_MAX_FREQ 50000000
++#define AST2600A0_SAFE_FREQ 40000000
++#define AST_MAX_FREQ 100000000
++#define AST2600_REVISION_ID_SCU 0x1e6e2004
+ 
+ /*
+  * The driver only support SPI flash
+@@ -542,6 +547,10 @@ static int aspeed_smc_get_io_mode(struct aspeed_smc_chip *chip)
+ 		return CONTROL_IO_DUAL_DATA;
+ 	case SNOR_PROTO_1_2_2:
+ 		return CONTROL_IO_DUAL_ADDR_DATA;
++	case SNOR_PROTO_1_1_4:
++		return CONTROL_IO_QUAD_DATA;
++	case SNOR_PROTO_1_4_4:
++		return CONTROL_IO_QUAD_ADDR_DATA;
+ 	default:
+ 		dev_err(chip->nor.dev, "unsupported SPI read mode\n");
+ 		return -EINVAL;
+@@ -573,7 +582,7 @@ static ssize_t aspeed_smc_read_user(struct spi_nor *nor, loff_t from,
+ 		aspeed_smc_write_to_ahb(chip->ahb_base, &dummy, sizeof(dummy));
+ 
+ 	/* Set IO mode only for data */
+-	if (io_mode == CONTROL_IO_DUAL_DATA)
++	if (io_mode == CONTROL_IO_DUAL_DATA || io_mode == CONTROL_IO_QUAD_DATA)
+ 		aspeed_smc_set_io_mode(chip, io_mode);
+ 
+ 	aspeed_smc_read_from_ahb(read_buf, chip->ahb_base, len);
+@@ -1222,20 +1231,35 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
+ 	return 0;
+ }
+ 
++static void aspeed_allowed_max_freq(struct aspeed_smc_chip *chip)
++{
++	void __iomem *scu_ast_revision_id = ioremap(AST2600_REVISION_ID_SCU, 4);
++	u32 rev_id = readl(scu_ast_revision_id);
++
++	/*Limit max spi frequency less than 50MHz on AST2600-A0 due
++	 * to FWSPICLK  signal quality issue.
++	 */
++	if(rev_id == AST2600A0 && chip->clk_rate >= AST2600A0_MAX_FREQ)
++		chip->clk_rate = AST2600A0_SAFE_FREQ;
++}
++
++static u32 get_hwcaps(unsigned int tx_width){
++	if(tx_width == 4)
++		return SNOR_HWCAPS_READ_1_1_4;
++	else
++		return SNOR_HWCAPS_READ_1_1_2;
++}
++
+ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
+ 				  struct device_node *np, struct resource *r)
+ {
+-	const struct spi_nor_hwcaps hwcaps = {
+-		.mask = SNOR_HWCAPS_READ |
+-			SNOR_HWCAPS_READ_FAST |
+-			SNOR_HWCAPS_READ_1_1_2 |
+-			SNOR_HWCAPS_PP,
+-	};
++	struct spi_nor_hwcaps hwcaps;
+ 	const struct aspeed_smc_info *info = controller->info;
+ 	struct device *dev = controller->dev;
+ 	struct device_node *child;
+ 	unsigned int cs;
+ 	int ret = -ENODEV;
++	unsigned int spi_tx_width;
+ 
+ 	for_each_available_child_of_node(np, child) {
+ 		struct aspeed_smc_chip *chip;
+@@ -1276,9 +1300,20 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
+ 					 &chip->clk_rate)) {
+ 			chip->clk_rate = ASPEED_SPI_DEFAULT_FREQ;
+ 		}
++		aspeed_allowed_max_freq(chip);
+ 		dev_info(dev, "Using %d MHz SPI frequency\n",
+ 			 chip->clk_rate / 1000000);
+ 
++		if (of_property_read_u32(child, "spi-tx-bus-width",
++					 &spi_tx_width)) {
++			spi_tx_width = 2;
++		}
++		dev_info(dev, "tx width: %ld\n", spi_tx_width);
++
++		hwcaps.mask = SNOR_HWCAPS_READ |
++					SNOR_HWCAPS_READ_FAST |
++					get_hwcaps(spi_tx_width) |
++					SNOR_HWCAPS_PP;
+ 		chip->controller = controller;
+ 		chip->ctl = controller->regs + info->ctl0 + cs * 4;
+ 		chip->cs = cs;
+diff --git a/drivers/mtd/spi-nor/spi-nor.c b/drivers/mtd/spi-nor/spi-nor.c
+index 19fe44b0965a..c69ef8b56700 100644
+--- a/drivers/mtd/spi-nor/spi-nor.c
++++ b/drivers/mtd/spi-nor/spi-nor.c
+@@ -2310,7 +2310,12 @@ static const struct flash_info spi_nor_ids[] = {
+ 	{ "n25q256a",    INFO(0x20ba19, 0, 64 * 1024,  512, SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ) },
+ 	{ "n25q256ax1",  INFO(0x20bb19, 0, 64 * 1024,  512, SECT_4K | SPI_NOR_QUAD_READ) },
+ 	{ "n25q512ax3",  INFO(0x20ba20, 0, 64 * 1024, 1024, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ) },
+-	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
++	/* Removed n25q00 Quad I/O support for the time being due to clock issue with chip 'Micron 8UA15 - rw182 (128MB)'
++	 * while enabling Quad I/O mode. As this chip is default shipped in platforms, marking it
++	 * as Not supported for the time being. Once all chips are replaced with the new model, this can be enabled
++	 * back(Note:- Certain other chips having same name(n25q00) but different part number has no issues).
++	 */
++	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | NO_CHIP_ERASE) },
+ 	{ "n25q00a",     INFO(0x20bb21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
+ 	{ "mt25ql02g",   INFO(0x20ba22, 0, 64 * 1024, 4096,
+ 			      SECT_4K | USE_FSR | SPI_NOR_QUAD_READ |
+-- 
+2.17.1
+

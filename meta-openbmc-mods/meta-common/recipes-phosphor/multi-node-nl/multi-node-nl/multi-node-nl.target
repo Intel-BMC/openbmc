@@ -1,0 +1,4 @@
+[Unit]
+Description=Target for non-legacy node in multi-node system
+Documentation=man:systemd.special(7)
+

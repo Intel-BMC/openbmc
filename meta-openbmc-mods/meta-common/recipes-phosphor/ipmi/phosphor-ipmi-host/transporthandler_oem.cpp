@@ -59,7 +59,8 @@ RspType<> setLanOem(uint8_t channel, uint8_t parameter, message::Payload& req)
             }
 
             size_t numDataBytes = req.size() - 4;
-            if (numDataBytes > IpmiHostnameLen)
+            if ((numDataBytes > IpmiHostnameLen) ||
+                (!complete && (numDataBytes < IpmiHostnameLen)))
             {
                 return responseReqDataLenInvalid();
             }

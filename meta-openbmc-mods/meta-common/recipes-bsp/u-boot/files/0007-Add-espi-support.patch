@@ -1,7 +1,7 @@
-From c46cb2dd703f55ca63ed9c5cf2a97868a7e6c209 Mon Sep 17 00:00:00 2001
+From 74a1399befdb0f7604d116ac8578e7e4004728d8 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 10:21:40 -0800
-Subject: [PATCH] Add espi support
+Subject: [PATCH 1/1] Add espi support
 
 This adds basic eSPI support for U-Boot. The eSPI driver works best with
 interrupts because the timing of the initialization with the PCH is not
@@ -12,23 +12,22 @@ host to boot. In the future it may be expanded to have further
 functions.
 
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
-Change-Id: Id7072f1408dcf364968b1b74f2192e50a22a82f0
-
+Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
  arch/arm/include/asm/arch-aspeed/regs-scu.h |   2 +
  board/aspeed/ast-g5/Makefile                |   2 +
- board/aspeed/ast-g5/ast-g5-espi.c           | 231 ++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-espi.c           | 242 ++++++++++++++++++++
  board/aspeed/ast-g5/ast-g5-intel.c          |  16 ++
  board/aspeed/ast-g5/ast-g5.c                |   3 +
- 5 files changed, 254 insertions(+)
+ 5 files changed, 265 insertions(+)
  create mode 100644 board/aspeed/ast-g5/ast-g5-espi.c
  create mode 100644 board/aspeed/ast-g5/ast-g5-intel.c
 
 diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
-index b714fa9..10b983a 100644
+index c9b91795d1..019c00036a 100644
 --- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
-@@ -552,6 +552,8 @@
+@@ -554,6 +554,8 @@
  
  #define CLK_25M_IN			(0x1 << 23)
  
@@ -38,7 +37,7 @@ index b714fa9..10b983a 100644
  #define SCU_HW_STRAP_SUPER_IO_CONFIG	(0x1 << 16)
  #define SCU_HW_STRAP_VGA_CLASS_CODE	(0x1 << 15)
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index df4e639..58e0c64 100644
+index df4e63966e..58e0c648f4 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -1,2 +1,4 @@
@@ -48,10 +47,10 @@ index df4e639..58e0c64 100644
  obj-y += ast-g5-irq.o
 diff --git a/board/aspeed/ast-g5/ast-g5-espi.c b/board/aspeed/ast-g5/ast-g5-espi.c
 new file mode 100644
-index 0000000..79ef253
+index 0000000000..dda7ac7cd5
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-espi.c
-@@ -0,0 +1,231 @@
+@@ -0,0 +1,242 @@
 +/*
 + * Copyright 2018 Intel Corporation
 + *
@@ -144,10 +143,12 @@ index 0000000..79ef253
 +#define AST_ESPI_OOB_CHRDY (1 << 4)
 +#define AST_ESPI_FLASH_SW_CHRDY (0x1 << 7)
 +#define AST_ESPI_FLASH_SW_READ (0x1 << 10)
++#define ASPEED_ESPI_CTRL_SW_RESET GENMASK(31, 24)
 +
 +/* ESPI00C bits (Interrupt Enable) */
 +#define AST_ESPI_IEN_SYS_EV (1 << 8)
 +#define AST_ESPI_IEN_GPIO_EV (1 << 9)
++#define AST_ESPI_IEN_HW_RST (1 << 31)
 +
 +/* ESPI008 bits ISR */
 +#define AST_ESPI_VW_SYS_EVT (1 << 8)
@@ -169,11 +170,37 @@ index 0000000..79ef253
 +#define SCR0SIO 0x170
 +#define IRQ_SRC_ESPI 23 /* IRQ 23 */
 +
++static void espi_handshake_ack(void)
++{
++	// IRQ only serviced if strapped, so no strap check
++	if (!(readl(AST_ESPI_BASE + ESPI098) & AST_ESPI_SL_BT_STATUS)) {
++		DBG_ESPI("Setting espi slave boot done\n");
++		uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++			     | AST_ESPI_SL_BT_STATUS | AST_ESPI_SL_BT_DONE;
++		writel(v, AST_ESPI_BASE + ESPI098);
++	}
++
++	if (readl(AST_ESPI_BASE + ESPI104) & AST_ESPI_SUS_WARN) {
++		DBG_ESPI("Boot SUS WARN set %08x\n",
++			 readl(AST_ESPI_BASE + ESPI104));
++		uint32_t v = readl(AST_ESPI_BASE + ESPI104) | AST_ESPI_SUS_ACK;
++		writel(v, AST_ESPI_BASE + ESPI104);
++	}
++}
++
 +static int espi_irq_handler(struct pt_regs *regs)
 +{
 +	uint32_t irq_status = readl(AST_ESPI_BASE + ESPI008);
 +
 +	DBG_ESPI("ISR irq_status : 0x%08X\n", irq_status);
++
++
++	if (irq_status & AST_ESPI_IEN_HW_RST) {
++	    uint32_t v = readl(AST_ESPI_BASE + ESPI000);
++	    writel(v & ~ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
++	    writel(v | ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
++	    espi_handshake_ack();
++	}
 +
 +	if (irq_status & AST_ESPI_VW_SYS_EVT) {
 +		uint32_t sys_status = readl(AST_ESPI_BASE + ESPI11C);
@@ -214,26 +241,9 @@ index 0000000..79ef253
 +		}
 +		writel(sys1_status, AST_ESPI_BASE + ESPI12C); // clear status
 +	}
++
 +	writel(irq_status, AST_ESPI_BASE + ESPI008); // clear irq_status
 +	return 0;
-+}
-+
-+static void espi_handshake_ack(void)
-+{
-+	// IRQ only serviced if strapped, so no strap check
-+	if (!(readl(AST_ESPI_BASE + ESPI098) & AST_ESPI_SL_BT_STATUS)) {
-+		DBG_ESPI("Setting espi slave boot done\n");
-+		uint32_t v = readl(AST_ESPI_BASE + ESPI098)
-+			     | AST_ESPI_SL_BT_STATUS | AST_ESPI_SL_BT_DONE;
-+		writel(v, AST_ESPI_BASE + ESPI098);
-+	}
-+
-+	if (readl(AST_ESPI_BASE + ESPI104) & AST_ESPI_SUS_WARN) {
-+		DBG_ESPI("Boot SUS WARN set %08x\n",
-+			 readl(AST_ESPI_BASE + ESPI104));
-+		uint32_t v = readl(AST_ESPI_BASE + ESPI104) | AST_ESPI_SUS_ACK;
-+		writel(v, AST_ESPI_BASE + ESPI104);
-+	}
 +}
 +
 +void espi_init(void)
@@ -273,8 +283,8 @@ index 0000000..79ef253
 +		       AST_ESPI_BASE
 +			       + ESPI100); // Enable sysev1 ints for susp warn
 +
-+		writel(AST_ESPI_IEN_SYS_EV,
-+		       AST_ESPI_BASE + ESPI00C); // Enable only sys events
++		writel(AST_ESPI_IEN_SYS_EV | AST_ESPI_IEN_HW_RST,
++		       AST_ESPI_BASE + ESPI00C); // Enable events
 +
 +		espi_handshake_ack();
 +
@@ -285,7 +295,7 @@ index 0000000..79ef253
 +}
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
 new file mode 100644
-index 0000000..e79235c
+index 0000000000..e79235c8d0
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -0,0 +1,16 @@
@@ -306,10 +316,10 @@ index 0000000..e79235c
 +	espi_init();
 +}
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index 2472aa3..d41ef9c 100644
+index ca25348178..cab5fabcef 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
-@@ -18,6 +18,8 @@
+@@ -21,6 +21,8 @@
  
  DECLARE_GLOBAL_DATA_PTR;
  
@@ -318,7 +328,7 @@ index 2472aa3..d41ef9c 100644
  int board_early_init_f(void)
  {
  	/* make sure uart5 is using 24MHz clock */
-@@ -34,6 +36,7 @@ int board_init(void)
+@@ -84,6 +86,7 @@ int board_init(void)
  	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
  	gd->flags = 0;
  
@@ -326,3 +336,6 @@ index 2472aa3..d41ef9c 100644
  	return 0;
  }
  
+-- 
+2.17.1
+

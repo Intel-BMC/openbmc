@@ -321,6 +321,27 @@ static void SIOGetPFailStatus()
 	close(fd);
 }
 
+static void SIOSetBMCSCIEvent(unsigned short set)
+{
+	int fd;
+	struct sio_ioctl_data sio_data;
+
+	fd = open(SIO_DEVICE_NAME, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		printf("Error open %s\n", SIO_DEVICE_NAME);
+		exit(1);
+	}
+
+	sio_data.sio_cmd = SIO_SET_BMC_SCI_EVENT;
+	sio_data.param   = set;
+
+	if (ioctl(fd, SIO_IOC_COMMAND, &sio_data) == 0)
+		printf("BMC SCI event is %s\n",
+		       sio_data.data ? "set" : "cleared");
+
+	close(fd);
+}
+
 /*********************************************************************************/
 
 #if SUPPORT_MAILBOX
@@ -390,6 +411,8 @@ static void usage(void)
 	       "\tlpc_cmds sio get_pwrbtn_override_status\n"
 	       "\tlpc_cmds sio get_pwrbtn_override_status_clear\n"
 	       "\tlpc_cmds sio get_pfail_status\n"
+	       "\tlpc_cmds sio set_bmc_sci_event\n"
+	       "\tlpc_cmds sio clear_bmc_sci_event\n"
 	       "\n"
 #if SUPPORT_KCS_ADDR_CMD
 	       "\tlpc_cmds kcs [1 ~ 4] (getaddr / setaddr / quiet)\n"
@@ -445,6 +468,10 @@ int main(int argc, char** argv)
 			SIOGetPWRBTNOverride(1);
 		else if (strcmp(argv[2], "get_pfail_status") == 0)
 			SIOGetPFailStatus();
+		else if (strcmp(argv[2], "set_bmc_sci_event") == 0)
+			SIOSetBMCSCIEvent(1);
+		else if (strcmp(argv[2], "clear_bmc_sci_event") == 0)
+			SIOSetBMCSCIEvent(0);
 	} else if (strcmp(cmd, "kcs") == 0) {
 		int ifc;
 

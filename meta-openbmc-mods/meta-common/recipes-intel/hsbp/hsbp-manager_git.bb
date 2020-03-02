@@ -2,7 +2,7 @@ SUMMARY = "HSBP Manager"
 DESCRIPTION = "HSBP Manager monitors HSBPs through SMBUS"
 
 SRC_URI = "git://github.com/openbmc/s2600wf-misc.git"
-SRCREV = "e6db783f06594c4f0057f7b6c22b90d6f344960b"
+SRCREV = "da0c35fce8b53c1fba05b253c2e24effbbd97197"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"

@@ -4,6 +4,11 @@ DEPENDS += "nlohmann-json boost"
 
 SRC_URI += "git://github.com/openbmc/phosphor-networkd"
 SRC_URI += "file://0003-Adding-channel-specific-privilege-to-network.patch \
-            file://0001-Enhance-DHCP-beyond-just-OFF-and-IPv4-IPv6-enabled.patch \
+            file://0005-Enable-conditional-use-of-ETHTOOL-features-in-the-NI.patch \
+            file://0008-Added-enable-disable-control-of-the-Network-Interfac.patch \
+            file://0009-Enhance-DHCP-beyond-just-OFF-and-IPv4-IPv6-enabled.patch \
+            file://0010-Enable-the-network-link-carrier-state-to-be-reported.patch \
             "
-SRCREV = "cb42fe26febc9e457a9c4279278bd8c85f60851a"
+SRCREV = "dbd328d7e037b1af13fb0f20f3708e2261b9e0b6"
+
+EXTRA_OECONF_append = " --enable-nic-ethtool=yes"

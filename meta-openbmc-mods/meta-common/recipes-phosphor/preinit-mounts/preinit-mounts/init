@@ -115,41 +115,15 @@ full_clean() {
     done
     sync
 }
-# attach a UBI device to the MTD device
-prepare_ubi_volume() {
-    local nv_num="$1"
-    local mtd="/dev/mtd${nv_num}"
-    local ubi="/dev/ubi${nv_num}"
-    if [ ! -e $ubi ]; then
-        if ! ubiattach -m "$nv_num" -d "$nv_num"; then
-            # the attach failed, so format the MTD device and try again
-            log "Warning! Failed to attach $ubi to $mtd."
-            log "UBI-formatting $mtd to attach again. Data on this device will be lost."
-            ubiformat -y "$mtd"
-            ubiattach -m "$nv_num" -d "$nv_num"
-        fi
-    fi
 
-    # make a UBI volume on the UBI device
-    local vol="${ubi}_0"
-    if [ ! -e $vol ]; then
-        ubimkvol "$ubi" -N "$mtd" -m
-    fi
-}
-
-reformat_ubi_volume() {
-    local nv_num="$1"
+reformat_jffs2_partition() {
+    local mtd_name="$1"
     local mnt="$2"
-    local mtd="/dev/mtd${nv_num}"
-    local ubi="/dev/ubi${nv_num}"
-    local vol="${ubi}_0"
-    # unmount the volume to reformat it
+    # unmount the partition to reformat it
     umount -f "$mnt"
-    ubidetach -m $nv_num
-    ubiformat -y "$mtd"
-    prepare_ubi_volume $nv_num
-    # remount the UBIFS on the UBI volume
-    mount -t ubifs -o sync "$vol" "$mnt"
+    flash_eraseall "$(mtd_by_name ${mtd_name})"
+    # remount the JFFS2
+    mount -t jffs2 -o sync mtd:"$mtd_name" "$mnt"
     if [ $? -ne 0 ]; then
         log "Failed to mount reformatted NV volume; system unstable"
     fi
@@ -162,14 +136,13 @@ clear_ubenv() {
 
 # mount NV filesystem
 mkdir -p "$RWFS_MNT"
-prepare_ubi_volume $NV_MTD_NUM
-mount -t ubifs -o sync "/dev/ubi${NV_MTD_NUM}_0" "$RWFS_MNT"
+mount -t jffs2 -o sync mtd:"$NV_MTD" "$RWFS_MNT"
 if [ $? -ne 0 ]; then
     log "Failed to mount NV volume; attempting recovery"
-    reformat_ubi_volume $NV_MTD_NUM $RWFS_MNT
+    reformat_jffs2_partition $NV_MTD $RWFS_MNT
 fi
 
-# check for full factory reset: if so, ubiformat $NV_MTD_DEV
+# check for full factory reset: if so, format $NV_MTD_DEV
 RESTORE_FLAG=$RWFS_MNT/.restore_op
 restore_op=$(cat $RESTORE_FLAG) # read from NV
 restore_op=${restore_op:-0}     # set default value 0
@@ -181,7 +154,7 @@ elif [ $restore_op -eq 2 ]; then
     clear_ubenv
 elif [ $restore_op -eq 3 ]; then
     log "restore-defaults: reformat"
-    reformat_ubi_volume $NV_MTD_NUM $RWFS_MNT
+    reformat_jffs2_partition $NV_MTD $RWFS_MNT
     clear_ubenv
 fi
 rm -f $RESTORE_FLAG
@@ -229,15 +202,57 @@ if ! grep -q sofs /proc/mounts; then
     SOFS_MTD=sofs
     SOFS_MTD_NUM="$(mtdnum_by_name ${SOFS_MTD})"
 
-    # mount a UBIFS on the UBI volume
-    prepare_ubi_volume $SOFS_MTD_NUM
-    mount -t ubifs -o sync "/dev/ubi${SOFS_MTD_NUM}_0" "$SOFS_MNT"
+    # mount a JFFS2 on the partition
+    mount -t jffs2 -o sync mtd:"$SOFS_MTD" "$SOFS_MNT"
     if [ $? -ne 0 ]; then
         log "Failed to mount SOFS volume; attempting recovery"
-        reformat_ubi_volume $SOFS_MTD_NUM $SOFS_MNT
+        reformat_jffs2_partition $SOFS_MTD $SOFS_MNT
     fi
 fi
 
 log "Finished mounting nv and overlays"
+
+
+# Detect the non-legacy node in cooper city and boot in to special mode.
+
+readonly COOPER_CITY=40 # Board id of cooper city
+
+is_nl_node() {
+    typeset -i nid1=$(gpioget $(gpiofind "FM_NODE_ID_1"))
+    typeset -i nid2=$(gpioget $(gpiofind "FM_NODE_ID_2"))
+    echo $((nid1|nid2))
+}
+
+read_board_id() {
+    local idx=0
+    local result=0
+    local value=0
+    for ((idx=0; idx<6; idx++))
+    do
+        typeset -i value=$(gpioget $(gpiofind "FM_BMC_BOARD_SKU_ID${idx}_N"))
+        value=$((value << idx))
+        result=$((result | value))
+    done
+    echo $result
+}
+
+pfr_write() {
+    [ $# -ne 2 ] && return 1
+    local PFR_BUS=4
+    local PFR_ADDR=0x38
+    local reg=$1
+    local val=$2
+    i2cset -y $PFR_BUS $PFR_ADDR $reg $val >&/dev/null
+}
+
+board_id=$(read_board_id)
+if [ $board_id -eq $COOPER_CITY ]; then
+    if [ $(is_nl_node) -ne 0 ]; then
+        systemctl set-default multi-node-nl.target
+        PFR_BMC_CHECKPOINT_REG=0xf
+        PFR_BMC_CHECKPOINT_COMPLETE=0x9
+        pfr_write $PFR_BMC_CHECKPOINT_REG $PFR_BMC_CHECKPOINT_COMPLETE
+    fi
+fi
 
 exec /lib/systemd/systemd

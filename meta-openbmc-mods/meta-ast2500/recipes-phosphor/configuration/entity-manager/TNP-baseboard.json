@@ -529,58 +529,9 @@
         },
         {
             "Direction": "Input",
-            "Index": 40,
-            "Name": "NMI Out",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 50,
-            "Name": "PCH Thermaltrip",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 51,
-            "Name": "Lcp Enter Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 52,
-            "Name": "Lcp Left Button",
-            "Polarity": "High",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 53,
-            "Name": "Lcp Right Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 63,
-            "Name": "PU 240VA Status",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
             "Index": 214,
             "Name": "Nmi Button",
             "Polarity": "High",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 218,
-            "Name": "ID Button",
-            "Polarity": "Low",
             "Type": "Gpio"
         },
         {
@@ -1809,7 +1760,6 @@
         "OR",
         "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*TNP'})"
     ],
-    "ProductId": 153,
     "Type": "Board",
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "$PRODUCT_MANUFACTURER",
@@ -1817,5 +1767,11 @@
         "PartNumber": "$PRODUCT_PART_NUMBER",
         "SerialNumber": "$PRODUCT_SERIAL_NUMBER"
     },
-    "xyz.openbmc_project.Inventory.Item.Baseboard": {}
+    "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
+        "AssetTag": "$PRODUCT_ASSET_TAG"
+    },
+    "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
+        "ProductId": 153
+    },
+    "xyz.openbmc_project.Inventory.Item.System": {}
 }

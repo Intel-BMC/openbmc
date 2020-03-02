@@ -1,7 +1,7 @@
-From 4c87d6074fb36d423f135392983d225785abf43a Mon Sep 17 00:00:00 2001
+From b6f898ef15eede75700e9e13a8e0b69d88b12fd4 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Thu, 20 Jun 2019 18:11:43 +0530
-Subject: [PATCH] Manufacturing mode physical presence detection
+Subject: [PATCH 15/30] Manufacturing mode physical presence detection
 
 Support for physical presence of manufacturing mode added.
 Front panel power button press for 15 seconds will be detected
@@ -23,16 +23,17 @@ Change-Id: Id7e7c7e7860c7ef3ae8e3a7a7cfda7ff506c0f2b
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 
+%% original patch: 0025-Manufacturing-mode-physical-presence-detection.patch
 ---
  board/aspeed/ast-g5/ast-g5-gpio.h  |  2 +-
- board/aspeed/ast-g5/ast-g5-intel.c | 35 +++++++++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c | 35 ++++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 1 deletion(-)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-gpio.h b/board/aspeed/ast-g5/ast-g5-gpio.h
-index a820c0f..ed2499f 100644
+index 54b7388a22..8ccf437346 100644
 --- a/board/aspeed/ast-g5/ast-g5-gpio.h
 +++ b/board/aspeed/ast-g5/ast-g5-gpio.h
-@@ -72,7 +72,7 @@
+@@ -73,7 +73,7 @@
  #define AMB_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_5)
  #define FORCE_BMC_UPDATE_PORT_PIN PORT_PIN(GPIO_PORT_D, GPIO_PIN_0)
  #define TPM_EN_PULSE_PORT_PIN PORT_PIN(GPIO_PORT_D, GPIO_PIN_6)
@@ -42,7 +43,7 @@ index a820c0f..ed2499f 100644
  // GPIO Configuration Register bits
  #define GPCFG_EVENT_TO_SMI (1 << 7) // 1 == enabled
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 55afa09..452cb5c 100644
+index 45ecd83fd3..efc3315caf 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -24,6 +24,7 @@ enum gpio_names {
@@ -53,18 +54,18 @@ index 55afa09..452cb5c 100644
  };
  
  #define GPIO_CFG_DEFAULT (GPCFG_ACTIVE_HIGH | GPCFG_LEVEL_TRIG)
-@@ -55,6 +56,10 @@ static const GPIOValue gpio_table[] = {
+@@ -58,6 +59,10 @@ static const GPIOValue gpio_table[] = {
  	/* Enable Pulse -- pin D6 */
  	[GPIO_ENABLE_TPM_PULSE] = {TPM_EN_PULSE_PORT_PIN, GPCFG_OUTPUT_EN, 0,
  				   GPIO_DEBOUNCE_NONE},
 +	/* Front Panel Power Button -- pin E2 */
-+	[GPIO_FP_PWR_BTN] = {FP_PWR_BTN_PORT_PIN, GPIO_CFG_DEFAULT, 0,
++	[GPIO_FP_PWR_BTN] = {FP_PWR_BTN_PORT_PIN, GPIO_CFG_LOW_INPUT, 0,
 +				   GPIO_DEBOUNCE_8MS},
 +
  };
  
  #define LPC_SNOOP_ADDR 0x80
-@@ -373,6 +378,30 @@ static void update_bootargs_cmd(const char *key, const char *value)
+@@ -403,6 +408,30 @@ static void update_bootargs_cmd(const char *key, const char *value)
  	free(buf);
  }
  
@@ -95,7 +96,7 @@ index 55afa09..452cb5c 100644
  void ast_g5_intel_late_init(void)
  {
  	char value[32];
-@@ -420,6 +449,12 @@ void ast_g5_intel_late_init(void)
+@@ -450,6 +479,12 @@ void ast_g5_intel_late_init(void)
  	ast_scu_write(0, AST_SCU_SYS_CTRL);
  
  	update_bootargs_cmd("resetreason", value);
@@ -109,5 +110,5 @@ index 55afa09..452cb5c 100644
  
  static void pwm_init(void)
 -- 
-2.7.4
+2.17.1
 

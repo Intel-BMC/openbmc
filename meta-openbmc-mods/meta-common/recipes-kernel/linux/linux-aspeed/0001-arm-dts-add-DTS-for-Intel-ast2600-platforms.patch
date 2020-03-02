@@ -1,4 +1,4 @@
-From 57363b496c6eb832b0c3407ee997fdee09f4007f Mon Sep 17 00:00:00 2001
+From 733ea1e7c0fd70ce372efcc8250bb2baebd74b68 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2600 platforms
@@ -8,17 +8,19 @@ Add the DTS file for Intel ast2600-based systems.
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
 Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: arun-pm <arun.p.m@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 507 +++++++++++++++++++++++++
- 1 file changed, 507 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 497 +++++++++++++++++++++++++
+ 1 file changed, 497 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 new file mode 100644
-index 000000000000..1ad46e8bc69b
+index 000000000000..5bc76dd069af
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
-@@ -0,0 +1,507 @@
+@@ -0,0 +1,497 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/dts-v1/;
 +
@@ -76,8 +78,8 @@ index 000000000000..1ad46e8bc69b
 +		compatible = "iio-hwmon";
 +		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
 +			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
-+			<&adc1 8>, <&adc1 9>, <&adc1 10>, <&adc1 11>,
-+			<&adc1 12>, <&adc1 13>, <&adc1 14>, <&adc1 15>;
++			<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
++			<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 +	};
 +
 +	leds {
@@ -112,14 +114,15 @@ index 000000000000..1ad46e8bc69b
 +		reg = <0x0>;
 +		#address-cells = <1>;
 +		#size-cells = <1>;
-+		spi-max-frequency = <10000000>;
++		spi-max-frequency = <40000000>;
++		spi-tx-bus-width = <4>;
 +		m25p,fast-read;
 +#include "openbmc-flash-layout-intel-64MB.dtsi"
 +	};
 +};
 +
 +&espi {
-+	status = "disabled"; /* FIXME: Use H/W handshaking */
++	status = "okay";
 +};
 +
 +&peci0 {
@@ -173,14 +176,14 @@ index 000000000000..1ad46e8bc69b
 +	gpio-line-names =
 +	/*A0-A7*/	"","","","","SMB_CPU_PIROM_SCL","SMB_CPU_PIROM_SDA","SMB_IPMB_STBY_LVC3_R_SCL","SMB_IPMB_STBY_LVC3_R_SDA",
 +	/*B0-B7*/	"FM_1200VA_OC","NMI_OUT","IRQ_SMB3_M2_ALERT_N","","RGMII_BMC_RMM4_LVC3_R_MDC","RGMII_BMC_RMM4_LVC3_R_MDIO","FM_BMC_BMCINIT_R","FP_ID_LED_N",
-+	/*C0-C7*/	"FM_FORCE_BMC_UPDATE_N","RST_RGMII_PHYRST_N","FM_TPM_EN_PULSE","FM_BMC_CRASHLOG_TRIG_N","IRQ_BMC_PCH_NMI_R","FM_CPU1_DISABLE_COD_N","","",
++	/*C0-C7*/	"FM_FORCE_BMC_UPDATE_N","RST_RGMII_PHYRST_N","FM_TPM_EN_PULSE","FM_BMC_CRASHLOG_TRIG_N","IRQ_BMC_PCH_NMI_R","FM_CPU1_DISABLE_COD_N","FM_4S_8S_N_MODE","FM_STANDALONE_MODE_N",
 +	/*D0-D7*/	"CPU_ERR0","CPU_ERR1","CPU_ERR2","PRDY_N","FM_SPD_SWITCH_CTRL_N","","","",
 +	/*E0-E7*/	"FM_SKT1_FAULT_LED","FM_SKT0_FAULT_LED","CLK_50M_CKMNG_BMCB","FM_BMC_BOARD_REV_ID2_N","","","","",
 +	/*F0-F7*/	"FM_BMC_BOARD_SKU_ID0_N","FM_BMC_BOARD_SKU_ID1_N","FM_BMC_BOARD_SKU_ID2_N","FM_BMC_BOARD_SKU_ID3_N","FM_BMC_BOARD_SKU_ID4_N","FM_BMC_BOARD_SKU_ID5_N","ID_BUTTON","PS_PWROK",
 +	/*G0-G7*/	"FM_SMB_BMC_NVME_LVC3_ALERT_N","RST_BMC_I2C_M2_R_N","FP_LED_STATUS_GREEN_N","FP_LED_STATUS_AMBER_N","FM_BMC_BOARD_REV_ID0_N","FM_BMC_BOARD_REV_ID1_N","FM_BMC_CPU_FBRK_OUT_R_N","DBP_PRESENT_IN_R2_N",
 +	/*H0-H7*/	"SGPIO_BMC_CLK_R","SGPIO_BMC_LD_R","SGPIO_BMC_DOUT_R","SGPIO_BMC_DIN","PLTRST_N","CPU_CATERR","PCH_BMC_THERMTRIP","",
 +	/*I0-I7*/	"JTAG_ASD_NTRST_R_N","JTAG_ASD_TDI_R","JTAG_ASD_TCK_R","JTAG_ASD_TMS_R","JTAG_ASD_TDO","FM_BMC_PWRBTN_OUT_R_N","FM_BMC_PWR_BTN_N","",
-+	/*J0-J7*/	"SMB_CHASSENSOR_STBY_LVC3_SCL","SMB_CHASSENSOR_STBY_LVC3_SDA","","","","","","",
++	/*J0-J7*/	"SMB_CHASSENSOR_STBY_LVC3_SCL","SMB_CHASSENSOR_STBY_LVC3_SDA","FM_NODE_ID0","FM_NODE_ID1","","","","",
 +	/*K0-K7*/	"SMB_HSBP_STBY_LVC3_R_SCL","SMB_HSBP_STBY_LVC3_R_SDA","SMB_SMLINK0_STBY_LVC3_R2_SCL","SMB_SMLINK0_STBY_LVC3_R2_SDA","SMB_TEMPSENSOR_STBY_LVC3_R_SCL","SMB_TEMPSENSOR_STBY_LVC3_R_SDA","SMB_PMBUS_SML1_STBY_LVC3_R_SCL","SMB_PMBUS_SML1_STBY_LVC3_R_SDA",
 +	/*L0-L7*/	"SMB_PCIE_STBY_LVC3_R_SCL","SMB_PCIE_STBY_LVC3_R_SDA","SMB_HOST_STBY_BMC_LVC3_R_SCL","SMB_HOST_STBY_BMC_LVC3_R_SDA","PREQ_N","DEBUG_EN_N","V_BMC_GFX_HSYNC_R","V_BMC_GFX_VSYNC_R",
 +	/*M0-M7*/	"SPA_CTS_N","SPA_DCD_N","SPA_DSR_N","PU_SPA_RI_N","SPA_DTR_N","SPA_RTS_N","SPA_SOUT","SPA_SIN",
@@ -385,11 +388,6 @@ index 000000000000..1ad46e8bc69b
 +	/* SMB_HSBP_STBY_LVC3_R */
 +	multi-master;
 +	status = "okay";
-+
-+	hsbp0@10 {
-+		compatible = "slave-mqueue";
-+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
-+	};
 +};
 +
 +&i2c5 {
@@ -397,11 +395,6 @@ index 000000000000..1ad46e8bc69b
 +	bus-frequency = <1000000>;
 +	multi-master;
 +	status = "okay";
-+
-+	smlink0@10 {
-+		compatible = "slave-mqueue";
-+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
-+	};
 +};
 +
 +&i2c6 {
@@ -414,7 +407,6 @@ index 000000000000..1ad46e8bc69b
 +	/* SMB_PMBUS_SML1_STBY_LVC3_R */
 +	multi-master;
 +	#retries = <3>;
-+
 +	status = "okay";
 +};
 +

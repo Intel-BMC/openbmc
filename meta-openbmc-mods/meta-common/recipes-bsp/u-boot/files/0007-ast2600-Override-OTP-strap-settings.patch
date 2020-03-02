@@ -1,0 +1,41 @@
+From 899934a036171eb9174e800ba6367b8b8a3e70c4 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 29 Jan 2020 14:55:44 -0800
+Subject: [PATCH] Override OTP strap settings
+
+This commit adds settings to override OTP strap.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/ast2600/platform.S | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index de97cccc78b7..ab8d10b70b9a 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -40,6 +40,7 @@
+ #define AST_SCU_HPLL_PARAM	(AST_SCU_BASE + 0x200)
+ #define AST_SCU_HPLL_PARAM_EXT	(AST_SCU_BASE + 0x204)
+ #define AST_SCU_HW_STRAP1	(AST_SCU_BASE + 0x500)
++#define AST_SCU_HW_STRAP2	(AST_SCU_BASE + 0x510)
+ #define AST_SCU_CA7_PARITY_CHK	(AST_SCU_BASE + 0x820)
+ #define AST_SCU_CA7_PARITY_CLR	(AST_SCU_BASE + 0x824)
+ 
+@@ -133,6 +134,13 @@ do_primary_core_setup:
+ 	/* unlock system control unit */
+ 	scu_unlock
+ 
++	/* enable eSPI and ACPI */
++	ldr	r0, =AST_SCU_HW_STRAP2
++	ldr	r1, [r0]
++	bic	r1, #0x40		@; Select eSPI
++	orr	r1, #0x20		@; Enable ACPI
++	str	r1, [r0]
++
+ 	/* tune-up CPU clock for AST2600 A0 */
+ 	ldr	r0, =AST_SCU_REV_ID
+ 	ldr	r0, [r0]
+-- 
+2.7.4
+

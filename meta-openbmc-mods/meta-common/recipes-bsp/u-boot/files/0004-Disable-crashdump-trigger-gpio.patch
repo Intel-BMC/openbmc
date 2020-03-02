@@ -1,4 +1,4 @@
-From aae3bab86f19784cbe0767ea0973527ce217bf89 Mon Sep 17 00:00:00 2001
+From b203aee347f6b4104a7dfbc061b195c99795451e Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 3 Jan 2020 15:14:09 -0800
 Subject: [PATCH] Disable crashdump trigger gpio
@@ -12,11 +12,11 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 23 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index eb6fbaf77e66..7daf1b83305a 100644
+index b6a11132448f..f095f1ecd696 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -146,6 +146,27 @@ static void sgpio_init(void)
- 	writel(value, AST_GPIO_BASE + GPIO254);
+@@ -151,6 +151,27 @@ static void sgpio_init(void)
+ 	       SCU_BASE | SCU_414);
  }
  
 +static void disable_crashlog_trigger(void)
@@ -43,7 +43,7 @@ index eb6fbaf77e66..7daf1b83305a 100644
  void espi_init(void);
  int arch_interrupt_init_early(void);
  
-@@ -162,6 +183,8 @@ int board_early_init_f(void)
+@@ -167,6 +188,8 @@ int board_early_init_f(void)
  	 * I am not sure if it actually does anything... */
  	arch_interrupt_init_early();
  

@@ -1,4 +1,4 @@
-From c15d982a36e34f3d3cc69efff7b56a5157be9a5c Mon Sep 17 00:00:00 2001
+From 3886bca377525ca9a70a6e04403606e456c535ad Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Thu, 5 Sep 2019 15:03:21 +0530
 Subject: [PATCH] PFR platform - EXTRST# reset mask selection
@@ -11,7 +11,7 @@ update flow, during which certain modules of BMC should be chosen
 to be reset so that Host functionality would be intact.
 
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
-
+---
  .../include/asm/arch-aspeed/ast-g5-intel.h    | 31 +++++++++++++++++++
  arch/arm/include/asm/arch-aspeed/regs-scu.h   | 29 +++++++++++++++++
  board/aspeed/ast-g5/ast-g5-intel.c            |  9 ++++++
@@ -60,7 +60,7 @@ index 64f4ed17bf..b9386b2cf6 100644
  int intel_force_firmware_jumper_enabled(void);
  int intel_failed_boot(void);
 diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
-index 8333ba1c59..98895a47bf 100644
+index 1bdb1d8574..0a4fb6f773 100644
 --- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
 @@ -144,6 +144,35 @@
@@ -100,13 +100,13 @@ index 8333ba1c59..98895a47bf 100644
  #define SCU_RESET_CRT3			(0x1 << 8)
  #define SCU_RESET_CRT2			(0x1 << 7)
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 13889594bf..ce87a46cd1 100644
+index f8dbae8163..e697bd17e5 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -579,6 +579,15 @@ extern void espi_init(void);
- extern void kcs_init(void);
- void ast_g5_intel(void)
+@@ -684,6 +684,15 @@ void ast_g5_intel(void)
  {
+ 	int platform_id;
+ 
 +	/* EXTRST# mask for PFR platform
 +	 * EXTRST# is used by PFR CPLD to keep BMC in
 +	 * reset during firmware authentication, updates and recovery

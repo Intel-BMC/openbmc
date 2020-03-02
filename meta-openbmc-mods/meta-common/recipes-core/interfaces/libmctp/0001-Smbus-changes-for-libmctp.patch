@@ -1,31 +1,29 @@
-From 40303196d9f07b71042cd7ba87dcab6fdad29422 Mon Sep 17 00:00:00 2001
+From ab1634441f4dd218486f6bb3b94e90e2110ccc2a Mon Sep 17 00:00:00 2001
 From: Nikhil Potade <nikhil.potade@linux.intel.com>
 Date: Tue, 19 Feb 2019 14:16:20 +0800
 Subject: [PATCH 1/1] Smbus changes for libmctp
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- CMakeLists.txt |  6 ++++--
+ CMakeLists.txt |  5 +++--
  core.c         |  2 ++
  libmctp.h      | 40 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 46 insertions(+), 2 deletions(-)
+ 3 files changed, 45 insertions(+), 2 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index a5b1042..249b12b 100644
+index f3f05bd..7991b11 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -2,8 +2,9 @@ cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
- 
- add_definitions (-DMCTP_LOG_STDERR)
- add_definitions (-DMCTP_HAVE_FILEIO)
-+add_definitions (-DMCTP_DEFAULT_ALLOC)
+@@ -5,7 +5,7 @@ add_definitions (-DMCTP_HAVE_FILEIO)
+ add_definitions (-DMCTP_HAVE_STDIO)
+ add_definitions (-DMCTP_DEFAULT_ALLOC)
  
 -add_library (libmctp STATIC alloc.c core.c log.c libmctp.h serial.c)
 +add_library (libmctp STATIC alloc.c core.c log.c libmctp.h serial.c smbus.c crc32c.c)
  
  target_include_directories (libmctp PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-@@ -18,5 +19,6 @@ add_executable (test_seq tests/test_seq.c tests/test-utils.c)
+@@ -20,5 +20,6 @@ add_executable (test_seq tests/test_seq.c tests/test-utils.c)
  target_link_libraries (test_seq libmctp)
  
  install (TARGETS libmctp DESTINATION lib)
@@ -34,7 +32,7 @@ index a5b1042..249b12b 100644
 +       include)
  
 diff --git a/core.c b/core.c
-index 61356e9..622bc5e 100644
+index f8abbb1..79a681c 100644
 --- a/core.c
 +++ b/core.c
 @@ -17,6 +17,7 @@
@@ -54,7 +52,7 @@ index 61356e9..622bc5e 100644
  #ifndef BUILD_ASSERT
  #define BUILD_ASSERT(x) \
 diff --git a/libmctp.h b/libmctp.h
-index b36a943..4f211f9 100644
+index 69ec46a..b7212be 100644
 --- a/libmctp.h
 +++ b/libmctp.h
 @@ -15,6 +15,7 @@ extern "C" {
@@ -71,9 +69,9 @@ index b36a943..4f211f9 100644
  #define MCTP_HDR_TAG_MASK	(0x7)
 +/* clang-format on */
  
- /* Baseline maximum size of a MCTP packet */
- #define MCTP_BMTU_PAYLOAD	64
- #define MCTP_BMTU		(MCTP_BMTU_PAYLOAD + sizeof(struct mctp_hdr))
+ /* Baseline Transmission Unit and packet size */
+ #define MCTP_BTU		64
+ #define MCTP_PACKET_SIZE(unit)	((unit) + sizeof(struct mctp_hdr))
  
 +#define MCTP_CONTROL_MESSAGE_TYPE	0x00
 +

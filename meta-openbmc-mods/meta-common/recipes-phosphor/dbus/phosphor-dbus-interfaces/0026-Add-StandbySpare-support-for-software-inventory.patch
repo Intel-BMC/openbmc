@@ -1,6 +1,6 @@
-From ae9e4b2a166dc4f34b255ed5338abbfa8aa37778 Mon Sep 17 00:00:00 2001
-From: Vikram Bodireddy <vikram.bodireddy@linux.intel.com>
-Date: Sat, 30 Nov 2019 18:20:13 +0530
+From 0d6556539be9bda478a3cabb6127eace5764fa11 Mon Sep 17 00:00:00 2001
+From: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Date: Wed, 15 Jan 2020 10:01:04 +0800
 Subject: [PATCH] Add StandbySpare support for software inventory
 
 Add support to allow update for active / recovery
@@ -9,14 +9,13 @@ the backend modules to advertise whether the
 software object is active or recovery (StandbySpare)
 image.
 
-Change-Id: I0d46206463ba566bcaa710fb271aa4d795fa49cd
-Signed-off-by: Vikram Bodireddy <vikram.bodireddy@linux.intel.com>
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
  xyz/openbmc_project/Software/Activation.interface.yaml | 12 ++++++++++++
  1 file changed, 12 insertions(+)
 
 diff --git a/xyz/openbmc_project/Software/Activation.interface.yaml b/xyz/openbmc_project/Software/Activation.interface.yaml
-index 37c9cb9..b71b8e7 100644
+index efeeeb6..6c9ce75 100644
 --- a/xyz/openbmc_project/Software/Activation.interface.yaml
 +++ b/xyz/openbmc_project/Software/Activation.interface.yaml
 @@ -28,12 +28,20 @@ enumerations:
@@ -37,10 +36,10 @@ index 37c9cb9..b71b8e7 100644
 +          description: >
 +            The Software.Version is part of a redundancy set and awaits
 +            a failover or external action to activate.
-     - name: RequestedActivations
-       description: >
-         The possible RequestedActivation states of a Software.Version.
-@@ -44,6 +52,10 @@ enumerations:
+         - name: Staged
+           description: >
+             The Software.Version is currently in staged flash area.
+@@ -48,6 +56,10 @@ enumerations:
          - name: Active
            description: >
              The Software.Version has been requested for Activation.
