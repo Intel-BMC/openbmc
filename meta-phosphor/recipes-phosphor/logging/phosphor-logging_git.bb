@@ -54,7 +54,7 @@ FILES_phosphor-rsyslog-config += " \
 "
 
 SRC_URI += "git://github.com/openbmc/phosphor-logging"
-SRCREV = "b3f5186e89a1ff8887e41863da39d30d373e3c08"
+SRCREV = "f15cbeb3f05c8930b3d1071604dbeeaf9f214d5b"
 
 S = "${WORKDIR}/git"
 
@@ -95,7 +95,7 @@ PACKAGECONFIG[install_scripts] = " \
 PACKAGECONFIG[openpower-pels] = " \
         --enable-openpower-pel-extension, \
         --disable-openpower-pel-extension, \
-        nlohmann-json cli11, \
+        nlohmann-json nlohmann-fifo cli11 pldm, \
         , \
         "
 

@@ -11,14 +11,15 @@ inherit obmc-phosphor-python-autotools
 
 DEPENDS += " \
         autoconf-archive-native \
-        python-inflection-native \
-        python-mako-native \
-        python-pyyaml-native \
+        ${PYTHON_PN}-inflection-native \
+        ${PYTHON_PN}-mako-native \
+        ${PYTHON_PN}-pyyaml-native \
         "
 RDEPENDS_sdbus++ += " \
-        python-inflection \
-        python-mako \
-        python-pyyaml \
+        ${PYTHON_PN} \
+        ${PYTHON_PN}-inflection \
+        ${PYTHON_PN}-mako \
+        ${PYTHON_PN}-pyyaml \
         "
 
 # sdbus++ has a handful of runtime dependencies on other python packages.
@@ -31,13 +32,13 @@ RDEPENDS_sdbus++ += " \
 # on sdbus++ runtime dependencies manually.
 
 DEPENDS_append_class-native = " \
-        python-inflection-native \
-        python-mako-native \
-        python-pyyaml-native \
+        ${PYTHON_PN}-inflection-native \
+        ${PYTHON_PN}-mako-native \
+        ${PYTHON_PN}-pyyaml-native \
         "
 
 SRC_URI += "git://github.com/openbmc/sdbusplus"
-SRCREV = "4212292bcf136d04b38ba5116aa568b0fa312798"
+SRCREV = "67c79b0ca6e013c8621dd2cff95e367dbb75bb2a"
 
 PACKAGECONFIG ??= "libsdbusplus transaction"
 PACKAGECONFIG[libsdbusplus] = "--enable-libsdbusplus,--disable-libsdbusplus,systemd,libsystemd"

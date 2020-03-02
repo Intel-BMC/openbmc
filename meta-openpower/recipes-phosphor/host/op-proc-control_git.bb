@@ -11,13 +11,14 @@ inherit autotools obmc-phosphor-utils pkgconfig pythonnative
 inherit systemd
 
 SRC_URI += "git://github.com/openbmc/openpower-proc-control"
-SRCREV = "b181d3bb878f986598751ddb1875577b7ba65a39"
+SRCREV = "a5311abddaa057a50b492c839b310f968a7e270f"
 
 DEPENDS += " \
         autoconf-archive-native \
         phosphor-logging \
         phosphor-dbus-interfaces \
         openpower-dbus-interfaces \
+        libgpiod \
         "
 
 # For libpdbg, provided by the pdbg package
