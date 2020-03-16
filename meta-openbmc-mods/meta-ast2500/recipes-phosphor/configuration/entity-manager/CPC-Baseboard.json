@@ -992,6 +992,18 @@
         },
         {
             "Address": "0x72",
+            "Bus": 7,
+            "ChannelNames": [
+                "PMBusSlot1",
+                "PMBusSlot2",
+                "PMBusSlot3",
+                "PMBusSlot4"
+            ],
+            "Name": "PMBus Mux",
+            "Type": "PCA9544Mux"
+        },
+        {
+            "Address": "0x72",
             "Bus": 2,
             "ChannelNames": [
                 "Pcie_Slot_1",
@@ -1885,6 +1897,6 @@
     },
     "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
         "ProductId": 157
-},
+    },
     "xyz.openbmc_project.Inventory.Item.System": {}
 }

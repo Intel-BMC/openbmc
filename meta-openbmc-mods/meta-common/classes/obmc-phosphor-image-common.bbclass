@@ -42,6 +42,7 @@ IMAGE_INSTALL_append = " \
         nv-sync \
         security-manager \
         multi-node-nl \
+        mctpd \
         "
 
 IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"

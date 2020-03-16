@@ -1,4 +1,4 @@
-From 74a1399befdb0f7604d116ac8578e7e4004728d8 Mon Sep 17 00:00:00 2001
+From dff3a123b0318f83ecd753eea8945ebdc15fd2f9 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 10:21:40 -0800
 Subject: [PATCH 1/1] Add espi support
@@ -16,10 +16,10 @@ Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
  arch/arm/include/asm/arch-aspeed/regs-scu.h |   2 +
  board/aspeed/ast-g5/Makefile                |   2 +
- board/aspeed/ast-g5/ast-g5-espi.c           | 242 ++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-espi.c           | 248 ++++++++++++++++++++
  board/aspeed/ast-g5/ast-g5-intel.c          |  16 ++
  board/aspeed/ast-g5/ast-g5.c                |   3 +
- 5 files changed, 265 insertions(+)
+ 5 files changed, 271 insertions(+)
  create mode 100644 board/aspeed/ast-g5/ast-g5-espi.c
  create mode 100644 board/aspeed/ast-g5/ast-g5-intel.c
 
@@ -47,10 +47,10 @@ index df4e63966e..58e0c648f4 100644
  obj-y += ast-g5-irq.o
 diff --git a/board/aspeed/ast-g5/ast-g5-espi.c b/board/aspeed/ast-g5/ast-g5-espi.c
 new file mode 100644
-index 0000000000..dda7ac7cd5
+index 0000000000..5a3ffe7bef
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-espi.c
-@@ -0,0 +1,242 @@
+@@ -0,0 +1,248 @@
 +/*
 + * Copyright 2018 Intel Corporation
 + *
@@ -191,40 +191,7 @@ index 0000000000..dda7ac7cd5
 +static int espi_irq_handler(struct pt_regs *regs)
 +{
 +	uint32_t irq_status = readl(AST_ESPI_BASE + ESPI008);
-+
 +	DBG_ESPI("ISR irq_status : 0x%08X\n", irq_status);
-+
-+
-+	if (irq_status & AST_ESPI_IEN_HW_RST) {
-+	    uint32_t v = readl(AST_ESPI_BASE + ESPI000);
-+	    writel(v & ~ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
-+	    writel(v | ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
-+	    espi_handshake_ack();
-+	}
-+
-+	if (irq_status & AST_ESPI_VW_SYS_EVT) {
-+		uint32_t sys_status = readl(AST_ESPI_BASE + ESPI11C);
-+		uint32_t sys_event = readl(AST_ESPI_BASE + ESPI098);
-+
-+		DBG_ESPI("sys_status : 0x%08X\n", sys_status);
-+		if (sys_status & AST_ESPI_HOST_RST_WARN) {
-+			DBG_ESPI("HOST_RST_WARN ev: %08X\n", sys_event);
-+			if (sys_event & AST_ESPI_HOST_RST_WARN) {
-+				uint32_t v = readl(AST_ESPI_BASE + ESPI098)
-+					     | AST_ESPI_HOST_RST_ACK;
-+				writel(v, AST_ESPI_BASE + ESPI098);
-+			}
-+		}
-+		if (sys_status & AST_ESPI_OOB_RST_WARN) {
-+			DBG_ESPI("OOB_RST_WARN ev: %08X\n", sys_event);
-+			if (sys_event & AST_ESPI_OOB_RST_WARN) {
-+				uint32_t v = readl(AST_ESPI_BASE + ESPI098)
-+					     | AST_ESPI_OOB_RST_ACK;
-+				writel(v, AST_ESPI_BASE + ESPI098);
-+			}
-+		}
-+		writel(sys_status, AST_ESPI_BASE + ESPI11C); // clear status
-+	}
 +
 +	if (irq_status & AST_ESPI_VW_SYS_EV1) {
 +		uint32_t sys1_status = readl(AST_ESPI_BASE + ESPI12C);
@@ -235,11 +202,49 @@ index 0000000000..dda7ac7cd5
 +			DBG_ESPI("SUS WARN ev: %08X\n", sys1_event);
 +			if (sys1_event & AST_ESPI_SUS_WARN) {
 +				uint32_t v = readl(AST_ESPI_BASE + ESPI104)
-+					     | AST_ESPI_SUS_ACK;
++						 | AST_ESPI_SUS_ACK;
 +				writel(v, AST_ESPI_BASE + ESPI104);
 +			}
 +		}
 +		writel(sys1_status, AST_ESPI_BASE + ESPI12C); // clear status
++	}
++
++	if (irq_status & AST_ESPI_VW_SYS_EVT) {
++		uint32_t sys_status = readl(AST_ESPI_BASE + ESPI11C);
++		uint32_t sys_event = readl(AST_ESPI_BASE + ESPI098);
++
++		if (!(sys_event & AST_ESPI_SL_BT_STATUS)) {
++			DBG_ESPI("Setting espi slave boot done\n");
++			uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++					| AST_ESPI_SL_BT_STATUS | AST_ESPI_SL_BT_DONE;
++			writel(v, AST_ESPI_BASE + ESPI098);
++		 }
++
++		DBG_ESPI("sys_status : 0x%08X\n", sys_status);
++		if (sys_status & AST_ESPI_HOST_RST_WARN) {
++				DBG_ESPI("HOST_RST_WARN ev: %08X\n", sys_event);
++				if (sys_event & AST_ESPI_HOST_RST_WARN) {
++						uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++										| AST_ESPI_HOST_RST_ACK;
++						writel(v, AST_ESPI_BASE + ESPI098);
++				}
++		}
++		if (sys_status & AST_ESPI_OOB_RST_WARN) {
++			DBG_ESPI("OOB_RST_WARN ev: %08X\n", sys_event);
++			if (sys_event & AST_ESPI_OOB_RST_WARN) {
++				uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++							| AST_ESPI_OOB_RST_ACK;
++				writel(v, AST_ESPI_BASE + ESPI098);
++			}
++		}
++		writel(sys_status, AST_ESPI_BASE + ESPI11C); // clear status
++	}
++
++	if (irq_status & AST_ESPI_IEN_HW_RST) {
++		uint32_t v = readl(AST_ESPI_BASE + ESPI000);
++		writel(v & ~ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
++		writel(v | ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
++		espi_handshake_ack();
 +	}
 +
 +	writel(irq_status, AST_ESPI_BASE + ESPI008); // clear irq_status
@@ -255,7 +260,7 @@ index 0000000000..dda7ac7cd5
 +
 +		/* Block flash access from Host */
 +		v = readl(AST_ESPI_BASE + ESPI000) & ~AST_ESPI_FLASH_SW_CHRDY;
-+		v |= AST_ESPI_FLASH_SW_READ | AST_ESPI_OOB_CHRDY;
++		v |= AST_ESPI_FLASH_SW_READ;
 +		writel(v, AST_ESPI_BASE + ESPI000);
 +
 +		/* Set SIO register 0x28 to 0xa8 as a faked ASPEED ChipID for
@@ -283,8 +288,9 @@ index 0000000000..dda7ac7cd5
 +		       AST_ESPI_BASE
 +			       + ESPI100); // Enable sysev1 ints for susp warn
 +
-+		writel(AST_ESPI_IEN_SYS_EV | AST_ESPI_IEN_HW_RST,
-+		       AST_ESPI_BASE + ESPI00C); // Enable events
++		writel(AST_ESPI_IEN_SYS_EV | AST_ESPI_IEN_HW_RST
++			   | AST_ESPI_VW_SYS_EV1,
++			   AST_ESPI_BASE + ESPI00C); // Enable events
 +
 +		espi_handshake_ack();
 +

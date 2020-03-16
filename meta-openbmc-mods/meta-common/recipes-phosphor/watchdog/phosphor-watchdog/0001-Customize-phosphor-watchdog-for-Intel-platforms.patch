@@ -1,4 +1,4 @@
-From a65701eabcf205203d6363d54730a6a497c0e6fc Mon Sep 17 00:00:00 2001
+From 82f31d1e6096acd4f223f0b0fe0d814c27450022 Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Mon, 17 Jun 2019 12:00:58 -0700
 Subject: [PATCH] Customize phosphor-watchdog for Intel platforms
@@ -16,12 +16,12 @@ Signed-off-by: Ren Yu <yux.ren@intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- watchdog.cpp | 193 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ watchdog.cpp | 213 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
  watchdog.hpp |  23 ++++++-
- 2 files changed, 206 insertions(+), 10 deletions(-)
+ 2 files changed, 226 insertions(+), 10 deletions(-)
 
 diff --git a/watchdog.cpp b/watchdog.cpp
-index 9090760..68b4246 100644
+index 9090760..079d88e 100644
 --- a/watchdog.cpp
 +++ b/watchdog.cpp
 @@ -1,11 +1,14 @@
@@ -39,7 +39,7 @@ index 9090760..68b4246 100644
  
  namespace phosphor
  {
-@@ -18,10 +21,69 @@ using namespace phosphor::logging;
+@@ -18,10 +21,77 @@ using namespace phosphor::logging;
  using sdbusplus::exception::SdBusError;
  using sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
  
@@ -94,6 +94,14 @@ index 9090760..68b4246 100644
 +static constexpr const char* request = "RequestedPowerTransition";
 +} // namespace chassis
 +
++namespace host
++{
++static constexpr const char* busName = "xyz.openbmc_project.State.Host";
++static constexpr const char* path = "/xyz/openbmc_project/state/host0";
++static constexpr const char* interface = "xyz.openbmc_project.State.Host";
++static constexpr const char* request = "RequestedHostTransition";
++} // namespace host
++
 +void Watchdog::powerStateChangedHandler(
 +    const std::map<std::string, std::variant<std::string>>& props)
 +{
@@ -113,7 +121,7 @@ index 9090760..68b4246 100644
  
  void Watchdog::resetTimeRemaining(bool enableWatchdog)
  {
-@@ -102,13 +164,102 @@ uint64_t Watchdog::interval(uint64_t value)
+@@ -102,13 +172,102 @@ uint64_t Watchdog::interval(uint64_t value)
  // Optional callback function on timer expiration
  void Watchdog::timeOutHandler()
  {
@@ -217,7 +225,7 @@ index 9090760..68b4246 100644
  
      auto target = actionTargetMap.find(action);
      if (target == actionTargetMap.end())
-@@ -128,10 +279,11 @@ void Watchdog::timeOutHandler()
+@@ -128,10 +287,23 @@ void Watchdog::timeOutHandler()
  
          try
          {
@@ -225,15 +233,27 @@ index 9090760..68b4246 100644
 -                                              SYSTEMD_INTERFACE, "StartUnit");
 -            method.append(target->second);
 -            method.append("replace");
-+            auto method =
-+                bus.new_method_call(chassis::busName, chassis::path,
-+                                    "org.freedesktop.DBus.Properties", "Set");
-+            method.append(chassis::interface, chassis::request,
-+                          std::variant<std::string>(target->second));
++            sdbusplus::message::message method;
++            if (action == Watchdog::Action::HardReset)
++            {
++                method = bus.new_method_call(host::busName, host::path,
++                                             "org.freedesktop.DBus.Properties",
++                                             "Set");
++                method.append(host::interface, host::request,
++                              std::variant<std::string>(target->second));
++            }
++            else
++            {
++                method = bus.new_method_call(chassis::busName, chassis::path,
++                                             "org.freedesktop.DBus.Properties",
++                                             "Set");
++                method.append(chassis::interface, chassis::request,
++                              std::variant<std::string>(target->second));
++            }
  
              bus.call_noreply(method);
          }
-@@ -142,6 +294,29 @@ void Watchdog::timeOutHandler()
+@@ -142,6 +314,29 @@ void Watchdog::timeOutHandler()
                              entry("ERROR=%s", e.what()));
              commit<InternalFailure>();
          }
