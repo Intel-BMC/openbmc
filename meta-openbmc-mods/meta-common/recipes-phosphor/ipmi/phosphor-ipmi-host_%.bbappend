@@ -2,7 +2,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
 SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "86d8bd793968e9251f41dbb8eaea482490e68eb1"
+SRCREV = "3165569a562983cf3c43b0b10c23e7695a031b56"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0010-fix-get-system-GUID-ipmi-command.patch \

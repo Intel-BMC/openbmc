@@ -68,6 +68,7 @@ SRC_URI += " \
         file://0092-SPI-Quad-IO-driver-support-AST2600.patch \
         file://0093-ipmi-ipmb_dev_int-add-quick-fix-for-raw-I2C-type-reg.patch \
         file://0094-Return-link-speed-and-duplex-settings-for-the-NCSI-c.patch \
+	file://0095-pwm-and-tach-driver-changes-for-ast2600.patch \
         file://0096-Fix-truncated-WrEndPointConfig-MMIO-command.patch \
         "
 
