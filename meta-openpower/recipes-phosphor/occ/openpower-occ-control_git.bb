@@ -7,7 +7,7 @@ PV = "1.0+git${SRCPV}"
 inherit autotools \
         pkgconfig \
         obmc-phosphor-dbus-service \
-        pythonnative \
+        python3native \
         phosphor-dbus-yaml
 
 require ${PN}.inc
@@ -28,11 +28,13 @@ DEPENDS += " \
         sdbusplus \
         sdbusplus-native \
         phosphor-logging \
-        openpower-dbus-interfaces \
         phosphor-dbus-interfaces \
-        openpower-dbus-interfaces-native \
         autoconf-archive-native \
         systemd \
+        ${PYTHON_PN}-native \
+        ${PYTHON_PN}-pyyaml-native \
+        ${PYTHON_PN}-setuptools-native \
+        ${PYTHON_PN}-mako-native \
         "
 
 RDEPENDS_${PN} += "phosphor-state-manager-obmc-targets"
