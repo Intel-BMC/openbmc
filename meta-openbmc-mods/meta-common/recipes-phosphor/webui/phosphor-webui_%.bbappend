@@ -1,2 +1,4 @@
 SRC_URI = "git://github.com/Intel-BMC/phosphor-webui;protocol=ssh;branch=intel2"
-SRCREV = "d342b21139c40528a70a2e25c1a00fab7116441a"
+FILESEXTRAPATHS_prepend_intel := "${THISDIR}/${PN}:"
+
+SRCREV = "0ecbfca6ecffe61da127d2c0b61ec26e4414d6ec"

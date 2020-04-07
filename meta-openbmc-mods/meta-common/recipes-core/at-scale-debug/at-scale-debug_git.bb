@@ -13,7 +13,7 @@ DEPENDS = "sdbusplus openssl libpam libgpiod"
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
 SRC_URI = "git://github.com/Intel-BMC/asd;protocol=git"
-SRCREV = "1.4.2"
+SRCREV = "1.4.3"
 
 inherit useradd
 

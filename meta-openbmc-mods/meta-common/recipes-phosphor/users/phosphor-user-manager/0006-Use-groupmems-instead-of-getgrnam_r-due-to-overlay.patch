@@ -20,15 +20,16 @@ both getgrnam_r & groupmems and able to see proper list only
 in groupmems when the issue is reproduced
 
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Signed-off-by: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 ---
- user_service.cpp | 26 +++++++++++---------------
- 1 file changed, 11 insertions(+), 15 deletions(-)
+ user_service.cpp | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)
 
 diff --git a/user_service.cpp b/user_service.cpp
-index c3c45bd..4fdf7a1 100644
+index c3c45bd..0a6b171 100644
 --- a/user_service.cpp
 +++ b/user_service.cpp
-@@ -143,28 +143,24 @@ class ShadowService : public phosphor::user::UserServiceInterface
+@@ -143,28 +143,26 @@ class ShadowService : public phosphor::user::UserServiceInterface
          getUsersInGroup(const std::string &groupName) const override
      {
          std::vector<std::string> usersInGroup;
@@ -63,11 +64,13 @@ index c3c45bd..4fdf7a1 100644
 +        }
 +        if (!output.empty())
 +        {
++            boost::algorithm::trim_right(output[0]);
 +            boost::algorithm::split(usersInGroup, output[0],
-+                                    boost::algorithm::is_any_of(" "));
++                                    boost::algorithm::is_any_of("\t "),
++                                    boost::token_compress_on);
          }
          return usersInGroup;
      }
 -- 
-2.7.4
+2.17.1
 

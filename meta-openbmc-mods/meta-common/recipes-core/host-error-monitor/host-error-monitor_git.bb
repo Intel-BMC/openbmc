@@ -7,7 +7,7 @@ SRC_URI = "git://github.com/Intel-BMC/host-error-monitor.git;protocol=ssh"
 DEPENDS = "boost sdbusplus libgpiod libpeci"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "4b56eb0cd42ac87ae8bfd0b725fc274ee3cbbc36"
+SRCREV = "77722dd390351ce2b3877af13e1a0698a86386c1"
 
 S = "${WORKDIR}/git"
 

@@ -620,10 +620,10 @@
             "Type": "CFMSensor"
         },
         {
-            "Dcpmm": [
+            "Pmem": [
                 {
                     "Channel": 0,
-                    "DimmID": 1,
+                    "DeviceID": 1,
                     "I2cAddress": "0xB0",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 0,
@@ -639,7 +639,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 2,
+                    "DeviceID": 2,
                     "I2cAddress": "0xB2",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 0,
@@ -655,7 +655,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 3,
+                    "DeviceID": 3,
                     "I2cAddress": "0xB4",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 0,
@@ -671,7 +671,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 4,
+                    "DeviceID": 4,
                     "I2cAddress": "0xB6",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 0,
@@ -687,7 +687,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 5,
+                    "DeviceID": 5,
                     "I2cAddress": "0xB8",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 1,
@@ -703,7 +703,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 6,
+                    "DeviceID": 6,
                     "I2cAddress": "0xBA",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 1,
@@ -719,7 +719,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 7,
+                    "DeviceID": 7,
                     "I2cAddress": "0xBC",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 1,
@@ -735,7 +735,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 8,
+                    "DeviceID": 8,
                     "I2cAddress": "0xBE",
                     "I2cbus": "MemoryChannel1",
                     "Imc": 1,
@@ -751,7 +751,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 9,
+                    "DeviceID": 9,
                     "I2cAddress": "0xB0",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 2,
@@ -767,7 +767,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 10,
+                    "DeviceID": 10,
                     "I2cAddress": "0xB2",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 2,
@@ -783,7 +783,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 11,
+                    "DeviceID": 11,
                     "I2cAddress": "0xB4",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 2,
@@ -799,7 +799,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 12,
+                    "DeviceID": 12,
                     "I2cAddress": "0xB6",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 2,
@@ -815,7 +815,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 13,
+                    "DeviceID": 13,
                     "I2cAddress": "0xB8",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 3,
@@ -831,7 +831,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 14,
+                    "DeviceID": 14,
                     "I2cAddress": "0xBA",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 3,
@@ -847,7 +847,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 15,
+                    "DeviceID": 15,
                     "I2cAddress": "0xBC",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 3,
@@ -863,7 +863,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 16,
+                    "DeviceID": 16,
                     "I2cAddress": "0xBE",
                     "I2cbus": "MemoryChannel2",
                     "Imc": 3,
@@ -879,7 +879,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 17,
+                    "DeviceID": 17,
                     "I2cAddress": "0xB0",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 0,
@@ -895,7 +895,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 18,
+                    "DeviceID": 18,
                     "I2cAddress": "0xB2",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 0,
@@ -911,7 +911,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 19,
+                    "DeviceID": 19,
                     "I2cAddress": "0xB4",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 0,
@@ -927,7 +927,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 20,
+                    "DeviceID": 20,
                     "I2cAddress": "0xB6",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 0,
@@ -943,7 +943,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 21,
+                    "DeviceID": 21,
                     "I2cAddress": "0xB8",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 1,
@@ -959,7 +959,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 22,
+                    "DeviceID": 22,
                     "I2cAddress": "0xBA",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 1,
@@ -975,7 +975,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 23,
+                    "DeviceID": 23,
                     "I2cAddress": "0xBC",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 1,
@@ -991,7 +991,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 24,
+                    "DeviceID": 24,
                     "I2cAddress": "0xBE",
                     "I2cbus": "MemoryChannel3",
                     "Imc": 1,
@@ -1007,7 +1007,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 25,
+                    "DeviceID": 25,
                     "I2cAddress": "0xB0",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 2,
@@ -1023,7 +1023,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 26,
+                    "DeviceID": 26,
                     "I2cAddress": "0xB2",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 2,
@@ -1039,7 +1039,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 27,
+                    "DeviceID": 27,
                     "I2cAddress": "0xB4",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 2,
@@ -1055,7 +1055,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 28,
+                    "DeviceID": 28,
                     "I2cAddress": "0xB6",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 2,
@@ -1071,7 +1071,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 29,
+                    "DeviceID": 29,
                     "I2cAddress": "0xB8",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 3,
@@ -1087,7 +1087,7 @@
                 },
                 {
                     "Channel": 0,
-                    "DimmID": 30,
+                    "DeviceID": 30,
                     "I2cAddress": "0xBA",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 3,
@@ -1103,7 +1103,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 31,
+                    "DeviceID": 31,
                     "I2cAddress": "0xBC",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 3,
@@ -1119,7 +1119,7 @@
                 },
                 {
                     "Channel": 1,
-                    "DimmID": 32,
+                    "DeviceID": 32,
                     "I2cAddress": "0xBE",
                     "I2cbus": "MemoryChannel4",
                     "Imc": 3,
@@ -1138,8 +1138,8 @@
                 "i2c",
                 "peci"
             ],
-            "Name": "DCPMM",
-            "Type": "DCPMM"
+            "Name": "PMEM",
+            "Type": "PMEM"
         },
         {
             "Name": "System Fan connector 1",

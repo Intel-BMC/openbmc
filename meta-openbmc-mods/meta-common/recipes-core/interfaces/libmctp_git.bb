@@ -2,7 +2,7 @@ SUMMARY = "libmctp"
 DESCRIPTION = "Implementation of MCTP (DTMF DSP0236)"
 
 SRC_URI = "git://github.com/openbmc/libmctp.git"
-SRCREV = "b6516a083c622a76e3e485f56b743b2a63171881"
+SRCREV = "7b08721ecee81c2eccf642fc6359aab7e36c37be"
 
 PV = "0.1+git${SRCPV}"
 
@@ -21,6 +21,7 @@ CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += "file://0001-Smbus-changes-for-libmctp.patch \
+            file://CMakeLists.txt \
             file://crc32c.c \
             file://crc32c.h  \
             file://libmctp-smbus.h  \
@@ -29,6 +30,7 @@ SRC_URI += "file://0001-Smbus-changes-for-libmctp.patch \
 do_configure_prepend() {
     cp -f ${WORKDIR}/*.c ${S}
     cp -f ${WORKDIR}/*.h ${S}
+    cp -f ${WORKDIR}/CMakeLists.txt ${S}
 }
 
 # linux-libc-headers guides this way to include custom uapi headers

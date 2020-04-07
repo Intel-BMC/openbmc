@@ -10,27 +10,28 @@ inherit native
 DEPENDS += " intel-blocksign-native"
 
 SRC_URI = " \
-           file://pfr_manifest.json \
            file://pfr_image.py \
-           file://pfm_config.xml \
-           file://bmc_config.xml \
-           file://csk_prv.pem \
-           file://csk_pub.pem \
-           file://rk_pub.pem \
-           file://rk_prv.pem \
+           file://${PRODUCT_GENERATION}/pfr_manifest.json \
+           file://${PRODUCT_GENERATION}/pfm_config.xml \
+           file://${PRODUCT_GENERATION}/bmc_config.xml \
+           file://${PRODUCT_GENERATION}/csk_prv.pem \
+           file://${PRODUCT_GENERATION}/csk_pub.pem \
+           file://${PRODUCT_GENERATION}/rk_pub.pem \
+           file://${PRODUCT_GENERATION}/rk_prv.pem \
           "
 
-do_install() {
+do_install () {
         bbplain "Copying intel pfr image generation scripts and image signing keys"
 
-        install -d ${D}/${bindir}
+        install -d ${D}${bindir}
         install -d ${D}/${datadir}/pfrconfig
-        install -m 775 ${WORKDIR}/pfr_image.py ${D}${bindir}
-        install -m 400 ${WORKDIR}/pfr_manifest.json ${D}/${datadir}/pfrconfig
-        install -m 400 ${WORKDIR}/pfm_config.xml ${D}/${datadir}/pfrconfig
-        install -m 400 ${WORKDIR}/bmc_config.xml ${D}/${datadir}/pfrconfig
-        install -m 400 ${WORKDIR}/csk_prv.pem ${D}/${datadir}/pfrconfig
-        install -m 400 ${WORKDIR}/csk_pub.pem ${D}/${datadir}/pfrconfig
-        install -m 400 ${WORKDIR}/rk_pub.pem ${D}/${datadir}/pfrconfig
-        install -m 400 ${WORKDIR}/rk_prv.pem ${D}/${datadir}/pfrconfig
+        install -m 775 ${WORKDIR}/pfr_image.py ${D}${bindir}/pfr_image.py
+        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/pfr_manifest.json ${D}/${datadir}/pfrconfig
+        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/pfm_config.xml ${D}/${datadir}/pfrconfig/pfm_config.xml
+        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/bmc_config.xml ${D}/${datadir}/pfrconfig/bmc_config.xml
+        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/csk_prv.pem ${D}/${datadir}/pfrconfig/csk_prv.pem
+        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/csk_pub.pem ${D}/${datadir}/pfrconfig/csk_pub.pem
+        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/rk_pub.pem ${D}/${datadir}/pfrconfig/rk_pub.pem
+        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/rk_prv.pem ${D}/${datadir}/pfrconfig/rk_prv.pem
 }
+

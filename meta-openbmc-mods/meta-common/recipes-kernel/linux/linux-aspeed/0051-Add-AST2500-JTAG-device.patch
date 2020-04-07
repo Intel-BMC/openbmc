@@ -1,4 +1,4 @@
-From fe860284fb5e062b430dc7b882144f69cb605353 Mon Sep 17 00:00:00 2001
+From 1bf4e5a8cd7ca069092bfe7ac3fd3d1879b7a87d Mon Sep 17 00:00:00 2001
 From: "Hunt, Bryan" <bryan.hunt@intel.com>
 Date: Mon, 6 May 2019 10:02:14 -0700
 Subject: [PATCH] Add AST2500 JTAG device
@@ -8,7 +8,8 @@ Adding aspeed jtag device
 Signed-off-by: Hunt, Bryan <bryan.hunt@intel.com>
 ---
  arch/arm/boot/dts/aspeed-g5.dtsi | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ arch/arm/boot/dts/aspeed-g6.dtsi | 9 +++++++++
+ 2 files changed, 18 insertions(+)
 
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
 index 751a8f0316d6..eb1f9c9d9cca 100644
@@ -30,6 +31,26 @@ index 751a8f0316d6..eb1f9c9d9cca 100644
  			lpc: lpc@1e789000 {
  				compatible = "aspeed,ast2500-lpc", "simple-mfd";
  				reg = <0x1e789000 0x1000>;
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index bc2ce43827fc..31903b08e731 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -333,6 +333,15 @@
+ 				quality = <100>;
+ 			};
+ 
++			jtag: jtag@1e6e4000 {
++				compatible = "aspeed,ast2600-jtag";
++				reg = <0x1e6e4000 0x40>;
++				clocks = <&syscon ASPEED_CLK_APB1>;
++				resets = <&syscon ASPEED_RESET_JTAG_MASTER>;
++				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
++				status = "disabled";
++			};
++
+ 			adc: adc@1e6e9000 {
+ 				compatible = "aspeed,ast2500-adc";
+ 				reg = <0x1e6e9000 0x100>;
 -- 
 2.7.4
 

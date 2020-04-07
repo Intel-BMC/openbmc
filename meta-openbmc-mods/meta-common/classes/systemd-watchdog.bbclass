@@ -12,6 +12,10 @@ add_watchdog_confs() {
             continue
         fi
 
+        if [ "$service" = "systemd-coredump@.service" ]; then
+            continue
+        fi
+
         if cat $D/lib/systemd/system/${service} | grep oneshot > /dev/null; then
             continue
         fi

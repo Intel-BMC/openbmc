@@ -2048,5 +2048,8 @@
     "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
         "AssetTag": "$PRODUCT_ASSET_TAG"
     },
+    "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
+        "ProductId": 156
+    },
     "xyz.openbmc_project.Inventory.Item.System": {}
 }

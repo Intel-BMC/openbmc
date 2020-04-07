@@ -1,5 +1,5 @@
 SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git"
-SRCREV = "79064a8e0c49b35cfa1c343cef31f21ebfd7298d"
+SRCREV = "8aec946e2844831cfc377c0e0136de5714c08a5b"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 

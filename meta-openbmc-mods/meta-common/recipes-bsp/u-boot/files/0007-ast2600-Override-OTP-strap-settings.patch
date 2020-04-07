@@ -1,20 +1,31 @@
-From 3f53513c2b16ce2f9a24975cb23b2b58e70ba0f2 Mon Sep 17 00:00:00 2001
+From ddf356e738ab147775bf49a3a4fae179c0dde9ef Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 29 Jan 2020 14:55:44 -0800
-Subject: [PATCH] Override OTP strap settings
+Subject: [PATCH] ast2600: Override OTP strap settings
 
 This commit adds settings to override OTP strap.
+Also, this commit disables SoC debug interface.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/mach-aspeed/ast2600/platform.S | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ arch/arm/mach-aspeed/ast2600/platform.S | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index 80ba06802acd..e7ae9041093c 100644
+index d107ed80a835..eb3cb2f38cb6 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
-@@ -147,6 +147,26 @@ do_primary_core_setup:
+@@ -45,7 +45,9 @@
+ #define AST_SCU_HPLL_PARAM_EXT		(AST_SCU_BASE + 0x204)
+ #define AST_SCU_MFP_CTRL15		(AST_SCU_BASE + 0x454)
+ #define AST_SCU_HW_STRAP1		(AST_SCU_BASE + 0x500)
++#define AST_SCU_HW_STRAP1_CLR		(AST_SCU_BASE + 0x504)
+ #define AST_SCU_HW_STRAP2		(AST_SCU_BASE + 0x510)
++#define AST_SCU_HW_STRAP2_CLR		(AST_SCU_BASE + 0x514)
+ #define AST_SCU_CA7_CTRL		(AST_SCU_BASE + 0x800)
+ #define AST_SCU_CA7_AXI_PREFETCH_START	(AST_SCU_BASE + 0x808)
+ #define AST_SCU_CA7_AXI_PREFETCH_END	(AST_SCU_BASE + 0x80C)
+@@ -146,6 +148,26 @@ do_primary_core_setup:
  	/* unlock system control unit */
  	scu_unlock
  
@@ -41,6 +52,27 @@ index 80ba06802acd..e7ae9041093c 100644
  	/* identify AST2600 A0/A1 */
  	ldr	r0, =AST_SCU_REV_ID
  	ldr	r0, [r0]
+@@ -241,19 +263,17 @@ wait_lock:
+ 	ldr	r1, =AST_FMC_CE0_CTRL
+ 	str	r0, [r1]
+ 
+-#if 0
+ 	/* disable UART-based SoC Debug Interface UART5 and P2A bridge*/
+ 	ldr     r0, =AST_SCU_DEBUG_CTRL
+ 	ldr     r1, [r0]
+ 	orr     r1, #0x03
+ 	str     r1, [r0]
+-	
++
+ 	/* disable UART-based SoC Debug Interface UART1 and LPC2AHB bridge */
+ 	ldr     r0, =AST_SCU_DEBUG_CTRL2
+ 	ldr     r1, [r0]
+ 	orr     r1, #0x0A
+ 	str     r1, [r0]
+-#endif
+ 
+ 	/* Strongest LADESPID Driving Strngth */
+ 	ldr	r0, =AST_SCU_MFP_CTRL15
 -- 
 2.7.4
 

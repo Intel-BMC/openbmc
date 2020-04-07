@@ -1,4 +1,4 @@
-From 34308f4078361987adfb854bdc6876abdaf323cb Mon Sep 17 00:00:00 2001
+From e6e186acacc16fd95251b2d0fb024993a66ffa0a Mon Sep 17 00:00:00 2001
 From: Haiyue Wang <haiyue.wang@linux.intel.com>
 Date: Sat, 24 Feb 2018 11:12:32 +0800
 Subject: [PATCH] Add AST2500 eSPI driver
@@ -187,10 +187,10 @@ index 000000000000..887a69a7130a
 +- Interface Base Specification (for Client and Server Platforms)
 +<https://www.intel.com/content/dam/support/us/en/documents/software/chipset-software/327432-004_espi_base_specification_rev1.0.pdf>`_
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index c15be82c3a9d..bd2037e52a94 100644
+index 26d885d2bd8a..7b798c49cb95 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -316,6 +316,7 @@
+@@ -336,6 +336,7 @@
  				clocks = <&syscon ASPEED_CLK_APB>;
  				interrupt-controller;
  				#interrupt-cells = <2>;
@@ -198,7 +198,7 @@ index c15be82c3a9d..bd2037e52a94 100644
  			};
  
  			sgpio: sgpio@1e780200 {
-@@ -412,6 +413,9 @@
+@@ -432,6 +433,9 @@
  				reg = <0x1e6ee000 0x100>;
  				interrupts = <23>;
  				status = "disabled";
@@ -209,18 +209,18 @@ index c15be82c3a9d..bd2037e52a94 100644
  
  			lpc: lpc@1e789000 {
 diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
-index 62d101dc6926..753770912f0a 100644
+index 825e64ce317a..315d35c15208 100644
 --- a/arch/arm/boot/dts/aspeed-g6.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g6.dtsi
-@@ -3,6 +3,7 @@
- 
+@@ -4,6 +4,7 @@
  #include <dt-bindings/interrupt-controller/arm-gic.h>
  #include <dt-bindings/clock/ast2600-clock.h>
+ #include <dt-bindings/interrupt-controller/aspeed-scu-ic.h>
 +#include <dt-bindings/gpio/aspeed-gpio.h>
  
  / {
  	model = "Aspeed BMC";
-@@ -674,6 +675,19 @@
+@@ -708,6 +709,19 @@
  				status = "disabled";
  			};
  

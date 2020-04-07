@@ -12,15 +12,15 @@ Signed-off-by: James Feist <james.feist@linux.intel.com>
  1 file changed, 42 insertions(+)
 
 diff --git a/hw/arm/aspeed.c b/hw/arm/aspeed.c
-index 465e65f323..80e8466aa9 100644
+index 6f4d707..5a9d58b 100644
 --- a/hw/arm/aspeed.c
 +++ b/hw/arm/aspeed.c
-@@ -60,6 +60,21 @@ struct AspeedBoardState {
+@@ -64,6 +64,21 @@ struct AspeedBoardState {
          SCU_HW_STRAP_MAC0_RGMII) &                                      \
          ~SCU_HW_STRAP_2ND_BOOT_WDT)
- 
+
 +/* intel ast2500 hardware value: 0xF3CCC286 */
-+#define INTEL_AST2500_BMC_HW_STRAP1 ((                                        \
++#define INTEL_AST2500_BMC_HW_STRAP1 ((                                  \
 +        AST2500_HW_STRAP1_DEFAULTS |                                    \
 +        SCU_AST2500_HW_STRAP_SPI_AUTOFETCH_ENABLE |                     \
 +        SCU_AST2500_HW_STRAP_GPIO_STRAP_ENABLE |                        \
@@ -37,10 +37,10 @@ index 465e65f323..80e8466aa9 100644
  /* Romulus hardware value: 0xF10AD206 */
  #define ROMULUS_BMC_HW_STRAP1 (                                         \
          AST2500_HW_STRAP1_DEFAULTS |                                    \
-@@ -281,6 +296,24 @@ static void ast2500_evb_i2c_init(AspeedBoardState *bmc)
-     i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 11), "ds1338", 0x32);
+@@ -396,6 +411,24 @@ static void ast2600_evb_i2c_init(AspeedBoardState *bmc)
+     ast2500_evb_i2c_init(bmc);
  }
- 
+
 +static void intel_ast2500_i2c_init(AspeedBoardState *bmc)
 +{
 +    AspeedSoCState *soc = &bmc->soc;
@@ -62,22 +62,39 @@ index 465e65f323..80e8466aa9 100644
  static void romulus_bmc_i2c_init(AspeedBoardState *bmc)
  {
      AspeedSoCState *soc = &bmc->soc;
-@@ -390,6 +423,15 @@ static const AspeedBoardConfig aspeed_boards[] = {
-         .spi_model = "mx25l25635e",
-         .num_cs    = 1,
-         .i2c_init  = ast2500_evb_i2c_init,
-+    }, {
-+        .name      = MACHINE_TYPE_NAME("intel-ast2500"),
-+        .desc      = "Intel AST2500 BMC (ARM1176)",
-+        .soc_name  = "ast2500-a1",
-+        .hw_strap1 = INTEL_AST2500_BMC_HW_STRAP1,
-+        .fmc_model = "n25q512a",
-+        .spi_model = "n25q512a",
-+        .num_cs    = 1,
-+        .i2c_init  = intel_ast2500_i2c_init,
+@@ -537,6 +570,21 @@ static void aspeed_machine_ast2500_evb_class_init(ObjectClass *oc, void *data)
+     mc->default_ram_size       = 512 * MiB;
+ };
+
++static void aspeed_machine_intel_ast2500_class_init(ObjectClass *oc, void *data)
++{
++    MachineClass *mc = MACHINE_CLASS(oc);
++    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
++
++    mc->desc       = "Intel AST2500 BMC (ARM1176)";
++    amc->soc_name  = "ast2500-a1";
++    amc->hw_strap1 = INTEL_AST2500_BMC_HW_STRAP1;
++    amc->fmc_model = "n25q512a";
++    amc->spi_model = "n25q512a";
++    amc->num_cs    = 1;
++    amc->i2c_init  = intel_ast2500_i2c_init;
++    mc->default_ram_size       = 512 * MiB;
++};
++
+ static void aspeed_machine_romulus_class_init(ObjectClass *oc, void *data)
+ {
+     MachineClass *mc = MACHINE_CLASS(oc);
+@@ -624,6 +672,10 @@ static const TypeInfo aspeed_machine_types[] = {
+         .parent        = TYPE_ASPEED_MACHINE,
+         .class_init    = aspeed_machine_ast2500_evb_class_init,
      }, {
-         .name      = MACHINE_TYPE_NAME("romulus-bmc"),
-         .desc      = "OpenPOWER Romulus BMC (ARM1176)",
--- 
++        .name          = MACHINE_TYPE_NAME("intel-ast2500"),
++        .parent        = TYPE_ASPEED_MACHINE,
++        .class_init    = aspeed_machine_intel_ast2500_class_init,
++    }, {
+         .name          = MACHINE_TYPE_NAME("romulus-bmc"),
+         .parent        = TYPE_ASPEED_MACHINE,
+         .class_init    = aspeed_machine_romulus_class_init,
+--
 2.17.1
 

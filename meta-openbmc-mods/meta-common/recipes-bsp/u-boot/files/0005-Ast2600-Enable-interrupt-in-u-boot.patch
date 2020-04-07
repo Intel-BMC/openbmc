@@ -1,4 +1,4 @@
-From 959b75b846aa25168fe9e3d04ceb0e0778f89992 Mon Sep 17 00:00:00 2001
+From 143fb89b03af61bd807b0d6f9f11d6801cf8fe69 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Fri, 3 Jan 2020 12:52:29 +0800
 Subject: [PATCH] Enable interrupt in u-boot.
@@ -15,9 +15,7 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
  arch/arm/lib/vectors.S               |  31 ++++++-
  board/aspeed/ast2600_intel/ast-irq.c | 154 +++++++++++++++++------------------
- configs/evb-ast2600_defconfig        |   1 +
- include/configs/evb_ast2600.h        |   1 +
- 4 files changed, 107 insertions(+), 80 deletions(-)
+ 2 files changed, 105 insertions(+), 80 deletions(-)
 
 diff --git a/arch/arm/lib/vectors.S b/arch/arm/lib/vectors.S
 index 2ca6e2494a7a..e2ed04a204de 100644
@@ -432,27 +430,6 @@ index f817f8cd7c81..6e91b17ab186 100644
  		}
  	}
  }
-diff --git a/configs/evb-ast2600_defconfig b/configs/evb-ast2600_defconfig
-index 517d59adaf11..9cd7aea98e8d 100644
---- a/configs/evb-ast2600_defconfig
-+++ b/configs/evb-ast2600_defconfig
-@@ -72,3 +72,4 @@ CONFIG_SPI=y
- CONFIG_DM_SPI=y
- CONFIG_SYSRESET=y
- CONFIG_WDT=y
-+CONFIG_USE_IRQ=y
-diff --git a/include/configs/evb_ast2600.h b/include/configs/evb_ast2600.h
-index 91a42f2522e2..15061b25d872 100644
---- a/include/configs/evb_ast2600.h
-+++ b/include/configs/evb_ast2600.h
-@@ -8,6 +8,7 @@
- 
- #include <configs/aspeed-common.h>
- 
-+#define CONFIG_USE_IRQ
- #define CONFIG_SYS_MEMTEST_START	(CONFIG_SYS_SDRAM_BASE + 0x300000)
- #define CONFIG_SYS_MEMTEST_END		(CONFIG_SYS_MEMTEST_START + 0x5000000)
- 
 -- 
 2.7.4
 

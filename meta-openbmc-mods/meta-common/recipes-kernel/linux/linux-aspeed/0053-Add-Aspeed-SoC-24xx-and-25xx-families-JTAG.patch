@@ -1,4 +1,4 @@
-From 817a43d1b1e197e7eff43492599469bbc23bf0fd Mon Sep 17 00:00:00 2001
+From 3b7175753cafcee67cfc13eefc30438a518ad348 Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
 Date: Mon, 3 Jun 2019 08:22:09 -0800
 Subject: [PATCH] Add Aspeed SoC 24xx and 25xx families JTAG
@@ -199,12 +199,12 @@ Comments pointed by kbuild test robot <lkp@intel.com>
 ---
  drivers/jtag/Kconfig       |   14 +
  drivers/jtag/Makefile      |    1 +
- drivers/jtag/jtag-aspeed.c | 1050 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 1065 insertions(+)
+ drivers/jtag/jtag-aspeed.c | 1051 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 1066 insertions(+)
  create mode 100644 drivers/jtag/jtag-aspeed.c
 
 diff --git a/drivers/jtag/Kconfig b/drivers/jtag/Kconfig
-index 47771fc..0cc163f 100644
+index 47771fcd3c5b..0cc163f9ad44 100644
 --- a/drivers/jtag/Kconfig
 +++ b/drivers/jtag/Kconfig
 @@ -15,3 +15,17 @@ menuconfig JTAG
@@ -226,7 +226,7 @@ index 47771fc..0cc163f 100644
 +	  To compile this driver as a module, choose M here: the module will
 +	  be called jtag-aspeed.
 diff --git a/drivers/jtag/Makefile b/drivers/jtag/Makefile
-index af37493..04a855e 100644
+index af374939a9e6..04a855e2df28 100644
 --- a/drivers/jtag/Makefile
 +++ b/drivers/jtag/Makefile
 @@ -1 +1,2 @@
@@ -234,10 +234,10 @@ index af37493..04a855e 100644
 +obj-$(CONFIG_JTAG_ASPEED)	+= jtag-aspeed.o
 diff --git a/drivers/jtag/jtag-aspeed.c b/drivers/jtag/jtag-aspeed.c
 new file mode 100644
-index 0000000..1d41a66
+index 000000000000..0c9da1b8986c
 --- /dev/null
 +++ b/drivers/jtag/jtag-aspeed.c
-@@ -0,0 +1,1050 @@
+@@ -0,0 +1,1051 @@
 +// SPDX-License-Identifier: GPL-2.0
 +// Copyright (c) 2018 Mellanox Technologies. All rights reserved.
 +// Copyright (c) 2018 Oleksandr Shamray <oleksandrs@mellanox.com>
@@ -1272,6 +1272,7 @@ index 0000000..1d41a66
 +static const struct of_device_id aspeed_jtag_of_match[] = {
 +	{ .compatible = "aspeed,ast2400-jtag", },
 +	{ .compatible = "aspeed,ast2500-jtag", },
++	{ .compatible = "aspeed,ast2600-jtag", },
 +	{}
 +};
 +

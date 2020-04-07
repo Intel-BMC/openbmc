@@ -18,7 +18,7 @@ Change-Id: I3b592a19363eef684e31d5f7c34dad8f2f9211df
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- ethernet_interface.cpp | 116 +++++++++++++++++++++++++++++++++++++++++
+ ethernet_interface.cpp | 122 +++++++++++++++++++++++++++++++++++++++++
  ethernet_interface.hpp |  39 +++++++++++++-
  network_manager.cpp    | 104 ++++++++++++++++++++++++++++++++++++
  network_manager.hpp    |   9 ++++
@@ -46,7 +46,7 @@ index 2375482..c3edd4b 100644
  
      // Emit deferred signal.
      if (emitSignal)
-@@ -823,5 +827,117 @@ void EthernetInterface::deleteAll()
+@@ -823,5 +827,123 @@ void EthernetInterface::deleteAll()
      manager.writeToConfigurationFile();
  }
  
@@ -132,6 +132,12 @@ index 2375482..c3edd4b 100644
 +std::string EthernetInterface::maxPrivilege(std::string priv)
 +{
 +    std::string intfName = interfaceName();
++
++    if (manager.supportedPrivList.empty())
++    {
++        // Populate the supported privilege list
++        manager.initSupportedPrivilges();
++    }
 +
 +    if (!priv.empty() && (std::find(manager.supportedPrivList.begin(),
 +                                    manager.supportedPrivList.end(),
@@ -377,26 +383,26 @@ diff --git a/network_manager.hpp b/network_manager.hpp
 index edb341f..e16b205 100644
 --- a/network_manager.hpp
 +++ b/network_manager.hpp
-@@ -137,6 +137,9 @@ class Manager : public details::VLANCreateIface
+@@ -137,6 +137,12 @@ class Manager : public details::VLANCreateIface
          return (interfaces.find(intf) != interfaces.end());
      }
  
 +    /** supported privilege list **/
 +    std::vector<std::string> supportedPrivList;
 +
++    /** @brief initializes the supportedPrivilege List */
++    void initSupportedPrivilges();
++
    protected:
      /** @brief Persistent sdbusplus DBus bus connection. */
      sdbusplus::bus::bus& bus;
-@@ -159,6 +162,12 @@ class Manager : public details::VLANCreateIface
+@@ -159,6 +162,9 @@ class Manager : public details::VLANCreateIface
  
      /** @brief Network Configuration directory. */
      fs::path confDir;
 +
 +    /** Get the user management service name dynamically **/
 +    std::string getUserServiceName();
-+
-+    /** @brief initializes the supportedPrivilege List */
-+    void initSupportedPrivilges();
  };
  
  } // namespace network

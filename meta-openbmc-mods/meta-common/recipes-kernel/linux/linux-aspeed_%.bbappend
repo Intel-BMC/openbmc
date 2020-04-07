@@ -70,6 +70,8 @@ SRC_URI += " \
         file://0094-Return-link-speed-and-duplex-settings-for-the-NCSI-c.patch \
 	file://0095-pwm-and-tach-driver-changes-for-ast2600.patch \
         file://0096-Fix-truncated-WrEndPointConfig-MMIO-command.patch \
+        file://0100-Mailbox-Enabling-interrupt-based-mailbox.patch \
+        file://0101-Add-poll-fops-in-eSPI-driver.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

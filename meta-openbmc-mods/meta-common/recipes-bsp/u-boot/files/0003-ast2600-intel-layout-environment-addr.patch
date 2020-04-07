@@ -1,4 +1,4 @@
-From 2a52808ddd6a6bef40bab9a15bd22b1c7988a798 Mon Sep 17 00:00:00 2001
+From 3195e1ec2d772d5e4c16ae5b60c294086cfc17be Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Thu, 12 Dec 2019 12:54:18 +0800
 Subject: [PATCH] ast2600: intel-layout-environment-addr
@@ -9,13 +9,12 @@ Both kernel and u-boot work at the area /dev/mtd/u-boot-env
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- common/board_r.c                  | 11 +++++++++--
- include/configs/aspeed-common.h   | 12 +++++++++++-
- include/configs/evb_ast2600_spl.h |  2 +-
- 3 files changed, 21 insertions(+), 4 deletions(-)
+ common/board_r.c                | 13 ++++++++++---
+ include/configs/aspeed-common.h | 11 ++++++++++-
+ 2 files changed, 20 insertions(+), 4 deletions(-)
 
 diff --git a/common/board_r.c b/common/board_r.c
-index a7f5371bac71..492d7f1cbe4c 100644
+index 472987d5d52f..b665d0e30262 100644
 --- a/common/board_r.c
 +++ b/common/board_r.c
 @@ -433,10 +433,17 @@ static int should_load_env(void)
@@ -23,6 +22,8 @@ index a7f5371bac71..492d7f1cbe4c 100644
  {
  	/* initialize environment */
 -	if (should_load_env())
+-		env_relocate();
+-	else
 +	if (should_load_env()) {
 +		/*
 +		 * try again, in case the environment failed to load the first
@@ -30,8 +31,7 @@ index a7f5371bac71..492d7f1cbe4c 100644
 +		 */
 +		if (!gd->env_valid)
 +			env_init();
- 		env_relocate();
--	else
++ 		env_relocate();
 +	} else {
  		set_default_env(NULL, 0);
 +	}
@@ -39,47 +39,29 @@ index a7f5371bac71..492d7f1cbe4c 100644
  	env_set_hex("fdtcontroladdr",
  		    (unsigned long)map_to_sysmem(gd->fdt_blob));
 diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
-index d1eb4688e68f..0ece4a1b9440 100644
+index cdbffc97a223..6065ec58db0a 100644
 --- a/include/configs/aspeed-common.h
 +++ b/include/configs/aspeed-common.h
-@@ -55,13 +55,23 @@
- #ifndef CONFIG_BOOTCOMMAND
- #define CONFIG_BOOTCOMMAND		"bootm 20080000"
+@@ -65,9 +65,18 @@
  #endif
-+#define CONFIG_SYS_REDUNDAND_ENVIRONMENT
-+#define CONFIG_ENV_ADDR_REDUND
- #define CONFIG_ENV_OVERWRITE
-+#define AST_FMC_CS0_BASE		0x20000000 /* CS0 */
+ 
+ #ifndef CONFIG_ENV_OFFSET
+-#define CONFIG_ENV_OFFSET		0xF0000
 +#define CONFIG_ENV_OFFSET		0x2400000
+ #endif
+ 
++#define CONFIG_SYS_REDUNDAND_ENVIRONMENT
++#define CONFIG_ENV_OVERWRITE
++
++#define AST_FMC_CS0_BASE		0x20000000 /* CS0 */
 +#define CONFIG_ENV_ADDR			(AST_FMC_CS0_BASE + CONFIG_ENV_OFFSET)
-+#define CONFIG_ENV_SIZE			0x10000
 +#define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
 +#define CONFIG_ENV_ADDR_REDUND		(AST_FMC_CS0_BASE + CONFIG_ENV_OFFSET_REDUND)
 +#define CONFIG_ENV_SIZE_REDUND		CONFIG_ENV_SIZE
-+#define CONFIG_ENV_SECT_SIZE		(4 << 10)
- 
- #define CONFIG_SYS_BOOTM_LEN 		(0x800000 * 2)
- 
- #define CONFIG_EXTRA_ENV_SETTINGS \
- 	"verify=yes\0"	\
--	"spi_dma=no\0" \
-+	"spi_dma=yes\0" \
- 	""
++
+ #define CONFIG_ENV_SECT_SIZE	(4 << 10)
  
  /*
-diff --git a/include/configs/evb_ast2600_spl.h b/include/configs/evb_ast2600_spl.h
-index 8bbd6e18727a..8529f46c0b19 100644
---- a/include/configs/evb_ast2600_spl.h
-+++ b/include/configs/evb_ast2600_spl.h
-@@ -19,7 +19,7 @@
- 
- /* Environment */
- #define CONFIG_ENV_SIZE			0x10000
--#define CONFIG_ENV_OFFSET		0x90000
-+#define CONFIG_ENV_OFFSET		0x2400000
- #define CONFIG_ENV_SECT_SIZE		(4 << 10)
- 
- #ifdef CONFIG_SPL_TINY
 -- 
 2.7.4
 
