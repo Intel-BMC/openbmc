@@ -12,7 +12,8 @@ TARGET_FPU = "hard"
 
 PREFERRED_PROVIDER_u-boot-fw-utils ?= "u-boot-fw-utils-aspeed-sdk"
 
-UBOOT_MACHINE = "evb-ast2600_defconfig"
+UBOOT_MACHINE = "ast2600_openbmc_defconfig"
+UBOOT_DEVICETREE = "ast2600-intel"
 
 VIRTUAL-RUNTIME_skeleton_workbook = "${MACHINE}-config"
 

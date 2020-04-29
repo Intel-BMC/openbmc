@@ -1,10 +1,10 @@
 SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
-SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "bee56d62b209088454d166d1efae4825a2b175df"
+SRC_URI = "git://github.com/Intel-BMC/mdrv2.git;protocol=ssh"
+SRCREV = "d1fc2546cba818388fbef22f50dce6ef17885ff5"
 
-S = "${WORKDIR}/git/services/smbios-mdrv2/"
+S = "${WORKDIR}/git"
 
 PV = "1.0+git${SRCPV}"
 
@@ -18,16 +18,11 @@ SYSTEMD_SERVICE_${PN} += "smbios-mdrv2.service"
 
 DEPENDS += " \
     autoconf-archive-native \
+    boost \
     systemd \
     sdbusplus \
     sdbusplus-native \
     phosphor-dbus-interfaces \
     phosphor-dbus-interfaces-native \
-    phosphor-logging \
-    "
-RDEPENDS_${PN} += " \
-    libsystemd \
-    sdbusplus \
-    phosphor-dbus-interfaces \
     phosphor-logging \
     "

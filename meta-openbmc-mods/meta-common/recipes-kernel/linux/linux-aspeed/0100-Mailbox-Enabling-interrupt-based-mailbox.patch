@@ -1,0 +1,234 @@
+From 7094f4d8efea8e059c965ba70c73d5226af392cb Mon Sep 17 00:00:00 2001
+From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
+Date: Wed, 11 Mar 2020 17:23:49 +0530
+Subject: [PATCH] [Mailbox] Enabling interrupt based mailbox
+
+Modifying the mailbox driver to use FIFO queue while using interrupt.
+
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+---
+ drivers/soc/aspeed/aspeed-lpc-mbox.c | 101 ++++++++++++++++++---------
+ 1 file changed, 68 insertions(+), 33 deletions(-)
+
+diff --git a/drivers/soc/aspeed/aspeed-lpc-mbox.c b/drivers/soc/aspeed/aspeed-lpc-mbox.c
+index 795107206022..99f38a4e4550 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-mbox.c
++++ b/drivers/soc/aspeed/aspeed-lpc-mbox.c
+@@ -12,10 +12,11 @@
+ #include <linux/poll.h>
+ #include <linux/regmap.h>
+ #include <linux/slab.h>
++#include <linux/kfifo.h>
+ 
+ #define DEVICE_NAME	"aspeed-mbox"
+ 
+-#define MBX_USE_INTERRUPT 0
++#define MBX_USE_INTERRUPT 1
+ 
+ #define ASPEED_MBOX_NUM_REGS 16
+ 
+@@ -29,6 +30,7 @@
+ #define ASPEED_MBOX_HOST_CTRL 0x4c
+ #define ASPEED_MBOX_INTERRUPT_0 0x50
+ #define ASPEED_MBOX_INTERRUPT_1 0x54
++#define MBOX_FIFO_SIZE 64
+ 
+ struct aspeed_mbox {
+ 	struct miscdevice	miscdev;
+@@ -38,6 +40,8 @@ struct aspeed_mbox {
+ 	int			irq;
+ 	wait_queue_head_t	queue;
+ 	struct mutex		mutex;
++	struct kfifo		fifo;
++	spinlock_t			lock;
+ };
+ 
+ static atomic_t aspeed_mbox_open_count = ATOMIC_INIT(0);
+@@ -74,20 +78,37 @@ static struct aspeed_mbox *file_mbox(struct file *file)
+ 	return container_of(file->private_data, struct aspeed_mbox, miscdev);
+ }
+ 
++/* Save a byte to a FIFO and discard the oldest byte if FIFO is full */
++static void put_fifo_with_discard(struct aspeed_mbox *mbox, u8 val)
++{
++	if (!kfifo_initialized(&mbox->fifo))
++		return;
++	if (kfifo_is_full(&mbox->fifo))
++		kfifo_skip(&mbox->fifo);
++	kfifo_put(&mbox->fifo, val);
++}
++
+ static int aspeed_mbox_open(struct inode *inode, struct file *file)
+ {
+ #if MBX_USE_INTERRUPT
+ 	struct aspeed_mbox *mbox = file_mbox(file);
++	int i;
+ #endif
+ 
+ 	if (atomic_inc_return(&aspeed_mbox_open_count) == 1) {
+ #if MBX_USE_INTERRUPT
+ 		/*
+-		 * Clear the interrupt status bit if it was left on and unmask
+-		 * interrupts.
+-		 * ASPEED_MBOX_CTRL_RECV bit is W1C, this also unmasks in 1 step
++		 * Reset the FIFO while opening to clear the old cached data
++		 * and load the FIFO with latest mailbox register values.
+ 		 */
+-		aspeed_mbox_outb(mbox, ASPEED_MBOX_CTRL_RECV, ASPEED_MBOX_BMC_CTRL);
++		kfifo_reset(&mbox->fifo);
++		spin_lock_irq(&mbox->lock);
++		for (i = 0; i < ASPEED_MBOX_NUM_REGS; i++) {
++			put_fifo_with_discard(mbox,
++					aspeed_mbox_inb(mbox, ASPEED_MBOX_DATA_0 + (i * 4)));
++		}
++		spin_unlock_irq(&mbox->lock);
++
+ #endif
+ 		return 0;
+ 	}
+@@ -102,6 +123,8 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 	struct aspeed_mbox *mbox = file_mbox(file);
+ 	char __user *p = buf;
+ 	ssize_t ret;
++	unsigned int copied;
++	unsigned long flags;
+ 	int i;
+ 
+ 	if (!access_ok(buf, count))
+@@ -111,15 +134,29 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 		return -EINVAL;
+ 
+ #if MBX_USE_INTERRUPT
+-	if (file->f_flags & O_NONBLOCK) {
+-		if (!(aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) &
+-				ASPEED_MBOX_CTRL_RECV))
++	/*
++	 * Restrict count as per the number of mailbox registers
++	 * if interrupt is enabled.
++	 */
++	if (count != ASPEED_MBOX_NUM_REGS)
++		return -EINVAL;
++
++	if (kfifo_is_empty(&mbox->fifo)) {
++		if (file->f_flags & O_NONBLOCK){
+ 			return -EAGAIN;
+-	} else if (wait_event_interruptible(mbox->queue,
+-				aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) &
+-				ASPEED_MBOX_CTRL_RECV)) {
+-		return -ERESTARTSYS;
++			}
++		ret = wait_event_interruptible(mbox->queue,
++				!kfifo_is_empty(&mbox->fifo));
++		if (ret == -ERESTARTSYS){
++			return -EINTR;
++			}
+ 	}
++
++	spin_lock_irqsave(&mbox->lock, flags);
++	ret = kfifo_to_user(&mbox->fifo, buf, count, &copied);
++	spin_unlock_irqrestore(&mbox->lock, flags);
++	return ret ? ret : copied;
++
+ #endif
+ 
+ 	mutex_lock(&mbox->mutex);
+@@ -134,11 +171,6 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 		p++;
+ 		count--;
+ 	}
+-
+-#if MBX_USE_INTERRUPT
+-	/* ASPEED_MBOX_CTRL_RECV bit is write to clear, this also unmasks in 1 step */
+-	aspeed_mbox_outb(mbox, ASPEED_MBOX_CTRL_RECV, ASPEED_MBOX_BMC_CTRL);
+-#endif
+ 	ret = p - buf;
+ 
+ out_unlock:
+@@ -186,16 +218,9 @@ static ssize_t aspeed_mbox_write(struct file *file, const char __user *buf,
+ static unsigned int aspeed_mbox_poll(struct file *file, poll_table *wait)
+ {
+ 	struct aspeed_mbox *mbox = file_mbox(file);
+-	unsigned int mask = 0;
+ 
+ 	poll_wait(file, &mbox->queue, wait);
+-
+-#if MBX_USE_INTERRUPT
+-	if (aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) & ASPEED_MBOX_CTRL_RECV)
+-#endif
+-		mask |= POLLIN;
+-
+-	return mask;
++	return !kfifo_is_empty(&mbox->fifo) ? POLLIN : 0;
+ }
+ 
+ static int aspeed_mbox_release(struct inode *inode, struct file *file)
+@@ -220,19 +245,23 @@ static irqreturn_t aspeed_mbox_irq(int irq, void *arg)
+ #if MBX_USE_INTERRUPT
+ 	int i;
+ 
+-//	if (!(aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL) & ASPEED_MBOX_CTRL_RECV))
+-//		return IRQ_NONE;
+-
+-	printk(KERN_ERR "BMC_CTRL: 0x%02x\n",
++	dev_dbg(mbox->miscdev.parent, "BMC_CTRL11: 0x%02x\n",
+ 	       aspeed_mbox_inb(mbox, ASPEED_MBOX_BMC_CTRL));
+-	printk(KERN_ERR "STATUS_0: 0x%02x\n",
++	dev_dbg(mbox->miscdev.parent, "STATUS_0: 0x%02x\n",
+ 	       aspeed_mbox_inb(mbox, ASPEED_MBOX_STATUS_0));
+-	printk(KERN_ERR "STATUS_1: 0x%02x\n",
++	dev_dbg(mbox->miscdev.parent, "STATUS_1: 0x%02x\n",
+ 	       aspeed_mbox_inb(mbox, ASPEED_MBOX_STATUS_1));
+ 	for (i = 0; i < ASPEED_MBOX_NUM_REGS; i++) {
+-		printk(KERN_ERR "DATA_%d: 0x%02x\n", i,
++		dev_dbg(mbox->miscdev.parent, "DATA_%d: 0x%02x\n", i,
+ 		       aspeed_mbox_inb(mbox, ASPEED_MBOX_DATA_0 + (i * 4)));
+ 	}
++
++	spin_lock(&mbox->lock);
++	for (i = 0; i < ASPEED_MBOX_NUM_REGS; i++) {
++		put_fifo_with_discard(mbox,
++				aspeed_mbox_inb(mbox, ASPEED_MBOX_DATA_0 + (i * 4)));
++	}
++	spin_unlock(&mbox->lock);
+ #endif
+ 
+ 	/* Clear interrupt status */
+@@ -249,7 +278,6 @@ static int aspeed_mbox_config_irq(struct aspeed_mbox *mbox,
+ {
+ 	struct device *dev = &pdev->dev;
+ 	int rc;
+-
+ 	mbox->irq = platform_get_irq(pdev, 0);
+ 	if (!mbox->irq)
+ 		return -ENODEV;
+@@ -300,6 +328,7 @@ static int aspeed_mbox_probe(struct platform_device *pdev)
+ 		return -ENODEV;
+ 	}
+ 
++	spin_lock_init(&mbox->lock);
+ 	mutex_init(&mbox->mutex);
+ 	init_waitqueue_head(&mbox->queue);
+ 
+@@ -316,6 +345,11 @@ static int aspeed_mbox_probe(struct platform_device *pdev)
+ 		return rc;
+ 	}
+ 
++	/* Create FIFO data structure */
++	rc = kfifo_alloc(&mbox->fifo, MBOX_FIFO_SIZE, GFP_KERNEL);
++	if (rc)
++		return rc;
++
+ 	mbox->miscdev.minor = MISC_DYNAMIC_MINOR;
+ 	mbox->miscdev.name = DEVICE_NAME;
+ 	mbox->miscdev.fops = &aspeed_mbox_fops;
+@@ -349,6 +383,7 @@ static int aspeed_mbox_remove(struct platform_device *pdev)
+ 
+ 	misc_deregister(&mbox->miscdev);
+ 	clk_disable_unprepare(mbox->clk);
++	kfifo_free(&mbox->fifo);
+ 
+ 	return 0;
+ }
+-- 
+2.17.1
+

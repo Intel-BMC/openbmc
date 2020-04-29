@@ -1,4 +1,4 @@
-From 5ccf8e3e397edf195aa65e91af6e9ea16ed88882 Mon Sep 17 00:00:00 2001
+From 9be0e8ccde0e096cc494aad6f15e7d7d3de3e46f Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Fri, 9 Nov 2018 10:24:37 +0800
 Subject: [PATCH] Implement a memory driver share memory
@@ -45,12 +45,12 @@ index 000000000000..03f57c53e844
 +	reg = <0x9ff00000 0x100000>;
 +};
 diff --git a/drivers/soc/aspeed/Kconfig b/drivers/soc/aspeed/Kconfig
-index 285c19042c65..59f25d16d6e7 100644
+index cb85917b8c6f..13cd9fbabbf1 100644
 --- a/drivers/soc/aspeed/Kconfig
 +++ b/drivers/soc/aspeed/Kconfig
-@@ -51,4 +51,13 @@ config ASPEED_P2A_CTRL
- 	  ioctl()s, the driver also provides an interface for userspace mappings to
- 	  a pre-defined region.
+@@ -59,4 +59,13 @@ config ASPEED_XDMA
+ 	  SOCs. The XDMA engine can perform automatic PCI DMA operations
+ 	  between the AST2XXX (acting as a BMC) and a host processor.
  
 +config ASPEED_VGA_SHAREDMEM
 +	tristate "Aspeed VGA Shared memory"
@@ -63,15 +63,14 @@ index 285c19042c65..59f25d16d6e7 100644
 +
  endmenu
 diff --git a/drivers/soc/aspeed/Makefile b/drivers/soc/aspeed/Makefile
-index 2e547cc47e62..ae4ef10914be 100644
+index 56c5de5eeabe..875f0d9e7866 100644
 --- a/drivers/soc/aspeed/Makefile
 +++ b/drivers/soc/aspeed/Makefile
-@@ -5,3 +5,4 @@ obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o
- obj-$(CONFIG_ASPEED_LPC_SIO)	+= aspeed-lpc-sio.o
+@@ -6,3 +6,4 @@ obj-$(CONFIG_ASPEED_LPC_SIO)	+= aspeed-lpc-sio.o
  obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
  obj-$(CONFIG_ASPEED_P2A_CTRL)	+= aspeed-p2a-ctrl.o
+ obj-$(CONFIG_ASPEED_XDMA)	+= aspeed-xdma.o
 +obj-$(CONFIG_ASPEED_VGA_SHAREDMEM)	+= aspeed-vga-sharedmem.o
-\ No newline at end of file
 diff --git a/drivers/soc/aspeed/aspeed-vga-sharedmem.c b/drivers/soc/aspeed/aspeed-vga-sharedmem.c
 new file mode 100644
 index 000000000000..cd1f5431378c

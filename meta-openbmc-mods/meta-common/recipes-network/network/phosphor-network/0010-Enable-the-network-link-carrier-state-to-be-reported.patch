@@ -1,4 +1,4 @@
-From 8f6f3ccb1f5a4af8065485c2e683402ec2b38abf Mon Sep 17 00:00:00 2001
+From 7e99cfbb5cdbf47cd0350d869be236c88f982fd3 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
 Date: Wed, 8 Jan 2020 10:38:58 -0800
 Subject: [PATCH] Enable the network link carrier state to be reported.
@@ -24,12 +24,12 @@ Get bmc/EthernetInterfaces/eth0 from Redfish # LinkStatus = Linkup
 Change-Id: I5530cf7882cfbfdba1436dd34b3219c735047c5e
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- ethernet_interface.cpp | 141 +++++++++++++++++++++++++----------------
- ethernet_interface.hpp |   8 ++-
- 2 files changed, 92 insertions(+), 57 deletions(-)
+ ethernet_interface.cpp | 104 ++++++++++++++++++++++++++++-------------
+ ethernet_interface.hpp |   7 ++-
+ 2 files changed, 77 insertions(+), 34 deletions(-)
 
 diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
-index 671e8c4..018f2e1 100644
+index ba6195e..8b8f698 100644
 --- a/ethernet_interface.cpp
 +++ b/ethernet_interface.cpp
 @@ -42,6 +42,28 @@ static constexpr const char* defaultChannelPriv = "priv-admin";
@@ -49,7 +49,7 @@ index 671e8c4..018f2e1 100644
 +
 +    ~EthernetIntfSocket()
 +    {
-+        if (sock > 0)
++        if (sock >= 0)
 +        {
 +            close(sock);
 +        }
@@ -61,42 +61,24 @@ index 671e8c4..018f2e1 100644
  EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
                                       const std::string& objPath,
                                       DHCPConf dhcpEnabled, Manager& parent,
-@@ -57,12 +79,12 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
-     MacAddressIntf::mACAddress(getMACAddress(intfName));
-     EthernetInterfaceIntf::nTPServers(getNTPServersFromConf());
-     EthernetInterfaceIntf::nameservers(getNameServerFromConf());
--#if NIC_SUPPORTS_ETHTOOL
-     InterfaceInfo ifInfo = EthernetInterface::getInterfaceInfo();
--
--    EthernetInterfaceIntf::nICEnabled(std::get<3>(ifInfo));
-+#if NIC_SUPPORTS_ETHTOOL
+@@ -62,6 +84,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+ 
      EthernetInterfaceIntf::autoNeg(std::get<2>(ifInfo));
      EthernetInterfaceIntf::speed(std::get<0>(ifInfo));
-+    EthernetInterfaceIntf::nICEnabled(std::get<3>(ifInfo));
-+    EthernetInterfaceIntf::linkUp(std::get<4>(ifInfo));
++    EthernetInterfaceIntf::linkUp(std::get<3>(ifInfo));
  #endif
      getChannelPrivilege(intfName);
  
-@@ -286,63 +308,47 @@ ObjectPath EthernetInterface::neighbor(std::string iPAddress,
-     return objectPath;
- }
- 
--#if NIC_SUPPORTS_ETHTOOL
--/*
--  Enable this code if your NIC driver supports the ETHTOOL features.
--  Do this by adding the following to your phosphor-network*.bbappend file.
--     EXTRA_OECONF_append = " --enable-nic-ethtool=yes"
--  The default compile mode is to omit getInterfaceInfo()
--*/
+@@ -294,43 +317,33 @@ ObjectPath EthernetInterface::neighbor(std::string iPAddress,
+ */
  InterfaceInfo EthernetInterface::getInterfaceInfo() const
  {
 -    int sock{-1};
--    ifreq ifr{0};
--    ethtool_cmd edata{0};
+     ifreq ifr{0};
+     ethtool_cmd edata{0};
      LinkSpeed speed{0};
      Autoneg autoneg{0};
      DuplexMode duplex{0};
-     NICEnabled nicEnabled{false};
 -    do
 -    {
 -        sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
@@ -107,25 +89,18 @@ index 671e8c4..018f2e1 100644
 -            break;
 -        }
 +    LinkUp linkState{false};
++    EthernetIntfSocket eifSocket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
  
 -        strcpy(ifr.ifr_name, interfaceName().c_str());
 -        ifr.ifr_data = reinterpret_cast<char*>(&edata);
-+#if NIC_SUPPORTS_ETHTOOL
-+    /*
-+      Enable this code if your NIC driver supports the ETHTOOL features.
-+      Do this by adding the following to your phosphor-network*.bbappend
-+      file. EXTRA_OECONF_append = " --enable-nic-ethtool=yes" The
-+      default compile mode is to omit getInterfaceInfo()
-+    */
-+    ifreq ifr{0};
-+    ethtool_cmd edata{0};
-+    EthernetIntfSocket eifSocket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
- 
--        edata.cmd = ETHTOOL_GSET;
 +    if (eifSocket.sock < 0)
 +    {
-+        return std::make_tuple(speed, duplex, autoneg, nicEnabled, linkState);
++        return std::make_tuple(speed, duplex, autoneg, linkState);
 +    }
+ 
+-        edata.cmd = ETHTOOL_GSET;
++    std::strncpy(ifr.ifr_name, interfaceName().c_str(), IFNAMSIZ - 1);
++    ifr.ifr_data = reinterpret_cast<char*>(&edata);
  
 -        if (ioctl(sock, SIOCETHTOOL, &ifr) < 0)
 -        {
@@ -133,41 +108,27 @@ index 671e8c4..018f2e1 100644
 -                            entry("ERROR=%s", strerror(errno)));
 -            break;
 -        }
-+    std::strncpy(ifr.ifr_name, interfaceName().c_str(), IFNAMSIZ - 1);
-+    ifr.ifr_data = reinterpret_cast<char*>(&edata);
-+
 +    edata.cmd = ETHTOOL_GSET;
 +    if (ioctl(eifSocket.sock, SIOCETHTOOL, &ifr) >= 0)
 +    {
          speed = edata.speed;
          duplex = edata.duplex;
          autoneg = edata.autoneg;
-+    }
-+#endif
- 
--        if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0)
--        {
--            log<level::ERR>("ioctl failed for SIOCGIFFLAGS:",
--                            entry("ERROR=%s", strerror(errno)));
--            break;
--        }
--        nicEnabled = static_cast<bool>(ifr.ifr_flags & IFF_UP);
 -    } while (0);
-+    nicEnabled = nICEnabled();
-+    linkState = linkUp();
- 
--    if (sock >= 0)
+-
+-    if (sock)
 -    {
 -        close(sock);
--    }
--    return std::make_tuple(speed, duplex, autoneg, nicEnabled);
-+    return std::make_tuple(speed, duplex, autoneg, nicEnabled, linkState);
+     }
+-    return std::make_tuple(speed, duplex, autoneg);
++
++    linkState = linkUp();
++
++    return std::make_tuple(speed, duplex, autoneg, linkState);
  }
--#endif
+ #endif
  
- /** @brief get the mac address of the interface.
-  *  @return macaddress on success
-@@ -351,25 +357,23 @@ InterfaceInfo EthernetInterface::getInterfaceInfo() const
+@@ -341,17 +354,17 @@ InterfaceInfo EthernetInterface::getInterfaceInfo() const
  std::string
      EthernetInterface::getMACAddress(const std::string& interfaceName) const
  {
@@ -193,24 +154,7 @@ index 671e8c4..018f2e1 100644
      {
          log<level::ERR>("ioctl failed for SIOCGIFHWADDR:",
                          entry("ERROR=%s", strerror(errno)));
--        close(sock);
-         elog<InternalFailure>();
-     }
- 
--    close(sock);
-     static_assert(sizeof(ifr.ifr_hwaddr.sa_data) >= sizeof(ether_addr));
-     std::string_view hwaddr(reinterpret_cast<char*>(ifr.ifr_hwaddr.sa_data),
-                             sizeof(ifr.ifr_hwaddr.sa_data));
-@@ -546,7 +550,7 @@ bool EthernetInterface::nICEnabled(bool value)
- 
-     do
-     {
--        std::strncpy(ifr.ifr_name, interfaceName().c_str(), IF_NAMESIZE);
-+        std::strncpy(ifr.ifr_name, interfaceName().c_str(), IF_NAMESIZE - 1);
-         if (ioctl(sock, SIOCGIFFLAGS, &ifr) != 0)
-         {
-             log<level::ERR>("ioctl failed for SIOCGIFFLAGS:",
-@@ -575,6 +579,31 @@ bool EthernetInterface::nICEnabled(bool value)
+@@ -514,6 +527,31 @@ EthernetInterface::DHCPConf EthernetInterface::dHCPEnabled(DHCPConf value)
      return value;
  }
  
@@ -243,25 +187,24 @@ index 671e8c4..018f2e1 100644
  {
      for (const auto& nameserverip : value)
 diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
-index 3dee311..83d7cb5 100644
+index a962751..4e36ae8 100644
 --- a/ethernet_interface.hpp
 +++ b/ethernet_interface.hpp
-@@ -60,9 +60,11 @@ using LinkSpeed = uint16_t;
+@@ -59,9 +59,10 @@ class Neighbor;
+ using LinkSpeed = uint16_t;
  using DuplexMode = uint8_t;
  using Autoneg = uint8_t;
- using NICEnabled = bool;
 +using LinkUp = bool;
  using VlanId = uint32_t;
  using InterfaceName = std::string;
--using InterfaceInfo = std::tuple<LinkSpeed, DuplexMode, Autoneg, NICEnabled>;
-+using InterfaceInfo =
-+    std::tuple<LinkSpeed, DuplexMode, Autoneg, NICEnabled, LinkUp>;
+-using InterfaceInfo = std::tuple<LinkSpeed, DuplexMode, Autoneg>;
++using InterfaceInfo = std::tuple<LinkSpeed, DuplexMode, Autoneg, LinkUp>;
  using AddressMap = std::map<std::string, std::shared_ptr<IPAddress>>;
  using NeighborMap = std::map<std::string, std::shared_ptr<Neighbor>>;
  using VlanInterfaceMap =
-@@ -190,6 +192,9 @@ class EthernetInterface : public Ifaces
-     /** Set value of NICEnabled */
-     bool nICEnabled(bool value) override;
+@@ -186,6 +187,9 @@ class EthernetInterface : public Ifaces
+      */
+     void disableDHCP(IP::Protocol protocol);
  
 +    /** Retrieve Link State */
 +    bool linkUp() const override;
@@ -269,14 +212,14 @@ index 3dee311..83d7cb5 100644
      /** @brief sets the MAC address.
       *  @param[in] value - MAC address which needs to be set on the system.
       *  @returns macAddress of the interface or throws an error.
-@@ -245,6 +250,7 @@ class EthernetInterface : public Ifaces
+@@ -241,6 +245,7 @@ class EthernetInterface : public Ifaces
      using ChannelAccessIntf::maxPrivilege;
      using EthernetInterfaceIntf::dHCPEnabled;
      using EthernetInterfaceIntf::interfaceName;
 +    using EthernetInterfaceIntf::linkUp;
-     using EthernetInterfaceIntf::nICEnabled;
      using MacAddressIntf::mACAddress;
  
+     /** @brief Absolute path of the resolv conf file */
 -- 
 2.24.1
 

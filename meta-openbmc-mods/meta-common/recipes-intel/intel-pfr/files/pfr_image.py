@@ -17,7 +17,7 @@
 import os, hashlib, struct, json, sys, subprocess, mmap, io, array, binascii, copy, shutil, re
 from array import array
 from binascii import unhexlify
-from hashlib import sha1, sha256, sha512
+from hashlib import sha1, sha256, sha384, sha512
 from shutil import copyfile
 # Flash Map
 # -----------------------------------------------
@@ -44,8 +44,7 @@ EXCLUDE_PAGES =[[0x80, 0x9f],[0x2a00,0x7fff]]
 PFM_OFFSET = 0x80000
 PFM_SPI = 0x1
 PFM_I2C = 0x2
-SHA256 = 0x1
-SHA256_SIZE = 32
+SHA = 0x1
 PFM_DEF_SIZE = 32 # 32 bytes of PFM header
 PFM_SPI_SIZE_DEF = 16 # 16 bytes of SPI PFM
 PFM_SPI_SIZE_HASH = 32 # 32 bytes of SPI region HASH
@@ -65,7 +64,7 @@ class pfm_spi(object):
         self.spi_pfm = PFM_SPI
         self.spi_prot_mask = prot_mask
         self.spi_hash_pres = hash_pres
-        if hash_pres == 1:
+        if hash_pres != 0:
             self.spi_hash = hash
         self.spi_pfm_rsvd = 0xffffffff        # b'\xff'*4
         self.spi_start_addr = start_addr
@@ -84,14 +83,20 @@ class pfm_i2c(object):
 class pfr_bmc_image(object):
 
 # json_file, firmware_file
-    def __init__(self, manifest, firmware_file, build_ver, build_num, build_hash):
+    def __init__(self, manifest, firmware_file, build_ver, build_num, build_hash, sha):
 
         self.manifest = load_manifest(manifest)
         self.firmware_file = firmware_file
         self.build_version = build_ver
         self.build_number = build_num
         self.build_hash = build_hash
-
+        self.sha = sha
+        if self.sha == "2":
+            SHA = 0x2
+            PFM_SPI_SIZE_HASH = 48
+        if self.sha == "1":
+            PFM_SPI_SIZE_HASH = 32
+            SHA = 0x1
         self.pfr_rom_file = 'image-mtd-pfr'
         open(self.pfr_rom_file, 'a').close()
 
@@ -102,9 +107,10 @@ class pfr_bmc_image(object):
         for p in self.manifest['image-parts']:
             # the json should have in the order- filename, index, offset, size and protection byte
             self.image_parts.append((p['name'], p['index'], p['offset'], p['size'], p['prot_mask'], p['pfm'], p['hash'], p['compress']))
-
-        self.act_dgst = hashlib.sha256()
-
+        if self.sha == "1":
+            self.act_dgst = hashlib.sha256()
+        if self.sha == "2":
+            self.act_dgst = hashlib.sha384()
         # SPI regions PFM array
         self.pfm_spi_regions = []
         self.pfm_bytes = PFM_DEF_SIZE # PFM definition bytes (SPI regions + SMBUS)
@@ -166,8 +172,10 @@ class pfr_bmc_image(object):
             skip = False
 
             if hash_flag == 1:
-                hash_dgst = hashlib.sha256()
-
+                if self.sha == "1":
+                    hash_dgst = hashlib.sha256()
+                if self.sha == "2":
+                    hash_dgst = hashlib.sha384()
             for chunk in iter(lambda: f.read(self.page_size), b''):
                 chunk_len = len(chunk)
                 if chunk_len != self.page_size:
@@ -203,13 +211,13 @@ class pfr_bmc_image(object):
         if pfm_flag == 1:
            self.pfm_bytes += PFM_SPI_SIZE_DEF
 
-           hash = bytearray(32)
+           hash = bytearray(PFM_SPI_SIZE_HASH)
            hash_pres = 0
 
            if hash_flag == 1:
                # region's hash
                hash = hash_dgst.hexdigest()
-               hash_pres = SHA256
+               hash_pres = SHA
                self.pfm_bytes += PFM_SPI_SIZE_HASH
 
            # append to SPI regions in PFM
@@ -344,7 +352,7 @@ class pfr_bmc_image(object):
                 f.write(struct.pack('<I', int(i.spi_start_addr)))
                 f.write(struct.pack('<I', int(i.spi_end_addr)))
 
-                if i.spi_hash_pres == 1:
+                if i.spi_hash_pres != 0:
                     f.write(bytearray.fromhex(i.spi_hash))
 
             for r in self.pfm_i2c_rules:
@@ -359,8 +367,8 @@ class pfr_bmc_image(object):
             f.write(b'\xff' * padding_bytes)
 
 def main():
-    if len(sys.argv) != 6: #< pfr_image.py manifest.json> <update.bin> <build_version> <build_number> <build_hash>
-        print('usage: {} <manifest.json> <firmware.bin> <build_version> <build_number> <build_hash>'.format(sys.argv[0]))
+    if len(sys.argv) != 7: #< pfr_image.py manifest.json> <update.bin> <build_version> <build_number> <build_hash> <sha>
+        print('usage: {} <manifest.json> <firmware.bin> <build_version> <build_number> <build_hash> <sha>'.format(sys.argv[0]))
         return
 
     json_file = sys.argv[1]
@@ -368,9 +376,10 @@ def main():
     build_ver = sys.argv[3]
     build_num = sys.argv[4]
     build_hash = sys.argv[5]
+    sha = sys.argv[6]
 
     # function to generate BMC PFM, PBC header and BMC compressed image
-    pfr_bmc_image(json_file, firmware_file, build_ver, build_num, build_hash)
+    pfr_bmc_image(json_file, firmware_file, build_ver, build_num, build_hash, sha)
 
 if __name__ == '__main__':
     main()

@@ -9,6 +9,7 @@ DEPENDS += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'obmc-intel-pfr-i
 DEPENDS += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"
 
 FEATURE_PACKAGES_obmc-sensors = ""
+FEATURE_PACKAGES_obmc-debug-collector = ""
 
 fix_shadow_perms() {
     chgrp shadow ${IMAGE_ROOTFS}${sysconfdir}/shadow

@@ -1,4 +1,4 @@
-From 8c953c7f1d512cf4acd9ce000d65e46094d61597 Mon Sep 17 00:00:00 2001
+From c438edace30a3408c827faaae2d5004fe5ae010d Mon Sep 17 00:00:00 2001
 From: arun-pm <arun.p.m@linux.intel.com>
 Date: Fri, 29 Nov 2019 00:19:09 +0530
 Subject: [PATCH] SPI Quad IO Mode
@@ -8,13 +8,14 @@ This commit adds quad IO mode in SPI driver for AST2600.
 Note:- Removed n25q00 Quad I/O support for the time being due to clock issue
  with chip 'Micron 8UA15 - rw182 (128MB)' while enabling Quad I/O mode.
 ---
- arch/arm/dts/ast2600-intel.dts |  6 ++---
- drivers/mtd/spi/spi-nor-ids.c  |  7 +++++-
- drivers/spi/aspeed_spi.c       | 46 ++++++++++++++++++++++++----------
- 3 files changed, 41 insertions(+), 18 deletions(-)
+ arch/arm/dts/ast2600-intel.dts |  6 ++----
+ drivers/mtd/spi/spi-nor-ids.c  |  7 ++++++-
+ drivers/spi/aspeed_spi.c       | 18 +++++++++++++++++-
+ 3 files changed, 25 insertions(+), 6 deletions(-)
+ mode change 100755 => 100644 drivers/spi/aspeed_spi.c
 
 diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
-index 0d362ac7c1..2a74bbd30a 100644
+index d16581c5811d..ab78b516b6a3 100644
 --- a/arch/arm/dts/ast2600-intel.dts
 +++ b/arch/arm/dts/ast2600-intel.dts
 @@ -101,16 +101,14 @@
@@ -37,7 +38,7 @@ index 0d362ac7c1..2a74bbd30a 100644
  };
  
 diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
-index c77987f1ff..d679238562 100644
+index ad733e71988b..257ab472305c 100644
 --- a/drivers/mtd/spi/spi-nor-ids.c
 +++ b/drivers/mtd/spi/spi-nor-ids.c
 @@ -164,7 +164,12 @@ const struct flash_info spi_nor_ids[] = {
@@ -55,7 +56,9 @@ index c77987f1ff..d679238562 100644
  	{ INFO("mt25qu02g",   0x20bb22, 0, 64 * 1024, 4096, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
  #endif
 diff --git a/drivers/spi/aspeed_spi.c b/drivers/spi/aspeed_spi.c
-index a8c2b3de2b..ae5edaee9f 100644
+old mode 100755
+new mode 100644
+index c7b998fadfde..930b18443a48
 --- a/drivers/spi/aspeed_spi.c
 +++ b/drivers/spi/aspeed_spi.c
 @@ -16,6 +16,9 @@
@@ -63,68 +66,12 @@ index a8c2b3de2b..ae5edaee9f 100644
  
  #define ASPEED_SPI_MAX_CS		3
 +#define AST2600A0		0x05000303
-+#define AST2600A0_MAX_FREQ		40000000
++#define AST2600A0_MAX_FREQ	40000000
 +#define AST_MAX_FREQ		100000000
  
  struct aspeed_spi_regs {
  	u32 conf;			/* 0x00 CE Type Setting */
-@@ -593,6 +596,7 @@ static int aspeed_spi_write_reg(struct aspeed_spi_priv *priv,
- 	aspeed_spi_write_to_ahb(flash->ahb_base, write_buf, len);
- 	aspeed_spi_stop_user(priv, flash);
- 
-+	debug("=== write opcode [%x] ==== \n", opcode);
- 	switch(opcode) {
- 		case SPINOR_OP_EN4B:
- 			writel(readl(&priv->regs->ctrl) | BIT(flash->cs), &priv->regs->ctrl);
-@@ -615,6 +619,8 @@ static void aspeed_spi_send_cmd_addr(struct aspeed_spi_priv *priv,
- 	/* First, send the opcode */
- 	aspeed_spi_write_to_ahb(flash->ahb_base, &cmdbuf[0], 1);
- 
-+	if(flash->iomode == CE_CTRL_IO_QUAD_ADDR_DATA)
-+		writel(flash->ce_ctrl_user | flash->iomode, &priv->regs->ce_ctrl[flash->cs]);
- 	/*
- 	 * The controller is configured for 4BYTE address mode. Fix
- 	 * the address width and send an extra byte if the SPI Flash
-@@ -664,9 +670,6 @@ static ssize_t aspeed_spi_write_user(struct aspeed_spi_priv *priv,
- {
- 	aspeed_spi_start_user(priv, flash);
- 
--	if(flash->iomode == CE_CTRL_IO_QPI_DATA)
--		writel(flash->ce_ctrl_user | flash->iomode, &priv->regs->ce_ctrl[flash->cs]);
--	
- 	/* cmd buffer = cmd + addr : normally cmd is use signle mode*/
- 	aspeed_spi_send_cmd_addr(priv, flash, cmdbuf, cmdlen);
- 
-@@ -872,15 +875,19 @@ static int aspeed_spi_flash_init(struct aspeed_spi_priv *priv,
- 	else
- 		read_hclk = aspeed_spi_hclk_divisor(priv, slave->speed);
- 
--	if (slave->mode & (SPI_RX_DUAL | SPI_TX_DUAL)) {
--		debug("CS%u: setting dual data mode\n", flash->cs);
--		flash->iomode = CE_CTRL_IO_DUAL_DATA;
--		flash->spi->read_opcode = SPINOR_OP_READ_1_1_2;
--	} else if (slave->mode & (SPI_RX_QUAD | SPI_TX_QUAD)) {
--		flash->iomode = CE_CTRL_IO_QUAD_DATA;
--		flash->spi->read_opcode = SPINOR_OP_READ_1_4_4;
--	} else {
--		debug("normal read \n");
-+	switch(flash->spi->read_opcode) {
-+		case SPINOR_OP_READ_1_1_2:
-+		case SPINOR_OP_READ_1_1_2_4B:
-+			flash->iomode = CE_CTRL_IO_DUAL_DATA;
-+			break;
-+		case SPINOR_OP_READ_1_1_4:
-+		case SPINOR_OP_READ_1_1_4_4B:
-+			flash->iomode = CE_CTRL_IO_QUAD_DATA;
-+			break;
-+		case SPINOR_OP_READ_1_4_4:
-+		case SPINOR_OP_READ_1_4_4_4B:
-+			flash->iomode = CE_CTRL_IO_QUAD_ADDR_DATA;
-+			break;
- 	}
- 
- 	if(priv->new_ver) {
-@@ -986,6 +993,19 @@ static int aspeed_spi_bind(struct udevice *bus)
+@@ -1011,6 +1014,19 @@ static int aspeed_spi_bind(struct udevice *bus)
  	return 0;
  }
  
@@ -144,7 +91,7 @@ index a8c2b3de2b..ae5edaee9f 100644
  static int aspeed_spi_probe(struct udevice *bus)
  {
  	struct resource res_regs, res_ahb;
-@@ -1016,7 +1036,7 @@ static int aspeed_spi_probe(struct udevice *bus)
+@@ -1041,7 +1057,7 @@ static int aspeed_spi_probe(struct udevice *bus)
  	clk_free(&hclk);
  
  	priv->max_hz = dev_read_u32_default(bus, "spi-max-frequency",
@@ -154,5 +101,5 @@ index a8c2b3de2b..ae5edaee9f 100644
  	priv->num_cs = dev_read_u32_default(bus, "num-cs", ASPEED_SPI_MAX_CS);
  
 -- 
-2.17.1
+2.7.4
 

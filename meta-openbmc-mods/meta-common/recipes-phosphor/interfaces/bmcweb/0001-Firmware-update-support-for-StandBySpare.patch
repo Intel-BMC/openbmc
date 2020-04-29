@@ -1,6 +1,6 @@
-From 17caf10b048450979dcd95a9f9333bbaa8c307ec Mon Sep 17 00:00:00 2001
-From: AppaRao Puli <apparao.puli@linux.intel.com>
-Date: Fri, 10 Jan 2020 08:16:10 +0530
+From 461da7ec950704a1f5bcc7f6527ed8ca119cfaf9 Mon Sep 17 00:00:00 2001
+From: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Date: Tue, 24 Mar 2020 16:05:32 +0530
 Subject: [PATCH] Firmware update support for StandBySpare
 
 Firmware update support for StandBySpare. This will
@@ -26,15 +26,13 @@ Tested:
 
  - Successfully ran redfish validater with no new errors.
 
-Change-Id: I59f317ac001ebf56bbf30e7f43dbec5d69fa249a
-Signed-off-by: Vikram Bodireddy <vikram.bodireddy@linux.intel.com>
-Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
- redfish-core/lib/update_service.hpp | 284 ++++++++++++++++++++++++++++++------
- 1 file changed, 241 insertions(+), 43 deletions(-)
+ redfish-core/lib/update_service.hpp | 274 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 241 insertions(+), 33 deletions(-)
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index ec9600e..9daf6ce 100644
+index e9793eb..a913bac 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
 @@ -30,6 +30,17 @@ static std::unique_ptr<sdbusplus::bus::match::match> fwUpdateMatcher;
@@ -55,7 +53,7 @@ index ec9600e..9daf6ce 100644
  
  static void cleanUp()
  {
-@@ -37,27 +48,118 @@ static void cleanUp()
+@@ -37,27 +48,119 @@ static void cleanUp()
      fwUpdateMatcher = nullptr;
  }
  static void activateImage(const std::string &objPath,
@@ -64,7 +62,6 @@ index ec9600e..9daf6ce 100644
 +                          const std::vector<std::string> &imgUriTargets)
  {
      BMCWEB_LOG_DEBUG << "Activate image for " << objPath << " " << service;
-+
 +    // If targets is empty, it will apply to the active.
 +    if (imgUriTargets.size() == 0)
 +    {
@@ -72,8 +69,10 @@ index ec9600e..9daf6ce 100644
 +            [](const boost::system::error_code error_code) {
 +                if (error_code)
 +                {
-+                    BMCWEB_LOG_DEBUG << "RequestedActivation failed: ec = "
-+                                     << error_code;
++                    BMCWEB_LOG_DEBUG
++                        << "RequestedActivation failed: error_code = "
++                        << error_code;
++                    BMCWEB_LOG_DEBUG << "error msg = " << error_code.message();
 +                }
 +            },
 +            service, objPath, "org.freedesktop.DBus.Properties", "Set",
@@ -181,54 +180,51 @@ index ec9600e..9daf6ce 100644
  // then no asyncResp updates will occur
  static void softwareInterfaceAdded(std::shared_ptr<AsyncResp> asyncResp,
 +                                   const std::vector<std::string> imgUriTargets,
-                                    sdbusplus::message::message &m)
+                                    sdbusplus::message::message &m,
+                                    const crow::Request &req)
  {
-     std::vector<std::pair<
-@@ -69,27 +171,24 @@ static void softwareInterfaceAdded(std::shared_ptr<AsyncResp> asyncResp,
+@@ -70,25 +173,27 @@ static void softwareInterfaceAdded(std::shared_ptr<AsyncResp> asyncResp,
  
      m.read(objPath, interfacesProperties);
  
 -    BMCWEB_LOG_DEBUG << "obj path = " << objPath.str;
-+    BMCWEB_LOG_DEBUG << "Software Interface Added. objPath = " << objPath.str;
++    BMCWEB_LOG_DEBUG << "Software Interface Added. obj path = " << objPath.str;
      for (auto &interface : interfacesProperties)
      {
--        BMCWEB_LOG_DEBUG << "interface = " << interface.first;
--
+         BMCWEB_LOG_DEBUG << "interface = " << interface.first;
+ 
 -        if (interface.first == "xyz.openbmc_project.Software.Activation")
 +        if (interface.first == activationIntf)
          {
              // Found our interface, disable callbacks
              fwUpdateMatcher = nullptr;
--
+ 
              // Retrieve service and activate
              crow::connections::systemBus->async_method_call(
--                [objPath, asyncResp](
-+                [objPath, asyncResp, imgTargets{imgUriTargets}](
-                     const boost::system::error_code error_code,
-                     const std::vector<std::pair<
-                         std::string, std::vector<std::string>>> &objInfo) {
+-                [objPath, asyncResp,
++                [objPath, asyncResp, imgTargets{imgUriTargets},
+                  req](const boost::system::error_code error_code,
+                       const std::vector<std::pair<
+                           std::string, std::vector<std::string>>> &objInfo) {
                      if (error_code)
                      {
 -                        BMCWEB_LOG_DEBUG << "error_code = " << error_code;
--                        BMCWEB_LOG_DEBUG << "error msg = "
--                                         << error_code.message();
 +                        BMCWEB_LOG_DEBUG
-+                            << "GetSoftwareObject path failed: ec = "
++                            << "GetSoftwareObject path failed: error_code = "
 +                            << error_code;
+                         BMCWEB_LOG_DEBUG << "error msg = "
+                                          << error_code.message();
                          if (asyncResp)
-                         {
-                             messages::internalError(asyncResp->res);
-@@ -113,8 +212,7 @@ static void softwareInterfaceAdded(std::shared_ptr<AsyncResp> asyncResp,
-                     // xyz.openbmc_project.Software.Activation interface
+@@ -115,7 +220,7 @@ static void softwareInterfaceAdded(std::shared_ptr<AsyncResp> asyncResp,
                      // is added
                      fwAvailableTimer = nullptr;
--
+ 
 -                    activateImage(objPath.str, objInfo[0].first);
 +                    activateImage(objPath.str, objInfo[0].first, imgTargets);
                      if (asyncResp)
                      {
-                         redfish::messages::success(asyncResp->res);
-@@ -124,17 +222,16 @@ static void softwareInterfaceAdded(std::shared_ptr<AsyncResp> asyncResp,
+                         std::shared_ptr<task::TaskData> task =
+@@ -196,17 +301,16 @@ static void softwareInterfaceAdded(std::shared_ptr<AsyncResp> asyncResp,
                  "xyz.openbmc_project.ObjectMapper",
                  "/xyz/openbmc_project/object_mapper",
                  "xyz.openbmc_project.ObjectMapper", "GetObject", objPath.str,
@@ -250,30 +246,20 @@ index ec9600e..9daf6ce 100644
  {
      // Only allow one FW update at a time
      if (fwUpdateInProgress != false)
-@@ -145,7 +242,6 @@ static void monitorForSoftwareAvailable(std::shared_ptr<AsyncResp> asyncResp,
-         }
-         return;
-     }
--
-     fwAvailableTimer =
-         std::make_unique<boost::asio::steady_timer>(*req.ioService);
- 
-@@ -174,10 +270,10 @@ static void monitorForSoftwareAvailable(std::shared_ptr<AsyncResp> asyncResp,
+@@ -246,9 +350,10 @@ static void monitorForSoftwareAvailable(std::shared_ptr<AsyncResp> asyncResp,
              }
          });
  
--    auto callback = [asyncResp](sdbusplus::message::message &m) {
--        BMCWEB_LOG_DEBUG << "Match fired";
--        softwareInterfaceAdded(asyncResp, m);
--    };
-+    auto callback =
-+        [asyncResp, imgTargets{imgUriTargets}](sdbusplus::message::message &m) {
-+            softwareInterfaceAdded(asyncResp, imgTargets, m);
-+        };
+-    auto callback = [asyncResp, req](sdbusplus::message::message &m) {
++    auto callback = [asyncResp, imgTargets{imgUriTargets},
++                     req](sdbusplus::message::message &m) {
+         BMCWEB_LOG_DEBUG << "Match fired";
+-        softwareInterfaceAdded(asyncResp, m, req);
++        softwareInterfaceAdded(asyncResp, imgTargets, m, req);
+     };
  
      fwUpdateInProgress = true;
- 
-@@ -286,9 +382,12 @@ class UpdateServiceActionsSimpleUpdate : public Node
+@@ -358,9 +463,12 @@ class UpdateServiceActionsSimpleUpdate : public Node
          std::string fwFile = imageURI.substr(separator + 1);
          BMCWEB_LOG_DEBUG << "Server: " << tftpServer + " File: " << fwFile;
  
@@ -287,7 +273,7 @@ index ec9600e..9daf6ce 100644
  
          // TFTP can take up to 2 minutes depending on image size and
          // connection speed. Return to caller as soon as the TFTP operation
-@@ -322,7 +421,8 @@ class UpdateServiceActionsSimpleUpdate : public Node
+@@ -394,7 +502,8 @@ class UpdateServiceActionsSimpleUpdate : public Node
  class UpdateService : public Node
  {
    public:
@@ -297,7 +283,7 @@ index ec9600e..9daf6ce 100644
      {
          entityPrivileges = {
              {boost::beast::http::verb::get, {{"Login"}}},
-@@ -334,6 +434,9 @@ class UpdateService : public Node
+@@ -406,6 +515,9 @@ class UpdateService : public Node
      }
  
    private:
@@ -307,7 +293,7 @@ index ec9600e..9daf6ce 100644
      void doGet(crow::Response &res, const crow::Request &req,
                 const std::vector<std::string> &params) override
      {
-@@ -346,6 +449,8 @@ class UpdateService : public Node
+@@ -416,6 +528,8 @@ class UpdateService : public Node
          res.jsonValue["Description"] = "Service for Software Update";
          res.jsonValue["Name"] = "Update Service";
          res.jsonValue["HttpPushUri"] = "/redfish/v1/UpdateService";
@@ -316,7 +302,7 @@ index ec9600e..9daf6ce 100644
          // UpdateService cannot be disabled
          res.jsonValue["ServiceEnabled"] = true;
          res.jsonValue["FirmwareInventory"] = {
-@@ -405,9 +510,14 @@ class UpdateService : public Node
+@@ -475,9 +589,14 @@ class UpdateService : public Node
          std::shared_ptr<AsyncResp> asyncResp = std::make_shared<AsyncResp>(res);
  
          std::optional<nlohmann::json> pushUriOptions;
@@ -333,15 +319,7 @@ index ec9600e..9daf6ce 100644
              return;
          }
  
-@@ -464,7 +574,6 @@ class UpdateService : public Node
-                                 messages::internalError(asyncResp->res);
-                                 return;
-                             }
--                            messages::success(asyncResp->res);
-                         },
-                         "xyz.openbmc_project.Settings",
-                         "/xyz/openbmc_project/software/apply_time",
-@@ -475,6 +584,98 @@ class UpdateService : public Node
+@@ -545,6 +664,98 @@ class UpdateService : public Node
                  }
              }
          }
@@ -440,7 +418,7 @@ index ec9600e..9daf6ce 100644
      }
  
      void doPost(crow::Response &res, const crow::Request &req,
-@@ -485,7 +686,7 @@ class UpdateService : public Node
+@@ -555,7 +766,7 @@ class UpdateService : public Node
          std::shared_ptr<AsyncResp> asyncResp = std::make_shared<AsyncResp>(res);
  
          // Setup callback for when new software detected
@@ -449,7 +427,7 @@ index ec9600e..9daf6ce 100644
  
          std::string filepath(
              "/tmp/images/" +
-@@ -574,8 +775,7 @@ class SoftwareInventoryCollection : public Node
+@@ -641,8 +852,7 @@ class SoftwareInventoryCollection : public Node
              "/xyz/openbmc_project/object_mapper",
              "xyz.openbmc_project.ObjectMapper", "GetSubTree",
              "/xyz/openbmc_project/software", static_cast<int32_t>(0),
@@ -459,7 +437,7 @@ index ec9600e..9daf6ce 100644
      }
  };
  
-@@ -760,7 +960,7 @@ class SoftwareInventory : public Node
+@@ -825,7 +1035,7 @@ class SoftwareInventory : public Node
                          },
                          obj.second[0].first, obj.first,
                          "org.freedesktop.DBus.Properties", "GetAll",
@@ -468,7 +446,7 @@ index ec9600e..9daf6ce 100644
                  }
                  if (!found)
                  {
-@@ -781,9 +981,7 @@ class SoftwareInventory : public Node
+@@ -846,9 +1056,7 @@ class SoftwareInventory : public Node
              "xyz.openbmc_project.ObjectMapper",
              "/xyz/openbmc_project/object_mapper",
              "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",

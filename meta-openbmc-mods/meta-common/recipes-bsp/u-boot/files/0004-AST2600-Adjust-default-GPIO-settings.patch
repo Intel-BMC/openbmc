@@ -1,0 +1,86 @@
+From 8dfc080bafc688ccdb3253eff79b72ad72f93761 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 3 Jan 2020 15:14:09 -0800
+Subject: [PATCH] AST2600: Adjust default GPIO settings
+
+- Disable GPIOC3 to prevent unexpected host failures.
+- Fixed GPIOC5, GPIOG6, GPIOI0~7 and GPIOL6~7 directions and
+  default values.
+- Disabled internal pull-down of GPIOB6.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/intel.c | 50 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)
+
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index eb9b3959625e..b4a3dd222f3f 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -151,6 +151,54 @@ static void sgpio_init(void)
+ 	       SCU_BASE | SCU_414);
+ }
+ 
++static void set_gpio_default_state(void)
++{
++#define SCU_410			0x410 /* Multi-function Pin Control #4 */
++#define SCU_410_RGMII3TXD1	BIT(19)
++#define GPIO_004		0x004 /* GPIO A/B/C/D Direction */
++#define GPIO_000		0x000 /* GPIO A/B/C/D Value */
++#define GPIO_C3			BIT(19)
++
++	/*
++	 * Set GPIOC3 as an output with value high explicitly since it doesn't
++	 * have an external pull up. It uses direct register access because
++	 * it's called from board_early_init_f().
++	 */
++	writel(readl(SCU_BASE | SCU_410) & ~SCU_410_RGMII3TXD1,
++	       SCU_BASE | SCU_410);
++	writel(readl(AST_GPIO_BASE | GPIO_004) | GPIO_C3,
++	       AST_GPIO_BASE | GPIO_004);
++	writel(readl(AST_GPIO_BASE | GPIO_000) | GPIO_C3,
++	       AST_GPIO_BASE | GPIO_000);
++
++#define SCU_610			0x610 /* Disable internal pull-down #0 */
++#define SCU_610_GPIOB6		BIT(14)
++	writel(readl(SCU_BASE | SCU_610) | SCU_610_GPIOB6, SCU_BASE | SCU_610);
++
++#define GPIO_C5			BIT(21)
++	writel(readl(AST_GPIO_BASE | GPIO_004) | GPIO_C5,
++	       AST_GPIO_BASE | GPIO_004);
++	writel(readl(AST_GPIO_BASE | GPIO_000) | GPIO_C5,
++	       AST_GPIO_BASE | GPIO_000);
++
++#define GPIO_024		0x024 /* GPIO E/F/G/H Direction */
++#define GPIO_020		0x020 /* GPIO E/F/G/H Value */
++#define GPIO_G6			BIT(22)
++	writel(readl(AST_GPIO_BASE | GPIO_024) | GPIO_G6,
++	       AST_GPIO_BASE | GPIO_024);
++	writel(readl(AST_GPIO_BASE | GPIO_020) | GPIO_G6,
++	       AST_GPIO_BASE | GPIO_020);
++
++#define GPIO_074		0x074 /* GPIO I/J/K/L Direction */
++#define GPIO_070		0x070 /* GPIO I/J/K/L Value */
++#define GPIO_I_MASK		GENMASK(7, 0)
++#define GPIO_L_MASK		GENMASK(29, 28)
++	writel(readl(AST_GPIO_BASE | GPIO_074) | GPIO_I_MASK | GPIO_L_MASK,
++	       AST_GPIO_BASE | GPIO_074);
++	writel(readl(AST_GPIO_BASE | GPIO_070) | GPIO_I_MASK | GPIO_L_MASK,
++	       AST_GPIO_BASE | GPIO_070);
++}
++
+ void espi_init(void);
+ int arch_interrupt_init_early(void);
+ 
+@@ -167,6 +215,8 @@ int board_early_init_f(void)
+ 	 * I am not sure if it actually does anything... */
+ 	arch_interrupt_init_early();
+ 
++	set_gpio_default_state();
++
+ 	gpio_passthru_init();
+ 
+ 	port80h_snoop_init();
+-- 
+2.7.4
+

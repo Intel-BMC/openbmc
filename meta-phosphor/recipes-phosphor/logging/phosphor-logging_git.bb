@@ -15,8 +15,9 @@ inherit phosphor-dbus-yaml
 
 DEPENDS += "autoconf-archive-native"
 DEPENDS += "systemd"
-DEPENDS += "python-mako-native"
-DEPENDS += "python-pyyaml-native"
+DEPENDS += "${PYTHON_PN}-mako-native"
+DEPENDS += "${PYTHON_PN}-pyyaml-native"
+DEPENDS += "${PYTHON_PN}-native"
 DEPENDS += "sdbusplus sdbusplus-native"
 DEPENDS += "phosphor-dbus-interfaces phosphor-dbus-interfaces-native"
 DEPENDS += "virtual/phosphor-logging-callouts"
@@ -54,7 +55,7 @@ FILES_phosphor-rsyslog-config += " \
 "
 
 SRC_URI += "git://github.com/openbmc/phosphor-logging"
-SRCREV = "51e927cc63034f998a2c6c54e7a324ab623d975a"
+SRCREV = "bebeb948177220985f6ede067b9c8f2ab30401dd"
 
 S = "${WORKDIR}/git"
 

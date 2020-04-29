@@ -1,38 +1,16 @@
-From ab1634441f4dd218486f6bb3b94e90e2110ccc2a Mon Sep 17 00:00:00 2001
+From 1f14ea50ece39c59d23690690dc7c8b1059a35f6 Mon Sep 17 00:00:00 2001
 From: Nikhil Potade <nikhil.potade@linux.intel.com>
 Date: Tue, 19 Feb 2019 14:16:20 +0800
 Subject: [PATCH 1/1] Smbus changes for libmctp
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- CMakeLists.txt |  5 +++--
- core.c         |  2 ++
- libmctp.h      | 40 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 45 insertions(+), 2 deletions(-)
+ core.c    |  2 ++
+ libmctp.h | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)
 
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index f3f05bd..7991b11 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -5,7 +5,7 @@ add_definitions (-DMCTP_HAVE_FILEIO)
- add_definitions (-DMCTP_HAVE_STDIO)
- add_definitions (-DMCTP_DEFAULT_ALLOC)
- 
--add_library (libmctp STATIC alloc.c core.c log.c libmctp.h serial.c)
-+add_library (libmctp STATIC alloc.c core.c log.c libmctp.h serial.c smbus.c crc32c.c)
- 
- target_include_directories (libmctp PUBLIC
-                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-@@ -20,5 +20,6 @@ add_executable (test_seq tests/test_seq.c tests/test-utils.c)
- target_link_libraries (test_seq libmctp)
- 
- install (TARGETS libmctp DESTINATION lib)
--install (FILES libmctp.h DESTINATION include)
-+install (FILES libmctp.h libmctp-smbus.h libmctp-serial.h crc32c.h DESTINATION
-+       include)
- 
 diff --git a/core.c b/core.c
-index f8abbb1..79a681c 100644
+index e7f5689..3732e8a 100644
 --- a/core.c
 +++ b/core.c
 @@ -17,6 +17,7 @@

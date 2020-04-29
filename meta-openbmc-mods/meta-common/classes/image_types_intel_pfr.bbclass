@@ -43,7 +43,7 @@ do_image_pfr () {
     cd "${PFR_IMAGES_DIR}"
 
     # python script that does the creating PFM, BMC compressed and unsigned images from BMC 128MB raw binary file.
-    ${PFR_SCRIPT_DIR}/pfr_image.py ${PFR_CFG_DIR}/pfr_manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash}
+    ${PFR_SCRIPT_DIR}/pfr_image.py ${PFR_CFG_DIR}/pfr_manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash} ${SHA}
 
     # sign the PFM region
     ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/pfm_config.xml -o ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm.bin -v
@@ -82,6 +82,10 @@ do_image_pfr[depends] += " \
                          "
 
 python() {
+    product_gen = d.getVar('PRODUCT_GENERATION', True)
+    if product_gen == "wht":
+        d.setVar('SHA', "1")# 1- SHA256
+
     types = d.getVar('IMAGE_FSTYPES', True).split()
 
     if 'intel-pfr' in types:

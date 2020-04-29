@@ -1,0 +1,71 @@
+From ad236d3f04cb2547fea33d72aeeb695ce3035bba Mon Sep 17 00:00:00 2001
+From: Iwona Winiarska <iwona.winiarska@intel.com>
+Date: Mon, 9 Dec 2019 01:58:15 +0100
+Subject: [PATCH] Force nbdkit to send PATCH as upload method
+
+This modifies pwrite to send PATCH rather than default upload method
+used by curl.
+
+FIXME: This patch only works around lack of PATCH method support in curl.
+It's just a hack and it should be removed if/when proper PATCH support
+is implemented in curl.
+
+We've added it to nbdkit rather than curl, because currently PATCH
+support is unlikely to be accepted in upstream curl and it is easier to
+maintain this patch in nbdkit.
+
+Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
+---
+ plugins/curl/curl.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/plugins/curl/curl.c b/plugins/curl/curl.c
+index 0ed3984..804ad78 100644
+--- a/plugins/curl/curl.c
++++ b/plugins/curl/curl.c
+@@ -525,6 +525,7 @@ static int
+ curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
+ {
+   struct curl_handle *h = handle;
++  struct curl_slist *list = NULL;
+   CURLcode r;
+   char range[128];
+ 
+@@ -535,15 +536,21 @@ curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
+   h->read_count = count;
+ 
+   curl_easy_setopt (h->c, CURLOPT_UPLOAD, 1);
++  curl_easy_setopt (h->c, CURLOPT_CUSTOMREQUEST, "PATCH");
+ 
+   /* Make an HTTP range request. */
+-  snprintf (range, sizeof range, "%" PRIu64 "-%" PRIu64,
++  snprintf (range, sizeof range, "Range: bytes=%" PRIu64 "-%" PRIu64,
+             offset, offset + count);
+-  curl_easy_setopt (h->c, CURLOPT_RANGE, range);
++  list = curl_slist_append(list, range);
++  curl_easy_setopt(h->c, CURLOPT_HTTPHEADER, list);
+ 
+   /* The assumption here is that curl will look after timeouts. */
+   r = curl_easy_perform (h->c);
+   if (r != CURLE_OK) {
++    curl_easy_setopt (h->c, CURLOPT_RANGE, NULL);
++    curl_easy_setopt(h->c, CURLOPT_HTTPHEADER, NULL);
++    curl_slist_free_all(list);
++    curl_easy_setopt (h->c, CURLOPT_CUSTOMREQUEST, NULL);
+     display_curl_error (h, r, "pwrite: curl_easy_perform");
+     return -1;
+   }
+@@ -554,6 +561,10 @@ curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
+ 
+   /* As far as I understand the cURL API, this should never happen. */
+   assert (h->read_count == 0);
++  curl_easy_setopt (h->c, CURLOPT_RANGE, NULL);
++  curl_easy_setopt(h->c, CURLOPT_HTTPHEADER, NULL);
++  curl_slist_free_all(list);
++  curl_easy_setopt (h->c, CURLOPT_CUSTOMREQUEST, NULL);
+ 
+   return 0;
+ }
+-- 
+2.21.0
+

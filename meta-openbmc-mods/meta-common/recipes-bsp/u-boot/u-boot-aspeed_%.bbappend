@@ -45,6 +45,7 @@ PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \
     file://0032-PFR-FW-update-and-checkpoint-support-in-u-boot.patch \
     file://0035-PFR-platform-EXTRST-reset-mask-selection.patch \
+    file://0043-PFR-Skip-counting-WDT2-event-when-EXTRST-is-set.patch \
     "
 AUTOBOOT_SRC_URI = " \
     file://0041-Disabling-boot-delay.patch \

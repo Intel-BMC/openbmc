@@ -2,4 +2,4 @@ FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
 
 # Use the latest to support obmc-ikvm properly
 #SRC_URI = "git://github.com/LibVNC/libvncserver"
-SRCREV = "49880e33ee430d50804f46c307bcadce5b3e3be2"
+SRCREV = "b254b1c18d9a891f4996a2b980fb1089e760d53b"

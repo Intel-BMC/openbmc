@@ -66,10 +66,14 @@ pfr_write() {
 
 pfr_active_update() {
     local factory_reset=""
+    local recovery_offset=0x2a00000
     systemctl stop nv-sync.service || \
         log "BMC NV sync failed to stop"
     # transition from non-PFR to PFR image requires factory reset
-    [ ! -e /usr/share/pfr ] && factory_reset="-r"
+    if [ ! -e /usr/share/pfr ]; then
+        factory_reset="-r"
+        mtd-util pfr stage $LOCAL_PATH $recovery_offset
+    fi
     mtd-util $factory_reset pfr write $LOCAL_PATH
     redfish_log_fw_evt success
     # only wait for logging if not transitioning from non-PFR to PFR
@@ -228,6 +232,13 @@ blk0blk1_update() {
 }
 
 ping_pong_update() {
+    # if some one tries to update with non-PFR on PFR image
+    # just exit
+    if [ -e /usr/share/pfr ]; then
+        log "Update exited as non-PFR image is tried onto PFR image"
+        redfish_log_fw_evt abort
+        return 1
+    fi
     # do a quick sanity check on the image
     if [ $(stat -c "%s" "$LOCAL_PATH") -lt 10000000 ]; then
         log "Update file "$LOCAL_PATH" seems to be too small"

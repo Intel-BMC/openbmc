@@ -1,11 +1,10 @@
-From a25d8478847866e823aed2ecd1e360d5685410bf Mon Sep 17 00:00:00 2001
+From c8c8503401e8593860b4b78340a50d55a1a780b3 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2600 platforms
 
 Add the DTS file for Intel ast2600-based systems.
 
-Change-Id: Ib0b5358570a967c255a370bf2503cc2f448039bb
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
 Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
@@ -13,16 +12,16 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: arun-pm <arun.p.m@linux.intel.com>
 Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
 ---
- .../arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 502 ++++++++++++++++++
- 1 file changed, 502 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 498 +++++++++++++++++++++++++
+ 1 file changed, 498 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 new file mode 100644
-index 000000000000..d32b0390cd87
+index 000000000000..c51ed3c57f3e
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
-@@ -0,0 +1,502 @@
+@@ -0,0 +1,498 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/dts-v1/;
 +
@@ -320,8 +319,6 @@ index 000000000000..d32b0390cd87
 +
 +&uart1 {
 +	status = "okay";
-+	// Workaround for A0
-+	compatible = "snps,dw-apb-uart";
 +	pinctrl-0 = <&pinctrl_txd1_default
 +		     &pinctrl_rxd1_default
 +		     &pinctrl_nrts1_default
@@ -334,8 +331,6 @@ index 000000000000..d32b0390cd87
 +
 +&uart2 {
 +	status = "okay";
-+	// Workaround for A0
-+	compatible = "snps,dw-apb-uart";
 +	pinctrl-0 = <&pinctrl_txd2_default
 +		     &pinctrl_rxd2_default
 +		     &pinctrl_nrts2_default
@@ -348,15 +343,11 @@ index 000000000000..d32b0390cd87
 +
 +&uart3 {
 +	status = "okay";
-+	// Workaround for A0
-+	compatible = "snps,dw-apb-uart";
 +	pinctrl-0 = <>;
 +};
 +
 +&uart4 {
 +	status = "okay";
-+	// Workaround for A0
-+	compatible = "snps,dw-apb-uart";
 +	pinctrl-0 = <>;
 +};
 +
@@ -462,7 +453,7 @@ index 000000000000..d32b0390cd87
 +};
 +
 +&pwm_tacho {
-+	status = "okay";
++	status = "disabled";
 +	pinctrl-names = "default";
 +	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default
 +			&pinctrl_pwm1_default &pinctrl_tach1_default
@@ -525,6 +516,10 @@ index 000000000000..d32b0390cd87
 +&vhub {
 +	status = "okay";
 +};
++
++&jtag {
++	status = "okay";
++};
 -- 
-2.17.1
+2.7.4
 

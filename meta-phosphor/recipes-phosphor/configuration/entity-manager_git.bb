@@ -3,7 +3,7 @@ DESCRIPTION = "Entity Manager provides d-bus configuration data \
 and configures system sensors"
 
 SRC_URI = "git://github.com/openbmc/entity-manager.git"
-SRCREV = "41622a95da34e3aacbf2b70d687d3a3a7c816c8a"
+SRCREV = "29d83258f1268b3c41f97649518fa9bb1ffe83ed"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"
@@ -21,5 +21,5 @@ DEPENDS = "boost \
 S = "${WORKDIR}/git/"
 inherit cmake systemd
 
-EXTRA_OECMAKE = "-DYOCTO=1 -DUSE_OVERLAYS=0"
+EXTRA_OECMAKE = "-DYOCTO=1"
 
