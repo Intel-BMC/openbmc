@@ -4,9 +4,9 @@ control applications."
 PR = "r1"
 PV = "1.0+git${SRCPV}"
 
-require ${PN}.inc
+require ${BPN}.inc
 
-inherit autotools pkgconfig pythonnative
+inherit autotools pkgconfig python3native
 inherit obmc-phosphor-systemd
 inherit phosphor-fan
 
@@ -17,7 +17,7 @@ DEPENDS += "autoconf-archive-native"
 DEPENDS += "${PYTHON_PN}-pyyaml-native"
 DEPENDS += "${PYTHON_PN}-mako-native"
 DEPENDS += "sdbusplus"
-DEPENDS += "sdbusplus-native"
+DEPENDS += "${PYTHON_PN}-sdbus++-native"
 DEPENDS += "sdeventplus"
 DEPENDS += "gpioplus"
 DEPENDS += "phosphor-logging"

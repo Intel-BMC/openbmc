@@ -45,7 +45,7 @@
                   Unit: "Watts"
           PowerCapEnable:
                Default: 'false'
-  
+
 /xyz/openbmc_project/control/host0/power_restore_policy:
     - Interface: xyz.openbmc_project.Control.Power.RestorePolicy
       Properties:
@@ -126,6 +126,12 @@
     - Interface: xyz.openbmc_project.Object.Enable
       Properties:
           Enabled:
+             Default: 'false'
+
+/xyz/openbmc_project/logging/settings:
+    - Interface: xyz.openbmc_project.Logging.Settings
+      Properties:
+          QuiesceOnHwError:
              Default: 'false'
 
 /xyz/openbmc_project/software/apply_time:

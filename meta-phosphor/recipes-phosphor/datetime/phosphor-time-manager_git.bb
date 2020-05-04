@@ -5,17 +5,17 @@ PR = "r1"
 
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
-inherit autotools pkgconfig pythonnative
+inherit autotools pkgconfig python3native
 inherit obmc-phosphor-dbus-service
 
 DEPENDS += "autoconf-archive-native"
 DEPENDS += "phosphor-mapper"
 DEPENDS += "systemd"
 DEPENDS += "sdbusplus"
-DEPENDS += "sdbusplus-native"
+DEPENDS += "${PYTHON_PN}-sdbus++-native"
 DEPENDS += "phosphor-logging"
 DEPENDS += "phosphor-dbus-interfaces"
-RDEPENDS_${PN} += "${VIRTUAL-RUNTIME_obmc-settings-mgmt}"
+RDEPENDS_${PN} += "phosphor-settings-manager"
 RDEPENDS_${PN} += "phosphor-network"
 RDEPENDS_${PN} += "phosphor-mapper"
 

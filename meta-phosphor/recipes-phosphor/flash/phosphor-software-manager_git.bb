@@ -5,7 +5,7 @@ platforms."
 PR = "r1"
 PV = "1.0+git${SRCPV}"
 
-require ${PN}.inc
+require ${BPN}.inc
 
 SOFTWARE_MGR_PACKAGES = " \
     ${PN}-version \
@@ -30,7 +30,7 @@ PACKAGECONFIG[flash_bios] = "--enable-host_bios_upgrade"
 
 inherit autotools pkgconfig
 inherit obmc-phosphor-dbus-service
-inherit pythonnative
+inherit python3native
 inherit ${@bb.utils.contains('DISTRO_FEATURES', 'obmc-ubi-fs', 'phosphor-software-manager-ubi-fs', '', d)}
 
 DEPENDS += " \
@@ -38,7 +38,7 @@ DEPENDS += " \
     openssl \
     phosphor-dbus-interfaces \
     phosphor-logging \
-    sdbus++-native \
+    ${PYTHON_PN}-sdbus++-native \
     sdbusplus \
 "
 
