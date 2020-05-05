@@ -1,3 +1,4 @@
+COMPATIBLE_MACHINE = "intel-ast2500"
 FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files:"
 
 # the meta-phosphor layer adds this patch, which conflicts
@@ -5,7 +6,6 @@ FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files:"
 SRC_URI_remove_intel-ast2500 = " file://0001-configs-ast-Add-redundnant-env.patch"
 
 SRC_URI_append_intel-ast2500 = " \
-    file://fw_env.config \
     file://0001-flash-use-readX-writeX-not-udelay.patch \
     file://0002-intel-layout-environment-addr.patch \
     file://0004-Make-sure-debug-uart-is-using-24MHz-clock-source.patch \

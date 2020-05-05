@@ -5,6 +5,7 @@ LICENSE = "GPL-2.0"
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += "file://0001-Modfiy-system.conf-DefaultTimeoutStopSec.patch \
+            file://0002-Disable-LLMNR-port-5355.patch \
             file://systemd-time-wait-sync.service \
            "
 

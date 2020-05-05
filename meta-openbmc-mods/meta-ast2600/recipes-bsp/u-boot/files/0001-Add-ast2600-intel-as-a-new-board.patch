@@ -1,4 +1,4 @@
-From 145ffdf95955562eddf96d0342bcdebd98f8dc95 Mon Sep 17 00:00:00 2001
+From a40cea99245e624e8fb2e39e26c7e76f1aee67fe Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Thu, 24 Oct 2019 14:06:33 -0700
 Subject: [PATCH] Add ast2600-intel as a new board
@@ -17,10 +17,10 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
  board/aspeed/ast2600_intel/ast-irq.c   | 399 +++++++++++++++++++++++++++++++++
  board/aspeed/ast2600_intel/ast-irq.h   |   8 +
  board/aspeed/ast2600_intel/ast-timer.c |  59 +++++
- board/aspeed/ast2600_intel/intel.c     | 177 +++++++++++++++
+ board/aspeed/ast2600_intel/intel.c     | 185 +++++++++++++++
  cmd/Kconfig                            |   2 +-
  common/autoboot.c                      |  10 +
- 13 files changed, 1181 insertions(+), 2 deletions(-)
+ 13 files changed, 1189 insertions(+), 2 deletions(-)
  create mode 100644 arch/arm/dts/ast2600-intel.dts
  create mode 100644 board/aspeed/ast2600_intel/Kconfig
  create mode 100644 board/aspeed/ast2600_intel/Makefile
@@ -1126,10 +1126,10 @@ index 000000000000..cf8c69aba5d3
 +}
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
 new file mode 100644
-index 000000000000..a02e246d0d81
+index 000000000000..03363b80b4f5
 --- /dev/null
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,185 @@
 +/* Intel customizations of Das U-Boot */
 +#include <common.h>
 +#include <asm/gpio.h>
@@ -1175,12 +1175,20 @@ index 000000000000..a02e246d0d81
 +	return 0;
 +}
 +
++#define SCU_418			0x418 /* Multi-function Pin Control #6 */
++#define SCU_418_PBIO_MASK	GENMASK(6, 5)
++#define SCU_4bc			0x4bc /* Multi-function Pin Control #20 */
++#define SCU_4bc_PASSTHRU0_MASK	GENMASK(25, 24)
++#define SCU_4bc_PASSTHRU1_MASK	GENMASK(27, 26)
++#define SCU_4bc_PASSTHRU2_MASK	GENMASK(29, 28)
++
 +static void gpio_passthru_init(void)
 +{
-+	/* FIXME: do this without the hard-coded SCU values */
-+	/* enable passthru gpio (for now) */
-+	writel(0x0f000000, 0x1e6e24bc);
-+	writel(0xc0000060, 0x1e6e2418);
++	writel(readl(SCU_BASE | SCU_4bc) |
++	       SCU_4bc_PASSTHRU0_MASK | SCU_4bc_PASSTHRU1_MASK,
++	       SCU_BASE | SCU_4bc);
++	writel(readl(SCU_BASE | SCU_418) | SCU_418_PBIO_MASK,
++	       SCU_BASE | SCU_418);
 +}
 +
 +#define AST_LPC_BASE 0x1e789000

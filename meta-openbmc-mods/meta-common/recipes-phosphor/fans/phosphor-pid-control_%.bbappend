@@ -5,6 +5,6 @@ SYSTEMD_SERVICE_${PN} = "phosphor-pid-control.service"
 EXTRA_OECONF = "--enable-configure-dbus=yes"
 
 SRC_URI = "git://github.com/openbmc/phosphor-pid-control.git"
-SRCREV = "3660b3888af789266b6c84714b4e161a32e6ea54"
+SRCREV = "298a95cbb192ecc678b1a496acc954a3b2adf450"
 
 FILES_${PN} = "${bindir}/swampd ${bindir}/setsensor"

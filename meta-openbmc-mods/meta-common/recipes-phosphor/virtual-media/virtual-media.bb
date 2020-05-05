@@ -13,7 +13,9 @@ LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.VirtualMedia.service"
 
 DEPENDS = "udev boost nlohmann-json systemd sdbusplus"
-RDEPENDS_${PN} = "nbdkit"
+
+# Temporarily not needed due to Legacy mode disabling
+# RDEPENDS_${PN} = "nbdkit"
 
 inherit cmake systemd
 

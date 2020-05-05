@@ -18,9 +18,9 @@ FILES_${PN} += "${systemd_system_unitdir}/security-registers-check.service"
 
 do_install() {
     install -d ${D}${systemd_system_unitdir}
-    install -m 0777 ${WORKDIR}/security-registers-check.service ${D}${systemd_system_unitdir}
+    install -m 0644 ${WORKDIR}/security-registers-check.service ${D}${systemd_system_unitdir}
     install -d ${D}${bindir}
-    install -m 0777 ${S}/security-registers-check.sh ${D}/${bindir}/security-registers-check.sh
+    install -m 0755 ${S}/security-registers-check.sh ${D}/${bindir}/security-registers-check.sh
 }
 
 SYSTEMD_SERVICE_${PN} += " security-registers-check.service"

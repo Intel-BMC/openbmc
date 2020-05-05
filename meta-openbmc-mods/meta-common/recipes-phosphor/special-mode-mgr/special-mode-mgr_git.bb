@@ -3,13 +3,14 @@ DESCRIPTION = "Daemon exposes the manufacturing mode property"
 
 PV = "1.0+git${SRCPV}"
 
-S = "${WORKDIR}/git/special-mode-mgr"
+S = "${WORKDIR}/git"
 
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
-SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "bee56d62b209088454d166d1efae4825a2b175df"
+SRC_URI = "git://github.com/Intel-BMC/special-mode-manager.git;protocol=ssh"
+SRCREV = "cf2ba04cf68d76047211f66d9bb4ae1be1907323"
+
 EXTRA_OECMAKE += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-DBMC_VALIDATION_UNSECURE_FEATURE=ON', '', d)}"
 
 inherit cmake systemd

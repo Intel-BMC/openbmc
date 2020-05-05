@@ -45,6 +45,7 @@ IMAGE_INSTALL_append = " \
         mctpd \
         virtual-media \
         enable-nics \
+        host-misc-comm-manager \
         "
 
 IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"
@@ -52,3 +53,4 @@ IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'inte
 # this package was flagged as a security risk
 IMAGE_INSTALL_remove += " lrzsz"
 
+BAD_RECOMMENDATIONS += "phosphor-settings-manager"
