@@ -37,14 +37,15 @@ facing capabilities that may not have been announced yet.  Please email
 openbmc@intel.com to discuss. Appropriate licenses will be applied to the
 portions of this codebase that are approved for upstreaming.
 
-### Which platforms does this code work on?
-
-While the code is easily portable across different type of IA platforms,
-currently we use Intel’s Wolf Pass (S2600WP) platform for development and most
-testing. 
-
 ### How to build for Wolf Pass
 ```bash
+export TEMPLATECONF=meta-openbmc-mods/meta-wolfpass/conf
+source oe-init-build-env
+bitbake intel-platforms
+```
+### How to build for Intel reference
+```bash
+export TEMPLATECONF=meta-openbmc-mods/meta-wht/conf
 source oe-init-build-env
 bitbake intel-platforms
 ```
