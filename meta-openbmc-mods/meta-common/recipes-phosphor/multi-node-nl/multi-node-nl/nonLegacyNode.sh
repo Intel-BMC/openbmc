@@ -15,6 +15,9 @@ set_fan_speed() {
 
 $(set_fan_speed)
 
+#Stop power control service in NL mode
+systemctl stop  xyz.openbmc_project.Chassis.Control.Power.service
+
 export TERM=xterm
 # Autologin root user to serial console (ttyS4) on boot
 exec /sbin/agetty -a root -J -8 -L ttyS4 115200 $TERM

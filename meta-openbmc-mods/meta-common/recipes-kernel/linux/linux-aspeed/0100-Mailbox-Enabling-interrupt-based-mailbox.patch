@@ -1,4 +1,4 @@
-From 7094f4d8efea8e059c965ba70c73d5226af392cb Mon Sep 17 00:00:00 2001
+From d5bc758cee51d92c48f2835ca2b4ebb146f0f0b4 Mon Sep 17 00:00:00 2001
 From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
 Date: Wed, 11 Mar 2020 17:23:49 +0530
 Subject: [PATCH] [Mailbox] Enabling interrupt based mailbox
@@ -7,11 +7,11 @@ Modifying the mailbox driver to use FIFO queue while using interrupt.
 
 Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 ---
- drivers/soc/aspeed/aspeed-lpc-mbox.c | 101 ++++++++++++++++++---------
- 1 file changed, 68 insertions(+), 33 deletions(-)
+ drivers/soc/aspeed/aspeed-lpc-mbox.c | 102 ++++++++++++++++++---------
+ 1 file changed, 69 insertions(+), 33 deletions(-)
 
 diff --git a/drivers/soc/aspeed/aspeed-lpc-mbox.c b/drivers/soc/aspeed/aspeed-lpc-mbox.c
-index 795107206022..99f38a4e4550 100644
+index 795107206022..1ca68bb3534c 100644
 --- a/drivers/soc/aspeed/aspeed-lpc-mbox.c
 +++ b/drivers/soc/aspeed/aspeed-lpc-mbox.c
 @@ -12,10 +12,11 @@
@@ -95,7 +95,7 @@ index 795107206022..99f38a4e4550 100644
  	int i;
  
  	if (!access_ok(buf, count))
-@@ -111,15 +134,29 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+@@ -111,17 +134,32 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
  		return -EINVAL;
  
  #if MBX_USE_INTERRUPT
@@ -104,10 +104,10 @@ index 795107206022..99f38a4e4550 100644
 -				ASPEED_MBOX_CTRL_RECV))
 +	/*
 +	 * Restrict count as per the number of mailbox registers
-+	 * if interrupt is enabled.
++	 * to use kfifo.
 +	 */
 +	if (count != ASPEED_MBOX_NUM_REGS)
-+		return -EINVAL;
++		goto reg_read;
 +
 +	if (kfifo_is_empty(&mbox->fifo)) {
 +		if (file->f_flags & O_NONBLOCK){
@@ -131,8 +131,11 @@ index 795107206022..99f38a4e4550 100644
 +
  #endif
  
++reg_read:
  	mutex_lock(&mbox->mutex);
-@@ -134,11 +171,6 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 
+ 	for (i = *ppos; count > 0 && i < ASPEED_MBOX_NUM_REGS; i++) {
+@@ -134,11 +172,6 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
  		p++;
  		count--;
  	}
@@ -144,7 +147,7 @@ index 795107206022..99f38a4e4550 100644
  	ret = p - buf;
  
  out_unlock:
-@@ -186,16 +218,9 @@ static ssize_t aspeed_mbox_write(struct file *file, const char __user *buf,
+@@ -186,16 +219,9 @@ static ssize_t aspeed_mbox_write(struct file *file, const char __user *buf,
  static unsigned int aspeed_mbox_poll(struct file *file, poll_table *wait)
  {
  	struct aspeed_mbox *mbox = file_mbox(file);
@@ -162,7 +165,7 @@ index 795107206022..99f38a4e4550 100644
  }
  
  static int aspeed_mbox_release(struct inode *inode, struct file *file)
-@@ -220,19 +245,23 @@ static irqreturn_t aspeed_mbox_irq(int irq, void *arg)
+@@ -220,19 +246,23 @@ static irqreturn_t aspeed_mbox_irq(int irq, void *arg)
  #if MBX_USE_INTERRUPT
  	int i;
  
@@ -193,7 +196,7 @@ index 795107206022..99f38a4e4550 100644
  #endif
  
  	/* Clear interrupt status */
-@@ -249,7 +278,6 @@ static int aspeed_mbox_config_irq(struct aspeed_mbox *mbox,
+@@ -249,7 +279,6 @@ static int aspeed_mbox_config_irq(struct aspeed_mbox *mbox,
  {
  	struct device *dev = &pdev->dev;
  	int rc;
@@ -201,7 +204,7 @@ index 795107206022..99f38a4e4550 100644
  	mbox->irq = platform_get_irq(pdev, 0);
  	if (!mbox->irq)
  		return -ENODEV;
-@@ -300,6 +328,7 @@ static int aspeed_mbox_probe(struct platform_device *pdev)
+@@ -300,6 +329,7 @@ static int aspeed_mbox_probe(struct platform_device *pdev)
  		return -ENODEV;
  	}
  
@@ -209,7 +212,7 @@ index 795107206022..99f38a4e4550 100644
  	mutex_init(&mbox->mutex);
  	init_waitqueue_head(&mbox->queue);
  
-@@ -316,6 +345,11 @@ static int aspeed_mbox_probe(struct platform_device *pdev)
+@@ -316,6 +346,11 @@ static int aspeed_mbox_probe(struct platform_device *pdev)
  		return rc;
  	}
  
@@ -221,7 +224,7 @@ index 795107206022..99f38a4e4550 100644
  	mbox->miscdev.minor = MISC_DYNAMIC_MINOR;
  	mbox->miscdev.name = DEVICE_NAME;
  	mbox->miscdev.fops = &aspeed_mbox_fops;
-@@ -349,6 +383,7 @@ static int aspeed_mbox_remove(struct platform_device *pdev)
+@@ -349,6 +384,7 @@ static int aspeed_mbox_remove(struct platform_device *pdev)
  
  	misc_deregister(&mbox->miscdev);
  	clk_disable_unprepare(mbox->clk);

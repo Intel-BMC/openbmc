@@ -1,4 +1,4 @@
-From 56ea1fc793c97232c12ddc3b4936081fe14c962f Mon Sep 17 00:00:00 2001
+From 9479d8f12efc845faca4bb1aef9b6e63799a7e5c Mon Sep 17 00:00:00 2001
 From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
 Date: Wed, 18 Mar 2020 08:34:43 +0530
 Subject: [PATCH] Add poll fops in eSPI driver
@@ -7,11 +7,11 @@ Modify eSPI driver to support poll fops.
 
 Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 ---
- drivers/misc/aspeed-espi-slave.c | 83 +++++++++++++++++++++++---------
- 1 file changed, 59 insertions(+), 24 deletions(-)
+ drivers/misc/aspeed-espi-slave.c | 85 +++++++++++++++++++++++---------
+ 1 file changed, 61 insertions(+), 24 deletions(-)
 
 diff --git a/drivers/misc/aspeed-espi-slave.c b/drivers/misc/aspeed-espi-slave.c
-index 87bc81948694..f4a0d7528414 100644
+index 87bc81948694..cb8ed585c69f 100644
 --- a/drivers/misc/aspeed-espi-slave.c
 +++ b/drivers/misc/aspeed-espi-slave.c
 @@ -9,6 +9,7 @@
@@ -41,7 +41,16 @@ index 87bc81948694..f4a0d7528414 100644
  		wake_up_interruptible(&priv->pltrstn_waitq);
  		dev_dbg(priv->dev, "SYSEVT_PLTRSTN: %c\n", priv->pltrstn);
  	}
-@@ -284,41 +289,71 @@ static ssize_t aspeed_espi_pltrstn_read(struct file *filp, char __user *buf,
+@@ -269,6 +274,8 @@ static int aspeed_espi_pltrstn_open(struct inode *inode, struct file *filp)
+ {
+ 	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
+ 		return -EACCES;
++	struct aspeed_espi *priv = to_aspeed_espi(filp);
++	priv->pltrstn_in_avail = true ; /*Setting true returns first data after file open*/
+ 
+ 	return 0;
+ }
+@@ -284,41 +291,71 @@ static ssize_t aspeed_espi_pltrstn_read(struct file *filp, char __user *buf,
  
  	spin_lock_irqsave(&priv->pltrstn_lock, flags);
  

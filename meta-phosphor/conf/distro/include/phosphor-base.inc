@@ -94,15 +94,13 @@ DISTRO_FEATURES_BACKFILL_CONSIDERED = " \
         "
 
 DISTRO_FEATURES_OBMC = " \
+        ipmi-fru \
         obmc-host-ctl \
         obmc-host-ipmi \
-        obmc-logging-mgmt \
         obmc-phosphor-chassis-mgmt \
         obmc-phosphor-fan-mgmt \
         obmc-phosphor-flash-mgmt \
         obmc-phosphor-system-mgmt \
-        obmc-phosphor-user-mgmt \
-        obmc-settings-mgmt \
         "
 
 DISTRO_FEATURES_DEFAULT = " \
@@ -138,12 +136,6 @@ IMAGE_CLASSES_append = " image_types_phosphor phosphor-rootfs-postcommands"
 IMAGE_CLASSES_append_npcm7xx = " image_types_phosphor_nuvoton"
 
 IMAGE_INSTALL_append = " dbus-broker"
-
-# OpenBMC uses a couple recipes from meta-virtualization
-# but we do not actually want any virtualization support
-# enabled on a BMC distribution.  Silence the emitted
-# warning.
-SKIP_META_VIRT_SANITY_CHECK = "1"
 
 # Skip the udev database by default.  It adds around 2MB
 # compressed to the root filesystem, and probably doesn't

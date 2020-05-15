@@ -50,7 +50,6 @@ RDEPENDS_${PN}-extras = " \
 
 SUMMARY_${PN}-extrasdev = "Development features"
 RDEPENDS_${PN}-extrasdev = " \
-        rest-dbus \
         "
 
 SUMMARY_${PN}-extrasdevtools = "Development tools"
@@ -128,7 +127,7 @@ RDEPENDS_${PN}-debug-collector = " \
 
 SUMMARY_${PN}-settings = "Settings applications"
 RDEPENDS_${PN}-settings = " \
-        ${VIRTUAL-RUNTIME_obmc-settings-mgmt} \
+        phosphor-settings-manager \
         "
 
 SUMMARY_${PN}-network = "BMC Network Manager"

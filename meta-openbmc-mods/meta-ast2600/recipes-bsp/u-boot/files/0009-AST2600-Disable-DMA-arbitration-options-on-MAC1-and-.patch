@@ -1,0 +1,57 @@
+From 363cb4a59bd21708465ad46553a098615abea1dd Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 31 Mar 2020 13:28:31 -0700
+Subject: [PATCH] AST2600: Disable DMA arbitration options on MAC1 and MAC2
+
+Aspeed added 2 new options to DMA arbitration in AST2600A1 MAC1
+and MAC2 but it has a bug in A1 so it might cause the MAC hang if
+we enable these 2 new options.
+Option 1: Round Robin, register MAC58[27]
+Option 2: Tx Valid, register MAC58[28]
+
+So this commit disables options above.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/ast2600/platform.S | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index eb3cb2f38cb6..0316e5364b78 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -60,6 +60,12 @@
+ #define AST_FMC_WDT1_CTRL_MODE	(AST_FMC_BASE + 0x060)
+ #define AST_FMC_WDT2_CTRL_MODE	(AST_FMC_BASE + 0x064)
+ 
++#define AST_MAC1_BASE		(0x1E660000)
++#define AST_MAC1_CTRL2		(AST_MAC1_BASE + 0x058)
++
++#define AST_MAC2_BASE		(0x1E680000)
++#define AST_MAC2_CTRL2		(AST_MAC2_BASE + 0x058)
++
+ #define AST_GPIO_BASE		(0x1E780000)
+ #define AST_GPIOYZ_DATA_VALUE	(AST_GPIO_BASE + 0x1E0)
+ 
+@@ -228,6 +234,18 @@ wait_lock:
+ 	orr	r1, #0x40
+ 	str	r1, [r0]
+ 
++	/* disable DMA arbitration on MAC1 (A1 bug) */
++	ldr	r0, =AST_MAC1_CTRL2
++	ldr	r1, [r0]
++	orr	r1, #0x18000000
++	str	r1, [r0]
++
++	/* disable DMA arbitration on MAC2 (A1 bug) */
++	ldr	r0, =AST_MAC2_CTRL2
++	ldr	r1, [r0]
++	orr	r1, #0x18000000
++	str	r1, [r0]
++
+ 1:
+ 	/* release display port reset */
+ 	ldr	r0, =AST_SCU_SYSRST_CTRL_CLR
+-- 
+2.7.4
+

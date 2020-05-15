@@ -10,7 +10,6 @@ LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 inherit autotools pkgconfig systemd
 inherit obmc-phosphor-dbus-service
-inherit pythonnative
 
 inherit ${@bb.utils.contains('DISTRO_FEATURES', 'openpower-ubi-fs', \
                              'openpower-software-manager-ubi', \
@@ -33,7 +32,6 @@ DEPENDS += " \
         phosphor-dbus-interfaces \
         phosphor-logging \
         sdbusplus \
-        sdbusplus-native \
         "
 
 RDEPENDS_${PN} += " \
@@ -44,7 +42,7 @@ S = "${WORKDIR}/git"
 
 SRC_URI += "git://github.com/openbmc/openpower-pnor-code-mgmt"
 
-SRCREV = "7f1967d56b89ffae5ea8e3313c000beb79cb63cd"
+SRCREV = "228f16d47bf2fd45022faf05647e2bb1981a56f7"
 
 DBUS_SERVICE_${PN} += "org.open_power.Software.Host.Updater.service"
 

@@ -1,4 +1,4 @@
-From da2fecd5d5b3f69bcc4d07fd1265415bd350e5a6 Mon Sep 17 00:00:00 2001
+From c2019bbf210e0e750478a3e6c0c9bfa557c5bc0f Mon Sep 17 00:00:00 2001
 From: Yuan Li <yuan.li@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2500 platforms
@@ -17,16 +17,16 @@ Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
 Signed-off-by: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts | 460 +++++++++++++++++++++++++
- 1 file changed, 460 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts | 474 +++++++++++++++++++++++++
+ 1 file changed, 474 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 new file mode 100644
-index 0000000..1fe6240
+index 000000000000..18fa1f804874
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
-@@ -0,0 +1,460 @@
+@@ -0,0 +1,468 @@
 +/dts-v1/;
 +
 +#include "aspeed-g5.dtsi"
@@ -165,6 +165,14 @@ index 0000000..1fe6240
 +			bit-mask = <0x1>;
 +			bit-shift = <17>;
 +			read-only;
++		};
++		chip_id {
++			offset = <0x150>;
++			bit-mask = <0x0fffffff 0xffffffff>;
++			bit-shift = <0>;
++			read-only;
++			reg-width = <64>;
++			hash-data = "d44f9b804976fa23c2e25d62f16154d26520a7e24c5555095fd1b55c027804f1570dcd16189739c640cd7d9a6ce14944a2c4eaf1dc429eed6940e8a83498a474";
 +		};
 +	};
 +};
@@ -487,6 +495,6 @@ index 0000000..1fe6240
 +&vhub {
 +	status = "okay";
 +};
---
+-- 
 2.7.4
 

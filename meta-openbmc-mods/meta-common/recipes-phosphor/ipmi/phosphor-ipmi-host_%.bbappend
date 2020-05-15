@@ -1,9 +1,8 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-# TODO: latest is breaking sensor list, needs triage before unpin
-SRC_URI = "git://github.com/openbmc/phosphor-host-ipmid;nobranch=1"
-SRCREV = "e7e8b8166a1c0e352ee6e0e1daa76abbff228ed6"
+# latest upstream HEAD until meta-phosphor autobumps
+SRCREV = "6ba8d31525130dbb5ef5b60336993ef7b50a8f51"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0010-fix-get-system-GUID-ipmi-command.patch \

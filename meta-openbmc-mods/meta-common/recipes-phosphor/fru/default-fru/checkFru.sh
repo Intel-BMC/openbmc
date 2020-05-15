@@ -29,6 +29,8 @@ if grep -q 'CPU part\s*: 0xb76' /proc/cpuinfo; then
     case $BOARD_ID in
         12) NAME="D50TNP1SB"
             PRODID="0x99";;
+        38) NAME="WilsonCity"
+            PRODID="0x91";;
         40) NAME="CooperCity"
             PRODID="0x9d";;
         42) NAME="WilsonCity"

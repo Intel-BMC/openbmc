@@ -68,10 +68,13 @@ SRC_URI += " \
         file://0092-SPI-Quad-IO-driver-support-AST2600.patch \
         file://0093-ipmi-ipmb_dev_int-add-quick-fix-for-raw-I2C-type-reg.patch \
         file://0094-Return-link-speed-and-duplex-settings-for-the-NCSI-c.patch \
-	file://0095-pwm-and-tach-driver-changes-for-ast2600.patch \
+        file://0095-pwm-and-tach-driver-changes-for-ast2600.patch \
         file://0096-Fix-truncated-WrEndPointConfig-MMIO-command.patch \
         file://0100-Mailbox-Enabling-interrupt-based-mailbox.patch \
         file://0101-Add-poll-fops-in-eSPI-driver.patch \
+        file://0102-Fix-for-dirty-node-in-jffs2-summary-entry.patch \
+        file://0103-Refine-clock-settings.patch \
+        file://0104-Add-chip-unique-id-reading-interface.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

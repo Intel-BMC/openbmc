@@ -7,7 +7,7 @@ PV = "1.0+git${SRCPV}"
 
 inherit autotools \
         pkgconfig \
-        pythonnative \
+        python3native \
         phosphor-dbus-yaml \
         phosphor-inventory-manager \
         obmc-phosphor-dbus-service
@@ -20,7 +20,7 @@ DEPENDS += " \
         phosphor-dbus-interfaces-native \
         phosphor-logging \
         sdbusplus \
-        sdbusplus-native \
+        ${PYTHON_PN}-sdbus++-native \
         autoconf-archive-native \
         libcereal \
         ${PYTHON_PN}-native \

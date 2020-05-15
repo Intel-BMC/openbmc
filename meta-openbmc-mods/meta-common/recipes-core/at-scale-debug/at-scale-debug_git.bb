@@ -8,7 +8,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=0d1c657b2ba1e8877940a8d1614ec560"
 
 
 inherit cmake
-DEPENDS = "sdbusplus openssl libpam libgpiod"
+DEPENDS = "sdbusplus openssl libpam libgpiod safec"
 
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 

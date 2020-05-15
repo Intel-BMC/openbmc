@@ -23,7 +23,7 @@ SYSTEMD_PACKAGES = "${PN}-monitor"
 inherit autotools \
         pkgconfig \
         obmc-phosphor-dbus-service \
-        pythonnative \
+        python3native \
         phosphor-debug-collector
 
 require phosphor-debug-collector.inc
@@ -33,7 +33,7 @@ DEPENDS += " \
         phosphor-dbus-interfaces-native \
         phosphor-logging \
         sdbusplus \
-        sdbusplus-native \
+        ${PYTHON_PN}-sdbus++-native \
         autoconf-archive-native \
         virtual/phosphor-debug-errors \
         ${PYTHON_PN}-native \

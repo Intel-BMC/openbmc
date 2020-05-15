@@ -77,6 +77,8 @@
         "FOUND('WC Baseboard')",
         "OR",
         "FOUND('WP Baseboard')",
+        "OR",
+        "FOUND('CPC Baseboard')",
         "AND",
         "xyz.openbmc_project.Inventory.Item.I2CDevice({'Bus': 4, 'Address': 82})"
     ],

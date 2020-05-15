@@ -1,9 +1,9 @@
-From 3b7175753cafcee67cfc13eefc30438a518ad348 Mon Sep 17 00:00:00 2001
+From e01c562db28797e3b6be9030f1f52507115c6765 Mon Sep 17 00:00:00 2001
 From: "Corona, Ernesto" <ernesto.corona@intel.com>
-Date: Mon, 3 Jun 2019 08:22:09 -0800
+Date: Mon, 6 Apr 2020 09:48:32 -0700
 Subject: [PATCH] Add Aspeed SoC 24xx and 25xx families JTAG
 
-Driver adds support of Aspeed 2500/2400 series SOC JTAG master controller.
+Driver adds support of Aspeed 2400-2600 series SOC JTAG master controller.
 
 Driver implements the following jtag ops:
 - freq_get;
@@ -22,6 +22,8 @@ Aspeed 2520 SoC for programming CPLD devices.
 It has also been tested on Intel system using Aspeed 25xx SoC
 for JTAG communication.
 
+Tested on Intel system using Aspeed 26xx SoC for JTAG communication.
+
 Signed-off-by: Oleksandr Shamray <oleksandrs@mellanox.com>
 Signed-off-by: Jiri Pirko <jiri@mellanox.com>
 Signed-off-by: Corona, Ernesto <ernesto.corona@intel.com>
@@ -33,6 +35,10 @@ Cc: Andrew Jeffery <andrew@aj.id.au>
 Cc: Steven A Filary <steven.a.filary@intel.com>
 Cc: Bryan Hunt <bryan.hunt@intel.com>
 ---
+v29->v30
+Comments pointed by Steven Filary <steven.a.filary@intel.com>
+- Add Suport for 26xx series
+
 v28->v29
 Comments pointed by Steven Filary <steven.a.filary@intel.com>
 - Expand bitbang function to accept multiples bitbang operations within a
@@ -199,12 +205,12 @@ Comments pointed by kbuild test robot <lkp@intel.com>
 ---
  drivers/jtag/Kconfig       |   14 +
  drivers/jtag/Makefile      |    1 +
- drivers/jtag/jtag-aspeed.c | 1051 ++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 1066 insertions(+)
+ drivers/jtag/jtag-aspeed.c | 1217 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 1232 insertions(+)
  create mode 100644 drivers/jtag/jtag-aspeed.c
 
 diff --git a/drivers/jtag/Kconfig b/drivers/jtag/Kconfig
-index 47771fcd3c5b..0cc163f9ad44 100644
+index 47771fc..0cc163f 100644
 --- a/drivers/jtag/Kconfig
 +++ b/drivers/jtag/Kconfig
 @@ -15,3 +15,17 @@ menuconfig JTAG
@@ -226,7 +232,7 @@ index 47771fcd3c5b..0cc163f9ad44 100644
 +	  To compile this driver as a module, choose M here: the module will
 +	  be called jtag-aspeed.
 diff --git a/drivers/jtag/Makefile b/drivers/jtag/Makefile
-index af374939a9e6..04a855e2df28 100644
+index af37493..04a855e 100644
 --- a/drivers/jtag/Makefile
 +++ b/drivers/jtag/Makefile
 @@ -1 +1,2 @@
@@ -234,10 +240,10 @@ index af374939a9e6..04a855e2df28 100644
 +obj-$(CONFIG_JTAG_ASPEED)	+= jtag-aspeed.o
 diff --git a/drivers/jtag/jtag-aspeed.c b/drivers/jtag/jtag-aspeed.c
 new file mode 100644
-index 000000000000..0c9da1b8986c
+index 0000000..1e6ace6
 --- /dev/null
 +++ b/drivers/jtag/jtag-aspeed.c
-@@ -0,0 +1,1051 @@
+@@ -0,0 +1,1217 @@
 +// SPDX-License-Identifier: GPL-2.0
 +// Copyright (c) 2018 Mellanox Technologies. All rights reserved.
 +// Copyright (c) 2018 Oleksandr Shamray <oleksandrs@mellanox.com>
@@ -270,7 +276,7 @@ index 000000000000..0c9da1b8986c
 +#define ASPEED_JTAG_DATA_MSB		0x01
 +#define ASPEED_JTAG_DATA_CHUNK_SIZE	0x20
 +
-+/* ASPEED_JTAG_CTRL: Engine Control */
++/* ASPEED_JTAG_CTRL: Engine Control 24xx and 25xx series*/
 +#define ASPEED_JTAG_CTL_ENG_EN		BIT(31)
 +#define ASPEED_JTAG_CTL_ENG_OUT_EN	BIT(30)
 +#define ASPEED_JTAG_CTL_FORCE_TMS	BIT(29)
@@ -282,6 +288,15 @@ index 000000000000..0c9da1b8986c
 +#define ASPEED_JTAG_CTL_DATA_LEN(x)	((x) << 4)
 +#define ASPEED_JTAG_CTL_LASPEED_DATA	BIT(1)
 +#define ASPEED_JTAG_CTL_DATA_EN		BIT(0)
++
++/* ASPEED_JTAG_CTRL: Engine Control 26xx series*/
++#define ASPEED_JTAG_CTL_26XX_RESET_FIFO	BIT(21)
++#define ASPEED_JTAG_CTL_26XX_FIFO_MODE_CTRL BIT(20)
++#define ASPEED_JTAG_CTL_26XX_TRANS_LEN(x) ((x) << 8)
++#define ASPEED_JTAG_CTL_26XX_MSB_FIRST	BIT(6)
++#define ASPEED_JTAG_CTL_26XX_TERM_TRANS	BIT(5)
++#define ASPEED_JTAG_CTL_26XX_LASPEED_TRANS BIT(4)
++#define ASPEED_JTAG_CTL_26XX_INST_EN	BIT(1)
 +
 +/* ASPEED_JTAG_ISR : Interrupt status and enable */
 +#define ASPEED_JTAG_ISR_INST_PAUSE	BIT(19)
@@ -318,6 +333,11 @@ index 000000000000..0c9da1b8986c
 +	 ASPEED_JTAG_CTL_ENG_OUT_EN | \
 +	 ASPEED_JTAG_CTL_DATA_LEN(len))
 +
++#define ASPEED_JTAG_TRANS_LEN(len) \
++	(ASPEED_JTAG_CTL_ENG_EN | \
++	 ASPEED_JTAG_CTL_ENG_OUT_EN | \
++	 ASPEED_JTAG_CTL_26XX_TRANS_LEN(len))
++
 +#define ASPEED_JTAG_SW_TDIO (ASPEED_JTAG_SW_MODE_EN | ASPEED_JTAG_SW_MODE_TDIO)
 +
 +#define ASPEED_JTAG_GET_TDI(direction, byte) \
@@ -327,8 +347,55 @@ index 000000000000..0c9da1b8986c
 +#define ASPEED_JTAG_RESET_CNTR		10
 +#define WAIT_ITERATIONS		75
 +
++/* ASPEED JTAG HW MODE 2 (Only supported in AST26xx series) */
++#define ASPEED_JTAG_SHDATA0		0x20
++#define ASPEED_JTAG_SHDATA1		0x24
++#define ASPEED_JTAG_PADCTRL0		0x28
++#define ASPEED_JTAG_PADCTRL1		0x2C
++#define ASPEED_JTAG_SHCTRL		0x30
++#define ASPEED_JTAG_GBLCTRL		0x34
++#define ASPEED_JTAG_INTCTRL		0x38
++#define ASPEED_JTAG_STAT		0x3C
++
++/* ASPEED_JTAG_PADCTRLx : Padding control 0 and 1 */
++#define ASPEED_JTAG_PADCTRL_PAD_DATA	BIT(24)
++#define ASPEED_JTAG_PADCTRL_POSTPAD(x)	(((x) & GENMASK(8, 0)) << 12)
++#define ASPEED_JTAG_PADCTRL_PREPAD(x)	(((x) & GENMASK(8, 0)) << 0)
++
++/* ASPEED_JTAG_SHCTRL: Shift Control */
++#define ASPEED_JTAG_SHCTRL_FRUN_TCK_EN	BIT(31)
++#define ASPEED_JTAG_SHCTRL_STSHIFT_EN	BIT(30)
++#define ASPEED_JTAG_SHCTRL_TMS(x)	(((x) & GENMASK(13, 0)) << 16)
++#define ASPEED_JTAG_SHCTRL_POST_TMS(x)	(((x) & GENMASK(3, 0)) << 13)
++#define ASPEED_JTAG_SHCTRL_PRE_TMS(x)	(((x) & GENMASK(3, 0)) << 10)
++#define ASPEED_JTAG_SHCTRL_PAD_SEL0	(0)
++#define ASPEED_JTAG_SHCTRL_PAD_SEL1	BIT(9)
++#define ASPEED_JTAG_SHCTRL_END_SHIFT	BIT(8)
++#define ASPEED_JTAG_SHCTRL_START_SHIFT	BIT(7)
++#define ASPEED_JTAG_SHCTRL_LWRDT_SHIFT(x) ((x) & GENMASK(6, 0))
++
++/* ASPEED_JTAG_GBLCTRL : Global Control */
++#define ASPEED_JTAG_GBLCTRL_ENG_MODE_EN	BIT(31)
++#define ASPEED_JTAG_GBLCTRL_ENG_OUT_EN	BIT(30)
++#define ASPEED_JTAG_GBLCTRL_FORCE_TMS	BIT(29)
++#define ASPEED_JTAG_GBLCTRL_SHIFT_COMPLETE  BIT(28)
++#define ASPEED_JTAG_GBLCTRL_RESET_FIFO	BIT(25)
++#define ASPEED_JTAG_GBLCTRL_FIFO_MODE	BIT(24)
++#define ASPEED_JTAG_GBLCTRL_UPDT_SHIFT(x)	(((x) & GENMASK(3, 0)) << 20)
++#define ASPEED_JTAG_GBLCTRL_STSHIFT(x)	(((x) & GENMASK(0, 0)) << 16)
++#define ASPEED_JTAG_GBLCTRL_TRST	BIT(15)
++#define ASPEED_JTAG_CLK_DIVISOR_MASK	GENMASK(11, 0)
++#define ASPEED_JTAG_CLK_GET_DIV(x)	((x) & ASPEED_JTAG_CLK_DIVISOR_MASK)
++
++/* ASPEED_JTAG_INTCTRL: Interrupt Control */
++#define ASPEED_JTAG_INTCTRL_SHCPL_IRQ_EN BIT(16)
++#define ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT BIT(0)
++
++/* ASPEED_JTAG_STAT: JTAG HW mode 2 status */
++#define ASPEED_JTAG_STAT_ENG_IDLE	BIT(0)
++
 +/*#define USE_INTERRUPTS*/
-+/*#define DEBUG_JTAG*/
++#define DEBUG_JTAG
 +
 +static const char * const regnames[] = {
 +	[ASPEED_JTAG_DATA] = "ASPEED_JTAG_DATA",
@@ -338,6 +405,14 @@ index 000000000000..0c9da1b8986c
 +	[ASPEED_JTAG_SW]   = "ASPEED_JTAG_SW",
 +	[ASPEED_JTAG_TCK]  = "ASPEED_JTAG_TCK",
 +	[ASPEED_JTAG_EC]   = "ASPEED_JTAG_EC",
++	[ASPEED_JTAG_SHDATA0]  = "ASPEED_JTAG_SHDATA0",
++	[ASPEED_JTAG_SHDATA1]  = "ASPEED_JTAG_SHDATA1",
++	[ASPEED_JTAG_PADCTRL0] = "ASPEED_JTAG_PADCTRL0",
++	[ASPEED_JTAG_PADCTRL1] = "ASPEED_JTAG_PADCTRL1",
++	[ASPEED_JTAG_SHCTRL]   = "ASPEED_JTAG_SHCTRL",
++	[ASPEED_JTAG_GBLCTRL]  = "ASPEED_JTAG_GBLCTRL",
++	[ASPEED_JTAG_INTCTRL]  = "ASPEED_JTAG_INTCTRL",
++	[ASPEED_JTAG_STAT]     = "ASPEED_JTAG_STAT",
 +};
 +
 +#define ASPEED_JTAG_NAME		"jtag-aspeed"
@@ -352,6 +427,24 @@ index 000000000000..0c9da1b8986c
 +	u32				flag;
 +	wait_queue_head_t		jtag_wq;
 +	u32				mode;
++	struct jtag_low_level_functions *llops;
++};
++
++/* Multi generation support is enabled by fops and low level assped function
++ * mapping using asped_jtag_functions struct as config mechanism.
++ */
++
++struct jtag_low_level_functions {
++	void (*output_disable)(struct aspeed_jtag *aspeed_jtag);
++	int (*xfer_push_data)(struct aspeed_jtag *aspeed_jtag,
++			      enum jtag_xfer_type type, u32 bits_len);
++	int (*xfer_push_data_last)(struct aspeed_jtag *aspeed_jtag,
++				   enum jtag_xfer_type type, u32 bits_len);
++};
++
++struct aspeed_jtag_functions {
++	struct jtag_ops *aspeed_jtag_ops;
++	struct jtag_low_level_functions *aspeed_jtag_llops;
 +};
 +
 +/*
@@ -906,6 +999,26 @@ index 000000000000..0c9da1b8986c
 +	}
 +}
 +
++static int aspeed_jtag_xfer_push_data_26xx(struct aspeed_jtag *aspeed_jtag,
++				      enum jtag_xfer_type type, u32 bits_len)
++{
++	int res = 0;
++
++	aspeed_jtag_write(aspeed_jtag, ASPEED_JTAG_TRANS_LEN(bits_len),
++			  ASPEED_JTAG_CTRL);
++	if (type == JTAG_SIR_XFER) {
++		aspeed_jtag_write(aspeed_jtag, ASPEED_JTAG_TRANS_LEN(bits_len) |
++				  ASPEED_JTAG_CTL_26XX_INST_EN,
++				  ASPEED_JTAG_CTRL);
++		res = aspeed_jtag_wait_instruction_pause(aspeed_jtag);
++	} else {
++		aspeed_jtag_write(aspeed_jtag, ASPEED_JTAG_TRANS_LEN(bits_len) |
++				  ASPEED_JTAG_CTL_DATA_EN, ASPEED_JTAG_CTRL);
++		res = aspeed_jtag_wait_data_pause_complete(aspeed_jtag);
++	}
++	return res;
++}
++
 +static int aspeed_jtag_xfer_push_data(struct aspeed_jtag *aspeed_jtag,
 +				      enum jtag_xfer_type type, u32 bits_len)
 +{
@@ -923,6 +1036,32 @@ index 000000000000..0c9da1b8986c
 +		aspeed_jtag_write(aspeed_jtag, ASPEED_JTAG_DOUT_LEN(bits_len) |
 +				  ASPEED_JTAG_CTL_DATA_EN, ASPEED_JTAG_CTRL);
 +		res = aspeed_jtag_wait_data_pause_complete(aspeed_jtag);
++	}
++	return res;
++}
++
++static int aspeed_jtag_xfer_push_data_last_26xx(struct aspeed_jtag *aspeed_jtag,
++					   enum jtag_xfer_type type,
++					   u32 shift_bits)
++{
++	int res = 0;
++
++	aspeed_jtag_write(aspeed_jtag, ASPEED_JTAG_TRANS_LEN(shift_bits) |
++			  ASPEED_JTAG_CTL_26XX_LASPEED_TRANS, ASPEED_JTAG_CTRL);
++	if (type == JTAG_SIR_XFER) {
++		aspeed_jtag_write(aspeed_jtag,
++				  ASPEED_JTAG_TRANS_LEN(shift_bits) |
++				  ASPEED_JTAG_CTL_26XX_LASPEED_TRANS |
++				  ASPEED_JTAG_CTL_26XX_INST_EN,
++				  ASPEED_JTAG_CTRL);
++		res = aspeed_jtag_wait_instruction_complete(aspeed_jtag);
++	} else {
++		aspeed_jtag_write(aspeed_jtag,
++				  ASPEED_JTAG_TRANS_LEN(shift_bits) |
++				  ASPEED_JTAG_CTL_26XX_LASPEED_TRANS |
++				  ASPEED_JTAG_CTL_DATA_EN,
++				  ASPEED_JTAG_CTRL);
++		res = aspeed_jtag_wait_data_complete(aspeed_jtag);
 +	}
 +	return res;
 +}
@@ -1002,8 +1141,8 @@ index 000000000000..0c9da1b8986c
 +			 * Transmit bytes that were not equals to column length
 +			 * and after the transfer go to Pause IR/DR.
 +			 */
-+			if (aspeed_jtag_xfer_push_data(aspeed_jtag, xfer->type,
-+						       shift_bits) != 0) {
++			if (aspeed_jtag->llops->xfer_push_data(aspeed_jtag,
++						xfer->type, shift_bits) != 0) {
 +				return -EFAULT;
 +			}
 +		} else {
@@ -1023,7 +1162,7 @@ index 000000000000..0c9da1b8986c
 +					ASPEED_JTAG_DATA_CHUNK_SIZE,
 +					remain_xfer);
 +#endif
-+				if (aspeed_jtag_xfer_push_data_last(
++				if (aspeed_jtag->llops->xfer_push_data_last(
 +							aspeed_jtag,
 +							xfer->type,
 +							shift_bits) != 0) {
@@ -1042,7 +1181,8 @@ index 000000000000..0c9da1b8986c
 +					ASPEED_JTAG_DATA_CHUNK_SIZE,
 +					remain_xfer);
 +#endif
-+				if (aspeed_jtag_xfer_push_data(aspeed_jtag,
++				if (aspeed_jtag->llops->xfer_push_data(
++							       aspeed_jtag,
 +							       xfer->type,
 +							       shift_bits)
 +							       != 0) {
@@ -1228,19 +1368,58 @@ index 000000000000..0c9da1b8986c
 +	.disable = aspeed_jtag_disable
 +};
 +
++static const struct jtag_low_level_functions ast25xx_llops = {
++	.output_disable = aspeed_jtag_output_disable,
++	.xfer_push_data = aspeed_jtag_xfer_push_data,
++	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last
++};
++
++static struct aspeed_jtag_functions ast25xx_functions = {
++	.aspeed_jtag_ops = &aspeed_jtag_ops,
++	.aspeed_jtag_llops = &ast25xx_llops
++};
++
++static const struct jtag_low_level_functions ast26xx_llops = {
++	.output_disable = aspeed_jtag_output_disable,
++	.xfer_push_data = aspeed_jtag_xfer_push_data_26xx,
++	.xfer_push_data_last = aspeed_jtag_xfer_push_data_last_26xx
++};
++
++static struct aspeed_jtag_functions ast26xx_functions = {
++	.aspeed_jtag_ops = &aspeed_jtag_ops,
++	.aspeed_jtag_llops = &ast26xx_llops
++};
++
++static const struct of_device_id aspeed_jtag_of_match[] = {
++	{ .compatible = "aspeed,ast2400-jtag", .data = &ast25xx_functions },
++	{ .compatible = "aspeed,ast2500-jtag", .data = &ast25xx_functions },
++	{ .compatible = "aspeed,ast2600-jtag", .data = &ast26xx_functions },
++	{}
++};
++
 +static int aspeed_jtag_probe(struct platform_device *pdev)
 +{
 +	struct aspeed_jtag *aspeed_jtag;
 +	struct jtag *jtag;
++	const struct of_device_id *match;
++	struct aspeed_jtag_functions *jtag_functions;
 +	int err;
 +
-+	jtag = jtag_alloc(&pdev->dev, sizeof(*aspeed_jtag), &aspeed_jtag_ops);
++	match = of_match_node(aspeed_jtag_of_match, pdev->dev.of_node);
++	if (!match)
++		return -ENODEV;
++	jtag_functions = match->data;
++
++	jtag = jtag_alloc(&pdev->dev, sizeof(*aspeed_jtag),
++			  jtag_functions->aspeed_jtag_ops);
 +	if (!jtag)
 +		return -ENOMEM;
 +
 +	platform_set_drvdata(pdev, jtag);
 +	aspeed_jtag = jtag_priv(jtag);
 +	aspeed_jtag->dev = &pdev->dev;
++
++	aspeed_jtag->llops = jtag_functions->aspeed_jtag_llops;
 +
 +	/* Initialize device*/
 +	err = aspeed_jtag_init(pdev, aspeed_jtag);
@@ -1268,13 +1447,6 @@ index 000000000000..0c9da1b8986c
 +	aspeed_jtag_deinit(pdev, jtag_priv(jtag));
 +	return 0;
 +}
-+
-+static const struct of_device_id aspeed_jtag_of_match[] = {
-+	{ .compatible = "aspeed,ast2400-jtag", },
-+	{ .compatible = "aspeed,ast2500-jtag", },
-+	{ .compatible = "aspeed,ast2600-jtag", },
-+	{}
-+};
 +
 +static struct platform_driver aspeed_jtag_driver = {
 +	.probe = aspeed_jtag_probe,

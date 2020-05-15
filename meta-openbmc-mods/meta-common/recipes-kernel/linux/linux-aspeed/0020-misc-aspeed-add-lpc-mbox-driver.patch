@@ -1,4 +1,4 @@
-From 5d411ed0d66d3d00232519ed7d4ab6fac45e7c6e Mon Sep 17 00:00:00 2001
+From 42326dfecd45c52918272cf6b65e6eb5b8499c46 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 10 Jul 2019 16:19:33 -0700
 Subject: [PATCH] misc: aspeed: add lpc mbox driver
@@ -10,13 +10,15 @@ This driver should be rewritten later.
 
 Signed-off-by: Cyril Bur <cyrilbur@gmail.com>"
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 ---
  arch/arm/boot/dts/aspeed-g4.dtsi     |   9 +
  arch/arm/boot/dts/aspeed-g5.dtsi     |   9 +
+ arch/arm/boot/dts/aspeed-g6.dtsi     |   1 +
  drivers/soc/aspeed/Kconfig           |   7 +
  drivers/soc/aspeed/Makefile          |   1 +
- drivers/soc/aspeed/aspeed-lpc-mbox.c | 376 +++++++++++++++++++++++++++++++++++
- 5 files changed, 402 insertions(+)
+ drivers/soc/aspeed/aspeed-lpc-mbox.c | 377 +++++++++++++++++++++++++++
+ 6 files changed, 404 insertions(+)
  create mode 100644 drivers/soc/aspeed/aspeed-lpc-mbox.c
 
 diff --git a/arch/arm/boot/dts/aspeed-g4.dtsi b/arch/arm/boot/dts/aspeed-g4.dtsi
@@ -40,10 +42,10 @@ index e9fd66ab3099..f3edda4ae477 100644
  			};
  
 diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
-index 20b2eb8052b7..bd6d1461e4bd 100644
+index b4ae3827ed1d..b69110b9eab9 100644
 --- a/arch/arm/boot/dts/aspeed-g5.dtsi
 +++ b/arch/arm/boot/dts/aspeed-g5.dtsi
-@@ -502,6 +502,15 @@
+@@ -522,6 +522,15 @@
  					sio_regs: regs {
  						compatible = "aspeed,bmc-misc";
  					};
@@ -59,8 +61,20 @@ index 20b2eb8052b7..bd6d1461e4bd 100644
  				};
  			};
  
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 825e64ce317a..183869eaf79a 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -594,6 +594,7 @@
+ 						reg = <0x180 0x5c>;
+ 						interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+ 						#mbox-cells = <1>;
++						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 					};
+ 				};
+ 			};
 diff --git a/drivers/soc/aspeed/Kconfig b/drivers/soc/aspeed/Kconfig
-index 78dd74c49ddb..a4be8e566bc7 100644
+index a4b3cac87ce2..464a55c7eb39 100644
 --- a/drivers/soc/aspeed/Kconfig
 +++ b/drivers/soc/aspeed/Kconfig
 @@ -21,6 +21,13 @@ config ASPEED_LPC_CTRL
@@ -78,22 +92,23 @@ index 78dd74c49ddb..a4be8e566bc7 100644
  	tristate "Aspeed ast2500 HOST LPC snoop support"
  	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
 diff --git a/drivers/soc/aspeed/Makefile b/drivers/soc/aspeed/Makefile
-index e631b23d519b..f3ff29b874ed 100644
+index 217d876fec25..26924c111af3 100644
 --- a/drivers/soc/aspeed/Makefile
 +++ b/drivers/soc/aspeed/Makefile
-@@ -1,5 +1,6 @@
+@@ -1,6 +1,7 @@
  # SPDX-License-Identifier: GPL-2.0-only
  obj-$(CONFIG_ASPEED_BMC_MISC)	+= aspeed-bmc-misc.o
  obj-$(CONFIG_ASPEED_LPC_CTRL)	+= aspeed-lpc-ctrl.o
 +obj-$(CONFIG_ASPEED_LPC_MBOX)	+= aspeed-lpc-mbox.o
  obj-$(CONFIG_ASPEED_LPC_SNOOP)	+= aspeed-lpc-snoop.o
  obj-$(CONFIG_ASPEED_P2A_CTRL)	+= aspeed-p2a-ctrl.o
+ obj-$(CONFIG_ASPEED_XDMA)	+= aspeed-xdma.o
 diff --git a/drivers/soc/aspeed/aspeed-lpc-mbox.c b/drivers/soc/aspeed/aspeed-lpc-mbox.c
 new file mode 100644
-index 000000000000..795107206022
+index 000000000000..583feecc4f18
 --- /dev/null
 +++ b/drivers/soc/aspeed/aspeed-lpc-mbox.c
-@@ -0,0 +1,376 @@
+@@ -0,0 +1,377 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +// Copyright 2017 IBM Corporation
 +// TODO: Rewrite this driver
@@ -452,6 +467,7 @@ index 000000000000..795107206022
 +static const struct of_device_id aspeed_mbox_match[] = {
 +	{ .compatible = "aspeed,ast2400-mbox" },
 +	{ .compatible = "aspeed,ast2500-mbox" },
++	{ .compatible = "aspeed,ast2600-mbox" },
 +	{ },
 +};
 +MODULE_DEVICE_TABLE(of, aspeed_mbox_match);
@@ -471,5 +487,5 @@ index 000000000000..795107206022
 +MODULE_AUTHOR("Cyril Bur <cyrilbur@gmail.com>");
 +MODULE_DESCRIPTION("Aspeed mailbox device driver");
 -- 
-2.7.4
+2.17.1
 
