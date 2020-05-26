@@ -1,0 +1,330 @@
+From 19bbdf59f39d295ad3e698b121a0b447b77b927c Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Mon, 20 Apr 2020 16:13:09 -0700
+Subject: [PATCH] IPMI command handler implementation in uboot
+
+IPMI command handler implementation in uBoot.
+Implemented IPMI commands:
+ 1) Get Device ID
+ 2) Get Self Test Result
+
+Tested By:
+Ran the above IPMI command Via KCS channel
+and got proper response.
+- Get Device ID
+  Req: cmdtool.efi 20 18 1
+  Res: 0x00 0x23 0x00 0x82 0x03 0x02 0x00 0x57 0x01 0x00 0x7b 0x00 0x00 0x00 0x00 0x00
+- Get Self Test Results
+  Req: cmdtool.efi 20 18 4
+  Res: 00 56 00
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/Makefile       |   1 +
+ board/aspeed/ast2600_intel/ast-kcs.c      |  77 +++++++++++---------
+ board/aspeed/ast2600_intel/ipmi-handler.c | 117 ++++++++++++++++++++++++++++++
+ board/aspeed/ast2600_intel/ipmi-handler.h |  39 ++++++++++
+ 4 files changed, 200 insertions(+), 34 deletions(-)
+ create mode 100644 board/aspeed/ast2600_intel/ipmi-handler.c
+ create mode 100644 board/aspeed/ast2600_intel/ipmi-handler.h
+
+diff --git a/board/aspeed/ast2600_intel/Makefile b/board/aspeed/ast2600_intel/Makefile
+index d049922719f3..a0587323afe0 100644
+--- a/board/aspeed/ast2600_intel/Makefile
++++ b/board/aspeed/ast2600_intel/Makefile
+@@ -3,3 +3,4 @@ obj-y += ast-espi.o
+ obj-y += ast-irq.o
+ obj-y += ast-timer.o
+ obj-y += ast-kcs.o
++obj-y += ipmi-handler.o
+diff --git a/board/aspeed/ast2600_intel/ast-kcs.c b/board/aspeed/ast2600_intel/ast-kcs.c
+index a03b7e725370..3889cd9222a4 100644
+--- a/board/aspeed/ast2600_intel/ast-kcs.c
++++ b/board/aspeed/ast2600_intel/ast-kcs.c
+@@ -1,7 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0
+ // Copyright (c) 2018-2020 Intel Corporation
+ 
+-#include "ast-kcs.h"
++#include "ipmi-handler.h"
+ 
+ #ifdef DEBUG_KCS_ENABLED
+ #define DBG_KCS			printf
+@@ -9,11 +9,6 @@
+ #define DBG_KCS(...)
+ #endif
+ 
+-/* TODO: Move to IPMI file. */
+-#define IPMI_CC_OK		0x00
+-#define IPMI_CC_INVALID		0xC1
+-#define IPMI_CC_UNSPECIFIED	0xFF
+-
+ #define KCS_CHANNEL_NO_3	3
+ 
+ static const u16 enabled_kcs_channel[] = { KCS_CHANNEL_NO_3 };
+@@ -103,6 +98,7 @@ static void init_kcs_packet(u16 channel_num)
+ static void process_kcs_request(u16 channel_num)
+ {
+ 	struct kcs_packet *kcs_pkt = NULL;
++	struct ipmi_cmd_data ipmi_data;
+ 	int i;
+ 
+ 	kcs_pkt = get_kcs_packet(channel_num);
+@@ -117,37 +113,49 @@ static void process_kcs_request(u16 channel_num)
+ 		DBG_KCS(" 0x%02x", kcs_pkt->data_in[i]);
+ 	DBG_KCS("\n");
+ #endif
++	u8 req_lun = kcs_pkt->data_in[0] & 0x03; /* LUN[1:0]  */
++	ipmi_data.net_fun = (kcs_pkt->data_in[0] >> 2); /* netfn[7:2] */
++	ipmi_data.cmd = kcs_pkt->data_in[1]; /* cmd */
++	/* We support only BMC LUN 00h */
++	if (req_lun != LUN_BMC) {
++		kcs_pkt->data_out[0] =
++			GET_RESP_NETFN_LUN(req_lun, ipmi_data.net_fun);
++		kcs_pkt->data_out[1] = ipmi_data.cmd; /* cmd */
++		kcs_pkt->data_out[2] = IPMI_CC_INVALID_CMD_LUN; /* CC code */
++		kcs_pkt->data_out_len = 3;
++		goto done;
++	}
+ 
+-	/*
+-	 * TODO: Move it to IPMI Command Handler
+-	 * Below code is added for timebeing till
+-	 * we implement the IPMI command handler.
+-	 */
+-	kcs_pkt->data_out[0] = kcs_pkt->data_in[0]; /* netfn */
+-	kcs_pkt->data_out[1] = kcs_pkt->data_in[1]; /* cmd */
+-	kcs_pkt->data_out[2] = IPMI_CC_OK; /* cc */
+-
+-	if (((kcs_pkt->data_in[0] >> 2) == 0x06) &&
+-	    (kcs_pkt->data_in[1] == 0x01)) {
+-		/* Get Device ID */
+-		u8 device_id[15] = { 0x23, 0x00, 0x12, 0x03, 0x02,
+-				     0xBF, 0x57, 0x01, 0x00, 0x7B,
+-				     0x00, 0x00, 0x00, 0x00, 0x00 };
+-		for (i = 0; i < 15; i++)
+-			kcs_pkt->data_out[i + 3] = device_id[i];
+-		kcs_pkt->data_out_len = 18;
+-	} else if (((kcs_pkt->data_in[0] >> 2) == 0x06) &&
+-		   (kcs_pkt->data_in[1] == 0x04)) {
+-		/* Get Self Test Results */
+-		kcs_pkt->data_out[3] = 0x56;
+-		kcs_pkt->data_out[4] = 0x00;
+-		kcs_pkt->data_out_len = 5;
+-	} else {
+-		kcs_pkt->data_out[2] =
+-			IPMI_CC_INVALID; /* Invalid or not supported. */
++	/* Boundary check */
++	if ((kcs_pkt->data_in_idx - 2) > sizeof(ipmi_data.req_data)) {
++		kcs_pkt->data_out[0] =
++			GET_RESP_NETFN_LUN(req_lun, ipmi_data.net_fun);
++		kcs_pkt->data_out[1] = ipmi_data.cmd; /* cmd */
++		kcs_pkt->data_out[2] = IPMI_CC_OUT_OF_SPACE; /* CC code */
+ 		kcs_pkt->data_out_len = 3;
++		goto done;
+ 	}
+-	/* END: TODO */
++	/* Fill in IPMI request data */
++	ipmi_data.req_len = kcs_pkt->data_in_idx - 2;
++	for (i = 0; i < kcs_pkt->data_in_idx - 2; i++)
++		ipmi_data.req_data[i] = kcs_pkt->data_in[i + 2];
++
++	/* Call IPMI command handler */
++	ipmi_cmd_handler(&ipmi_data);
++
++	/* Get IPMI response and fill KCS out data  */
++	/* First 2 bytes in KCS response are netFn, Cmd */
++	kcs_pkt->data_out[0] = GET_RESP_NETFN_LUN(req_lun, ipmi_data.net_fun);
++	kcs_pkt->data_out[1] = ipmi_data.cmd;
++	if ((ipmi_data.res_len + 2) > sizeof(kcs_pkt->data_out)) {
++		kcs_pkt->data_out[2] = IPMI_CC_UNSPECIFIED; /* CC code */
++		kcs_pkt->data_out_len = 3;
++		goto done;
++	}
++	for (i = 0; i < ipmi_data.res_len; i++)
++		kcs_pkt->data_out[i + 2] = ipmi_data.res_data[i];
++
++	kcs_pkt->data_out_len = ipmi_data.res_len + 2;
+ 
+ #ifdef DEBUG_KCS_ENABLED
+ 	DBG_KCS("Response data(Len:%d): ", kcs_pkt->data_out_len);
+@@ -156,6 +164,7 @@ static void process_kcs_request(u16 channel_num)
+ 	DBG_KCS("\n");
+ #endif
+ 
++done:
+ 	kcs_pkt->phase = KCS_PHASE_READ;
+ 	write_data(channel_num, kcs_pkt->data_out[kcs_pkt->data_out_idx++]);
+ 	kcs_pkt->read_req_done = false;
+diff --git a/board/aspeed/ast2600_intel/ipmi-handler.c b/board/aspeed/ast2600_intel/ipmi-handler.c
+new file mode 100644
+index 000000000000..04732846ac28
+--- /dev/null
++++ b/board/aspeed/ast2600_intel/ipmi-handler.c
+@@ -0,0 +1,117 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (c) 2018-2020 Intel Corporation
++
++#include "ipmi-handler.h"
++
++/* IPMI network function codes */
++#define NETFN_APP			0x06
++
++/* IPMI command codes */
++#define CMD_GET_DEV_ID			0x01
++#define CMD_GET_SELF_TEST_RESULTS	0x04
++
++typedef u16 (*fun_handler)(u8 *req, u16 req_len, u8 *res);
++
++struct get_dev_id {
++	u8 completion_code;
++	u8 dev_id;
++	u8 dev_rev;
++	u8 fw_rev1;
++	u8 fw_rev2;
++	u8 ipmi_ver;
++	u8 dev_support;
++	u8 mfg_id[3];
++	u8 product_id[2];
++	u8 aux_fw_rev[4];
++};
++struct self_test_res {
++	u8 completion_code;
++	u8 res_byte[2];
++};
++
++struct ipmi_cmd_table {
++	u8 net_fun;
++	u8 cmd;
++	fun_handler process_cmd;
++};
++
++static u16 get_device_id(u8 *req, u16 req_len, u8 *res)
++{
++	/* Get Device ID */
++	bool operation = 1; /* Firmware operation */
++	u8 intel_mfg_id[3] = { 0x57, 0x01, 0x00 };
++	u8 platform_id[2] = { 0x7B, 0x00 };
++	u8 aux_fw_rev[4] = { 0x00, 0x00, 0x00, 0x00 };
++	struct get_dev_id *result = (struct get_dev_id *)res;
++
++	if (req_len != 0) {
++		result->completion_code = IPMI_CC_INVALID_DATA_LENGTH;
++		return sizeof(result->completion_code);
++	}
++
++	result->completion_code = IPMI_CC_OK;
++	result->dev_id = 0x23;
++	result->dev_rev = 0x00; /* Not provides dev SDR */
++
++	result->ipmi_ver = 0x02; /* IPMI 2.0 */
++	result->dev_support = 0x00; /* No dev support in this mode */
++	memcpy(result->mfg_id, intel_mfg_id, sizeof(result->mfg_id));
++	memcpy(result->aux_fw_rev, aux_fw_rev, sizeof(result->aux_fw_rev));
++
++	/* TODO: Get Firmware version from flash(PFM Header) */
++	result->fw_rev1 = ((operation << 7) | (0x02 & 0x7F));
++	result->fw_rev2 = 0x03;
++	/* TODO: Read Platform ID from GPIO */
++	memcpy(result->product_id, platform_id, sizeof(result->product_id));
++
++	return sizeof(struct get_dev_id);
++}
++
++static u16 get_self_test_result(u8 *req, u16 req_len, u8 *res)
++{
++	/* Get Self Test Results */
++	struct self_test_res *result = (struct self_test_res *)res;
++
++	if (req_len != 0) {
++		result->completion_code = IPMI_CC_INVALID_DATA_LENGTH;
++		return sizeof(result->completion_code);
++	}
++
++	result->completion_code = IPMI_CC_OK;
++	result->res_byte[0] = 0x56; /* Self test function not implemented. */
++	result->res_byte[1] = 0x00;
++
++	return sizeof(struct self_test_res);
++}
++
++const struct ipmi_cmd_table cmd_info[] = {
++	{ NETFN_APP,	CMD_GET_DEV_ID,			get_device_id },
++	{ NETFN_APP,	CMD_GET_SELF_TEST_RESULTS,	get_self_test_result }
++};
++
++#define CMD_TABLE_SIZE ARRAY_SIZE(cmd_info)
++
++void ipmi_cmd_handler(struct ipmi_cmd_data *ipmi_data)
++{
++	int i = 0;
++	for (i = 0; i < CMD_TABLE_SIZE; i++) {
++		if ((cmd_info[i].net_fun == ipmi_data->net_fun) &&
++		    (cmd_info[i].cmd == ipmi_data->cmd)) {
++			break;
++		}
++	}
++
++	if (i == CMD_TABLE_SIZE) {
++		/* Invalid or not supported. */
++		ipmi_data->res_data[0] = IPMI_CC_INVALID_CMD;
++		ipmi_data->res_len = 1;
++		return;
++	}
++
++	/* Call the appropriate function handler */
++	ipmi_data->res_len =
++		cmd_info[i].process_cmd(ipmi_data->req_data, ipmi_data->req_len,
++					&ipmi_data->res_data[0]);
++
++	return;
++}
+diff --git a/board/aspeed/ast2600_intel/ipmi-handler.h b/board/aspeed/ast2600_intel/ipmi-handler.h
+new file mode 100644
+index 000000000000..11a2e91fe2c2
+--- /dev/null
++++ b/board/aspeed/ast2600_intel/ipmi-handler.h
+@@ -0,0 +1,39 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/* Copyright (c) 2018-2020 Intel Corporation */
++
++#include "ast-kcs.h"
++
++/* IPMI completion codes */
++#define IPMI_CC_OK			0x00
++#define IPMI_CC_NODE_BUSY		0xC0
++#define IPMI_CC_INVALID_CMD		0xC1
++#define IPMI_CC_INVALID_CMD_LUN		0xC2
++#define IPMI_CC_OUT_OF_SPACE		0xC4
++#define IPMI_CC_INVALID_DATA_LENGTH	0xC7
++#define IPMI_CC_INVALID_DATA_FIELD	0xCC
++#define IPMI_CC_UNSPECIFIED		0xFF
++
++/* BMC IPMB LUNs */
++#define LUN_BMC				0x00
++#define LUN_OEM1			0x01
++#define LUN_SMS				0x02
++#define LUN_OEM2			0x01
++
++
++#define MAX_IPMI_REQ_DATA_SIZE		MAX_KCS_PKT_SIZE
++#define MAX_IPMI_RES_DATA_SIZE		64
++
++/* Response netFn[7:2], Lun[1:0] */
++#define GET_RESP_NETFN_LUN(lun, netfn)                                         \
++	((lun & 0x03) | (((netfn + 1) << 2) & 0xFD))
++
++struct ipmi_cmd_data {
++	u8 net_fun;
++	u8 cmd;
++	u16 req_len;
++	u16 res_len;
++	u8 req_data[MAX_IPMI_REQ_DATA_SIZE];
++	u8 res_data[MAX_IPMI_RES_DATA_SIZE];
++};
++
++void ipmi_cmd_handler(struct ipmi_cmd_data *ipmi_data);
+-- 
+2.7.4
+

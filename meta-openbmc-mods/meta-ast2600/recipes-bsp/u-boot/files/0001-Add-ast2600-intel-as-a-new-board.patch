@@ -1,11 +1,11 @@
-From a40cea99245e624e8fb2e39e26c7e76f1aee67fe Mon Sep 17 00:00:00 2001
+From 2cec5042f3b33c6762073deb9275a66875538d82 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Thu, 24 Oct 2019 14:06:33 -0700
 Subject: [PATCH] Add ast2600-intel as a new board
 
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
-Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  arch/arm/dts/Makefile                  |   3 +-
  arch/arm/dts/ast2600-intel.dts         | 197 ++++++++++++++++
@@ -13,14 +13,15 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
  arch/arm/mach-aspeed/ast2600/Kconfig   |   8 +
  board/aspeed/ast2600_intel/Kconfig     |  13 ++
  board/aspeed/ast2600_intel/Makefile    |   4 +
- board/aspeed/ast2600_intel/ast-espi.c  | 298 ++++++++++++++++++++++++
+ board/aspeed/ast2600_intel/ast-espi.c  | 292 ++++++++++++++++++++++++
  board/aspeed/ast2600_intel/ast-irq.c   | 399 +++++++++++++++++++++++++++++++++
  board/aspeed/ast2600_intel/ast-irq.h   |   8 +
  board/aspeed/ast2600_intel/ast-timer.c |  59 +++++
- board/aspeed/ast2600_intel/intel.c     | 185 +++++++++++++++
+ board/aspeed/ast2600_intel/intel.c     | 192 ++++++++++++++++
  cmd/Kconfig                            |   2 +-
  common/autoboot.c                      |  10 +
- 13 files changed, 1189 insertions(+), 2 deletions(-)
+ configs/ast2600_openbmc_defconfig      |   2 +-
+ 14 files changed, 1191 insertions(+), 3 deletions(-)
  create mode 100644 arch/arm/dts/ast2600-intel.dts
  create mode 100644 board/aspeed/ast2600_intel/Kconfig
  create mode 100644 board/aspeed/ast2600_intel/Makefile
@@ -338,23 +339,17 @@ index 000000000000..37d2f0064f38
 +obj-y += ast-timer.o
 diff --git a/board/aspeed/ast2600_intel/ast-espi.c b/board/aspeed/ast2600_intel/ast-espi.c
 new file mode 100644
-index 000000000000..1852dd3d86e2
+index 000000000000..0fdbf089a450
 --- /dev/null
 +++ b/board/aspeed/ast2600_intel/ast-espi.c
-@@ -0,0 +1,298 @@
-+/*
-+ * Copyright 2018 Intel Corporation
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; either version
-+ * 2 of the License, or (at your option) any later version.
-+ */
+@@ -0,0 +1,292 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (c) 2018-2020, Intel Corporation.
 +
 +#include <common.h>
 +#include <asm/io.h>
 +
-+#define AST_LPC_BASE			0x1e6e9000
++#define AST_LPC_BASE			0x1e789000
 +#define AST_ESPI_BASE			0x1e6ee000
 +#define AST_SCU_BASE			0x1e6e2000
 +#define AST_SCU_HW_STRAP2		0x510
@@ -581,7 +576,7 @@ index 000000000000..1852dd3d86e2
 +
 +void espi_init(void)
 +{
-+	if (!readl(AST_SCU_BASE + AST_SCU_HW_STRAP2) &
++	if (~readl(AST_SCU_BASE + AST_SCU_HW_STRAP2) &
 +	    SCU_HW_STRAP_ESPI_ENABLED) {
 +		uint32_t v;
 +
@@ -1126,10 +1121,13 @@ index 000000000000..cf8c69aba5d3
 +}
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
 new file mode 100644
-index 000000000000..03363b80b4f5
+index 000000000000..4a40a050c3da
 --- /dev/null
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,192 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (c) 2019-2020, Intel Corporation.
++
 +/* Intel customizations of Das U-Boot */
 +#include <common.h>
 +#include <asm/gpio.h>
@@ -1256,15 +1254,12 @@ index 000000000000..03363b80b4f5
 +	       SCU_BASE | SCU_414);
 +}
 +
-+void espi_init(void);
-+int arch_interrupt_init_early(void);
-+
 +static void timer_handler(void *regs)
 +{
 +	printf("+");
 +}
 +
-+void timer_enable(int n, uint32_t freq, interrupt_handler_t *handler);
++extern int arch_interrupt_init_early(void);
 +int board_early_init_f(void)
 +{
 +	/* This is called before relocation; beware! */
@@ -1282,11 +1277,18 @@ index 000000000000..03363b80b4f5
 +	return 0;
 +}
 +
++extern void timer_enable(int n, uint32_t freq, interrupt_handler_t *handler);
 +int board_early_init_r(void)
 +{
 +	debug("board_early_init_r\n");
 +	/* timer_enable(0, 1, timer_handler); */
 +
++	return 0;
++}
++
++extern void espi_init(void);
++int board_late_init(void)
++{
 +	espi_init();
 +
 +	return 0;
@@ -1353,6 +1355,19 @@ index 94133eaeda78..5e69000b848b 100644
  	if (bootdelay >= 0)
  		abort = __abortboot(bootdelay);
  
+diff --git a/configs/ast2600_openbmc_defconfig b/configs/ast2600_openbmc_defconfig
+index 2e2df2e3a235..77c39d848312 100644
+--- a/configs/ast2600_openbmc_defconfig
++++ b/configs/ast2600_openbmc_defconfig
+@@ -13,7 +13,7 @@ CONFIG_FIT=y
+ CONFIG_USE_BOOTARGS=y
+ CONFIG_BOOTARGS="console=ttyS4,115200n8 root=/dev/ram rw"
+ CONFIG_USE_BOOTCOMMAND=y
+-CONFIG_BOOTCOMMAND="bootm 20100000"
++CONFIG_BOOTCOMMAND="bootm 20080000"
+ CONFIG_SYS_CONSOLE_ENV_OVERWRITE=y
+ CONFIG_DISPLAY_BOARDINFO_LATE=y
+ CONFIG_ARCH_EARLY_INIT_R=y
 -- 
 2.7.4
 

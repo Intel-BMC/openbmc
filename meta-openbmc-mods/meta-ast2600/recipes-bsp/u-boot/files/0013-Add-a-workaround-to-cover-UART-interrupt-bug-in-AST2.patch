@@ -1,0 +1,58 @@
+From 2d0a3aff4c4aa3a764958579ed10a3aab43a7d8a Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 27 Apr 2020 12:40:01 -0700
+Subject: [PATCH] Add a workaround to cover UART interrupt bug in AST2600 A0
+
+This commit adds a workaround to cover UART interrupt bug in
+AST2600 A0 revision. It makes infinite reading on the UART +0x7c
+register for clearing abnormal interrupts in every milli-second.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/intel.c | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index 6ac24beb930b..ad5ab7632447 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -221,7 +221,19 @@ void enable_onboard_tpm(void)
+ 
+ static void timer_callback(void *cookie)
+ {
+-	debug("+");
++	uint timer_nr = (uint)cookie;
++	u32 dummy;
++
++	switch (timer_nr) {
++	case 0:
++		/* WA for UART interrupt bug in A0 */
++		dummy = readl(0x1e78307c);
++		dummy = readl(0x1e78407c);
++		dummy = readl(0x1e78d07c);
++		dummy = readl(0x1e78e07c);
++		dummy = readl(0x1e78f07c);
++		break;
++	}
+ }
+ 
+ int board_early_init_f(void)
+@@ -256,9 +268,13 @@ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
+ 			 void *cookie);
+ int board_late_init(void)
+ {
+-#define ONE_SEC_IN_USEC		1000000
++#define SCU_014			0x014		/* Silicon Revision ID */
++#define REV_ID_AST2600A0	0x05000303	/* AST2600 A0 */
++#define ONE_MSEC_IN_USEC	1000
++
++	if (readl(SCU_BASE | SCU_014) == REV_ID_AST2600A0)
++		timer_enable(0, ONE_MSEC_IN_USEC, timer_callback, (void *)0);
+ 
+-	timer_enable(0, ONE_SEC_IN_USEC, timer_callback, (void *)0);
+ 	espi_init();
+ 
+ 	if (read_ffuj())
+-- 
+2.7.4
+

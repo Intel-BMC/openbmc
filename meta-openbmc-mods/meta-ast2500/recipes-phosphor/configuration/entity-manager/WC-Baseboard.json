@@ -2403,7 +2403,7 @@
     ],
     "Name": "WC Baseboard",
     "Probe": [
-        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'WilsonCity'})",
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'WilsonCity.*'})",
         "OR",
         "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*WC'})"
     ],

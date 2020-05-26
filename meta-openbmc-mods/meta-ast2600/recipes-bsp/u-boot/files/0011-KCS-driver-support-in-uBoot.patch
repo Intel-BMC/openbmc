@@ -1,0 +1,614 @@
+From 1fbd857e2ff5396ea057f686cbd01c6db4328316 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Mon, 20 Apr 2020 11:08:22 -0700
+Subject: [PATCH] KCS driver support in uBoot
+
+Added KCS support in uBoot. This will enable
+KCS channels and set the specified registers
+to do KCS communication in uBoot. It also
+consist of read and write KCS message transations
+work flow implementation( As specified in IPMI
+specification Section 9.15). It is enabled
+only when Force Firmware Update Jumper is ON.
+
+Tested:
+Stopped booting in uBoot and sent IPMI commands
+via KCS interfaces using cmdtool.efi.
+ - Get Device ID:
+    Req: cmdtool.efi 20 18 1
+    Res: 00 23 00 12 03 02 BF 57 01 00 7B 00 00 00 00 00
+ - Get Self Test Results
+    Req: cmdtool.efi 20 18 4
+    Res: 00 56 00
+ - All other commands
+    Req: cmdtool.efi 20 18 2
+    Res: C1 (Invalid).
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/Makefile  |   1 +
+ board/aspeed/ast2600_intel/ast-kcs.c | 418 +++++++++++++++++++++++++++++++++++
+ board/aspeed/ast2600_intel/ast-kcs.h | 112 ++++++++++
+ board/aspeed/ast2600_intel/intel.c   |   4 +
+ 4 files changed, 535 insertions(+)
+ create mode 100644 board/aspeed/ast2600_intel/ast-kcs.c
+ create mode 100644 board/aspeed/ast2600_intel/ast-kcs.h
+
+diff --git a/board/aspeed/ast2600_intel/Makefile b/board/aspeed/ast2600_intel/Makefile
+index 37d2f0064f38..d049922719f3 100644
+--- a/board/aspeed/ast2600_intel/Makefile
++++ b/board/aspeed/ast2600_intel/Makefile
+@@ -2,3 +2,4 @@ obj-y += intel.o
+ obj-y += ast-espi.o
+ obj-y += ast-irq.o
+ obj-y += ast-timer.o
++obj-y += ast-kcs.o
+diff --git a/board/aspeed/ast2600_intel/ast-kcs.c b/board/aspeed/ast2600_intel/ast-kcs.c
+new file mode 100644
+index 000000000000..a03b7e725370
+--- /dev/null
++++ b/board/aspeed/ast2600_intel/ast-kcs.c
+@@ -0,0 +1,418 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (c) 2018-2020 Intel Corporation
++
++#include "ast-kcs.h"
++
++#ifdef DEBUG_KCS_ENABLED
++#define DBG_KCS			printf
++#else
++#define DBG_KCS(...)
++#endif
++
++/* TODO: Move to IPMI file. */
++#define IPMI_CC_OK		0x00
++#define IPMI_CC_INVALID		0xC1
++#define IPMI_CC_UNSPECIFIED	0xFF
++
++#define KCS_CHANNEL_NO_3	3
++
++static const u16 enabled_kcs_channel[] = { KCS_CHANNEL_NO_3 };
++
++static const struct kcs_io_reg ast_kcs_bmc_ioregs[KCS_CHANNEL_MAX] = {
++	{ .idr = LPC_IDR1, .odr = LPC_ODR1, .str = LPC_STR1 },
++	{ .idr = LPC_IDR2, .odr = LPC_ODR2, .str = LPC_STR2 },
++	{ .idr = LPC_IDR3, .odr = LPC_ODR3, .str = LPC_STR3 },
++	{ .idr = LPC_IDR4, .odr = LPC_ODR4, .str = LPC_STR4 }
++};
++
++#define NO_OF_ENABLED_KCS_CHANNELS ARRAY_SIZE(enabled_kcs_channel)
++
++static struct kcs_packet m_kcs_pkt[NO_OF_ENABLED_KCS_CHANNELS];
++
++static u16 read_status(u16 channel_num)
++{
++	return readl(AST_LPC_BASE + ast_kcs_bmc_ioregs[channel_num - 1].str);
++}
++
++static void write_status(u16 channel_num, u16 value)
++{
++	writel(value, AST_LPC_BASE + ast_kcs_bmc_ioregs[channel_num - 1].str);
++}
++
++static u16 read_data(u16 channel_num)
++{
++	return readl(AST_LPC_BASE + ast_kcs_bmc_ioregs[channel_num - 1].idr);
++}
++
++static void write_data(u16 channel_num, u16 value)
++{
++	writel(value, AST_LPC_BASE + ast_kcs_bmc_ioregs[channel_num - 1].odr);
++}
++
++static void set_kcs_state(u16 channel_num, u16 state)
++{
++	u16 status = read_status(channel_num);
++
++	status &= ~KCS_STATE_MASK;
++	status |= KCS_STATE(state) & KCS_STATE_MASK;
++	write_status(channel_num, status);
++}
++
++static struct kcs_packet *get_kcs_packet(u16 channel_num)
++{
++	for (u16 idx = 0; idx < NO_OF_ENABLED_KCS_CHANNELS; idx++) {
++		if (channel_num == enabled_kcs_channel[idx])
++			return &m_kcs_pkt[idx];
++	}
++
++	/* very unlike code hits here. */
++	DBG_KCS("ERROR: %s error. ChannelNo: %d\n", __func__, channel_num);
++	BUG();
++}
++
++static void kcs_force_abort(u16 channel_num)
++{
++	struct kcs_packet *kcs_pkt = NULL;
++
++	kcs_pkt = get_kcs_packet(channel_num);
++	DBG_KCS("ERROR: KCS communication aborted (Channel:%d, Error:%d)\n",
++	       channel_num, kcs_pkt->error);
++	set_kcs_state(channel_num, KCS_STATE_ERROR);
++	read_data(channel_num);
++	write_data(channel_num, ZERO_DATA);
++
++	kcs_pkt->phase = KCS_PHASE_ERROR;
++	kcs_pkt->read_req_done = false;
++	kcs_pkt->data_in_idx = 0;
++}
++
++static void init_kcs_packet(u16 channel_num)
++{
++	struct kcs_packet *kcs_pkt = NULL;
++
++	kcs_pkt = get_kcs_packet(channel_num);
++	kcs_pkt->channel = channel_num;
++	kcs_pkt->read_req_done = false;
++	kcs_pkt->phase = KCS_PHASE_IDLE;
++	kcs_pkt->error = KCS_NO_ERROR;
++	kcs_pkt->data_in_idx = 0;
++	kcs_pkt->data_out_idx = 0;
++	kcs_pkt->data_out_len = 0;
++}
++
++static void process_kcs_request(u16 channel_num)
++{
++	struct kcs_packet *kcs_pkt = NULL;
++	int i;
++
++	kcs_pkt = get_kcs_packet(channel_num);
++	if (!kcs_pkt->read_req_done)
++		return;
++
++	DBG_KCS("%s:- chan:%d\n", __func__, channel_num);
++
++#ifdef DEBUG_KCS_ENABLED
++	DBG_KCS("Request data(Len:%d): ", kcs_pkt->data_in_idx);
++	for (i = 0; i < kcs_pkt->data_in_idx; i++)
++		DBG_KCS(" 0x%02x", kcs_pkt->data_in[i]);
++	DBG_KCS("\n");
++#endif
++
++	/*
++	 * TODO: Move it to IPMI Command Handler
++	 * Below code is added for timebeing till
++	 * we implement the IPMI command handler.
++	 */
++	kcs_pkt->data_out[0] = kcs_pkt->data_in[0]; /* netfn */
++	kcs_pkt->data_out[1] = kcs_pkt->data_in[1]; /* cmd */
++	kcs_pkt->data_out[2] = IPMI_CC_OK; /* cc */
++
++	if (((kcs_pkt->data_in[0] >> 2) == 0x06) &&
++	    (kcs_pkt->data_in[1] == 0x01)) {
++		/* Get Device ID */
++		u8 device_id[15] = { 0x23, 0x00, 0x12, 0x03, 0x02,
++				     0xBF, 0x57, 0x01, 0x00, 0x7B,
++				     0x00, 0x00, 0x00, 0x00, 0x00 };
++		for (i = 0; i < 15; i++)
++			kcs_pkt->data_out[i + 3] = device_id[i];
++		kcs_pkt->data_out_len = 18;
++	} else if (((kcs_pkt->data_in[0] >> 2) == 0x06) &&
++		   (kcs_pkt->data_in[1] == 0x04)) {
++		/* Get Self Test Results */
++		kcs_pkt->data_out[3] = 0x56;
++		kcs_pkt->data_out[4] = 0x00;
++		kcs_pkt->data_out_len = 5;
++	} else {
++		kcs_pkt->data_out[2] =
++			IPMI_CC_INVALID; /* Invalid or not supported. */
++		kcs_pkt->data_out_len = 3;
++	}
++	/* END: TODO */
++
++#ifdef DEBUG_KCS_ENABLED
++	DBG_KCS("Response data(Len:%d): ", kcs_pkt->data_out_len);
++	for (i = 0; i < kcs_pkt->data_out_len; i++)
++		DBG_KCS(" 0x%02x", kcs_pkt->data_out[i]);
++	DBG_KCS("\n");
++#endif
++
++	kcs_pkt->phase = KCS_PHASE_READ;
++	write_data(channel_num, kcs_pkt->data_out[kcs_pkt->data_out_idx++]);
++	kcs_pkt->read_req_done = false;
++}
++
++static void read_kcs_data(u16 channel_num)
++{
++	struct kcs_packet *kcs_pkt = NULL;
++
++	kcs_pkt = get_kcs_packet(channel_num);
++
++	switch (kcs_pkt->phase) {
++	case KCS_PHASE_WRITE_START:
++		kcs_pkt->phase = KCS_PHASE_WRITE_DATA;
++		/* fall through */
++
++	case KCS_PHASE_WRITE_DATA:
++		if (kcs_pkt->data_in_idx >= MAX_KCS_PKT_SIZE) {
++			kcs_pkt->error = KCS_LENGTH_ERROR;
++			kcs_force_abort(channel_num);
++			return;
++		}
++		set_kcs_state(channel_num, KCS_STATE_WRITE);
++		write_data(channel_num, ZERO_DATA);
++		kcs_pkt->data_in[kcs_pkt->data_in_idx++] =
++			read_data(channel_num);
++		break;
++
++	case KCS_PHASE_WRITE_END:
++		if (kcs_pkt->data_in_idx >= MAX_KCS_PKT_SIZE) {
++			kcs_pkt->error = KCS_LENGTH_ERROR;
++			kcs_force_abort(channel_num);
++			return;
++		}
++		set_kcs_state(channel_num, KCS_STATE_READ);
++		kcs_pkt->data_in[kcs_pkt->data_in_idx++] =
++			read_data(channel_num);
++		kcs_pkt->phase = KCS_PHASE_READ_WAIT;
++		kcs_pkt->read_req_done = true;
++
++		process_kcs_request(channel_num);
++		break;
++
++	case KCS_PHASE_READ:
++		if (kcs_pkt->data_out_idx == kcs_pkt->data_out_len)
++			set_kcs_state(channel_num, KCS_STATE_IDLE);
++
++		u8 data = read_data(channel_num);
++		if (data != KCS_CTRL_CODE_READ) {
++			DBG_KCS("Invalid Read data. Phase:%d, Data:0x%02x\n",
++				kcs_pkt->phase, data);
++			set_kcs_state(channel_num, KCS_STATE_ERROR);
++			write_data(channel_num, ZERO_DATA);
++			break;
++		}
++
++		if (kcs_pkt->data_out_idx == kcs_pkt->data_out_len) {
++			write_data(channel_num, ZERO_DATA);
++			kcs_pkt->phase = KCS_PHASE_IDLE;
++			break;
++		}
++		write_data(channel_num,
++			   kcs_pkt->data_out[kcs_pkt->data_out_idx++]);
++		break;
++
++	case KCS_PHASE_ABORT_1:
++		set_kcs_state(channel_num, KCS_STATE_READ);
++		read_data(channel_num);
++		write_data(channel_num, kcs_pkt->error);
++		kcs_pkt->phase = KCS_PHASE_ABORT_2;
++		break;
++
++	case KCS_PHASE_ABORT_2:
++		set_kcs_state(channel_num, KCS_STATE_IDLE);
++		read_data(channel_num);
++		write_data(channel_num, ZERO_DATA);
++		kcs_pkt->phase = KCS_PHASE_IDLE;
++		break;
++
++	default:
++		kcs_force_abort(channel_num);
++	}
++}
++
++static void read_kcs_cmd(u16 channel_num)
++{
++	struct kcs_packet *kcs_pkt = NULL;
++
++	kcs_pkt = get_kcs_packet(channel_num);
++
++	set_kcs_state(channel_num, KCS_STATE_WRITE);
++	write_data(channel_num, ZERO_DATA);
++
++	u16 cmd = read_data(channel_num);
++	switch (cmd) {
++	case KCS_CTRL_CODE_WRITE_START:
++		init_kcs_packet(channel_num);
++		kcs_pkt->phase = KCS_PHASE_WRITE_START;
++		break;
++
++	case KCS_CTRL_CODE_WRITE_END:
++		if (kcs_pkt->error != KCS_NO_ERROR) {
++			kcs_force_abort(channel_num);
++			return;
++		}
++
++		kcs_pkt->phase = KCS_PHASE_WRITE_END;
++		break;
++
++	case KCS_CTRL_CODE_GET_STATUS_ABORT:
++		kcs_pkt->phase = KCS_PHASE_ABORT_1;
++		kcs_pkt->error = KCS_ABORT_BY_CMD;
++		break;
++
++	default:
++		kcs_pkt->error = KCS_ILLEGAL_CTRL_CMD;
++		kcs_force_abort(channel_num);
++	}
++}
++
++static void kcs_irq_handler(void *cookie)
++{
++	u32 channel_num = (u32)cookie;
++	/* Look-up the interrupted KCS channel */
++	u16 status = read_status(channel_num);
++	if (status & BIT_STATUS_IBF) {
++		if (status & BIT_STATUS_COD)
++			read_kcs_cmd(channel_num);
++		else
++			read_kcs_data(channel_num);
++	}
++
++	DBG_KCS("%s: chan_no: %d\n", __FUNC__, channel_num);
++}
++
++static void set_kcs_channel_addr(u16 channel_num)
++{
++	u32 val;
++
++	switch (channel_num) {
++	case 1:
++		val = readl(AST_LPC_BASE + LPC_HICR4) & ~BIT_LADR12AS;
++		writel(val, AST_LPC_BASE + LPC_HICR4);
++		val = (KCS_CHANNEL1_ADDR >> 8);
++		writel(val, AST_LPC_BASE + LPC_LADR12H);
++		val = (KCS_CHANNEL1_ADDR & 0xFF);
++		writel(val, AST_LPC_BASE + LPC_LADR12L);
++		break;
++
++	case 2:
++		val = readl(AST_LPC_BASE + LPC_HICR4) | BIT_LADR12AS;
++		writel(val, AST_LPC_BASE + LPC_HICR4);
++		val = (KCS_CHANNEL2_ADDR >> 8);
++		writel(val, AST_LPC_BASE + LPC_LADR12H);
++		val = (KCS_CHANNEL2_ADDR & 0xFF);
++		writel(val, AST_LPC_BASE + LPC_LADR12L);
++		break;
++
++	case 3:
++		val = (KCS_CHANNEL3_ADDR >> 8);
++		writel(val, AST_LPC_BASE + LPC_LADR3H);
++		val = (KCS_CHANNEL3_ADDR & 0xFF);
++		writel(val, AST_LPC_BASE + LPC_LADR3L);
++		break;
++
++	case 4:
++		val = (((KCS_CHANNEL4_ADDR + 1) << 16) | KCS_CHANNEL4_ADDR);
++		writel(val, AST_LPC_BASE + LPC_LADR4);
++		break;
++
++	default:
++		DBG_KCS("Invalid channel (%d) specified\n", channel_num);
++		break;
++	}
++}
++
++static void enable_kcs_channel(u16 channel_num, u16 enable)
++{
++	u32 val;
++
++	switch (channel_num) {
++	case 1:
++		if (enable) {
++			val = readl(AST_LPC_BASE + LPC_HICR2) | BIT_IBFIE1;
++			writel(val, AST_LPC_BASE + LPC_HICR2);
++			val = readl(AST_LPC_BASE + LPC_HICR0) | BIT_LPC1E;
++			writel(val, AST_LPC_BASE + LPC_HICR0);
++		} else {
++			val = readl(AST_LPC_BASE + LPC_HICR0) & ~BIT_LPC1E;
++			writel(val, AST_LPC_BASE + LPC_HICR0);
++			val = readl(AST_LPC_BASE + LPC_HICR2) & ~BIT_IBFIE1;
++			writel(val, AST_LPC_BASE + LPC_HICR2);
++		}
++		break;
++
++	case 2:
++		if (enable) {
++			val = readl(AST_LPC_BASE + LPC_HICR2) | BIT_IBFIE2;
++			writel(val, AST_LPC_BASE + LPC_HICR2);
++			val = readl(AST_LPC_BASE + LPC_HICR0) | BIT_LPC2E;
++			writel(val, AST_LPC_BASE + LPC_HICR0);
++		} else {
++			val = readl(AST_LPC_BASE + LPC_HICR0) & ~BIT_LPC2E;
++			writel(val, AST_LPC_BASE + LPC_HICR0);
++			val = readl(AST_LPC_BASE + LPC_HICR2) & ~BIT_IBFIE2;
++			writel(val, AST_LPC_BASE + LPC_HICR2);
++		}
++		break;
++
++	case 3:
++		if (enable) {
++			val = readl(AST_LPC_BASE + LPC_HICR2) | BIT_IBFIE3;
++			writel(val, AST_LPC_BASE + LPC_HICR2);
++			val = readl(AST_LPC_BASE + LPC_HICR0) | BIT_LPC3E;
++			writel(val, AST_LPC_BASE + LPC_HICR0);
++			val = readl(AST_LPC_BASE + LPC_HICR4) | BIT_KCSENBL;
++			writel(val, AST_LPC_BASE + LPC_HICR4);
++		} else {
++			val = readl(AST_LPC_BASE + LPC_HICR0) & ~BIT_LPC3E;
++			writel(val, AST_LPC_BASE + LPC_HICR0);
++			val = readl(AST_LPC_BASE + LPC_HICR4) & ~BIT_KCSENBL;
++			writel(val, AST_LPC_BASE + LPC_HICR4);
++			val = readl(AST_LPC_BASE + LPC_HICR2) & ~BIT_IBFIE3;
++			writel(val, AST_LPC_BASE + LPC_HICR2);
++		}
++		break;
++
++	case 4:
++		if (enable) {
++			val = readl(AST_LPC_BASE + LPC_HICRB) | BIT_IBFIE4 |
++			      BIT_LPC4E;
++			writel(val, AST_LPC_BASE + LPC_HICRB);
++		} else {
++			val = readl(AST_LPC_BASE + LPC_HICRB) &
++			      ~(BIT_IBFIE4 | BIT_LPC4E);
++			writel(val, AST_LPC_BASE + LPC_HICRB);
++		}
++		break;
++
++	default:
++		DBG_KCS("Invalid channel (%d) specified\n", channel_num);
++	}
++}
++
++void kcs_init(void)
++{
++	/* Initialize the KCS channels. */
++	for (u16 idx = 0; idx < NO_OF_ENABLED_KCS_CHANNELS; idx++) {
++		uint channel_num = (uint)enabled_kcs_channel[idx];
++		DBG_KCS("%s Channel: %d\n", __func__, channel_num);
++		set_kcs_channel_addr(channel_num);
++		enable_kcs_channel(channel_num, 1);
++
++		/* Set KCS channel state to idle */
++		set_kcs_state(channel_num, KCS_STATE_IDLE);
++		/* KCS interrupt */
++		irq_install_handler(IRQ_SRC_KCS_BASE + channel_num - 1,
++				    kcs_irq_handler, (void *)channel_num);
++	}
++}
+diff --git a/board/aspeed/ast2600_intel/ast-kcs.h b/board/aspeed/ast2600_intel/ast-kcs.h
+new file mode 100644
+index 000000000000..e9b949eccf69
+--- /dev/null
++++ b/board/aspeed/ast2600_intel/ast-kcs.h
+@@ -0,0 +1,112 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/* Copyright (c) 2018-2020 Intel Corporation */
++
++#include <asm/io.h>
++#include <common.h>
++
++#define KCS_CHANNEL_MAX		4
++#define IRQ_SRC_KCS_BASE	170 /* IRQ 170 */
++#define MAX_KCS_PKT_SIZE	(64 * 1024)
++/* KCS channel addresses */
++#define KCS_CHANNEL1_ADDR	0xCA0
++#define KCS_CHANNEL2_ADDR	0xCA8
++#define KCS_CHANNEL3_ADDR	0xCA2 /* KCS SMS */
++#define KCS_CHANNEL4_ADDR	0xCA4 /* KCS SMM */
++
++#define ZERO_DATA		0x00
++
++#define AST_LPC_BASE		0x1e789000
++
++/* Aspeed KCS control registers */
++#define LPC_HICR0	0x00 /* Host Interface Control Register 0 */
++#define LPC_HICR1	0x04 /* Host Interface Control Register 1 */
++#define LPC_HICR2	0x08 /* Host Interface Control Register 2 */
++#define LPC_HICR3	0x0C /* Host Interface Control Register 3 */
++#define LPC_HICR4	0x10 /* Host Interface Control Register 4 */
++#define LPC_LADR3H	0x14 /* LPC channel #3 Address Register H */
++#define LPC_LADR3L	0x18 /* LPC channel #3 Address Register H */
++#define LPC_LADR12H	0x1C /* LPC channel #1#2 Address Register H */
++#define LPC_LADR12L	0x20 /* LPC channel #1#2 Address Register L */
++#define LPC_IDR1	0x24 /* Input Data Register 1 */
++#define LPC_IDR2	0x28 /* Input Data Register 2 */
++#define LPC_IDR3	0x2C /* Input Data Register 3 */
++#define LPC_ODR1	0x30 /* Output Data Register 1 */
++#define LPC_ODR2	0x34 /* Output Data Register 2 */
++#define LPC_ODR3	0x38 /* Output Data Register 3 */
++#define LPC_STR1	0x3C /* Status Register 1 */
++#define LPC_STR2	0x40 /* Status Register 2 */
++#define LPC_STR3	0x44 /* Status Register 3 */
++#define LPC_HICRB	0x100 /* Host Interface Control Register B */
++#define LPC_LADR4	0x110 /* LPC channel #4 Address Register */
++#define LPC_IDR4	0x114 /* Input Data Register 4 */
++#define LPC_ODR4	0x118 /* Output Data Register 4 */
++#define LPC_STR4	0x11C /* Status Data Register 4 */
++
++/* LPC Bits */
++#define BIT_LADR12AS	BIT(7) /* Channel Address selection */
++#define BIT_IBFIE1	BIT(1) /* Enable IDR1 Recv completion interrupt */
++#define BIT_IBFIE2	BIT(2) /* Enable IDR2 Recv completion interrupt */
++#define BIT_IBFIE3	BIT(3) /* Enable IBF13 interrupt */
++#define BIT_LPC1E	BIT(5) /* Enable LPC channel #1 */
++#define BIT_LPC2E	BIT(6) /* Enable LPC channel #2 */
++#define BIT_LPC3E	BIT(7) /* Enable LPC channel #2 */
++#define BIT_KCSENBL	BIT(2) /* Enable KCS interface in Channel #3 */
++#define BIT_IBFIE4	BIT(1)
++#define BIT_LPC4E	BIT(0)
++
++#define BIT_STATUS_OBF	BIT(0) /* Output Data Register full #1/#2/#3 */
++#define BIT_STATUS_IBF	BIT(1) /* Input Data Register full #1/#2/#3 */
++#define BIT_STATUS_COD	BIT(3) /* Command/Data - (1=command,0=data) */
++
++#define KCS_STATE_MASK		0xC0 /* BIT[6:7] of status register */
++#define KCS_STATE(state)	((state) << 6)
++
++/* IPMI2.0(section 9.7) - KCS interface State Bits */
++#define KCS_STATE_IDLE		0x00
++#define KCS_STATE_READ		0x01
++#define KCS_STATE_WRITE		0x02
++#define KCS_STATE_ERROR		0x03
++
++/* IPMI2.0(section 9.10) - KCS interface control codes */
++#define KCS_CTRL_CODE_GET_STATUS_ABORT	0x60
++#define KCS_CTRL_CODE_WRITE_START	0x61
++#define KCS_CTRL_CODE_WRITE_END		0x62
++#define KCS_CTRL_CODE_READ		0x68
++
++struct kcs_io_reg {
++	u32 idr;
++	u32 odr;
++	u32 str;
++};
++
++enum kcs_phase {
++	KCS_PHASE_IDLE = 0,
++	KCS_PHASE_WRITE_START = 1,
++	KCS_PHASE_WRITE_DATA = 2,
++	KCS_PHASE_WRITE_END = 3,
++	KCS_PHASE_READ_WAIT = 4,
++	KCS_PHASE_READ = 5,
++	KCS_PHASE_ABORT_1 = 6,
++	KCS_PHASE_ABORT_2 = 7,
++	KCS_PHASE_ERROR = 8
++};
++
++enum kcs_error {
++	KCS_NO_ERROR = 0x00,
++	KCS_ABORT_BY_CMD = 0x01,
++	KCS_ILLEGAL_CTRL_CMD = 0x02,
++	KCS_LENGTH_ERROR = 0x06,
++	KCS_UNSPECIFIED_ERROR = 0xFF,
++};
++
++struct kcs_packet {
++	enum kcs_phase phase;
++	enum kcs_error error;
++	u16 channel;
++	bool read_req_done;
++	u16 data_in_idx;
++	u8 data_in[MAX_KCS_PKT_SIZE];
++	u16 data_out_len;
++	u16 data_out_idx;
++	u8 data_out[MAX_KCS_PKT_SIZE];
++};
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index befeaff0a953..6ac24beb930b 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -251,6 +251,7 @@ int board_early_init_r(void)
+ }
+ 
+ extern void espi_init(void);
++extern void kcs_init(void);
+ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
+ 			 void *cookie);
+ int board_late_init(void)
+@@ -260,6 +261,9 @@ int board_late_init(void)
+ 	timer_enable(0, ONE_SEC_IN_USEC, timer_callback, (void *)0);
+ 	espi_init();
+ 
++	if (read_ffuj())
++		kcs_init();
++
+ 	return 0;
+ }
+ 
+-- 
+2.7.4
+

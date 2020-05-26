@@ -72,6 +72,8 @@ do_image_pfr () {
     mv ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_signed_cap-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/image-mtd-pfr ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}.bin
+    ln -sf ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}.bin ${PFR_IMAGES_DIR}/image-mtd-pfr.bin
+    ln -sf ${PFR_IMAGES_DIR}/bmc_signed_cap-${DATETIME}.bin ${PFR_IMAGES_DIR}/bmc_signed_cap.bin
 }
 
 do_image_pfr[vardepsexclude] += "DATE DATETIME"

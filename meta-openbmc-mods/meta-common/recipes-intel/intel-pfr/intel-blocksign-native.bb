@@ -8,7 +8,7 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 
 DEPENDS = "openssl-native libxml2-native "
 
-SRC_URI = "git://github.com/Intel-BMC/blocksign;protocol=ssh"
+SRC_URI = "git://git@github.com/Intel-BMC/blocksign;protocol=ssh"
 
 SRCREV = "852d88a1cbf4dc5856ff88e823a38d2872a86ffe"
 

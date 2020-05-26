@@ -13,7 +13,7 @@ SRC_URI = "git://github.com/libguestfs/nbdkit.git;protocol=https"
 SRC_URI += "file://0001-Force-nbdkit-to-send-PATCH-as-upload-method.patch"
 
 PV = "1.17.5+git${SRCPV}"
-SRCREV = "0a76cae407aca6411af3c7db1efafc56dcd151ed"
+SRCREV = "c8406880c6603bb617dae131dd0a8826c05869ca"
 
 S = "${WORKDIR}/git"
 

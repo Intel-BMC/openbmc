@@ -1,4 +1,4 @@
-From 0fca4f924e45f1968f610ad8903f18d638188784 Mon Sep 17 00:00:00 2001
+From 297e22a00a71d386c93b1e0d587a01c0386b31f3 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2600 platforms
@@ -11,17 +11,18 @@ Signed-off-by: Chen Yugang <yugang.chen@linux.intel.com>
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: arun-pm <arun.p.m@linux.intel.com>
 Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 516 +++++++++++++++++++++++++
- 1 file changed, 516 insertions(+)
+ .../arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 519 ++++++++++++++++++
+ 1 file changed, 519 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 new file mode 100644
-index 000000000000..6d626338232e
+index 000000000000..a95b5ac828b3
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
-@@ -0,0 +1,510 @@
+@@ -0,0 +1,519 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/dts-v1/;
 +
@@ -279,6 +280,15 @@ index 000000000000..6d626338232e
 +	status = "okay";
 +};
 +
++&sio_regs {
++	status = "okay";
++	sio_status {
++		offset = <0x8C>;
++		bit-mask = <0x1F>;
++		bit-shift = <4>;
++	};
++};
++
 +&lpc_sio {
 +	status = "okay";
 +};
@@ -533,5 +543,5 @@ index 000000000000..6d626338232e
 +	status = "okay";
 +};
 -- 
-2.7.4
+2.17.1
 

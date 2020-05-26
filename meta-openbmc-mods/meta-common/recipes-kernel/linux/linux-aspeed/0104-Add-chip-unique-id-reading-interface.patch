@@ -1,4 +1,4 @@
-From 61fd1c976a0867deec8607183849969e2d96aef7 Mon Sep 17 00:00:00 2001
+From 766f7e504cc2a0508c887c7625332c88f93c5729 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 27 Mar 2020 14:42:05 -0700
 Subject: [PATCH] Add chip unique id reading interface
@@ -8,12 +8,13 @@ Optionally, the id can be encrypted using a dts-supplied hash data.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 ---
  drivers/soc/aspeed/aspeed-bmc-misc.c | 118 ++++++++++++++++++++++++---
  1 file changed, 105 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/soc/aspeed/aspeed-bmc-misc.c b/drivers/soc/aspeed/aspeed-bmc-misc.c
-index 04d97ab17274..c80b2e71f254 100644
+index 04d97ab17274..4aad3129f793 100644
 --- a/drivers/soc/aspeed/aspeed-bmc-misc.c
 +++ b/drivers/soc/aspeed/aspeed-bmc-misc.c
 @@ -7,15 +7,18 @@
@@ -52,7 +53,7 @@ index 04d97ab17274..c80b2e71f254 100644
  	 *     label = "foo";
  	 * }
  	 */
-@@ -48,9 +53,22 @@ static int aspeed_bmc_misc_parse_dt_child(struct device_node *child,
+@@ -48,9 +53,21 @@ static int aspeed_bmc_misc_parse_dt_child(struct device_node *child,
  	if (rc < 0)
  		return rc;
  
@@ -74,15 +75,13 @@ index 04d97ab17274..c80b2e71f254 100644
 +		if (rc < 0)
 +			return rc;
 +	}
-+	ctrl->mask <<= ctrl->shift;
  
  	rc = of_property_read_u32(child, "bit-shift", &ctrl->shift);
  	if (rc < 0)
-@@ -58,7 +76,9 @@ static int aspeed_bmc_misc_parse_dt_child(struct device_node *child,
- 
+@@ -59,6 +76,9 @@ static int aspeed_bmc_misc_parse_dt_child(struct device_node *child,
  	ctrl->read_only = of_property_read_bool(child, "read-only");
  
--	ctrl->mask <<= ctrl->shift;
+ 	ctrl->mask <<= ctrl->shift;
 +	/* optional hash_data for obfuscating reads */
 +	if (of_property_read_string(child, "hash-data", &ctrl->hash_data))
 +		ctrl->hash_data = NULL;
@@ -188,7 +187,7 @@ index 04d97ab17274..c80b2e71f254 100644
  }
  
  static ssize_t aspeed_bmc_misc_store(struct kobject *kobj,
-@@ -114,15 +206,15 @@ static ssize_t aspeed_bmc_misc_store(struct kobject *kobj,
+@@ -114,17 +206,17 @@ static ssize_t aspeed_bmc_misc_store(struct kobject *kobj,
  	long val;
  	int rc;
  
@@ -206,8 +205,11 @@ index 04d97ab17274..c80b2e71f254 100644
 +		return rc;
 +
  	val <<= ctrl->shift;
- 	rc = regmap_update_bits(ctrl->map, ctrl->offset, ctrl->mask, val);
+-	rc = regmap_update_bits(ctrl->map, ctrl->offset, ctrl->mask, val);
++	rc = regmap_write_bits(ctrl->map, ctrl->offset, ctrl->mask, val);
  
+ 	return rc < 0 ? rc : count;
+ }
 -- 
 2.17.1
 

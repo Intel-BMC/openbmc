@@ -1,0 +1,36 @@
+From d06d0a8fabd699fc1cab4fbd6e4572ce0b22a905 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Thu, 23 Apr 2020 14:01:38 -0700
+Subject: [PATCH 1/1] Only allow drive sensors on bus 2 for ast2500
+
+CPLD doesn't allow multi-master, so readings wont work.
+Put in a work-around to only allow bus 2 transactions.
+
+Tested: Only valid sensors were installed.
+
+Change-Id: Ib9e75ffd0dd64cf548d15cce9a6052332ac5ec43
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ src/NVMeSensorMain.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/NVMeSensorMain.cpp b/src/NVMeSensorMain.cpp
+index 1858ea9..844f061 100644
+--- a/src/NVMeSensorMain.cpp
++++ b/src/NVMeSensorMain.cpp
+@@ -111,6 +111,12 @@ void createSensors(boost::asio::io_service& io,
+                     rootBus = std::stoi(rootName.substr(0, dash));
+                 }
+ 
++                // HACK: cpld on current products doesn't allow multi-master
++                if (rootBus != 2)
++                {
++                    continue;
++                }
++
+                 std::shared_ptr<NVMeContext> context;
+                 auto findRoot = nvmeDeviceMap.find(rootBus);
+                 if (findRoot != nvmeDeviceMap.end())
+-- 
+2.17.1
+

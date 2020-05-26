@@ -1,0 +1,138 @@
+From 40ab08221b6f8d67d154d8f91b8e55a11d412120 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 27 Apr 2020 17:05:09 -0700
+Subject: [PATCH] Add a workaround to cover eSPI OOB free bug in AST2600 A0
+
+This commit adds a workaround to cover eSPI OOB free bug in AST2600
+A0 revision. It enables GPIO W7 interrupt to catch eSPI reset signal
+and it sets when the reset signal is deasserted to manually set the
+OOB free bit in eSPI protocol.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/ast-espi.c | 79 ++++++++++++++++++++++++++---------
+ 1 file changed, 59 insertions(+), 20 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/ast-espi.c b/board/aspeed/ast2600_intel/ast-espi.c
+index 1d7ae529612d..a8b389f159ef 100644
+--- a/board/aspeed/ast2600_intel/ast-espi.c
++++ b/board/aspeed/ast2600_intel/ast-espi.c
+@@ -88,6 +88,7 @@
+ #define AST_ESPI_OOB_CHRDY		BIT(4)
+ #define AST_ESPI_FLASH_SW_CHRDY		BIT(7)
+ #define AST_ESPI_FLASH_SW_READ		BIT(10)
++#define AST_ESPI_SW_RESET		GENMASK(31, 24)
+ 
+ /* ESPI00C bits (Interrupt Enable) */
+ #define AST_ESPI_IEN_HW_RST		BIT(31)
+@@ -122,6 +123,7 @@
+ /* LPC chip ID */
+ #define SCR0SIO				0x170
+ #define IRQ_SRC_ESPI			74 /* IRQ 74 */
++#define IRQ_SRC_GPIO			72 /* IRQ 72 */
+ 
+ static void espi_handshake_ack(void)
+ {
+@@ -205,9 +207,9 @@ static void espi_irq_handler(void *cookie)
+ 	}
+ 
+ 	if (irq_status & AST_ESPI_HW_RST) {
+-		uint32_t v = readl(AST_ESPI_BASE + ESPI000) & 0x00ffffffff;
+-		writel(v, AST_ESPI_BASE + ESPI000);
+-		v |= 0xff000000;
++		uint32_t v;
++
++		v = readl(AST_ESPI_BASE + ESPI000) | AST_ESPI_OOB_CHRDY;
+ 		writel(v, AST_ESPI_BASE + ESPI000);
+ 
+ 		DBG_ESPI("HW_RESET\n");
+@@ -228,6 +230,56 @@ static void espi_irq_handler(void *cookie)
+ 		readl(AST_ESPI_BASE + ESPI12C), irq_status);
+ }
+ 
++static void espi_configure_irq(void)
++{
++	writel(0, AST_ESPI_BASE + ESPI110);
++	writel(0, AST_ESPI_BASE + ESPI114);
++	writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN |
++	       AST_ESPI_PLTRSTN, AST_ESPI_BASE + ESPI118);
++	writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN |
++	       AST_ESPI_PLTRSTN, AST_ESPI_BASE + ESPI094);
++
++	writel(AST_ESPI_SUS_WARN,
++	       AST_ESPI_BASE + ESPI120); /* int type 0 susp warn */
++	writel(0, AST_ESPI_BASE + ESPI124);
++	writel(0, AST_ESPI_BASE + ESPI128);
++	writel(AST_ESPI_SUS_WARN,
++	       AST_ESPI_BASE +
++			ESPI100); /* Enable sysev1 ints for susp warn */
++
++	writel(AST_ESPI_IEN_HW_RST | AST_ESPI_IEN_SYS1_EV |
++	       AST_ESPI_IEN_SYS_EV, AST_ESPI_BASE + ESPI00C);
++}
++
++#define AST_GPIO_BASE		0x1e780000
++#define GPIO_148		0x148 /* GPIO U/V/W/X Interrupt Enable */
++#define GPIO_W7			BIT(23)
++#define GPIO_14C		0x14c /* GPIO U/V/W/X Sensitivity Type 0 */
++#define GPIO_150		0x150 /* GPIO U/V/W/X Sensitivity Type 1 */
++#define GPIO_154		0x154 /* GPIO U/V/W/X Sensitivity Type 2 */
++#define GPIO_158		0x158 /* GPIO U/V/W/X Interrupt Status */
++
++static void espi_reset_handler(void *cookie)
++{
++	if (readl(AST_GPIO_BASE + GPIO_158) & GPIO_W7) {
++		uint32_t v;
++
++		writel(GPIO_W7, AST_GPIO_BASE + GPIO_158);
++
++		v = readl(AST_ESPI_BASE + ESPI000) & ~AST_ESPI_SW_RESET;
++		writel(v, AST_ESPI_BASE + ESPI000);
++		v |= AST_ESPI_SW_RESET;
++		writel(v, AST_ESPI_BASE + ESPI000);
++
++		v = readl(AST_ESPI_BASE + ESPI000) & ~AST_ESPI_OOB_CHRDY;
++		writel(v, AST_ESPI_BASE + ESPI000);
++
++		espi_configure_irq();
++
++		DBG_ESPI("eSPI Reset\n");
++	}
++}
++
+ void espi_init(void)
+ {
+ 	if (~readl(AST_SCU_BASE + AST_SCU_HW_STRAP2) &
+@@ -266,25 +318,12 @@ void espi_init(void)
+ 		       AST_ESPI_AUTO_ACK_SUS_WARN);
+ 		writel(v, AST_ESPI_BASE + ESPI080); /* Disable auto H/W ack */
+ 
+-		writel(0, AST_ESPI_BASE + ESPI110);
+-		writel(0, AST_ESPI_BASE + ESPI114);
+-		writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN |
+-		       AST_ESPI_PLTRSTN, AST_ESPI_BASE + ESPI118);
+-		writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN |
+-		       AST_ESPI_PLTRSTN, AST_ESPI_BASE + ESPI094);
+-
+-		writel(AST_ESPI_SUS_WARN,
+-		       AST_ESPI_BASE + ESPI120); /* int type 0 susp warn */
+-		writel(0, AST_ESPI_BASE + ESPI124);
+-		writel(0, AST_ESPI_BASE + ESPI128);
+-		writel(AST_ESPI_SUS_WARN,
+-		       AST_ESPI_BASE +
+-				ESPI100); /* Enable sysev1 ints for susp warn */
+-
+-		writel(AST_ESPI_IEN_HW_RST | AST_ESPI_IEN_SYS1_EV |
+-		       AST_ESPI_IEN_SYS_EV, AST_ESPI_BASE + ESPI00C);
++		espi_configure_irq();
+ 
+ 		irq_install_handler(IRQ_SRC_ESPI, espi_irq_handler, NULL);
++
++		irq_install_handler(IRQ_SRC_GPIO, espi_reset_handler, NULL);
++		writel(GPIO_W7, AST_GPIO_BASE + GPIO_148);
+ 	} else {
+ 		DBG_ESPI("No espi strap\n");
+ 	}
+-- 
+2.7.4
+

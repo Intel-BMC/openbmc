@@ -1,4 +1,4 @@
-From 163c1756ee676859622614996be81393eb348220 Mon Sep 17 00:00:00 2001
+From 8aee963295f7da07ae67aa09c4eba3fbd2a6ff19 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
 Date: Thu, 30 Jan 2020 15:07:39 -0800
 Subject: [PATCH] Enhance DHCP beyond just OFF and IPv4/IPv6 enabled.
@@ -32,6 +32,8 @@ DHCP.
 
 Change-Id: I2e0ff80ac3a5e88bcff28adac419bf21e37be162
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+
+%% original patch: 0009-Enhance-DHCP-beyond-just-OFF-and-IPv4-IPv6-enabled.patch
 ---
  Makefile.am                      |   1 +
  configure.ac                     |   1 +
@@ -71,7 +73,7 @@ index 12d6caa..fed3e09 100644
  # Checks for header files.
  AC_CHECK_HEADER(systemd/sd-bus.h, ,\
 diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
-index fca86bd..3fb0f5e 100644
+index d6c7bdd..82716f9 100644
 --- a/ethernet_interface.cpp
 +++ b/ethernet_interface.cpp
 @@ -3,7 +3,6 @@
@@ -82,7 +84,7 @@ index fca86bd..3fb0f5e 100644
  #include "neighbor.hpp"
  #include "network_manager.hpp"
  #include "vlan_interface.hpp"
-@@ -62,10 +61,12 @@ struct EthernetIntfSocket
+@@ -69,10 +68,12 @@ struct EthernetIntfSocket
  
      int sock{-1};
  };
@@ -96,7 +98,7 @@ index fca86bd..3fb0f5e 100644
                                       bool emitSignal) :
      Ifaces(bus, objPath.c_str(), true),
      bus(bus), manager(parent), objPath(objPath)
-@@ -112,6 +113,65 @@ static IP::Protocol convertFamily(int family)
+@@ -119,6 +120,65 @@ static IP::Protocol convertFamily(int family)
      throw std::invalid_argument("Bad address family");
  }
  
@@ -162,7 +164,7 @@ index fca86bd..3fb0f5e 100644
  void EthernetInterface::createIPAddressObjects()
  {
      addrs.clear();
-@@ -122,7 +182,7 @@ void EthernetInterface::createIPAddressObjects()
+@@ -129,7 +189,7 @@ void EthernetInterface::createIPAddressObjects()
      {
          IP::Protocol addressType = convertFamily(addr.addrType);
          IP::AddressOrigin origin = IP::AddressOrigin::Static;
@@ -171,7 +173,7 @@ index fca86bd..3fb0f5e 100644
          {
              origin = IP::AddressOrigin::DHCP;
          }
-@@ -183,11 +243,11 @@ ObjectPath EthernetInterface::iP(IP::Protocol protType, std::string ipaddress,
+@@ -190,11 +250,11 @@ ObjectPath EthernetInterface::iP(IP::Protocol protType, std::string ipaddress,
                                   uint8_t prefixLength, std::string gateway)
  {
  
@@ -185,7 +187,7 @@ index fca86bd..3fb0f5e 100644
      }
  
      IP::AddressOrigin origin = IP::AddressOrigin::Static;
-@@ -460,7 +520,7 @@ bool EthernetInterface::iPv6AcceptRA(bool value)
+@@ -469,7 +529,7 @@ bool EthernetInterface::iPv6AcceptRA(bool value)
      return value;
  }
  
@@ -194,7 +196,7 @@ index fca86bd..3fb0f5e 100644
  {
      if (value == EthernetInterfaceIntf::dHCPEnabled())
      {
-@@ -552,7 +612,7 @@ void EthernetInterface::loadVLAN(VlanId id)
+@@ -685,7 +745,7 @@ void EthernetInterface::loadVLAN(VlanId id)
      std::string path = objPath;
      path += "_" + std::to_string(id);
  
@@ -203,7 +205,7 @@ index fca86bd..3fb0f5e 100644
          getDHCPValue(manager.getConfDir().string(), vlanInterfaceName);
  
      auto vlanIntf = std::make_unique<phosphor::network::VlanInterface>(
-@@ -574,7 +634,8 @@ ObjectPath EthernetInterface::createVLAN(VlanId id)
+@@ -707,7 +767,8 @@ ObjectPath EthernetInterface::createVLAN(VlanId id)
      path += "_" + std::to_string(id);
  
      auto vlanIntf = std::make_unique<phosphor::network::VlanInterface>(
@@ -213,7 +215,7 @@ index fca86bd..3fb0f5e 100644
  
      // write the device file for the vlan interface.
      vlanIntf->writeDeviceFile();
-@@ -647,8 +708,6 @@ void EthernetInterface::writeConfigurationFile()
+@@ -780,8 +841,6 @@ void EthernetInterface::writeConfigurationFile()
      // write all the static ip address in the systemd-network conf file
  
      using namespace std::string_literals;
@@ -222,16 +224,12 @@ index fca86bd..3fb0f5e 100644
      namespace fs = std::experimental::filesystem;
  
      // if there is vlan interafce then write the configuration file
-@@ -717,42 +776,45 @@ void EthernetInterface::writeConfigurationFile()
+@@ -855,42 +914,45 @@ void EthernetInterface::writeConfigurationFile()
      }
  
      // Add the DHCP entry
 -    auto value = dHCPEnabled() ? "true"s : "false"s;
 -    stream << "DHCP="s + value + "\n";
--
--    // When the interface configured as dhcp, we don't need below given entries
--    // in config file.
--    if (dHCPEnabled() == false)
 +    std::string value = convertForMessage(EthernetInterfaceIntf::dHCPEnabled());
 +    std::string::size_type loc = value.rfind(".");
 +    std::string requestedDHCPState = value.substr(loc + 1);
@@ -242,14 +240,33 @@ index fca86bd..3fb0f5e 100644
 +    bool dhcpv4Requested = dhcpToBeEnabled(IP::Protocol::IPv4, mappedDHCPState);
 +    // Static IP addresses
 +    for (const auto& addr : addrs)
-     {
--        // Static
--        for (const auto& addr : addrs)
++    {
 +        bool isValidIPv4 = isValidIP(AF_INET, addr.second->address());
 +        bool isValidIPv6 = isValidIP(AF_INET6, addr.second->address());
 +        if (((!dhcpv4Requested && isValidIPv4) ||
 +             (!dhcpv6Requested && isValidIPv6)) &&
 +            addressIsStatic(addr.second->origin()))
++        {
++            // Process all static addresses
++            std::string address = addr.second->address() + "/" +
++                                  std::to_string(addr.second->prefixLength());
++
++            // build the address entries. Do not use [Network] shortcuts to
++            // insert address entries.
++            stream << "[Address]\n";
++            stream << "Address=" << address << "\n";
++        }
++    }
+ 
+-    // When the interface configured as dhcp, we don't need below given entries
+-    // in config file.
+-    if (dHCPEnabled() == false)
++    if (manager.getSystemConf())
+     {
+-        // Static
+-        for (const auto& addr : addrs)
++        const auto& gateway = manager.getSystemConf()->defaultGateway();
++        if (!gateway.empty())
          {
 -            if (addr.second->origin() == AddressOrigin::Static
 -#ifndef LINK_LOCAL_AUTOCONFIGURATION
@@ -263,22 +280,12 @@ index fca86bd..3fb0f5e 100644
 -
 -                stream << "Address=" << address << "\n";
 -            }
-+            // Process all static addresses
-+            std::string address = addr.second->address() + "/" +
-+                                  std::to_string(addr.second->prefixLength());
-+
-+            // build the address entries. Do not use [Network] shortcuts to
-+            // insert address entries.
-+            stream << "[Address]\n";
-+            stream << "Address=" << address << "\n";
++            stream << "Gateway=" << gateway << "\n";
          }
-+    }
- 
+-
 -        if (manager.getSystemConf())
-+    if (manager.getSystemConf())
-+    {
-+        const auto& gateway = manager.getSystemConf()->defaultGateway();
-+        if (!gateway.empty())
++        const auto& gateway6 = manager.getSystemConf()->defaultGateway6();
++        if (!gateway6.empty())
          {
 -            const auto& gateway = manager.getSystemConf()->defaultGateway();
 -            if (!gateway.empty())
@@ -290,16 +297,11 @@ index fca86bd..3fb0f5e 100644
 -            {
 -                stream << "Gateway=" << gateway6 << "\n";
 -            }
-+            stream << "Gateway=" << gateway << "\n";
-+        }
-+        const auto& gateway6 = manager.getSystemConf()->defaultGateway6();
-+        if (!gateway6.empty())
-+        {
 +            stream << "Gateway=" << gateway6 << "\n";
          }
      }
  
-@@ -863,7 +925,7 @@ std::string EthernetInterface::mACAddress(std::string value)
+@@ -1001,7 +1063,7 @@ std::string EthernetInterface::mACAddress(std::string value)
  
  void EthernetInterface::deleteAll()
  {
@@ -309,10 +311,10 @@ index fca86bd..3fb0f5e 100644
          log<level::INFO>("DHCP enabled on the interface"),
              entry("INTERFACE=%s", interfaceName().c_str());
 diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
-index 058d328..4e36ae8 100644
+index 6344533..3f7fd31 100644
 --- a/ethernet_interface.hpp
 +++ b/ethernet_interface.hpp
-@@ -92,7 +92,7 @@ class EthernetInterface : public Ifaces
+@@ -94,7 +94,7 @@ class EthernetInterface : public Ifaces
       *                          send.
       */
      EthernetInterface(sdbusplus::bus::bus& bus, const std::string& objPath,
@@ -320,8 +322,8 @@ index 058d328..4e36ae8 100644
 +                      DHCPConf dhcpEnabled, Manager& parent,
                        bool emitSignal = true);
  
-     /** @brief Function to create ipaddress dbus object.
-@@ -158,7 +158,34 @@ class EthernetInterface : public Ifaces
+     /** @brief Function used to load the nameservers.
+@@ -164,7 +164,34 @@ class EthernetInterface : public Ifaces
      }
  
      /** Set value of DHCPEnabled */
@@ -358,14 +360,14 @@ index 058d328..4e36ae8 100644
      /** Retrieve Link State */
      bool linkUp() const override;
 diff --git a/test/test_ethernet_interface.cpp b/test/test_ethernet_interface.cpp
-index 30dee8a..87fd68d 100644
+index d0beef7..3e2f9ff 100644
 --- a/test/test_ethernet_interface.cpp
 +++ b/test/test_ethernet_interface.cpp
-@@ -58,7 +58,8 @@ class TestEthernetInterface : public testing::Test
+@@ -59,7 +59,8 @@ class TestEthernetInterface : public testing::Test
      {
          mock_clear();
          mock_addIF("test0", 1, mac);
--        return {bus, "/xyz/openbmc_test/network/test0", false, manager};
+-        return {bus, "/xyz/openbmc_test/network/test0", false, manager, true};
 +        return {bus, "/xyz/openbmc_test/network/test0",
 +                EthernetInterface::DHCPConf::none, manager};
      }
@@ -500,5 +502,5 @@ index a994d05..37ae7ee 100644
      /** @brief Delete this d-bus object.
       */
 -- 
-2.25.1
+2.25.2
 

@@ -1,4 +1,4 @@
-From 143fb89b03af61bd807b0d6f9f11d6801cf8fe69 Mon Sep 17 00:00:00 2001
+From c1561193296d04dd8bd06adca43edac814058367 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Fri, 3 Jan 2020 12:52:29 +0800
 Subject: [PATCH] Enable interrupt in u-boot.
@@ -12,27 +12,70 @@ Testedby:
 2. Both ArcherCity and Ast2600 EVB are working well.
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/lib/vectors.S               |  31 ++++++-
- board/aspeed/ast2600_intel/ast-irq.c | 154 +++++++++++++++++------------------
- 2 files changed, 105 insertions(+), 80 deletions(-)
+ Kconfig                               |  14 +++
+ arch/arm/lib/stack.c                  |   9 ++
+ arch/arm/lib/vectors.S                |  30 +++++-
+ board/aspeed/ast2600_intel/ast-espi.c |   3 +-
+ board/aspeed/ast2600_intel/ast-irq.c  | 185 +++++++++++++++++-----------------
+ board/aspeed/ast2600_intel/ast-irq.h  |   8 --
+ board/aspeed/ast2600_intel/intel.c    |   1 -
+ 7 files changed, 145 insertions(+), 105 deletions(-)
+ delete mode 100644 board/aspeed/ast2600_intel/ast-irq.h
 
+diff --git a/Kconfig b/Kconfig
+index 305b265ed713..a6f68cd13d54 100644
+--- a/Kconfig
++++ b/Kconfig
+@@ -239,6 +239,20 @@ config BUILD_TARGET
+ 	  special image will be automatically built upon calling
+ 	  make / buildman.
+ 
++config USE_IRQ
++	bool "Use interrupts"
++	default n
++
++config STACKSIZE_IRQ
++	depends on USE_IRQ
++	int "Size for IRQ stack (only if USE_IRQ enabled)"
++	default 16384
++
++config STACKSIZE_FIQ
++	depends on USE_IRQ
++	int "Size for FIQ stack (only if USE_IRQ enabled)"
++	default 16384
++
+ endmenu		# General setup
+ 
+ menu "Boot images"
+diff --git a/arch/arm/lib/stack.c b/arch/arm/lib/stack.c
+index c89a219dd26d..d9a7f49c5623 100644
+--- a/arch/arm/lib/stack.c
++++ b/arch/arm/lib/stack.c
+@@ -24,6 +24,15 @@ int arch_reserve_stacks(void)
+ 	gd->irq_sp = gd->start_addr_sp;
+ 
+ # if !defined(CONFIG_ARM64)
++#  ifdef CONFIG_USE_IRQ
++	gd->start_addr_sp -= (CONFIG_STACKSIZE_IRQ + CONFIG_STACKSIZE_FIQ);
++	printf("Reserving %zu Bytes for IRQ stack at: %08lx\n",
++	      CONFIG_STACKSIZE_IRQ + CONFIG_STACKSIZE_FIQ, gd->start_addr_sp);
++
++	/* 8-byte alignment for ARM ABI compliance */
++	gd->start_addr_sp &= ~0x07;
++#  endif
++
+ 	/* leave 3 words for abort-stack, plus 1 for alignment */
+ 	gd->start_addr_sp -= 16;
+ # endif
 diff --git a/arch/arm/lib/vectors.S b/arch/arm/lib/vectors.S
-index 2ca6e2494a7a..e2ed04a204de 100644
+index 2ca6e2494a7a..5a5e60dbdde4 100644
 --- a/arch/arm/lib/vectors.S
 +++ b/arch/arm/lib/vectors.S
-@@ -13,7 +13,7 @@
-  */
- 
- #include <config.h>
--
-+#define CONFIG_USE_IRQ
- /*
-  * A macro to allow insertion of an ARM exception vector either
-  * for the non-boot0 case or by a boot0-header.
-@@ -145,6 +145,17 @@ fiq:
- 
- #else	/* !CONFIG_SPL_BUILD */
+@@ -154,6 +154,17 @@ IRQ_STACK_START_IN:
+ 	.word	0x0badc0de
+ #endif
  
 +#ifdef CONFIG_USE_IRQ
 +/* IRQ stack memory (calculated at run-time) */
@@ -45,15 +88,16 @@ index 2ca6e2494a7a..e2ed04a204de 100644
 +	.word 0x0badc0de
 +#endif
 +
- /* IRQ stack memory (calculated at run-time) + 8 bytes */
- .globl IRQ_STACK_START_IN
- IRQ_STACK_START_IN:
-@@ -277,17 +288,31 @@ not_used:
+ @
+ @ IRQ stack frame.
+ @
+@@ -277,17 +288,30 @@ not_used:
  	bad_save_user_regs
  	bl	do_not_used
  
-+	.align	5
+-
 +#ifdef CONFIG_USE_IRQ
++	.align	5
 +irq:
 +	get_irq_stack
 +	irq_save_user_regs
@@ -66,9 +110,8 @@ index 2ca6e2494a7a..e2ed04a204de 100644
 +	irq_save_user_regs
 +	bl	do_fiq
 +	irq_restore_user_regs
- 
- 	.align	5
 +#else
+ 	.align	5
  irq:
  	get_bad_stack
  	bad_save_user_regs
@@ -82,11 +125,49 @@ index 2ca6e2494a7a..e2ed04a204de 100644
 -
 +#endif /* CONFIG_USE_IRQ */
  #endif	/* CONFIG_SPL_BUILD */
+diff --git a/board/aspeed/ast2600_intel/ast-espi.c b/board/aspeed/ast2600_intel/ast-espi.c
+index 0fdbf089a450..1d7ae529612d 100644
+--- a/board/aspeed/ast2600_intel/ast-espi.c
++++ b/board/aspeed/ast2600_intel/ast-espi.c
+@@ -142,7 +142,7 @@ static void espi_handshake_ack(void)
+ 	}
+ }
+ 
+-int espi_irq_handler(struct pt_regs *regs)
++static void espi_irq_handler(void *cookie)
+ {
+ 	uint32_t irq_status = readl(AST_ESPI_BASE + ESPI008);
+ 
+@@ -226,7 +226,6 @@ int espi_irq_handler(struct pt_regs *regs)
+ 		readl(AST_ESPI_BASE + ESPI11C),
+ 		readl(AST_ESPI_BASE + ESPI094),
+ 		readl(AST_ESPI_BASE + ESPI12C), irq_status);
+-	return 0;
+ }
+ 
+ void espi_init(void)
 diff --git a/board/aspeed/ast2600_intel/ast-irq.c b/board/aspeed/ast2600_intel/ast-irq.c
-index f817f8cd7c81..6e91b17ab186 100644
+index f817f8cd7c81..106bb3b4ffb2 100644
 --- a/board/aspeed/ast2600_intel/ast-irq.c
 +++ b/board/aspeed/ast2600_intel/ast-irq.c
-@@ -18,19 +18,6 @@ DECLARE_GLOBAL_DATA_PTR;
+@@ -1,14 +1,7 @@
+-/*
+- * Copyright 2018 Intel Corporation
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version
+- * 2 of the License, or (at your option) any later version.
+- */
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (c) 2018-2020, Intel Corporation.
+ 
+ #include <common.h>
+-#include <netdev.h>
+ #include <asm/io.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -18,19 +11,6 @@ DECLARE_GLOBAL_DATA_PTR;
  #define GIC_INTERFACE_OFFSET 0x4000
  #define GIC_VIRT_OFFSET 0x6000
  
@@ -106,7 +187,7 @@ index f817f8cd7c81..6e91b17ab186 100644
  /* GIC_DISTRIBUTOR_OFFSET register offsets */
  #define GICD_CTLR 0x000
  #define GICD_TYPER 0x004
-@@ -82,7 +69,9 @@ DECLARE_GLOBAL_DATA_PTR;
+@@ -82,7 +62,9 @@ DECLARE_GLOBAL_DATA_PTR;
  #define GICC_IIDR 0x00fc
  #define GICC_DIR  0x1000
  
@@ -117,7 +198,7 @@ index f817f8cd7c81..6e91b17ab186 100644
  
  /* GIC_INTERFACE_OFFSET register offsets */
  #define GICH_HCR 0x000
-@@ -116,9 +105,10 @@ DECLARE_GLOBAL_DATA_PTR;
+@@ -116,9 +98,10 @@ DECLARE_GLOBAL_DATA_PTR;
  
  #define GIC_VIRT_CPU_IMPLEMENTER_MAGIC 0x0102143b
  
@@ -131,7 +212,7 @@ index f817f8cd7c81..6e91b17ab186 100644
  #define GICD_INT_DEF_PRI_X4 (\
  		(GICD_INT_DEF_PRI << 24) |\
  		(GICD_INT_DEF_PRI << 16) |\
-@@ -129,20 +119,30 @@ DECLARE_GLOBAL_DATA_PTR;
+@@ -129,21 +112,32 @@ DECLARE_GLOBAL_DATA_PTR;
  #define GICD_INT_EN_CLR_X32 0xffffffff
  #define GICD_INT_EN_CLR_PPI 0xffff0000
  #define GICD_INT_EN_SET_SGI 0x0000ffff
@@ -164,9 +245,11 @@ index f817f8cd7c81..6e91b17ab186 100644
 +
 +static size_t max_irq = 0;
  static interrupt_handler_t *handlers[GIC_MAX_IRQ] = {NULL};
++static void *cookies[GIC_MAX_IRQ] = {NULL};
  static unsigned long irq_total = 0;
  static unsigned long irq_counts[GIC_MAX_IRQ] = {0};
-@@ -159,31 +159,40 @@ static inline uint32_t gic_base(void)
+ static uint32_t gbase = 0;
+@@ -159,24 +153,31 @@ static inline uint32_t gic_base(void)
  
  static void enable_gic(void)
  {
@@ -201,8 +284,7 @@ index f817f8cd7c81..6e91b17ab186 100644
  	uint32_t grp = id >> ITLINES_SHIFT;
  	uint32_t grp_bit = 1 << (id & ITLINES_MASK);
  	gicd_writel(grp_bit, GICD_ISENABLERn + grp * sizeof(uint32_t));
-+	gicd_writel(GICD_ITARGET_ALL, GICD_ITARGETSRn + id / 4 * 4);
- }
+@@ -184,6 +185,7 @@ static void enable_irq_id(unsigned int id)
  
  static void disable_irq_id(unsigned int id)
  {
@@ -210,13 +292,13 @@ index f817f8cd7c81..6e91b17ab186 100644
  	uint32_t grp = id >> ITLINES_SHIFT;
  	uint32_t grp_bit = 1 << (id & ITLINES_MASK);
  	gicd_writel(grp_bit, GICD_ICENABLERn + grp * sizeof(uint32_t));
-@@ -193,22 +202,29 @@ static int gic_probe(void)
+@@ -193,34 +195,49 @@ static int gic_probe(void)
  {
  	int i;
  	gbase = gic_base();
+-	enable_gic();
 +	DBG_IRQ("gic_probe GIC base = 0x%x, magicd=0x%x\n",
 +		gbase, gicd_readl(GICD_IIDR));
- 	enable_gic();
  
  	if (gicd_readl(GICD_IIDR) != GIC_DISTRIBUTOR_IMPLEMENTER_MAGIC &&
  	    gicc_readl(GICC_IIDR) != GIC_CPU_IMPLEMENTER_MAGIC &&
@@ -225,24 +307,34 @@ index f817f8cd7c81..6e91b17ab186 100644
 +		printf("error: magic check \n");
  		return 0;
  	}
++
++	disable_gic();
++
  	/* GIC supports up to 1020 lines */
 -	max_irq = ((gicd_readl(GICD_TYPER) & ITLINES_MASK) + 1) << ITLINES_SHIFT;
-+	max_irq = (((gicd_readl(GICD_TYPER) & ITLINES_MASK) + 1) * 32) - 1;
++	max_irq = ((gicd_readl(GICD_TYPER) & ITLINES_MASK) + 1) * 32;
  	if (max_irq > GIC_MAX_IRQ)
  		max_irq = GIC_MAX_IRQ;
  	/* set all lines to be level triggered N-N */
  	for (i = 32; i < max_irq; i += 16)
 -		gicd_writel(0, GICD_ICFGRn + i / 4);
+-
+-	/* Set priority on all interrupts. */
+-	for (i = 0; i < max_irq; i += 4)
 +		gicd_writel(GICD_ICFG_LEVEL_TRIGGER, GICD_ICFGRn + i / 4);
- 
++
 +	DBG_IRQ("max_irq = 0x%x, typer=0x%x, config=0x%x, maxirq=0x%x\n", max_irq,
 +		(gicd_readl(GICD_TYPER) & ITLINES_MASK) + 1,
 +		gicd_readl(GICD_ICFGRn + 0x8),
 +		((gicd_readl(GICD_TYPER) & ITLINES_MASK) + 1) * 0x20);
- 	/* Set priority on all interrupts. */
- 	for (i = 0; i < max_irq; i += 4)
++	/* Set priority and target on all interrupts. */
++	for (i = 0; i < max_irq; i += 4) {
  		gicd_writel(GICD_INT_DEF_PRI_X4, GICD_IPRIORITYRn + i);
-@@ -218,9 +234,11 @@ static int gic_probe(void)
++		gicd_writel(GICD_ITARGET_ALL, GICD_ITARGETSRn + i);
++	}
+ 
+ 	/* Deactivate and disable all SPIs. */
+ 	for (i = 32; i < max_irq; i += 32) {
  		gicd_writel(GICD_INT_EN_CLR_X32, GICD_ICACTIVERn + i / 8);
  		gicd_writel(GICD_INT_EN_CLR_X32, GICD_ICENABLERn + i / 8);
  	}
@@ -253,10 +345,12 @@ index f817f8cd7c81..6e91b17ab186 100644
  	gicd_writel(GICD_INT_EN_SET_SGI, GICD_ISENABLERn);
 +	/* unmask all priority */
 +	gicc_writel(GICC_UNMASK_ALL_PRIORITY, GICC_PMRn);
++
++	enable_gic();
  
  	return 0;
  }
-@@ -228,6 +246,7 @@ static int gic_probe(void)
+@@ -228,6 +245,7 @@ static int gic_probe(void)
  void irq_free_handler (int irq);
  static void gic_shutdown(void)
  {
@@ -264,7 +358,7 @@ index f817f8cd7c81..6e91b17ab186 100644
  	int i;
  	for (i = 0; i < max_irq; i++)
  	{
-@@ -238,6 +257,7 @@ static void gic_shutdown(void)
+@@ -238,6 +256,7 @@ static void gic_shutdown(void)
  
  int arch_interrupt_init_early(void)
  {
@@ -272,8 +366,11 @@ index f817f8cd7c81..6e91b17ab186 100644
  	return 0;
  }
  
-@@ -249,11 +269,13 @@ int arch_interrupt_init(void)
+@@ -247,28 +266,28 @@ int arch_interrupt_init(void)
+ 	for (i = 0; i < GIC_MAX_IRQ; i++)
+ 	{
  		handlers[i] = NULL;
++		cookies[i] = NULL;
  		irq_counts[i] = 0;
  	}
 +	DBG_IRQ("arch_interrupt_init\n");
@@ -286,13 +383,13 @@ index f817f8cd7c81..6e91b17ab186 100644
  	gic_shutdown();
  	return 0;
  }
-@@ -261,14 +283,12 @@ int arch_interrupt_fini(void)
+ 
  int interrupt_init (void)
  {
- 	/*
+-	/*
 -	 * setup up stacks if necessary
 -	 */
-+	 * setup up stacks if necessary*/
++	/* setup up stacks if necessary */
 +	IRQ_STACK_START = gd->irq_sp + 8;
  	IRQ_STACK_START_IN = gd->irq_sp + 8;
  
@@ -304,7 +401,7 @@ index f817f8cd7c81..6e91b17ab186 100644
  }
  
  int global_interrupts_enabled (void)
-@@ -286,12 +306,12 @@ void enable_interrupts (void)
+@@ -286,12 +305,12 @@ void enable_interrupts (void)
  {
      unsigned long cpsr;
  	__asm__ __volatile__("mrs %0, cpsr\n"
@@ -319,7 +416,7 @@ index f817f8cd7c81..6e91b17ab186 100644
  	return;
  }
  
-@@ -304,11 +324,13 @@ int disable_interrupts (void)
+@@ -304,11 +323,13 @@ int disable_interrupts (void)
  			: "=r" (cpsr), "=r" (temp)
  			:
  			: "memory");
@@ -327,19 +424,21 @@ index f817f8cd7c81..6e91b17ab186 100644
  	return (cpsr & 0x80) == 0;
  }
  
- void irq_install_handler(int irq, interrupt_handler_t *handler, void *ctx)
+-void irq_install_handler(int irq, interrupt_handler_t *handler, void *ctx)
++void irq_install_handler(int irq, interrupt_handler_t *handler, void *cookie)
  {
 +	DBG_IRQ("  %s()\n", __FUNCTION__);
  	if (irq > max_irq) {
  		printf("irq %d out of range\n", irq);
  		return;
-@@ -317,13 +339,14 @@ void irq_install_handler(int irq, interrupt_handler_t *handler, void *ctx)
+@@ -317,19 +338,22 @@ void irq_install_handler(int irq, interrupt_handler_t *handler, void *ctx)
  		printf("irq %d already in use (%p)\n", irq, handlers[irq]);
  		return;
  	}
 -	printf("registering handler for irq %d\n", irq);
 +	DBG_IRQ("registering handler for irq %d\n", irq);
  	handlers[irq] = handler;
++	cookies[irq] = cookie;
  	enable_irq_id(irq);
  }
  
@@ -349,29 +448,36 @@ index f817f8cd7c81..6e91b17ab186 100644
  	if (irq >= max_irq) {
  		printf("irq %d out of range\n", irq);
  		return;
-@@ -338,9 +361,10 @@ int do_irqinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
- {
+ 	}
+ 	if (handlers[irq]) {
+ 		handlers[irq] = NULL;
++		cookies[irq] = NULL;
+ 		disable_irq_id(irq);
+ 	}
+ }
+@@ -339,8 +363,10 @@ int do_irqinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
  	int i;
  	int enabled = global_interrupts_enabled();
--	printf("GIC base = 0x%x\n", gbase);
+ 	printf("GIC base = 0x%x\n", gbase);
 -	printf("interrupts %sabled\n", (enabled ? "en" : "dis"));
-+	DBG_IRQ("GIC base = 0x%x\n", gbase);
-+	DBG_IRQ("interrupts %sabled\n", (enabled ? "en" : "dis"));
++	printf("Number of interrupt sources = %d\n", max_irq);
++	printf("Interrupts %sabled\n", (enabled ? "en" : "dis"));
  	uint32_t grp_en = 0;
 +
  	for (i = 0; i < max_irq; i++) {
  		if ((i & ITLINES_MASK) == 0)
  			grp_en = gicd_readl(GICD_ISENABLERn +
-@@ -348,52 +372,28 @@ int do_irqinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+@@ -348,52 +374,29 @@ int do_irqinfo(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
  		int irq_enabled = grp_en & (1 << (i & ITLINES_MASK));
  		if (!irq_enabled)
  			continue;
 -		printf("% 2i (% 3s): %lu\n", i,
-+		DBG_IRQ("%2d (%3s): %lu\n", i,
++		printf("%2d (%3s): %lu\n", i,
  		       (irq_enabled ? "on" : "off"), irq_counts[i]);
  	}
 -	printf("total: %lu\n", irq_total);
-+	DBG_IRQ("total: %lu\n", irq_total);
++	printf("Total: %lu\n", irq_total);
++
  	return 0;
  }
  
@@ -414,7 +520,7 @@ index f817f8cd7c81..6e91b17ab186 100644
 -				gicd_writel(pending, GICD_ISPENDRn +
 -						(i >> ITLINES_SHIFT) * sizeof(uint32_t));
 -			}
-+	uint32_t irqstat = 0, irqnr = 0;
++	uint32_t irqstat, irqnr;
 +
 +	if (irq_total < MAX_IRQ)
 +		irq_total++;
@@ -426,10 +532,36 @@ index f817f8cd7c81..6e91b17ab186 100644
 +		if (irq_counts[irqnr] < MAX_IRQ)
 +			irq_counts[irqnr]++;
 +		if (handlers[irqnr]) {
-+			handlers[irqnr](NULL);
++			handlers[irqnr](cookies[irqnr]);
  		}
  	}
  }
+diff --git a/board/aspeed/ast2600_intel/ast-irq.h b/board/aspeed/ast2600_intel/ast-irq.h
+deleted file mode 100644
+index 9957f2baa7ff..000000000000
+--- a/board/aspeed/ast2600_intel/ast-irq.h
++++ /dev/null
+@@ -1,8 +0,0 @@
+-#ifndef _AST_IRQ_H_
+-#define _AST_IRQ_H_
+-
+-int request_irq(int irq, interrupt_handler_t *handler);
+-int release_irq(int irq);
+-int arch_interrupt_init_early(void);
+-
+-#endif
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index ac108c3a066c..22a377d2cb77 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -209,7 +209,6 @@ static void timer_handler(void *regs)
+ 	printf("+");
+ }
+ 
+-extern int arch_interrupt_init_early(void);
+ int board_early_init_f(void)
+ {
+ 	/* This is called before relocation; beware! */
 -- 
 2.7.4
 

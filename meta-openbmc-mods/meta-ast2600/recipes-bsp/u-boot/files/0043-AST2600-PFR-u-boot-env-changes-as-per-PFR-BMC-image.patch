@@ -1,36 +1,35 @@
-From 23e29ce85056f2b296d938e1244b5b2f2160069e Mon Sep 17 00:00:00 2001
+From 948a92b3000120f902292b661a544e35d796784a Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
-Date: Wed, 4 Mar 2020 13:21:12 +0800
-Subject: [PATCH] AST2600: PFR u-boot env changes as per PFR BMC image
+Date: Mon, 13 Apr 2020 09:30:14 +0800
+Subject: [PATCH] PFR u-boot env changes as per PFR BMC image
 
 u-boot env changes as per PFR BMC flash layout.
 
-Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
- include/configs/aspeed-common.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/configs/aspeed-common.h | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
 diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
-index 0ece4a1b94..6291e0e7d9 100644
+index 6065ec58db..b13dbd02f3 100644
 --- a/include/configs/aspeed-common.h
 +++ b/include/configs/aspeed-common.h
-@@ -53,13 +53,13 @@
-  * Miscellaneous configurable options
-  */
- #ifndef CONFIG_BOOTCOMMAND
--#define CONFIG_BOOTCOMMAND		"bootm 20080000"
-+#define CONFIG_BOOTCOMMAND		"bootm 20b00000"
- #endif
- #define CONFIG_SYS_REDUNDAND_ENVIRONMENT
- #define CONFIG_ENV_ADDR_REDUND
- #define CONFIG_ENV_OVERWRITE
- #define AST_FMC_CS0_BASE		0x20000000 /* CS0 */
--#define CONFIG_ENV_OFFSET		0x2400000
-+#define CONFIG_ENV_OFFSET		0xa0000
- #define CONFIG_ENV_ADDR			(AST_FMC_CS0_BASE + CONFIG_ENV_OFFSET)
+@@ -64,9 +64,11 @@
  #define CONFIG_ENV_SIZE			0x10000
- #define CONFIG_ENV_OFFSET_REDUND	(CONFIG_ENV_OFFSET + CONFIG_ENV_SIZE)
+ #endif
+ 
+-#ifndef CONFIG_ENV_OFFSET
+-#define CONFIG_ENV_OFFSET		0x2400000
+-#endif
++#undef CONFIG_BOOTCOMMAND
++#define CONFIG_BOOTCOMMAND		"bootm 20b00000"
++
++#undef CONFIG_ENV_OFFSET
++#define CONFIG_ENV_OFFSET		0xa0000
+ 
+ #define CONFIG_SYS_REDUNDAND_ENVIRONMENT
+ #define CONFIG_ENV_OVERWRITE
 -- 
-2.20.1
+2.17.1
 

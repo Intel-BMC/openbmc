@@ -1,4 +1,4 @@
-From dd7498a847b3e908dabaed2e9a27b43a26d0dba0 Mon Sep 17 00:00:00 2001
+From 9fc2343bac42db2432f96db1bbfc6979822a7154 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Thu, 26 Mar 2020 14:20:19 -0700
 Subject: [PATCH] Refine clock settings
@@ -8,11 +8,11 @@ code from Aspeed SDK v00.05.05
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- drivers/clk/clk-ast2600.c | 104 +++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 85 insertions(+), 19 deletions(-)
+ drivers/clk/clk-ast2600.c | 60 +++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 53 insertions(+), 7 deletions(-)
 
 diff --git a/drivers/clk/clk-ast2600.c b/drivers/clk/clk-ast2600.c
-index af908b2dbeb6..e5079c5f4fcf 100644
+index fb6b11440b97..e07326544fdc 100644
 --- a/drivers/clk/clk-ast2600.c
 +++ b/drivers/clk/clk-ast2600.c
 @@ -31,6 +31,24 @@
@@ -86,69 +86,7 @@ index af908b2dbeb6..e5079c5f4fcf 100644
  			&aspeed_g6_clk_lock);
  	if (IS_ERR(hw))
  		return PTR_ERR(hw);
-@@ -650,12 +665,20 @@ static struct platform_driver aspeed_g6_clk_driver = {
- };
- builtin_platform_driver(aspeed_g6_clk_driver);
- 
--static const u32 ast2600_a0_axi_ahb_div_table[] = {
--	2, 2, 3, 5,
-+static u32 ast2600_a0_axi_ahb_div_table[] = {
-+	2, 2, 3, 4,
- };
- 
--static const u32 ast2600_a1_axi_ahb_div_table[] = {
--	4, 6, 2, 4,
-+static u32 ast2600_a1_axi_ahb_div0_table[] = {
-+	3, 2, 3, 4,
-+};
-+
-+static u32 ast2600_a1_axi_ahb_div1_table[] = {
-+	3, 4, 6, 8,
-+};
-+
-+static const u32 ast2600_a1_axi_ahb_default_table[] = {
-+	3, 4, 3, 4, 2, 2, 2, 2,
- };
- 
- static void __init aspeed_g6_cc(struct regmap *map)
-@@ -686,16 +709,28 @@ static void __init aspeed_g6_cc(struct regmap *map)
- 
- 	/* Strap bits 12:11 define the AXI/AHB clock frequency ratio (aka HCLK)*/
- 	regmap_read(map, ASPEED_G6_STRAP1, &val);
--	if (val & BIT(16))
--		axi_div = 1;
--	else
--		axi_div = 2;
--
- 	regmap_read(map, ASPEED_G6_SILICON_REV, &chip_id);
--	if (chip_id & BIT(16))
--		ahb_div = ast2600_a1_axi_ahb_div_table[(val >> 11) & 0x3];
--	else
-+	if (chip_id & BIT(16)) {
-+		if (val & BIT(16)) {
-+			axi_div = 1;
-+			ast2600_a1_axi_ahb_div1_table[0] =
-+				ast2600_a1_axi_ahb_default_table[(val >> 8) &
-+								 0x3];
-+			ahb_div = ast2600_a1_axi_ahb_div1_table[(val >> 11) &
-+								0x3];
-+		} else {
-+			axi_div = 2;
-+			ast2600_a1_axi_ahb_div0_table[0] =
-+				ast2600_a1_axi_ahb_default_table[(val >> 8) &
-+								 0x3];
-+			ahb_div = ast2600_a1_axi_ahb_div0_table[(val >> 11) &
-+								0x3];
-+		}
-+	} else {
-+		/* a0 : fix axi = hpll/2 */
-+		axi_div = 2;
- 		ahb_div = ast2600_a0_axi_ahb_div_table[(val >> 11) & 0x3];
-+	}
- 
- 	hw = clk_hw_register_fixed_factor(NULL, "ahb", "hpll", 0, 1, axi_div * ahb_div);
- 	aspeed_g6_clk_data->hws[ASPEED_CLK_AHB] = hw;
-@@ -751,6 +786,37 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
+@@ -770,6 +785,37 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
  		return;
  	}
  

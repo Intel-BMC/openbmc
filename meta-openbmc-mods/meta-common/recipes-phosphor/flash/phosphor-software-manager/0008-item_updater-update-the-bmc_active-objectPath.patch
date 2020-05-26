@@ -1,0 +1,30 @@
+From d9e50ecf8bd8bc764838e7244084184644a3f0fc Mon Sep 17 00:00:00 2001
+From: Chalapathi <chalapathix.venkataramashetty@intel.com>
+Date: Thu, 23 Apr 2020 19:06:19 +0000
+Subject: [PATCH] item_updater: update the bmc_active objectPath
+
+Update the Software object path to bmc_active instead of random Id.
+
+Signed-off-by: Chalapathi <chalapathix.venkataramashetty@intel.com>
+---
+ item_updater.cpp | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/item_updater.cpp b/item_updater.cpp
+index 7fe69e4..3ce1dbf 100644
+--- a/item_updater.cpp
++++ b/item_updater.cpp
+@@ -175,9 +175,7 @@ void ItemUpdater::processBMCImage()
+         if (0 ==
+             iter.path().native().compare(0, BMC_RO_PREFIX_LEN, BMC_ROFS_PREFIX))
+         {
+-            // The versionId is extracted from the path
+-            // for example /media/ro-2a1022fe.
+-            auto id = iter.path().native().substr(BMC_RO_PREFIX_LEN);
++            std::string id = "bmc_active";
+             auto osRelease = iter.path() / OS_RELEASE_FILE;
+             if (!fs::is_regular_file(osRelease))
+             {
+-- 
+2.17.1
+
