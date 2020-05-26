@@ -9,6 +9,9 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 inherit autotools pkgconfig
 inherit systemd
 
+PACKAGECONFIG ?= ""
+PACKAGECONFIG[7seg] = "--enable-7seg,--disable-7seg,,udev"
+
 DEPENDS += "autoconf-archive-native"
 DEPENDS += "sdbusplus"
 DEPENDS += "sdeventplus"
@@ -17,7 +20,7 @@ DEPENDS += "systemd"
 
 S = "${WORKDIR}/git"
 SRC_URI = "git://github.com/openbmc/phosphor-host-postd"
-SRCREV = "ad2a08c7de9198246fec77c457d4c14f7bc4c1fb"
+SRCREV = "66efa632e25854ed5fba0166fe5c3bdd6761f20b"
 
 SNOOP_DEVICE ?= "aspeed-lpc-snoop0"
 POST_CODE_BYTES ?= "1"
@@ -31,3 +34,10 @@ EXTRA_OECONF = " \
   POST_CODE_BYTES="${POST_CODE_BYTES}" \
   SYSTEMD_TARGET="multi-user.target" \
 "
+
+POSTCODE_SEVENSEG_DEVICE ?= "seven_seg_disp_val"
+SERVICE_FILE_7SEG = " \
+  postcode-7seg@.service \
+  postcode-7seg@${POSTCODE_SEVENSEG_DEVICE}.service \
+"
+SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('PACKAGECONFIG', '7seg', '${SERVICE_FILE_7SEG}', '', d)}"
