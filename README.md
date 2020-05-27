@@ -7,6 +7,8 @@ early access to features and capabilities which have not yet been accepted or
 merged in the OpenBMC main project (github.com/openbmc). In due course, all of
 the capabilities here will be brought to the OpenBMC project.
 
+For questions or support please email OpenBMC.Support@intel.com.
+
 Some answers to the main questions that tend to get asked: 
 
 ### Does this mean that Intel is no longer contributing to the Linux foundation project?
@@ -34,8 +36,8 @@ and required features.
 It very much depends on the component. While in general the answer ends up
 being "yes", prior approval should be granted, as this repo contains future
 facing capabilities that may not have been announced yet.  Please email
-openbmc@intel.com to discuss. Appropriate licenses will be applied to the
-portions of this codebase that are approved for upstreaming.
+OpenBMC.Support@intel.com to discuss. Appropriate licenses will be applied to
+the portions of this codebase that are approved for upstreaming.
 
 ### How to build for Wolf Pass
 ```bash
