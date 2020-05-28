@@ -11,7 +11,7 @@ SRCREV = "69016601a521a95732cc49a3f4c8c7fe4b0ee058"
 
 S = "${WORKDIR}/git"
 
-DEPENDS += "dbus openssl zlib boost microsoft-gsl"
+DEPENDS += "dbus systemd sdbusplus openssl zlib boost microsoft-gsl i2c-tools"
 
 inherit cmake pkgconfig
 

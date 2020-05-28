@@ -42,7 +42,6 @@ IMAGE_INSTALL_append = " \
         nv-sync \
         security-manager \
         multi-node-nl \
-        mctpd \
         virtual-media \
         enable-nics \
         host-misc-comm-manager \

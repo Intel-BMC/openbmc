@@ -5,6 +5,7 @@ Description=Intel BMC SMBIOS MDR V2
 Restart=always
 RestartSec=5
 StartLimitBurst=10
+ExecStartPre=/bin/mkdir -p /var/lib/smbios
 ExecStart=/usr/bin/env smbiosmdrv2app
 SyslogIdentifier=smbiosmdrv2app
 

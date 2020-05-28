@@ -15,6 +15,11 @@ SRC_URI_append_intel-ast2600 = " \
     file://0007-ast2600-Override-OTP-strap-settings.patch \
     file://0008-AST2600-Add-TPM-pulse-trigger.patch \
     file://0009-AST2600-Disable-DMA-arbitration-options-on-MAC1-and-.patch \
+    file://0010-Fix-timer-support.patch \
+    file://0011-KCS-driver-support-in-uBoot.patch \
+    file://0012-IPMI-command-handler-implementation-in-uboot.patch \
+    file://0013-Add-a-workaround-to-cover-UART-interrupt-bug-in-AST2.patch \
+    file://0014-Add-a-workaround-to-cover-eSPI-OOB-free-bug-in-AST26.patch \
     "
 
 PFR_SRC_URI = " \

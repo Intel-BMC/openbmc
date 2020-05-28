@@ -1,0 +1,186 @@
+From 0177d25a23d56bca91fa7938d786b709fd7fba3e Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 27 Apr 2020 12:11:06 -0700
+Subject: [PATCH] Add a workaround to cover UART interrupt bug in AST2600 A0
+
+This commit adds a workaround to cover UART interrupt bug in
+AST2600 A0 revision. It makes infinite reading on the UART +0x7c
+register for clearing abnormal interrupts in every milli-second.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g6.dtsi  | 20 ++++++-------
+ drivers/tty/serial/8250/8250_of.c | 63 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 10 deletions(-)
+
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 656053386fe8..91f431e419d9 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -502,8 +502,8 @@
+                         };
+ 
+ 			uart1: serial@1e783000 {
+-				compatible = "ns16550a";
+-				reg = <0x1e783000 0x20>;
++				compatible = "aspeed,ast2600-uart";
++				reg = <0x1e783000 0x20>, <0x1e6e2014 0x4>, <0x1e78307c 0x4>;
+ 				reg-shift = <2>;
+ 				reg-io-width = <4>;
+ 				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+@@ -516,8 +516,8 @@
+ 			};
+ 
+ 			uart5: serial@1e784000 {
+-				compatible = "ns16550a";
+-				reg = <0x1e784000 0x1000>;
++				compatible = "aspeed,ast2600-uart";
++				reg = <0x1e784000 0x20>, <0x1e6e2014 0x4>, <0x1e78407c 0x4>;
+ 				reg-shift = <2>;
+ 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+ 				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
+@@ -744,8 +744,8 @@
+ 			};
+ 
+ 			uart2: serial@1e78d000 {
+-				compatible = "ns16550a";
+-				reg = <0x1e78d000 0x20>;
++				compatible = "aspeed,ast2600-uart";
++				reg = <0x1e78d000 0x20>, <0x1e6e2014 0x4>, <0x1e78d07c 0x4>;
+ 				reg-shift = <2>;
+ 				reg-io-width = <4>;
+ 				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+@@ -758,8 +758,8 @@
+ 			};
+ 
+ 			uart3: serial@1e78e000 {
+-				compatible = "ns16550a";
+-				reg = <0x1e78e000 0x20>;
++				compatible = "aspeed,ast2600-uart";
++				reg = <0x1e78e000 0x20>, <0x1e6e2014 0x4>, <0x1e78e07c 0x4>;
+ 				reg-shift = <2>;
+ 				reg-io-width = <4>;
+ 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+@@ -772,8 +772,8 @@
+ 			};
+ 
+ 			uart4: serial@1e78f000 {
+-				compatible = "ns16550a";
+-				reg = <0x1e78f000 0x20>;
++				compatible = "aspeed,ast2600-uart";
++				reg = <0x1e78f000 0x20>, <0x1e6e2014 0x4>, <0x1e78f07c 0x4>;
+ 				reg-shift = <2>;
+ 				reg-io-width = <4>;
+ 				interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+diff --git a/drivers/tty/serial/8250/8250_of.c b/drivers/tty/serial/8250/8250_of.c
+index 9ba31701a372..53850f859424 100644
+--- a/drivers/tty/serial/8250/8250_of.c
++++ b/drivers/tty/serial/8250/8250_of.c
+@@ -16,6 +16,7 @@
+ #include <linux/pm_runtime.h>
+ #include <linux/clk.h>
+ #include <linux/reset.h>
++#include <linux/workqueue.h>
+ 
+ #include "8250.h"
+ 
+@@ -24,6 +25,9 @@ struct of_serial_info {
+ 	struct reset_control *rst;
+ 	int type;
+ 	int line;
++	struct workqueue_struct *work_queue;
++	struct delayed_work work_handler;
++	void __iomem *wa_base;
+ };
+ 
+ #ifdef CONFIG_ARCH_TEGRA
+@@ -202,6 +206,18 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
+ 	return ret;
+ }
+ 
++#define WA_DELAY_JIFFIES	msecs_to_jiffies(1)
++static void clear_abnormal_int_flags(struct work_struct *work)
++{
++	struct delayed_work *dwork = to_delayed_work(work);
++	struct of_serial_info *info = container_of(dwork, struct of_serial_info,
++						   work_handler);
++
++	(void) readl(info->wa_base);
++	queue_delayed_work(info->work_queue, &info->work_handler,
++			   WA_DELAY_JIFFIES);
++}
++
+ /*
+  * Try to register a serial port
+  */
+@@ -250,6 +266,47 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
+ 	if (ret < 0)
+ 		goto err_dispose;
+ 
++	if (of_device_is_compatible(ofdev->dev.of_node,
++				    "aspeed,ast2600-uart")) {
++		#define REV_ID_AST2600A0 0x05000303
++		void __iomem *chip_id_base;
++		struct resource *res = platform_get_resource(ofdev,
++							     IORESOURCE_MEM, 1);
++
++		if (!res || resource_size(res) < 2)
++			goto skip_wa;
++
++		info->wa_base = devm_platform_ioremap_resource(ofdev, 2);
++		if (IS_ERR(info->wa_base))
++			goto skip_wa;
++
++		chip_id_base = devm_ioremap_resource(&ofdev->dev, res);
++		if (IS_ERR(chip_id_base))
++			goto skip_wa;
++
++		if (readl(chip_id_base) == REV_ID_AST2600A0) {
++			info->work_queue = alloc_ordered_workqueue(ofdev->name,
++								   0);
++			if (info->work_queue) {
++				INIT_DELAYED_WORK(&info->work_handler,
++						  clear_abnormal_int_flags);
++				queue_delayed_work(info->work_queue,
++						   &info->work_handler,
++						   WA_DELAY_JIFFIES);
++				dev_info(&ofdev->dev,
++					 "AST2600 A0 WA initiated\n");
++			} else {
++				dev_err(&ofdev->dev,
++					"Can't enable AST2600 A0 UART WA\n");
++			}
++		}
++
++		devm_iounmap(&ofdev->dev, chip_id_base);
++		devm_release_mem_region(&ofdev->dev, res->start,
++					resource_size(res));
++	}
++
++skip_wa:
+ 	info->type = port_type;
+ 	info->line = ret;
+ 	platform_set_drvdata(ofdev, info);
+@@ -271,6 +328,11 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
+ {
+ 	struct of_serial_info *info = platform_get_drvdata(ofdev);
+ 
++	if (info->work_queue) {
++		cancel_delayed_work_sync(&info->work_handler);
++		destroy_workqueue(info->work_queue);
++	}
++
+ 	serial8250_unregister_port(info->line);
+ 
+ 	reset_control_assert(info->rst);
+@@ -341,6 +403,7 @@ static const struct of_device_id of_platform_serial_table[] = {
+ 		.data = (void *)PORT_XSCALE, },
+ 	{ .compatible = "ti,da830-uart", .data = (void *)PORT_DA830, },
+ 	{ .compatible = "nuvoton,npcm750-uart", .data = (void *)PORT_NPCM, },
++	{ .compatible = "aspeed,ast2600-uart", .data = (void *)PORT_16550A, },
+ 	{ /* end of list */ },
+ };
+ MODULE_DEVICE_TABLE(of, of_platform_serial_table);
+-- 
+2.7.4
+

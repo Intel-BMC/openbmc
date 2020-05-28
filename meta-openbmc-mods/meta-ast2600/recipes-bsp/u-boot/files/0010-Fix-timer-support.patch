@@ -1,0 +1,173 @@
+From bd4eb78dc71529342e5d0b784731c412cf747acc Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 20 Apr 2020 10:42:05 -0700
+Subject: [PATCH] Fix timer support
+
+Timer interrupt flag should be cleared just after it gets an
+interrupt otherwise the interrupt will be called infinitely and
+main context will starve resultingly. To fix this issue, this
+commit adds the timer interrupt flag clearing logic.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/ast-timer.c | 69 ++++++++++++++++++++--------------
+ board/aspeed/ast2600_intel/intel.c     | 13 ++++---
+ 2 files changed, 48 insertions(+), 34 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/ast-timer.c b/board/aspeed/ast2600_intel/ast-timer.c
+index cf8c69aba5d3..d98ec9238e15 100644
+--- a/board/aspeed/ast2600_intel/ast-timer.c
++++ b/board/aspeed/ast2600_intel/ast-timer.c
+@@ -1,59 +1,72 @@
+-/*
+- * Copyright 2019 Intel Corporation
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version
+- * 2 of the License, or (at your option) any later version.
+- */
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (c) 2019-2020, Intel Corporation.
+ 
+ #include <common.h>
+ #include <asm/io.h>
+ 
+ static const int timer_irqs[] = {48, 49, 50, 51, 52, 53, 54, 55};
++static void (*timer_callback[ARRAY_SIZE(timer_irqs)]) (void *) = {NULL};
++static void *cb_cookie[ARRAY_SIZE(timer_irqs)] = {NULL};
++
+ #define AST_TIMER_BASE 0x1e782000
+ /* offsets from AST_TIMER_BASE for each timer */
+-static const uint32_t timer_bases[] = {0, 0x10, 0x20, 0x40,
+-				       0x50, 0x60, 0x70, 0x80};
+-#define TIMER_1MHZ_CLK_COUNT 1000000u
++static const u32 timer_bases[] = {0, 0x10, 0x20, 0x40, 0x50, 0x60, 0x70, 0x80};
+ #define TIMER_ENABLE 1
+ #define TIMER_1MHZ_CLK_SEL 2
+ #define TIMER_ENABLE_IRQ 4
+ #define TIMER_RESET_BY_WDT 8
+ #define TIMER_CONTROL 0x30
++#define TIMER_INT_CLR 0x34
+ #define TIMER_RELOAD 0x04
+ #define TIMER_CONTROL_CLEAR 0x3c
+ 
++static void timer_irq_handler(void *cookie)
++{
++	int timer_nr = (int)cookie;
++
++	writel(1 << timer_nr, AST_TIMER_BASE + TIMER_INT_CLR);
++
++	if (timer_callback[timer_nr])
++		timer_callback[timer_nr](cb_cookie[timer_nr]);
++}
++
+ void timer_disable(int n)
+ {
+-	if (n < 0 || n > 7) {
++	u32 tctrl;
++
++	if (n < 0 || n > 7)
+ 		return;
+-	}
+-	uint32_t tctrl = 0xf << (n * 4);
++
++	irq_free_handler(timer_irqs[n]);
++	timer_callback[n] = NULL;
++	cb_cookie[n] = NULL;
++
++	tctrl = 0xf << (n * 4);
+ 	writel(tctrl, AST_TIMER_BASE + TIMER_CONTROL_CLEAR);
+ }
+ 
+-void timer_enable(int n, uint32_t freq, interrupt_handler_t *handler)
++void timer_enable(uint n, u32 interval_us, interrupt_handler_t *handler,
++		  void *cookie)
+ {
+-	if (n < 0 || n > 7) {
+-		return;
+-	}
+-	if (!freq)
++	u32 tctrl;
++
++	if (n < 0 || n > 7 || !interval_us)
+ 		return;
+ 
+ 	timer_disable(n);
+ 
+-	uint32_t v = TIMER_1MHZ_CLK_COUNT / freq;
+-	writel(v, AST_TIMER_BASE + timer_bases[n] + TIMER_RELOAD);
++	writel(interval_us, AST_TIMER_BASE + timer_bases[n] + TIMER_RELOAD);
+ 
+-	uint32_t tctrl = (
+-				TIMER_ENABLE |
+-				TIMER_1MHZ_CLK_SEL |
+-				TIMER_RESET_BY_WDT) << (n * 4);
++	tctrl = (TIMER_ENABLE | TIMER_1MHZ_CLK_SEL |
++		 TIMER_RESET_BY_WDT) << (n * 4) | TIMER_ENABLE_IRQ << (n * 4);
+ 
+ 	if (handler) {
+-		irq_install_handler(timer_irqs[n], handler, NULL);
+-		tctrl |= (TIMER_ENABLE_IRQ << (n * 4));
++		timer_callback[n] = handler;
++		cb_cookie[n] = cookie;
+ 	}
+-	writel(tctrl, AST_TIMER_BASE + TIMER_CONTROL);
++
++	irq_install_handler(timer_irqs[n], timer_irq_handler, (void *)n);
++
++	writel(readl(AST_TIMER_BASE + TIMER_CONTROL) | tctrl,
++	       AST_TIMER_BASE + TIMER_CONTROL);
+ }
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index 47e5ad21d66d..befeaff0a953 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -219,16 +219,14 @@ void enable_onboard_tpm(void)
+ 	       AST_GPIO_BASE | GPIO_000);
+ }
+ 
+-static void timer_handler(void *regs)
++static void timer_callback(void *cookie)
+ {
+-	printf("+");
++	debug("+");
+ }
+ 
+ int board_early_init_f(void)
+ {
+ 	/* This is called before relocation; beware! */
+-	/* initialize running timer? timer_init is next in the list but
+-	 * I am not sure if it actually does anything... */
+ 	arch_interrupt_init_early();
+ 
+ 	set_gpio_default_state();
+@@ -243,11 +241,9 @@ int board_early_init_f(void)
+ 	return 0;
+ }
+ 
+-extern void timer_enable(int n, uint32_t freq, interrupt_handler_t *handler);
+ int board_early_init_r(void)
+ {
+ 	debug("board_early_init_r\n");
+-	/* timer_enable(0, 1, timer_handler); */
+ 
+ 	enable_onboard_tpm();
+ 
+@@ -255,8 +251,13 @@ int board_early_init_r(void)
+ }
+ 
+ extern void espi_init(void);
++extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
++			 void *cookie);
+ int board_late_init(void)
+ {
++#define ONE_SEC_IN_USEC		1000000
++
++	timer_enable(0, ONE_SEC_IN_USEC, timer_callback, (void *)0);
+ 	espi_init();
+ 
+ 	return 0;
+-- 
+2.7.4
+

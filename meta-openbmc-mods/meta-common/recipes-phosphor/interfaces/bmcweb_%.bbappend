@@ -1,6 +1,6 @@
 # todo(james) remove nobranch
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "e5aaf047b6b41b0837ef0846cf5356c9a6bcb030"
+SRCREV = "8a3bb71ebcdf14dafd5967192f73bf2416e8bb6e"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -11,6 +11,7 @@ USERADD_PARAM_${PN} = "-r -s /usr/sbin/nologin -d /home/bmcweb -m -G shadow bmcw
 GROUPADD_PARAM_${PN} = "web; redfish "
 
 SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
+            file://0002-Use-chip-id-based-UUID-for-Service-Root.patch \
 "
 
 # Enable PFR support
@@ -18,9 +19,6 @@ EXTRA_OECMAKE += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-DBMCWEB_E
 
 # Enable NBD_PROXY
 EXTRA_OECMAKE += " -DBMCWEB_ENABLE_VM_NBDPROXY=ON"
-
-# Disable MTLS until it passes security review
-EXTRA_OECMAKE += " -DBMCWEB_ENABLE_MUTUAL_TLS_AUTHENTICATION=OFF"
 
 # Enable Validation unsecure based on IMAGE_FEATURES
 EXTRA_OECMAKE += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-DBMCWEB_ENABLE_VALIDATION_UNSECURE_FEATURE=ON', '', d)}"

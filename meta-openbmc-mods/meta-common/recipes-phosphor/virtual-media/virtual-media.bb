@@ -14,11 +14,12 @@ SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.VirtualMedia.service"
 
 DEPENDS = "udev boost nlohmann-json systemd sdbusplus"
 
-# Temporarily not needed due to Legacy mode disabling
-# RDEPENDS_${PN} = "nbdkit"
+# Needed for legacy mode
+RDEPENDS_${PN} = "nbdkit"
 
 inherit cmake systemd
 
 EXTRA_OECMAKE += "-DYOCTO_DEPENDENCIES=ON"
+EXTRA_OECMAKE += "-DLEGACY_MODE_ENABLED=ON"
 
 FULL_OPTIMIZATION = "-Os -pipe -flto -fno-rtti"

@@ -12,4 +12,5 @@ SRC_URI += "file://0005-Add-DBUS-interface-of-CPU-and-Memory-s-properties.patch 
             file://0025-Add-PreInterruptFlag-properity-in-DBUS.patch \
             file://0001-Reapply-Enhance-DHCP-beyond-just-OFF-and-IPv4-IPv6-e.patch \
             file://0026-Add-StandbySpare-support-for-software-inventory.patch \
+            file://0028-MCTP-Daemon-D-Bus-interface-definition.patch \
             "

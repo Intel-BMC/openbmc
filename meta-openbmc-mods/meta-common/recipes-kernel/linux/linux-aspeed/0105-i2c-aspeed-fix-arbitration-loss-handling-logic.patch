@@ -1,0 +1,38 @@
+From 2cf0bee18a390a90cd1e5736ba79909a8feef94e Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 28 Apr 2020 12:08:14 -0700
+Subject: [PATCH] i2c: aspeed: fix arbitration loss handling logic
+
+When an arbitration loss happens in a multi-master bus, driver
+drops the packet induce I2C subsystem to retry the transaction
+by returning -EAGAIN. During this handling, tx_ack comes along
+sometimes and it causes this this garbage printing
+out:
+
+aspeed-i2c-bus 1e78a400.i2c-bus: irq handled != irq. expected 0x00000009, but was 0x00000008
+
+To fix this issue, this commit adds the tx_ack flag clearing into
+the arbitration loss handling logic.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/i2c/busses/i2c-aspeed.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
+index b56e60508914..8625c0da440b 100644
+--- a/drivers/i2c/busses/i2c-aspeed.c
++++ b/drivers/i2c/busses/i2c-aspeed.c
+@@ -896,6 +896,9 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 		if (bus->master_state != ASPEED_I2C_MASTER_INACTIVE) {
+ 			bus->cmd_err = ret;
+ 			bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
++			if (ret == -EAGAIN)
++				irq_handled |= (irq_status &
++						ASPEED_I2CD_INTR_TX_ACK);
+ 			goto out_complete;
+ 		}
+ 	}
+-- 
+2.7.4
+

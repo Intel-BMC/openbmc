@@ -11,7 +11,7 @@ SMM_DEVICE = "ipmi_kcs4"
 SYSTEMD_SERVICE_${PN}_append = " ${PN}@${SMM_DEVICE}.service "
 
 SRC_URI = "git://github.com/openbmc/kcsbridge.git"
-SRCREV = "46525ae48db23333493ac927c12ed13a0e663de5"
+SRCREV = "58d596ad9625790b5e06804360aa161579364425"
 
 SRC_URI += "file://99-ipmi-kcs.rules"
 

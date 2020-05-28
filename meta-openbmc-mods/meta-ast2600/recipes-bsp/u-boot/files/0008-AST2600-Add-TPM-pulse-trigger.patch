@@ -1,4 +1,4 @@
-From 7903cb8540f83e9beca9386681ab6232eb288527 Mon Sep 17 00:00:00 2001
+From b7f02c074c0dee6b5d6d1c1f632993f7b0e3e952 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 25 Mar 2020 15:04:26 -0700
 Subject: [PATCH] AST2600: Add TPM pulse trigger
@@ -11,10 +11,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 17 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index 25c61d1a806c..cd90597221ea 100644
+index 22a377d2cb77..47e5ad21d66d 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -193,6 +193,21 @@ static void set_gpio_default_state(void)
+@@ -204,6 +204,21 @@ static void set_gpio_default_state(void)
  	       AST_GPIO_BASE | GPIO_020);
  }
  
@@ -33,12 +33,12 @@ index 25c61d1a806c..cd90597221ea 100644
 +	       AST_GPIO_BASE | GPIO_000);
 +}
 +
- void espi_init(void);
- int arch_interrupt_init_early(void);
- 
-@@ -228,6 +243,8 @@ int board_early_init_r(void)
- 
- 	espi_init();
+ static void timer_handler(void *regs)
+ {
+ 	printf("+");
+@@ -234,6 +249,8 @@ int board_early_init_r(void)
+ 	debug("board_early_init_r\n");
+ 	/* timer_enable(0, 1, timer_handler); */
  
 +	enable_onboard_tpm();
 +
