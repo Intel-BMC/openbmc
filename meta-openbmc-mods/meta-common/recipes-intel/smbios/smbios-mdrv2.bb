@@ -26,3 +26,5 @@ DEPENDS += " \
     phosphor-dbus-interfaces-native \
     phosphor-logging \
     "
+
+EXTRA_OECMAKE += "-DDIMM_DBUS=OFF"

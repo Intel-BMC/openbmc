@@ -1,4 +1,4 @@
-From b8a8e561d7dba48f3f0a0eb34662b2450dcad35d Mon Sep 17 00:00:00 2001
+From ab2ff3d715b00a13b0a670fb010793dc626352e0 Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Mon, 2 Jul 2018 19:23:25 -0700
 Subject: [PATCH] Added suport for multiple user manager services
@@ -11,11 +11,11 @@ Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.co
 ---
  Makefile.am      |   5 +-
  mainapp.cpp      |  89 ++++++-
- user_mgr.cpp     | 295 ++-------------------
+ user_mgr.cpp     | 297 ++-------------------
  user_mgr.hpp     |   9 +-
  user_service.cpp | 786 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
  user_service.hpp | 233 +++++++++++++++++
- 6 files changed, 1144 insertions(+), 273 deletions(-)
+ 6 files changed, 1145 insertions(+), 274 deletions(-)
  create mode 100644 user_service.cpp
  create mode 100644 user_service.hpp
 
@@ -150,10 +150,10 @@ index c9da030..03c406a 100644
      // Claim the bus now
      bus.request_name(USER_MANAGER_BUSNAME);
 diff --git a/user_mgr.cpp b/user_mgr.cpp
-index 2f22323..db6e7d5 100644
+index 9694fd1..c48196a 100644
 --- a/user_mgr.cpp
 +++ b/user_mgr.cpp
-@@ -14,26 +14,20 @@
+@@ -14,27 +14,20 @@
  // limitations under the License.
  */
  
@@ -161,8 +161,8 @@ index 2f22323..db6e7d5 100644
 -#include <unistd.h>
 -#include <sys/types.h>
 -#include <sys/wait.h>
+ #include <time.h>
 +#include <cstdio>
-+
  #include <fstream>
  #include <grp.h>
  #include <pwd.h>
@@ -183,7 +183,7 @@ index 2f22323..db6e7d5 100644
  #include "user_mgr.hpp"
  #include "users.hpp"
  #include "config.h"
-@@ -43,12 +37,10 @@ namespace phosphor
+@@ -44,12 +37,10 @@ namespace phosphor
  namespace user
  {
  
@@ -196,7 +196,7 @@ index 2f22323..db6e7d5 100644
  static constexpr uint8_t minPasswdLength = 8;
  static constexpr int success = 0;
  static constexpr int failure = -1;
-@@ -94,79 +86,6 @@ using NoResource =
+@@ -95,79 +86,6 @@ using NoResource =
  
  using Argument = xyz::openbmc_project::Common::InvalidArgument;
  
@@ -276,7 +276,7 @@ index 2f22323..db6e7d5 100644
  bool UserMgr::isUserExist(const std::string &userName)
  {
      if (userName.empty())
-@@ -293,39 +212,14 @@ void UserMgr::createUser(std::string userName,
+@@ -294,39 +212,14 @@ void UserMgr::createUser(std::string userName,
  {
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
@@ -319,7 +319,7 @@ index 2f22323..db6e7d5 100644
      std::string userObj = std::string(usersObjPath) + "/" + userName;
      std::sort(groupNames.begin(), groupNames.end());
      usersList.emplace(
-@@ -339,19 +233,11 @@ void UserMgr::createUser(std::string userName,
+@@ -340,19 +233,11 @@ void UserMgr::createUser(std::string userName,
  
  void UserMgr::deleteUser(std::string userName)
  {
@@ -343,7 +343,7 @@ index 2f22323..db6e7d5 100644
  
      usersList.erase(userName);
  
-@@ -362,24 +248,13 @@ void UserMgr::deleteUser(std::string userName)
+@@ -363,24 +248,13 @@ void UserMgr::deleteUser(std::string userName)
  
  void UserMgr::renameUser(std::string userName, std::string newUserName)
  {
@@ -371,7 +371,7 @@ index 2f22323..db6e7d5 100644
      const auto &user = usersList[userName];
      std::string priv = user.get()->userPrivilege();
      std::vector<std::string> groupNames = user.get()->userGroups();
-@@ -403,8 +278,6 @@ void UserMgr::updateGroupsAndPriv(const std::string &userName,
+@@ -404,8 +278,6 @@ void UserMgr::updateGroupsAndPriv(const std::string &userName,
  {
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
@@ -380,7 +380,7 @@ index 2f22323..db6e7d5 100644
      throwForUserDoesNotExist(userName);
      const std::vector<std::string> &oldGroupNames =
          usersList[userName].get()->userGroups();
-@@ -420,29 +293,8 @@ void UserMgr::updateGroupsAndPriv(const std::string &userName,
+@@ -421,29 +293,8 @@ void UserMgr::updateGroupsAndPriv(const std::string &userName,
          throwForMaxGrpUserCount(groupNames);
      }
  
@@ -412,7 +412,7 @@ index 2f22323..db6e7d5 100644
  
      log<level::INFO>("User groups / privilege updated successfully",
                       entry("USER_NAME=%s", userName.c_str()));
-@@ -638,19 +490,9 @@ int UserMgr::setPamModuleArgValue(const std::string &moduleName,
+@@ -639,19 +490,9 @@ int UserMgr::setPamModuleArgValue(const std::string &moduleName,
  
  void UserMgr::userEnable(const std::string &userName, bool enabled)
  {
@@ -434,7 +434,7 @@ index 2f22323..db6e7d5 100644
  
      log<level::INFO>("User enabled/disabled state updated successfully",
                       entry("USER_NAME=%s", userName.c_str()),
-@@ -728,54 +570,8 @@ bool UserMgr::userLockedForFailedAttempt(const std::string &userName,
+@@ -773,54 +614,8 @@ bool UserMgr::userPasswordExpired(const std::string &userName)
  
  UserSSHLists UserMgr::getUserAndSshGrpList()
  {
@@ -491,7 +491,7 @@ index 2f22323..db6e7d5 100644
  }
  
  size_t UserMgr::getIpmiUsersCount()
-@@ -786,49 +582,14 @@ size_t UserMgr::getIpmiUsersCount()
+@@ -831,49 +626,14 @@ size_t UserMgr::getIpmiUsersCount()
  
  bool UserMgr::isUserEnabled(const std::string &userName)
  {
@@ -545,7 +545,7 @@ index 2f22323..db6e7d5 100644
  }
  
  DbusUserObj UserMgr::getPrivilegeMapperObject(void)
-@@ -1057,11 +818,9 @@ void UserMgr::initUserObjects(void)
+@@ -1104,11 +864,9 @@ void UserMgr::initUserObjects(void)
  {
      // All user management lock has to be based on /etc/shadow
      phosphor::user::shadow::Lock lock();
@@ -559,17 +559,20 @@ index 2f22323..db6e7d5 100644
  
      if (!userNameList.empty())
      {
-@@ -1116,7 +875,8 @@ void UserMgr::initUserObjects(void)
+@@ -1163,8 +921,10 @@ void UserMgr::initUserObjects(void)
      }
  }
  
 -UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
+-    Ifaces(bus, path, true), bus(bus), path(path)
 +UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path,
 +                 UserService::ServiceType srvc) :
-     Ifaces(bus, path, true), bus(bus), path(path)
++    Ifaces(bus, path, true),
++    bus(bus), path(path)
  {
      UserMgrIface::allPrivileges(privMgr);
-@@ -1225,6 +985,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
+     std::sort(groupsMgr.begin(), groupsMgr.end());
+@@ -1272,6 +1032,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
          }
          AccountPolicyIface::accountUnlockTimeout(value32);
      }
@@ -578,7 +581,7 @@ index 2f22323..db6e7d5 100644
  
      // emit the signal
 diff --git a/user_mgr.hpp b/user_mgr.hpp
-index b25e9f2..c24733b 100644
+index e25ca87..262aaf9 100644
 --- a/user_mgr.hpp
 +++ b/user_mgr.hpp
 @@ -21,6 +21,7 @@
@@ -610,7 +613,7 @@ index b25e9f2..c24733b 100644
  
      /** @brief create user method.
       *  This method creates a new user as requested
-@@ -186,6 +187,8 @@ class UserMgr : public Ifaces
+@@ -193,6 +194,8 @@ class UserMgr : public Ifaces
      /** @brief object path */
      const std::string path;
  
@@ -618,7 +621,7 @@ index b25e9f2..c24733b 100644
 +    std::unique_ptr<UserService> userSrvc;
      /** @brief privilege manager container */
      std::vector<std::string> privMgr = {"priv-admin", "priv-operator",
-                                         "priv-user", "priv-callback"};
+                                         "priv-user", "priv-noaccess"};
 diff --git a/user_service.cpp b/user_service.cpp
 new file mode 100644
 index 0000000..c3c45bd

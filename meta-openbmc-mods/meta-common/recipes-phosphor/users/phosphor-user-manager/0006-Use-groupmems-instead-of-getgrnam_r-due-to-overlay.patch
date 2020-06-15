@@ -1,4 +1,4 @@
-From c0bf911cbc33659adddebde767029ffc23251c61 Mon Sep 17 00:00:00 2001
+From a78bad158bca59dadb93c9c52d6daefa1c52b9cf Mon Sep 17 00:00:00 2001
 From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Date: Mon, 24 Feb 2020 13:37:12 +0530
 Subject: [PATCH] Use groupmems instead of getgrnam_r due to overlay
@@ -72,5 +72,5 @@ index c3c45bd..0a6b171 100644
          return usersInGroup;
      }
 -- 
-2.17.1
+2.7.4
 

@@ -24,7 +24,7 @@ add_watchdog_confs() {
         mkdir -p "${folder}"
         fname="${folder}/watchdog.conf"
         echo "[Unit]" > ${fname}
-        echo "OnFailure=watchdog-reset.service" >> ${fname}
+        echo "OnFailure=watchdog-reset@${service}.service" >> ${fname}
         echo "[Service]" >> "${fname}"
         echo "StartLimitInterval=${interval}min" >> "${fname}"
         echo "StartLimitBurst=${count}" >> "${fname}"

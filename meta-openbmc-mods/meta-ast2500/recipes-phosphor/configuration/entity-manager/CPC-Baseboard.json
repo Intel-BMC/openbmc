@@ -1877,6 +1877,13 @@
             "CpuID": 8,
             "Name": "CPU 8",
             "Type": "XeonCPU"
+        },
+        {
+            "Name": "ASD",
+            "BMC_XDP_PRST_IN": {
+                "PinType": "PIN_NONE"
+            },
+            "Type": "ASD"
         }
     ],
     "Name": "CPC Baseboard",

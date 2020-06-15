@@ -13,7 +13,7 @@ LICENSE = "Proprietary"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=43c09494f6b77f344027eea0a1c22830"
 
 SRC_URI = "git://github.com/Intel-BMC/crashdump;protocol=git"
-SRCREV = "0.5"
+SRCREV = "wht-0.65"
 
 S = "${WORKDIR}/git"
 

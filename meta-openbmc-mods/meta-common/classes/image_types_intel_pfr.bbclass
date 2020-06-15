@@ -72,8 +72,12 @@ do_image_pfr () {
     mv ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_signed_cap-${DATETIME}.bin
     mv ${PFR_IMAGES_DIR}/image-mtd-pfr ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}.bin
-    ln -sf ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}.bin ${PFR_IMAGES_DIR}/image-mtd-pfr.bin
-    ln -sf ${PFR_IMAGES_DIR}/bmc_signed_cap-${DATETIME}.bin ${PFR_IMAGES_DIR}/bmc_signed_cap.bin
+
+    # Use relative links. The build process removes some of the build
+    # artifacts and that makes fully qualified pathes break. Relative links
+    # work because of the 'cd "${PFR_IMAGES_DIR}"' at the start of this section.
+    ln -sf image-mtd-pfr-${DATETIME}.bin ${PFR_IMAGES_DIR}/image-mtd-pfr.bin
+    ln -sf bmc_signed_cap-${DATETIME}.bin ${PFR_IMAGES_DIR}/bmc_signed_cap.bin
 }
 
 do_image_pfr[vardepsexclude] += "DATE DATETIME"

@@ -2,12 +2,12 @@ SUMMARY = "MCTP Daemon"
 DESCRIPTION = "Implementation of MCTP (DTMF DSP0236)"
 
 LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=bcd9ada3a943f58551867d72893cc9ab"
 
 SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
 SRCREV = "5cecf9c8b1ab2ff819221f002b67010a6260c9a3"
 
-S = "${WORKDIR}/git/mctpd/"
+S = "${WORKDIR}/git/mctp_emulator/"
 
 PV = "1.0+git${SRCPV}"
 
@@ -25,10 +25,6 @@ DEPENDS += " \
     cli11 \
     nlohmann-json \
     gtest \
-    phosphor-dbus-interfaces \
     "
-SMBUS_BINDING = "smbus"
 
-FILES_${PN} += "${systemd_system_unitdir}/xyz.openbmc_project.mctpd@.service"
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.mctpd@${SMBUS_BINDING}.service"
-FILES_${PN} += "/usr/share/mctp/mctp_config.json"
+SYSTEMD_SERVICE_${PN} = "xyz.openbmc_project.mctp-emulator.service"
