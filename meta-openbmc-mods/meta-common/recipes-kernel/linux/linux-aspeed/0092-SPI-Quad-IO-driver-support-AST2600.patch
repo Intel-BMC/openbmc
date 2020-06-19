@@ -1,4 +1,4 @@
-From 9f1eea1fb639a0554195e29c488cefb36a04910e Mon Sep 17 00:00:00 2001
+From f231c8d6babe5ac1b74ab4eb09901b864020a83f Mon Sep 17 00:00:00 2001
 From: arun-pm <arun.p.m@linux.intel.com>
 Date: Tue, 3 Dec 2019 17:22:28 +0530
 Subject: [PATCH] SPI Quad IO driver support AST2600
@@ -15,7 +15,7 @@ Signed-off-by: arun-pm <arun.p.m@linux.intel.com>
  2 files changed, 48 insertions(+), 8 deletions(-)
 
 diff --git a/drivers/mtd/spi-nor/aspeed-smc.c b/drivers/mtd/spi-nor/aspeed-smc.c
-index 0805dcab8cb1..305c1940e822 100644
+index 0805dcab8cb1..6e2f3802d162 100644
 --- a/drivers/mtd/spi-nor/aspeed-smc.c
 +++ b/drivers/mtd/spi-nor/aspeed-smc.c
 @@ -21,6 +21,11 @@
@@ -62,8 +62,8 @@ index 0805dcab8cb1..305c1940e822 100644
 +	/*Limit max spi frequency less than 50MHz on AST2600-A0 due
 +	 * to FWSPICLK  signal quality issue.
 +	 */
-+	if(rev_id == AST2600A0 && chip->clk_rate >= AST2600A0_MAX_FREQ)
-+		chip->clk_rate = AST2600A0_SAFE_FREQ;
++	if(rev_id == AST2600A0 && chip->clk_rate > AST2600A0_MAX_FREQ)
++		chip->clk_rate = AST2600A0_MAX_FREQ;
 +}
 +
 +static u32 get_hwcaps(unsigned int tx_width){

@@ -1,4 +1,4 @@
-From 297e22a00a71d386c93b1e0d587a01c0386b31f3 Mon Sep 17 00:00:00 2001
+From 498b7829800ec27c7787b3ae77ee59e7b10ec40e Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2600 platforms
@@ -12,17 +12,18 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: arun-pm <arun.p.m@linux.intel.com>
 Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
 Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
 ---
- .../arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 519 ++++++++++++++++++
- 1 file changed, 519 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 528 +++++++++++++++++++++++++
+ 1 file changed, 528 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 new file mode 100644
-index 000000000000..a95b5ac828b3
+index 000000000000..c68314d3901b
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
-@@ -0,0 +1,519 @@
+@@ -0,0 +1,528 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/dts-v1/;
 +
@@ -111,12 +112,9 @@ index 000000000000..a95b5ac828b3
 +
 +&fmc {
 +	status = "okay";
-+	flash: m25p80@0 {
-+		compatible = "m25p80", "jedec,spi-nor";
-+		reg = <0x0>;
-+		#address-cells = <1>;
-+		#size-cells = <1>;
-+		spi-max-frequency = <40000000>;
++	flash@0 {
++		status = "okay";
++		spi-max-frequency = <50000000>;
 +		spi-tx-bus-width = <4>;
 +		m25p,fast-read;
 +#include "openbmc-flash-layout-intel-64MB.dtsi"
@@ -124,6 +122,10 @@ index 000000000000..a95b5ac828b3
 +};
 +
 +&espi {
++	status = "okay";
++};
++
++&mctp {
 +	status = "okay";
 +};
 +
@@ -449,29 +451,37 @@ index 000000000000..a95b5ac828b3
 +	status = "okay";
 +};
 +
++&i3cglobal {
++	status = "okay";
++};
++
 +&i3c0 {
-+	/* I3C_SPD_DDRABCD_CPU0_BMC ; FIXME: i3c driver hangs kernel on probe...*/
-+	status = "disabled";
++	/* I3C_SPD_DDRABCD_CPU0_BMC */
++	status = "okay";
 +};
 +
 +&i3c1 {
 +	/* I3C_SPD_DDREFGH_CPU0_BMC */
-+	status = "disabled";
++	status = "okay";
 +};
 +
 +&i3c2 {
 +	/* I3C_SPD_DDRABCD_CPU1_BMC */
-+	status = "disabled";
++	status = "okay";
 +};
 +
 +&i3c3 {
 +	/* I3C_SPD_DDREFGH_CPU1_BMC */
-+	status = "disabled";
++	status = "okay";
 +};
 +
 +&gfx {
 +	status = "okay";
 +	memory-region = <&gfx_memory>;
++};
++
++&pcieh {
++	status = "okay";
 +};
 +
 +&pwm_tacho {
@@ -543,5 +553,5 @@ index 000000000000..a95b5ac828b3
 +	status = "okay";
 +};
 -- 
-2.17.1
+2.7.4
 

@@ -1,0 +1,79 @@
+From 7f4dc6aee65d9badf841099806ae6b85a86320ce Mon Sep 17 00:00:00 2001
+From: Iwona Winiarska <iwona.winiarska@intel.com>
+Date: Thu, 27 Feb 2020 00:53:38 +0100
+Subject: [PATCH 107/108] arm: dts: aspeed-g6: Add ast2600-mctp node
+
+AST2600 provides MCTP over PCIe controller allowing BMC to communicate
+with devices on host PCIe bus.
+
+We are also adding syscon node describing PCIe Host controller device
+which can be used to gather information on PCIe enumeration (and
+assigned address).
+
+Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
+---
+ .../bindings/soc/aspeed/aspeed-mctp.txt       | 25 +++++++++++++++++++
+ arch/arm/boot/dts/aspeed-g6.dtsi              | 15 +++++++++++
+ 2 files changed, 40 insertions(+)
+ create mode 100644 Documentation/devicetree/bindings/soc/aspeed/aspeed-mctp.txt
+
+diff --git a/Documentation/devicetree/bindings/soc/aspeed/aspeed-mctp.txt b/Documentation/devicetree/bindings/soc/aspeed/aspeed-mctp.txt
+new file mode 100644
+index 000000000000..5dc30fdfc53a
+--- /dev/null
++++ b/Documentation/devicetree/bindings/soc/aspeed/aspeed-mctp.txt
+@@ -0,0 +1,25 @@
++* Aspeed AST2600 MCTP PCIe VDM Controller
++
++Required properties:
++- compatible		: must be "aspeed,ast2600-mctp"
++- reg			: contains the address and size of the memory region
++			  associated with the MCTP controller
++- resets		: reset specifier for the syscon reset associated with
++			  the MCTP controller
++- interrupts-extended	: two interrupt cells; the first specifies the global
++			  interrupt for MCTP controller and the second
++			  specifies the PCIe reset or PERST interrupt
++- aspeed,pcieh		: a phandle to the PCIe Host Controller node to be
++			  used in conjunction with the PCIe reset or PERST
++			  interrupt
++Example:
++
++mctp: mctp@1e6e8000 {
++	compatible = "aspeed,ast2600-mctp";
++	reg = <0x1e6e8000 0x1000>;
++	interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
++		      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
++	resets = <&syscon ASPEED_RESET_DEV_MCTP>;
++	aspeed,pcieh = <&pcieh>;
++	status = "disabled";
++};
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 33e1b0ef24f0..90a060db20c7 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -407,6 +407,21 @@
+ 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+ 			};
+ 
++			pcieh: pcieh@1e6ed000 {
++				compatible = "aspeed,ast2600-pcieh", "syscon";
++				reg = <0x1e6ed000 0x100>;
++			};
++
++			mctp: mctp@1e6e8000 {
++				compatible = "aspeed,ast2600-mctp";
++				reg = <0x1e6e8000 0x1000>;
++				interrupts-extended = <&gic GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
++						      <&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>;
++				resets = <&syscon ASPEED_RESET_DEV_MCTP>;
++				aspeed,pcieh = <&pcieh>;
++				status = "disabled";
++			};
++
+ 			adc0: adc@1e6e9000 {
+ 				compatible = "aspeed,ast2600-adc";
+ 				reg = <0x1e6e9000 0x100>;
+-- 
+2.21.1
+

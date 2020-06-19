@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SOFS_MNT=/var/sofs
+SOFS_MACDIR=${SOFS_MNT}/factory-settings/network/mac
+
 read_hw_mac() {
 	local iface="$1"
-	cat /sys/class/net/"$iface"/address
+	cat /sys/class/net/"$iface"/address 2>/dev/null
 }
 
 set_hw_mac() {
@@ -28,10 +31,9 @@ set_hw_mac() {
 	[[ $up -eq 0 ]] && ip link set dev "$iface" up
 }
 
-SOFS_MNT=/var/sofs
 read_sofs_mac() {
 	local iface="$1"
-	cat "${SOFS_MNT}/factory-settings/network/mac/${iface}" 2>/dev/null
+	cat "${SOFS_MACDIR}/${iface}" 2>/dev/null
 }
 
 read_fw_env_mac() {
@@ -45,35 +47,63 @@ set_fw_env_mac() {
 	fw_setenv "$envname" "$mac"
 }
 
+create_macdir() {
+if [ -a ${SOFS_MACDIR} ]; then
+	if [ ! -d ${SOFS_MACDIR} ]; then
+		rm -rf ${SOFS_MACDIR}
+		mkdir -p ${SOFS_MACDIR}
+	fi
+else
+	mkdir -p ${SOFS_MACDIR}
+fi
+return 0
+}
+
 mac_check() {
 	local iface="$1"
 	local envname="$2"
 
-	# read current HW MAC addr
+	# Read the MAC address in use by the NIC
 	local hw_mac=$(read_hw_mac "$iface")
 
-	# read saved sofs MAC addr
+	# Read the MAC address stored in the non-volatile file provisioned in
+	# manufacturing.
 	local sofs_mac=$(read_sofs_mac "$iface")
 
-	# if set and not the same as HW addr, set HW addr
 	if [ -n "$sofs_mac" ] && [ "$hw_mac" != "$sofs_mac" ]; then
+		# A factory assigned address was found, and it is newly assigned.
+		# Update the active interface and save the new value to the u-boot
+		# environment.
 		set_hw_mac "$iface" "$sofs_mac"
-		hw_mac="$sofs_mac"
+		set_fw_env_mac "$envname" "$sofs_mac"
+		return $?
+	elif [ -n "$hw_mac" ]; then
+		# Read the MAC address stored by U-Boot
+		local fw_env_mac=$(read_fw_env_mac "$envname")
+		if [ -z "$fw_env_mac" ] || [ "$fw_env_mac" != "$hw_mac" ]; then
+			set_fw_env_mac "$envname" "$hw_mac"
+			return $?
+		fi
+	else
+	    # Could not identify a MAC address
+	    return 255
 	fi
-
-	# read saved fw_env MAC addr
-	local fw_env_mac=$(read_fw_env_mac "$envname")
-
-	# save to fw_env if not the same as HW addr
-	if [ -z "$fw_env_mac" ] || [ "$fw_env_mac" != "$hw_mac" ]; then
-		set_fw_env_mac "$envname" "$hw_mac"
-	fi
+	return 0
 }
 
-mkdir -p ${SOFS_MNT}/factory-settings/network/mac
+create_macdir
+
+error=0
+first_error_seen=0
+
 while read IFACE UBDEV; do
 	mac_check "$IFACE" "$UBDEV"
+	error=$?
+	if [ $error -ne 0 ] && [ $first_error_seen -eq 0 ]; then
+		first_error_seen=$error
+	fi
 done <<-END_CONF
 	eth0 eth1addr
 	eth1 ethaddr
 END_CONF
+exit $first_error_seen

@@ -22,7 +22,7 @@ IMAGE_INSTALL_append = " \
         frb2-watchdog \
         srvcfg-manager \
         callback-manager \
-        post-code-manager \
+        phosphor-post-code-manager \
         preinit-mounts \
         mtd-utils-ubifs \
         special-mode-mgr \

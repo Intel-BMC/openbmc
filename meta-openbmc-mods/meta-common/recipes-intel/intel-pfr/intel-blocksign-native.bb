@@ -10,7 +10,7 @@ DEPENDS = "openssl-native libxml2-native "
 
 SRC_URI = "git://git@github.com/Intel-BMC/blocksign;protocol=ssh"
 
-SRCREV = "852d88a1cbf4dc5856ff88e823a38d2872a86ffe"
+SRCREV = "966d16f680c1b14c338640d35a12d5e2f9a6937a"
 
 S = "${WORKDIR}/git/"
 

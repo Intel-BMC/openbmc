@@ -1,6 +1,6 @@
 # todo(james) remove nobranch
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "8a3bb71ebcdf14dafd5967192f73bf2416e8bb6e"
+SRCREV = "7d1cc387d312e2a8e4844f9d69ab39b042acd5ce"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
