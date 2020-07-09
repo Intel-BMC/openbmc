@@ -2072,9 +2072,9 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "Left Rear Temp"
+                "Left Rear Board Temp"
             ],
-            "Name": "Left Rear Temp",
+            "Name": "Left Rear Board Temp",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
@@ -2098,9 +2098,9 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "Right Rear Board"
+                "Right Rear Board Temp"
             ],
-            "Name": "Right Rear Board",
+            "Name": "Right Rear Board Temp",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,

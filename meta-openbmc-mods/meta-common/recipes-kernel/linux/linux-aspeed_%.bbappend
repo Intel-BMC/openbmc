@@ -79,8 +79,9 @@ SRC_URI += " \
         file://0106-enable-AST2600-I3C.patch \
         file://0107-arm-dts-aspeed-g6-Add-ast2600-mctp-node.patch \
         file://0108-soc-aspeed-mctp-Add-initial-driver-for-ast2600-mctp.patch \
-        file://0109-signal-Extend-exec_id-to-64bits.patch \
         file://0110-USB-gadget-fix-illegal-array-access-in-binding-with-.patch \
+        file://0111-Unconditionally-calculate-the-PECI-AW-FCS.patch \
+        file://0112-AST2600-enable-UART-routing.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

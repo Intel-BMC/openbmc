@@ -1,0 +1,245 @@
+From 4d88fcada1d95f485ea5a1dd418b31c508652712 Mon Sep 17 00:00:00 2001
+From: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Date: Fri, 15 May 2020 21:12:44 +0530
+Subject: [PATCH] bmcweb changes for setting ApplyOptions-ClearCfg
+
+ApplyOptions are used to specify firmware update specific options
+such as ClearConfig which is used while activating the updated
+firmware. This setting is maintained in a local static variable
+when set using PATCH method. Its used in activate image as input
+parameter. This attribute is added as Oem as the default
+UpdateService interface doesn't specify any relevant or appropriate
+attribute for this.
+
+Tested: Tested setting ClearConfig to true or false using PATCH
+        method.
+        Ran Redfish-Service-Validator and no new issues found.
+
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+---
+ redfish-core/lib/update_service.hpp           | 69 ++++++++++++++++++-
+ .../JsonSchemas/OemUpdateService/index.json   | 69 +++++++++++++++++++
+ .../redfish/v1/schema/OemUpdateService_v1.xml | 40 +++++++++++
+ 3 files changed, 177 insertions(+), 1 deletion(-)
+ create mode 100644 static/redfish/v1/JsonSchemas/OemUpdateService/index.json
+ create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
+
+diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
+index a913bac..3a64e63 100644
+--- a/redfish-core/lib/update_service.hpp
++++ b/redfish-core/lib/update_service.hpp
+@@ -579,6 +579,29 @@ class UpdateService : public Node
+             "/xyz/openbmc_project/software/apply_time",
+             "org.freedesktop.DBus.Properties", "Get",
+             "xyz.openbmc_project.Software.ApplyTime", "RequestedApplyTime");
++
++        // Get the ApplyOptions value
++        crow::connections::systemBus->async_method_call(
++            [aResp](const boost::system::error_code ec,
++                    const std::variant<bool> applyOption) {
++                if (ec)
++                {
++                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
++                    messages::internalError(aResp->res);
++                    return;
++                }
++
++                const bool *b = std::get_if<bool>(&applyOption);
++
++                if (b)
++                {
++                    aResp->res.jsonValue["Oem"]["ApplyOptions"]["ClearConfig"] =
++                        *b;
++                }
++            },
++            "xyz.openbmc_project.Software.BMC.Updater",
++            "/xyz/openbmc_project/software", "org.freedesktop.DBus.Properties",
++            "Get", "xyz.openbmc_project.Software.ApplyOptions", "ClearConfig");
+     }
+ 
+     void doPatch(crow::Response &res, const crow::Request &req,
+@@ -591,15 +614,59 @@ class UpdateService : public Node
+         std::optional<nlohmann::json> pushUriOptions;
+         std::optional<std::vector<std::string>> imgTargets;
+         std::optional<bool> imgTargetBusy;
++        std::optional<nlohmann::json> oemProps;
+ 
+         if (!json_util::readJson(req, res, "HttpPushUriOptions", pushUriOptions,
+                                  "HttpPushUriTargets", imgTargets,
+-                                 "HttpPushUriTargetsBusy", imgTargetBusy))
++                                 "HttpPushUriTargetsBusy", imgTargetBusy, "Oem",
++                                 oemProps))
+         {
+             BMCWEB_LOG_DEBUG << "UpdateService doPatch: Invalid request body";
+             return;
+         }
+ 
++        if (oemProps)
++        {
++            std::optional<nlohmann::json> applyOptions;
++
++            if (!json_util::readJson(*oemProps, res, "ApplyOptions",
++                                     applyOptions))
++            {
++                return;
++            }
++
++            if (applyOptions)
++            {
++                std::optional<bool> clearConfig;
++                if (!json_util::readJson(*applyOptions, res, "ClearConfig",
++                                         clearConfig))
++                {
++                    return;
++                }
++
++                if (clearConfig)
++                {
++                    // Set the requested image apply time value
++                    crow::connections::systemBus->async_method_call(
++                        [asyncResp](const boost::system::error_code ec) {
++                            if (ec)
++                            {
++                                BMCWEB_LOG_ERROR << "D-Bus responses error: "
++                                                 << ec;
++                                messages::internalError(asyncResp->res);
++                                return;
++                            }
++                            messages::success(asyncResp->res);
++                        },
++                        "xyz.openbmc_project.Software.BMC.Updater",
++                        "/xyz/openbmc_project/software",
++                        "org.freedesktop.DBus.Properties", "Set",
++                        "xyz.openbmc_project.Software.ApplyOptions",
++                        "ClearConfig", std::variant<bool>{*clearConfig});
++                }
++            }
++        }
++
+         if (pushUriOptions)
+         {
+             std::optional<nlohmann::json> pushUriApplyTime;
+diff --git a/static/redfish/v1/JsonSchemas/OemUpdateService/index.json b/static/redfish/v1/JsonSchemas/OemUpdateService/index.json
+new file mode 100644
+index 0000000..74e39cd
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/OemUpdateService/index.json
+@@ -0,0 +1,69 @@
++{
++    "$id": "http://redfish.dmtf.org/schemas/v1/OemUpdateService.json",
++    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
++    "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
++    "definitions": {
++        "ApplyOptions": {
++            "additionalProperties": false,
++            "description": "An indication by boolean value whether to update firmware configuration along with firmware image update.",
++            "patternProperties": {
++                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
++                    "description": "This property shall specify a valid odata or Redfish property.",
++                    "type": [
++                        "array",
++                        "boolean",
++                        "integer",
++                        "number",
++                        "null",
++                        "object",
++                        "string"
++                    ]
++                }
++            },
++            "properties": {
++                "ClearConfig": {
++                    "description": "This indicates whether to update firmware configuration or not.",
++                    "longDescription": "The value of this property is used to indicate the firmware configuration update.",
++                    "readonly": false,
++                    "type": [
++                        "boolean",
++                        "null"
++                    ]
++                }
++            },
++            "type": "object"
++        },
++        "Oem": {
++            "additionalProperties": true,
++            "description": "OemUpdateService Oem properties.",
++            "patternProperties": {
++                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
++                    "description": "This property shall specify a valid odata or Redfish property.",
++                    "type": [
++                        "array",
++                        "boolean",
++                        "integer",
++                        "number",
++                        "null",
++                        "object",
++                        "string"
++                    ]
++                }
++            },
++            "properties": {
++                "ApplyOptions": {
++                    "anyOf": [
++                        {
++                            "$ref": "#/definitions/ApplyOptions"
++                        },
++                        {
++                            "type": "null"
++                        }
++                    ]
++                }
++            },
++            "type": "object"
++        }
++    },
++    "title": "#OemUpdateService"
++}
+diff --git a/static/redfish/v1/schema/OemUpdateService_v1.xml b/static/redfish/v1/schema/OemUpdateService_v1.xml
+new file mode 100644
+index 0000000..cbb7aa4
+--- /dev/null
++++ b/static/redfish/v1/schema/OemUpdateService_v1.xml
+@@ -0,0 +1,40 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
++    <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
++        <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData" />
++    </edmx:Reference>
++    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
++        <edmx:Include Namespace="Validation.v1_0_0" Alias="Validation"/>
++        <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
++    </edmx:Reference>
++    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/UpdateService_v1.xml">
++        <edmx:Include Namespace="UpdateService"/>
++        <edmx:Include Namespace="UpdateService.v1_4_0"/>
++    </edmx:Reference>
++    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
++        <edmx:Include Namespace="Resource"/>
++        <edmx:Include Namespace="Resource.v1_0_0"/>
++    </edmx:Reference>
++
++    <edmx:DataServices>
++        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemUpdateService">
++            <ComplexType Name="Oem" BaseType="Resource.OemObject">
++                <Annotation Term="OData.AdditionalProperties" Bool="true" />
++                <Annotation Term="OData.Description" String="OemUpdateService Oem properties." />
++                <Annotation Term="OData.AutoExpand"/>
++                <Property Name="ApplyOptions" Type="OemUpdateService.ApplyOptions"/>
++            </ComplexType>
++
++            <ComplexType Name="ApplyOptions" BaseType="Resource.OemObject">
++                <Annotation Term="OData.AdditionalProperties" Bool="false" />
++                <Annotation Term="OData.Description" String="An indication by boolean value whether to update firmware configuration along with firmware image update." />
++                <Property Name="ClearConfig" Type="Edm.Boolean">
++                    <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
++                    <Annotation Term="OData.Description" String="This indicates whether to update firmware configuration or not."/>
++                    <Annotation Term="OData.LongDescription" String="The value of this property is used to indicate the firmware configuration update."/>
++                </Property>
++            </ComplexType>
++
++        </Schema>
++    </edmx:DataServices>
++</edmx:Edmx>
+-- 
+2.17.1
+

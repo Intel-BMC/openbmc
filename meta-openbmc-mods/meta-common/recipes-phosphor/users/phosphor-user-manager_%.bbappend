@@ -1,6 +1,6 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-SRCREV = "3ab6cc280e71c1fffe53a4f3f14ea683f0e2e87e"
+SRCREV = "73ce773e2f94fcfdeeeb9db83a3e92429ab4a663"
 
 EXTRA_OECONF += "${@bb.utils.contains_any("IMAGE_FEATURES", [ 'debug-tweaks', 'allow-root-login' ], '', '--disable-root_user_mgmt', d)}"
 

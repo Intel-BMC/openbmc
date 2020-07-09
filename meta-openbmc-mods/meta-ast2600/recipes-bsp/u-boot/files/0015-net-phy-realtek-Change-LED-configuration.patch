@@ -1,0 +1,40 @@
+From 144b845cd597cb93e4a6143a194e5018f2176f23 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 5 Jun 2020 14:08:20 -0700
+Subject: [PATCH] net: phy: realtek: Change LED configuration
+
+This commit changes Realtek NIC port LED configuration like below:
+LED0 (Right Green): Link 10/100/1000
+LED1 (Left Orange): Link 10/100 + Blink on Tx/Rx
+LED2 (Left Green): Link 1000 + Blink on Tx/Rx
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/net/phy/realtek.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/phy/realtek.c b/drivers/net/phy/realtek.c
+index dd45e11b3ad9..167b34b2b2c9 100644
+--- a/drivers/net/phy/realtek.c
++++ b/drivers/net/phy/realtek.c
+@@ -169,10 +169,15 @@ static int rtl8211f_config(struct phy_device *phydev)
+ 	phy_write(phydev, MDIO_DEVAD_NONE,
+ 		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
+ 
+-	/* Set green LED for Link, yellow LED for Active */
++	/*
++	 * Set LED configuration
++	 * LED0 (Right Grean): Link 10/100/1000
++	 * LED1 (Left Orange): Link 10/100 + Active
++	 * LED2 (Left Green): Link 1000 + Active
++	 */
+ 	phy_write(phydev, MDIO_DEVAD_NONE,
+ 		  MIIM_RTL8211F_PAGE_SELECT, 0xd04);
+-	phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x617f);
++	phy_write(phydev, MDIO_DEVAD_NONE, 0x10, 0x626b);
+ 	phy_write(phydev, MDIO_DEVAD_NONE,
+ 		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
+ 
+-- 
+2.7.4
+

@@ -14,7 +14,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=fa818a259cbed7ce8bc2a22d35a464fc"
 inherit cmake
 inherit obmc-phosphor-dbus-service
 inherit obmc-phosphor-systemd
-inherit pkgconfig pythonnative
+inherit pkgconfig
 
 SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.selftest.service"
 

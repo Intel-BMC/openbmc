@@ -19,7 +19,7 @@ S = "${WORKDIR}/git"
 
 DEPENDS = "curl xz e2fsprogs zlib"
 
-inherit pkgconfig python3native perlnative pythonnative autotools
+inherit pkgconfig python3native perlnative autotools
 inherit autotools-brokensep
 
 # Specify any options you want to pass to the configure script using EXTRA_OECONF:

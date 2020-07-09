@@ -20,6 +20,7 @@ SRC_URI_append_intel-ast2600 = " \
     file://0012-IPMI-command-handler-implementation-in-uboot.patch \
     file://0013-Add-a-workaround-to-cover-UART-interrupt-bug-in-AST2.patch \
     file://0014-Add-a-workaround-to-cover-eSPI-OOB-free-bug-in-AST26.patch \
+    file://0015-net-phy-realtek-Change-LED-configuration.patch \
     "
 
 PFR_SRC_URI = " \

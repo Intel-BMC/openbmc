@@ -1,4 +1,4 @@
-From 498b7829800ec27c7787b3ae77ee59e7b10ec40e Mon Sep 17 00:00:00 2001
+From 20c08d8ba976f43ebb98fbbe8f27dff352d41c40 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2600 platforms
@@ -14,16 +14,16 @@ Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
 Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
 ---
- arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 528 +++++++++++++++++++++++++
- 1 file changed, 528 insertions(+)
+ arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts | 530 +++++++++++++++++++++++++
+ 1 file changed, 530 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
 new file mode 100644
-index 000000000000..c68314d3901b
+index 000000000000..b7f47623c021
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
-@@ -0,0 +1,528 @@
+@@ -0,0 +1,530 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/dts-v1/;
 +
@@ -246,23 +246,25 @@ index 000000000000..c68314d3901b
 +	/*DUMMY*/	"","","","","","","","",
 +
 +	/* SGPIO input lines */
-+  /* Some lines have been renamed from the net names:
-+  CPU1_PRESENCE -> FM_CPU0_SKTOCC_LVT3_N
-+  CPU1_THERMTRIP -> H_CPU0_THERMTRIP_LVC1_N
-+  CPU1_VRHOT -> IRQ_CPU0_VRHOT_N
-+  CPU1_FIVR_FAULT -> H_CPU0_MON_FAIL_PLD_LVC1_N
-+  CPU1_MEM_ABCD_VRHOT -> ??
-+  CPU1_MEM_EFGH_VRHOT -> ??
-+  CPU2_PRESENCE -> FM_CPU1_SKTOCC_LVT3_N
-+  CPU2_THERMTRIP -> H_CPU1_THERMTRIP_LVC1_N
-+  CPU2_VRHOT -> IRQ_CPU1_VRHOT_N
-+  CPU2_FIVR_FAULT -> H_CPU1_MON_FAIL_PLD_LVC1_N
-+  CPU2_MEM_ABCD_VRHOT -> ??
-+  CPU2_MEM_EFGH_VRHOT -> ??
-+
-+	/*IA0-IA7*/	"CPU1_PRESENCE","CPU1_THERMTRIP","CPU1_VRHOT","CPU1_FIVR_FAULT","IRQ_CPU0_MEM_VRHOT_N","H_CPU0_MEMHOT_OUT_LVC1_N","FM_CPU0_PROC_ID0","FM_CPU0_PROC_ID1",
-+	/*IB0-IB7*/	"WCPU_MISMATCH","IRQ_PSYS_CRIT_N","CPU2_PRESENCE","CPU2_THERMTRIP","CPU2_VRHOT","CPU2_FIVR_FAULT","IRQ_CPU1_MEM_VRHOT_N","H_CPU1_MEMHOT_OUT_LVC1_N",
-+	/*IC0-IC7*/	"FM_CPU1_PROC_ID0","FM_CPU1_PROC_ID1","","","","","","",
++/* SGPIO Alias: (runtime alias -> net name)
++	CPU1_PRESENCE -> FM_CPU0_SKTOCC_LVT3_N
++	CPU1_THERMTRIP -> H_CPU0_THERMTRIP_LVC1_N
++	CPU1_VRHOT -> IRQ_CPU0_VRHOT_N
++	CPU1_FIVR_FAULT -> EV_MON_FAIL_CPU0_N
++	CPU1_MEM_VRHOT -> IRQ_CPU0_MEM_VRHOT_N
++	CPU1_MEM_THERM_EVENT -> H_CPU0_MEMHOT_OUT_LVC1_N
++	CPU1_MISMATCH -> FM_CPU0_MISMATCH
++	CPU2_PRESENCE -> FM_CPU1_SKTOCC_LVT3_N
++	CPU2_THERMTRIP -> H_CPU1_THERMTRIP_LVC1_N
++	CPU2_VRHOT -> IRQ_CPU1_VRHOT_N
++	CPU2_FIVR_FAULT -> EV_MON_FAIL_CPU1_N
++	CPU2_MEM_VRHOT -> IRQ_CPU1_MEM_VRHOT_N
++	CPU2_MEM_THERM_EVENT -> H_CPU1_MEMHOT_OUT_LVC1_N
++	CPU2_MISMATCH -> FM_CPU1_MISMATCH
++*/
++	/*IA0-IA7*/	"CPU1_PRESENCE","CPU1_THERMTRIP","CPU1_VRHOT","CPU1_FIVR_FAULT","CPU1_MEM_VRHOT","CPU1_MEM_THERM_EVENT","FM_CPU0_PROC_ID0","FM_CPU0_PROC_ID1",
++	/*IB0-IB7*/	"CPU1_MISMATCH","IRQ_PSYS_CRIT_N","CPU2_PRESENCE","CPU2_THERMTRIP","CPU2_VRHOT","CPU2_FIVR_FAULT","CPU1_MEM_VRHOT","CPU2_MEM_THERM_EVENT",
++	/*IC0-IC7*/	"FM_CPU1_PROC_ID0","FM_CPU1_PROC_ID1","CPU2_MISMATCH","","","","","",
 +	/*ID0-ID7*/	"","","","","","","","",
 +	/*IE0-IE7*/	"","","","","","","","",
 +	/*IF0-IF7*/	"FPGA_REV_TEST_0","FPGA_REV_TEST_1","FPGA_REV_TEST_2","FPGA_REV_TEST_3","FPGA_REV_TEST_4","FPGA_REV_TEST_5","FPGA_REV_TEST_6","FPGA_REV_TEST_7",
@@ -485,7 +487,7 @@ index 000000000000..c68314d3901b
 +};
 +
 +&pwm_tacho {
-+	status = "disabled";
++	status = "okay";
 +	pinctrl-names = "default";
 +	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default
 +			&pinctrl_pwm1_default &pinctrl_tach1_default
@@ -504,7 +506,7 @@ index 000000000000..c68314d3901b
 +	};
 +	fan@1 {
 +		reg = <0x01>;
-+		 aspeed,fan-tach-ch = /bits/ 8 <0x01>;
++		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
 +	};
 +	fan@2 {
 +		reg = <0x02>;
@@ -523,19 +525,19 @@ index 000000000000..c68314d3901b
 +		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
 +	};
 +	fan@6 {
-+		reg = <0x06>;
++		reg = <0x0c>;
 +		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
 +	};
 +	fan@7 {
-+		reg = <0x07>;
++		reg = <0x0d>;
 +		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
 +	};
 +	fan@8 {
-+		reg = <0x08>;
++		reg = <0x0e>;
 +		aspeed,fan-tach-ch = /bits/ 8 <0x08>;
 +	};
 +	fan@9 {
-+		reg = <0x09>;
++		reg = <0x0f>;
 +		aspeed,fan-tach-ch = /bits/ 8 <0x09>;
 +	};
 +};

@@ -1,0 +1,47 @@
+From 153b125043c28f933579330727d82658979caef3 Mon Sep 17 00:00:00 2001
+From: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Date: Mon, 18 May 2020 20:16:04 +0530
+Subject: [PATCH] Apply Options interface for Software
+
+Apply Options interface is used to pass the settings related to
+firmware image activation such as ClearConfig.
+ClearConfig property is used to denote whether to clear firmware
+configurations along with firmware image activation or not.
+
+Example case:
+BIOS usually requires its NVRAM configuration to be updated or
+erased for certain BIOS firmware updates. Current implementation
+doesn't support to take this option and provide interface to do
+the necessary actions.
+
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+---
+ .../Software/ApplyOptions.interface.yaml         | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+ create mode 100644 xyz/openbmc_project/Software/ApplyOptions.interface.yaml
+
+diff --git a/xyz/openbmc_project/Software/ApplyOptions.interface.yaml b/xyz/openbmc_project/Software/ApplyOptions.interface.yaml
+new file mode 100644
+index 0000000..45a68ab
+--- /dev/null
++++ b/xyz/openbmc_project/Software/ApplyOptions.interface.yaml
+@@ -0,0 +1,16 @@
++description: >
++    To implement the Activation apply options for a newly uploaded firmware
++    image. The apply options property is global and is specifically used with
++    each firmware update and is used during firmware activation.
++    ApplyOptions usage during firmware activation is implementation specific,
++    not all firmware targets need ApplyOptions.
++    The default value of this property is false.
++properties:
++    - name: ClearConfig
++      type: boolean
++      default: false
++      description: >
++        This property indicates whether to clear the software configurations
++        when the firmware image update is getting applied. A value of true
++        indicates the firmware configurations should be cleared along with
++        firmware image activation.
+-- 
+2.17.1
+

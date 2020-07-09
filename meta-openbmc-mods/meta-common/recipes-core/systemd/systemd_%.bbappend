@@ -12,5 +12,8 @@ SRC_URI += "file://0001-Modfiy-system.conf-DefaultTimeoutStopSec.patch \
 USERADD_PACKAGES_remove = "${PN}-journal-gateway ${PN}-journal-upload ${PN}-journal-remote"
 
 do_install_append(){
+    rm -rf ${D}/lib/udev/rules.d/80-drivers.rules
     cp -f ${WORKDIR}/systemd-time-wait-sync.service ${D}/lib/systemd/system/
 }
+
+PACKAGECONFIG_remove = " kmod"

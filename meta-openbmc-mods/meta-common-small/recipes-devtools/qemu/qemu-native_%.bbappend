@@ -6,3 +6,4 @@ QEMU_TARGETS = "arm"
 
 S = "${WORKDIR}/git"
 SRCREV = "8ab0db0624b454bd69a04ca0010f165cb7119100"
+PACKAGECONFIG[libudev] = ""

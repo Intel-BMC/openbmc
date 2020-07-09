@@ -20,7 +20,7 @@ IMAGE_INSTALL_append = " \
         obmc-ikvm \
         system-watchdog \
         frb2-watchdog \
-        srvcfg-manager \
+        service-config-manager \
         callback-manager \
         phosphor-post-code-manager \
         preinit-mounts \
@@ -47,7 +47,7 @@ IMAGE_INSTALL_append = " \
         host-misc-comm-manager \
         "
 
-IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'intel-pfr-manager', '', d)}"
+IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
 
 # this package was flagged as a security risk
 IMAGE_INSTALL_remove += " lrzsz"

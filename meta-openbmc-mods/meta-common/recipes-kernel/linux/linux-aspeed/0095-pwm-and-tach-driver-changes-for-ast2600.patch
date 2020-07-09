@@ -1,4 +1,4 @@
-From 0301f9b2bc948069aaad2899e15e6c94a07ca818 Mon Sep 17 00:00:00 2001
+From ffa6dd9617c65d6387bea50827a2843925aedde9 Mon Sep 17 00:00:00 2001
 From: Ayushi Smriti <smriti.ayushi@intel.com>
 Date: Mon, 2 Mar 2020 22:51:46 +0530
 Subject: [PATCH] pwm and tach driver changes for ast2600
@@ -9,23 +9,24 @@ ast2600
 
 Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
 ---
- drivers/hwmon/aspeed-g6-pwm-tacho.c | 328 +++++++++++++++-------------
+ drivers/hwmon/aspeed-g6-pwm-tacho.c | 328 +++++++++++++++++++-----------------
  1 file changed, 171 insertions(+), 157 deletions(-)
 
 diff --git a/drivers/hwmon/aspeed-g6-pwm-tacho.c b/drivers/hwmon/aspeed-g6-pwm-tacho.c
-index 1894f6ad5edb..1ff788bf1133 100644
+index 1894f6ad5edb..9551a17e7f55 100644
 --- a/drivers/hwmon/aspeed-g6-pwm-tacho.c
 +++ b/drivers/hwmon/aspeed-g6-pwm-tacho.c
-@@ -64,6 +64,8 @@
+@@ -64,6 +64,9 @@
  #define  PWM_RISING_FALLING_BIT			(8)	//pwm falling point bit [7:0]
  #define  PWM_RISING_RISING_BIT			(0)	//pwm rising point bit [7:0]
  
-+#define  DEF_PWM_PERIOD	0xff
++#define  PWM_PERIOD_MAX			255
++#define  PWM_FALLING_DEFAULT		150 /* 58% */
 +
  #define ASPEED_TACHO_CTRL		0x08	//TACH0 General Register
  #define ASPEED_TACHO_CTRL_CH(x)			((x * 0x10) + 0x08)
  #define  TACHO_IER						BIT(31)	//enable tacho interrupt
-@@ -72,8 +74,7 @@
+@@ -72,8 +75,7 @@
  #define  TACHO_ENABLE					BIT(28)	//{enable tacho}
  #define  TACHO_DEBOUNCE_BIT				(26) //{tacho de-bounce}
  #define  TACHO_DEBOUNCE_MASK			(0x3 << 26) //{tacho de-bounce}
@@ -35,14 +36,12 @@ index 1894f6ad5edb..1ff788bf1133 100644
  #define  TACHO_CLK_DIV_T_MASK			(0xf << 20)
  #define  TACHO_CLK_DIV_BIT				(20)
  #define  TACHO_THRESHOLD_MASK			(0xfffff)	//tacho threshold bit
-@@ -102,211 +103,183 @@
+@@ -102,211 +104,181 @@
  
  #define MAX_CDEV_NAME_LEN 16
  
 +#define DEFAULT_TARGET_PWM_FREQ	25000
 +#define DEFAULT_MIN_RPM	2900
-+
-+#define PWM_FALLING_VALUE	0xff
 +
  struct aspeed_pwm_channel_params {
 +	int target_freq;
@@ -72,7 +71,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[1] = {
 +		.target_freq = 25000,
@@ -86,7 +85,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[2] = {
 +		.target_freq = 25000,
@@ -100,7 +99,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[3] = {
 +		.target_freq = 25000,
@@ -114,7 +113,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[4] = {
 +		.target_freq = 25000,
@@ -128,7 +127,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[5] = {
 +		.target_freq = 25000,
@@ -142,7 +141,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[6] = {
 +		.target_freq = 25000,
@@ -156,7 +155,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[7] = {
 +		.target_freq = 25000,
@@ -170,7 +169,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[8] = {
 +		.target_freq = 25000,
@@ -184,7 +183,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[9] = {
 +		.target_freq = 25000,
@@ -198,7 +197,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[10] = {
 +		.target_freq = 25000,
@@ -212,7 +211,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[11] = {
 +		.target_freq = 25000,
@@ -226,7 +225,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[12] = {
 +		.target_freq = 25000,
@@ -240,7 +239,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[13] = {
 +		.target_freq = 25000,
@@ -254,7 +253,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[14] = {
 +		.target_freq = 25000,
@@ -268,7 +267,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  	[15] = {
 +		.target_freq = 25000,
@@ -282,11 +281,11 @@ index 1894f6ad5edb..1ff788bf1133 100644
 -		.period = 0x13,	//5% ~~
  		.rising = 0x00,
 -		.falling = 0x0a,
-+		.falling = PWM_FALLING_VALUE,
++		.falling = PWM_FALLING_DEFAULT,
  	},
  };
  
-@@ -318,125 +291,146 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
+@@ -318,125 +290,146 @@ static struct aspeed_pwm_channel_params default_pwm_params[] = {
   * 11: reserved.
   */
  
@@ -450,7 +449,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
  		.tacho_debounce = 0,
  		.divide = 8,
  	},
-@@ -501,29 +495,28 @@ static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
+@@ -501,29 +494,29 @@ static void aspeed_set_pwm_channel_enable(struct regmap *regmap, u8 pwm_channel,
  static void aspeed_set_fan_tach_ch_enable(struct aspeed_pwm_tachometer_data *priv, u8 fan_tach_ch,
  					  bool enable)
  {
@@ -473,6 +472,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
 +					break;
 +			}
 +		} else {
++			i = 0;
  			divide_val = 1;
 -			for (j = 1; j <= i; j++)
 -				divide_val *= 4;
@@ -505,7 +505,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
  	} else {
 -		duty_value = (priv->pwm_channel[index].period << PWM_PERIOD_BIT) |
 -					(0 << PWM_RISING_RISING_BIT) | (fan_ctrl << PWM_RISING_FALLING_BIT);
-+		cal_freq = priv->clk_freq / (DEF_PWM_PERIOD + 1);
++		cal_freq = priv->clk_freq / (PWM_PERIOD_MAX + 1);
 +		/*calculate for target frequence*/
 +		for (div_l = 0; div_l < 0x100; div_l++) {
 +			for (div_h = 0; div_h < 0x10; div_h++) {
@@ -515,13 +515,13 @@ index 1894f6ad5edb..1ff788bf1133 100644
 +			if ((cal_freq / (BIT(div_h) * (div_l + 1))) < priv->pwm_channel[index].target_freq)
 +				break;
 +		}
-+
-+		priv->pwm_channel[index].pwm_freq = cal_freq / (BIT(div_h) * (div_l + 1));
  
 -		ctrl_value = (priv->pwm_channel[index].divide_h << 8) | priv->pwm_channel[index].divide_l;
++		priv->pwm_channel[index].pwm_freq = cal_freq / (BIT(div_h) * (div_l + 1));
++
 +		ctrl_value = (div_h << 8) | div_l;
 +
-+		duty_value = (DEF_PWM_PERIOD << PWM_PERIOD_BIT) |
++		duty_value = (PWM_PERIOD_MAX << PWM_PERIOD_BIT) |
 +					(0 << PWM_RISING_RISING_BIT) | (fan_ctrl << PWM_RISING_FALLING_BIT);
  
  		if (priv->pwm_channel[index].load_wdt_enable) {
@@ -578,7 +578,7 @@ index 1894f6ad5edb..1ff788bf1133 100644
  		return ret;
  
 -	if (fan_ctrl < 0 || fan_ctrl > priv->pwm_channel[index].period)
-+	if (fan_ctrl < 0 || fan_ctrl > DEF_PWM_PERIOD)
++	if (fan_ctrl < 0 || fan_ctrl > PWM_PERIOD_MAX)
  		return -EINVAL;
  
  	if (priv->pwm_channel[index].falling == fan_ctrl)
@@ -779,5 +779,5 @@ index 1894f6ad5edb..1ff788bf1133 100644
  }
  
 -- 
-2.17.1
+2.7.4
 

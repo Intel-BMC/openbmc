@@ -1,0 +1,73 @@
+From e985c1cbb4cf6971c82afacb16737749a2d25452 Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Tue, 19 May 2020 11:39:00 -0700
+Subject: [PATCH] Unconditionally calculate the PECI AW FCS
+
+The PECI write commands that include the AW FCS byte were failing due
+to the way AW FCS bytes were being managed. The current paradigm
+permitted in the Redfish interface was to allow the AW FCS byte to be
+omitted. The peci-core logic attempted to create the AW FCS byte. The
+algorithm being used left the possibility of a bad FCS byte being
+appended to the PECI command.
+
+This change manages the issue by always overwriting the AW FCS byte
+with a value freshly calculated from the write payload. The user
+supplying the AW FCS byte no longer matters.
+
+Tested:
+Submitted this PECI sequence:
+48 10 1 165 0 26 0 0 223 134 21 0
+
+The sequence was sent from Redfish, and a return code of 0x40
+resulted.
+Prior to this the sequence would report 0x90.
+
+Supplied the same sequence to "peci_cmds raw" in the console.
+It failed because the number of bytes did not include the AW FCS
+byte. Adding any additional byte allows the command to succeed.
+
+Change-Id: I217a8f136b48282634a7c8fdde7b440720c010c6
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ drivers/peci/peci-core.c | 21 ++++++---------------
+ 1 file changed, 6 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
+index efb73b09a9c0..426ee2be3271 100644
+--- a/drivers/peci/peci-core.c
++++ b/drivers/peci/peci-core.c
+@@ -397,25 +397,16 @@ static int peci_cmd_xfer(struct peci_adapter *adapter, void *vmsg)
+ 		case PECI_WRPCICFG_CMD:
+ 		case PECI_WRPCICFGLOCAL_CMD:
+ 		case PECI_WRENDPTCFG_CMD:
+-			/* Check if the AW FCS byte is already provided */
++			/*
++			 * The sender may not have supplied the AW FCS byte.
++			 * Unconditionally add an Assured Write Frame Check
++			 * Sequence byte
++			 */
+ 			ret = peci_aw_fcs(msg, 2 + msg->tx_len, &aw_fcs);
+ 			if (ret)
+ 				break;
+ 
+-			if (msg->tx_buf[msg->tx_len - 1] != (0x80 ^ aw_fcs)) {
+-				/*
+-				 * Add an Assured Write Frame Check Sequence
+-				 * byte and increment the tx_len to include
+-				 * the new byte.
+-				 */
+-				msg->tx_len++;
+-				ret = peci_aw_fcs(msg, 2 + msg->tx_len,
+-						  &aw_fcs);
+-				if (ret)
+-					break;
+-
+-				msg->tx_buf[msg->tx_len - 1] = 0x80 ^ aw_fcs;
+-			}
++			msg->tx_buf[msg->tx_len - 1] = 0x80 ^ aw_fcs;
+ 
+ 			ret = peci_xfer_with_retries(adapter, msg, true);
+ 			break;
+-- 
+2.26.2
+

@@ -1,4 +1,4 @@
-From a90b8f7dfcfcab2d40d1a575e3948ef3a34f643f Mon Sep 17 00:00:00 2001
+From 063957ca24903e7cbebcaa11bde4cc1cc3cbb6a1 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 8 Nov 2019 15:57:27 -0800
 Subject: [PATCH] i2c: aspeed: filter garbage interrupts out
@@ -12,7 +12,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 14 insertions(+)
 
 diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
-index 62b803e15ce2..c24cecdcfe89 100644
+index 24850fb78ee1..d5a8da4a9009 100644
 --- a/drivers/i2c/busses/i2c-aspeed.c
 +++ b/drivers/i2c/busses/i2c-aspeed.c
 @@ -87,7 +87,11 @@
@@ -39,10 +39,10 @@ index 62b803e15ce2..c24cecdcfe89 100644
  
  /* 0x14 : I2CD Command/Status Register   */
  #define ASPEED_I2CD_SCL_LINE_STS			BIT(18)
-@@ -1021,6 +1030,11 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
- 	/* Ack all interrupts except for Rx done */
+@@ -1065,6 +1074,11 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
  	writel(irq_received & ~ASPEED_I2CD_INTR_RX_DONE,
  	       bus->base + ASPEED_I2C_INTR_STS_REG);
+ 	readl(bus->base + ASPEED_I2C_INTR_STS_REG);
 +	/*
 +	 * AST2600 makes a garbage interrupt which is decribed as 'reserved'
 +         * in datasheet so filter them out.

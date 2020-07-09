@@ -15,7 +15,7 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 S = "${WORKDIR}"
 
 inherit cmake
-inherit pkgconfig pythonnative
+inherit pkgconfig
 
 DEPENDS += " \
             systemd \
