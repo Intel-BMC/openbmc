@@ -1151,7 +1151,7 @@
             "OutLimitMax": 100.0,
             "OutLimitMin": 30.0,
             "Outputs": [
-                "Pwm 12"
+                "Pwm 13"
             ],
             "PCoefficient": 0.0,
             "PositiveHysteresis": 0.0,
@@ -1177,7 +1177,7 @@
             "OutLimitMax": 100.0,
             "OutLimitMin": 30.0,
             "Outputs": [
-                "Pwm 13"
+                "Pwm 14"
             ],
             "PCoefficient": 0.0,
             "PositiveHysteresis": 0.0,
@@ -1203,7 +1203,7 @@
             "OutLimitMax": 100.0,
             "OutLimitMin": 30.0,
             "Outputs": [
-                "Pwm 14"
+                "Pwm 15"
             ],
             "PCoefficient": 0.0,
             "PositiveHysteresis": 0.0,
@@ -1229,7 +1229,7 @@
             "OutLimitMax": 100.0,
             "OutLimitMin": 30.0,
             "Outputs": [
-                "Pwm 15"
+                "Pwm 16"
             ],
             "PCoefficient": 0.0,
             "PositiveHysteresis": 0.0,
@@ -2031,6 +2031,25 @@
             ],
             "Type": "XeonCPU",
             "UseWA": 1
+        },
+        {
+            "Name": "ASD",
+            "BMC_RSMRST_B": {
+                "PinType": "PIN_NONE"
+            },
+            "BMC_SYSPWROK": {
+                "PinType": "PIN_NONE"
+            },
+            "BMC_PWR_DEBUG_N": {
+                "PinName": "FM_BMC_CPU_FBRK_OUT_R_N"
+            },
+            "BMC_DEBUG_EN_N": {
+                "PinType": "PIN_NONE"
+            },
+            "BMC_XDP_PRST_IN": {
+                "PinName": "DBP_PRESENT_IN_R2_N"
+            },
+            "Type": "ASD"
         }
     ],
     "Name": "AC Baseboard",

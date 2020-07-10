@@ -2,4 +2,4 @@ EXTRA_OECMAKE += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-DINTEL_PF
 EXTRA_OECMAKE += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-DBMC_VALIDATION_UNSECURE_FEATURE=ON', '', d)}"
 EXTRA_OECMAKE += "-DUSING_ENTITY_MANAGER_DECORATORS=OFF"
 SRC_URI = "git://github.com/openbmc/intel-ipmi-oem.git"
-SRCREV = "358e7dfa41d4f297d33670c5caceda3629748cfe"
+SRCREV = "fcd2d3a943c4fb518d399d8a0addd1cc661e5628"

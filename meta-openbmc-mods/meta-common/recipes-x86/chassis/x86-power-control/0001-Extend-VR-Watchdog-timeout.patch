@@ -1,0 +1,32 @@
+From 9617412472669eef5d3ed66c05468646d8e8a951 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Thu, 11 Jun 2020 13:00:15 -0700
+Subject: [PATCH] Extend VR Watchdog timeout
+
+The VR watchdog reset is causing issues on platforms such as
+Cooper City that take longer to assert CPU Power Good.  This
+extends the timeout to 15s to hold off the reset for Cooper
+City.
+
+Change-Id: I9658b4ead6d9bf8eaa30e4aeb9f1d56c2f2187d3
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ power-control-x86/src/power_control.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index b891c8c..b6ee6f1 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -53,7 +53,7 @@ const static constexpr int powerPulseTimeMs = 200;
+ const static constexpr int forceOffPulseTimeMs = 15000;
+ const static constexpr int resetPulseTimeMs = 500;
+ const static constexpr int powerCycleTimeMs = 5000;
+-const static constexpr int sioPowerGoodWatchdogTimeMs = 1000;
++const static constexpr int sioPowerGoodWatchdogTimeMs = 12000;
+ const static constexpr int psPowerOKWatchdogTimeMs = 8000;
+ const static constexpr int gracefulPowerOffTimeMs = 60000;
+ const static constexpr int warmResetCheckTimeMs = 500;
+-- 
+2.7.4
+

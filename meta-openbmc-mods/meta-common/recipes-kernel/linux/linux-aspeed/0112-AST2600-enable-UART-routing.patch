@@ -1,0 +1,45 @@
+From 47bb1475893aab85067b286fee7f6b126ea2b633 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 10 Jun 2020 13:07:59 +0800
+Subject: [PATCH] AST2600: enable UART routing.
+
+Enable UART routing.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ arch/arm/boot/dts/aspeed-g6.dtsi | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/boot/dts/aspeed-g6.dtsi b/arch/arm/boot/dts/aspeed-g6.dtsi
+index 90a060db20c7..0361a7ee6e14 100644
+--- a/arch/arm/boot/dts/aspeed-g6.dtsi
++++ b/arch/arm/boot/dts/aspeed-g6.dtsi
+@@ -331,12 +331,6 @@
+ 					compatible = "aspeed,ast2600-pinctrl";
+ 				};
+ 
+-				uart_routing: uart_routing@9c {
+-					compatible = "aspeed,ast2500-uart-routing";
+-					reg = <0x9c 0x4>;
+-					status = "disabled";
+-				};
+-
+ 				smp-memram@180 {
+ 					compatible = "aspeed,ast2600-smpmem";
+ 					reg = <0x180 0x40>;
+@@ -688,6 +682,12 @@
+ 						clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
+ 					};
+ 				};
++
++				uart_routing: uart_routing@9c {
++					compatible = "aspeed,ast2500-uart-routing";
++					reg = <0x9c 0x4>;
++					status = "disabled";
++				};
+ 			};
+ 
+ 			sdc: sdc@1e740000 {
+-- 
+2.17.1
+

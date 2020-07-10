@@ -15,6 +15,7 @@ SRC_URI += "file://0002-Redfish-firmware-activation.patch \
 
 SRC_URI_PFR = "file://0007-PFR-images-support.patch \
                file://0008-PFR-image-HASH-verification.patch \
+               file://0009-Add-ApplyOptions-D-bus-property-under-Software.patch \
               "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', SRC_URI_PFR, '', d)}"

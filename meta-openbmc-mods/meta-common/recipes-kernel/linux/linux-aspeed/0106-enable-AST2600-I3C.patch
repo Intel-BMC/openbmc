@@ -1,4 +1,4 @@
-From ec463c332c3b954a5a0ef4ceb253701b8190bbb9 Mon Sep 17 00:00:00 2001
+From c3be31a18ef1755c86c169b9d0e54bdbbea99d8a Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 6 May 2020 18:11:29 -0700
 Subject: [PATCH] enable AST2600 I3C
@@ -20,10 +20,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  drivers/i3c/master.c                      |  39 ++-
  drivers/i3c/master/Kconfig                |   5 +
  drivers/i3c/master/Makefile               |   1 +
- drivers/i3c/master/aspeed-i3c-global.c    |  89 +++++++
+ drivers/i3c/master/aspeed-i3c-global.c    |  77 ++++++
  include/dt-bindings/clock/ast2600-clock.h |   3 +-
  include/uapi/linux/i3c/i3cdev.h           |  38 +++
- 12 files changed, 646 insertions(+), 24 deletions(-)
+ 12 files changed, 634 insertions(+), 24 deletions(-)
  create mode 100644 drivers/i3c/i3cdev.c
  create mode 100644 drivers/i3c/master/aspeed-i3c-global.c
  create mode 100644 include/uapi/linux/i3c/i3cdev.h
@@ -756,31 +756,23 @@ index 4e80a1fcbf91..693f9aba2b17 100644
 +	depends on I3C
 +	depends on MACH_ASPEED_G6
 diff --git a/drivers/i3c/master/Makefile b/drivers/i3c/master/Makefile
-index 7eea9e086144..09057d1432cc 100644
+index 7eea9e086144..b5ec8e8dd622 100644
 --- a/drivers/i3c/master/Makefile
 +++ b/drivers/i3c/master/Makefile
 @@ -1,3 +1,4 @@
  # SPDX-License-Identifier: GPL-2.0-only
++obj-$(CONFIG_ASPEED_I3C_GLOBAL)		+= aspeed-i3c-global.o
  obj-$(CONFIG_CDNS_I3C_MASTER)		+= i3c-master-cdns.o
  obj-$(CONFIG_DW_I3C_MASTER)		+= dw-i3c-master.o
-+obj-$(CONFIG_ASPEED_I3C_GLOBAL)		+= aspeed-i3c-global.o
 diff --git a/drivers/i3c/master/aspeed-i3c-global.c b/drivers/i3c/master/aspeed-i3c-global.c
 new file mode 100644
-index 000000000000..9c3e58794a3e
+index 000000000000..8db6c1397a6c
 --- /dev/null
 +++ b/drivers/i3c/master/aspeed-i3c-global.c
-@@ -0,0 +1,89 @@
-+/*
-+ *  Aspeed I2C Interrupt Controller.
-+ *
-+ *  Copyright (C) 2012-2017 ASPEED Technology Inc.
-+ *  Copyright 2017 IBM Corporation
-+ *  Copyright 2017 Google, Inc.
-+ *
-+ *  This program is free software; you can redistribute it and/or modify
-+ *  it under the terms of the GNU General Public License version 2 as
-+ *  published by the Free Software Foundation.
-+ */
+@@ -0,0 +1,77 @@
++// SPDX-License-Identifier: GPL-2.0
++// Copyright (C) 2019 ASPEED Technology Inc.
++
 +#include <linux/clk.h>
 +#include <linux/irq.h>
 +#include <linux/irqchip.h>
@@ -803,11 +795,6 @@ index 000000000000..9c3e58794a3e
 +	struct reset_control	*rst;
 +};
 +
-+static const struct of_device_id aspeed_i3c_of_match[] = {
-+	{ .compatible = "aspeed,ast2600-i3c-global", },
-+	{},
-+};
-+
 +static int aspeed_i3c_global_probe(struct platform_device *pdev)
 +{
 +	struct aspeed_i3c_global *i3c_global;
@@ -826,8 +813,8 @@ index 000000000000..9c3e58794a3e
 +	i3c_global->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 +
 +	if (IS_ERR(i3c_global->rst)) {
-+		dev_err(&pdev->dev,
-+			"missing or invalid reset controller device tree entry");
++		if (PTR_ERR(i3c_global->rst) != -EPROBE_DEFER)
++			dev_err(&pdev->dev, "missing or invalid reset controller device tree entry\n");
 +		return PTR_ERR(i3c_global->rst);
 +	}
 +
@@ -842,6 +829,12 @@ index 000000000000..9c3e58794a3e
 +	return 0;
 +}
 +
++static const struct of_device_id aspeed_i3c_of_match[] = {
++	{ .compatible = "aspeed,ast2600-i3c-global", },
++	{ },
++};
++MODULE_DEVICE_TABLE(of, aspeed_i3c_of_match);
++
 +static struct platform_driver aspeed_i3c_driver = {
 +	.probe  = aspeed_i3c_global_probe,
 +	.driver = {
@@ -849,12 +842,7 @@ index 000000000000..9c3e58794a3e
 +		.of_match_table = aspeed_i3c_of_match,
 +	},
 +};
-+
-+static int __init aspeed_i3c_global_init(void)
-+{
-+	return platform_driver_register(&aspeed_i3c_driver);
-+}
-+postcore_initcall(aspeed_i3c_global_init);
++module_platform_driver(aspeed_i3c_driver);
 +
 +MODULE_AUTHOR("Ryan Chen");
 +MODULE_DESCRIPTION("ASPEED I3C Global Driver");

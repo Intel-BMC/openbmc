@@ -1,9 +1,6 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-# latest upstream HEAD until meta-phosphor autobumps
-SRCREV = "6ba8d31525130dbb5ef5b60336993ef7b50a8f51"
-
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0010-fix-get-system-GUID-ipmi-command.patch \
             file://0053-Fix-keep-looping-issue-when-entering-OS.patch \

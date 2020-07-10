@@ -40,6 +40,7 @@ SRC_URI_append_intel-ast2500 = " \
     file://0037-aspeed-ast-scu.c-fix-MAC1LINK-and-MAC2LINK-pin-pads-.patch \
     file://0038-Increase-default-fan-speed-for-cooper-city.patch \
     file://0040-Initialize-the-BMC-host-mailbox-at-reset-time.patch \
+    file://0044-net-phy-realtek-Change-LED-configuration.patch \
     "
 PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \
