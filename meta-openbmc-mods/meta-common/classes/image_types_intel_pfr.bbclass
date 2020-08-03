@@ -38,6 +38,7 @@ do_image_pfr () {
     bbplain "Build Version = ${build_version}"
     bbplain "Build Number = ${build_number}"
     bbplain "Build Hash = ${build_hash}"
+    bbplain "Build SHA = ${SHA_NAME}"
 
     mkdir -p "${PFR_IMAGES_DIR}"
     cd "${PFR_IMAGES_DIR}"
@@ -77,7 +78,9 @@ do_image_pfr () {
     # artifacts and that makes fully qualified pathes break. Relative links
     # work because of the 'cd "${PFR_IMAGES_DIR}"' at the start of this section.
     ln -sf image-mtd-pfr-${DATETIME}.bin ${PFR_IMAGES_DIR}/image-mtd-pfr.bin
+    ln -sf image-mtd-pfr-${DATETIME}.bin ${PFR_IMAGES_DIR}/OBMC-${@ do_get_version(d)}-pfr-full.ROM
     ln -sf bmc_signed_cap-${DATETIME}.bin ${PFR_IMAGES_DIR}/bmc_signed_cap.bin
+    ln -sf bmc_signed_cap-${DATETIME}.bin ${PFR_IMAGES_DIR}/OBMC-${@ do_get_version(d)}-pfr-oob.bin
 }
 
 do_image_pfr[vardepsexclude] += "DATE DATETIME"
@@ -91,6 +94,7 @@ python() {
     product_gen = d.getVar('PRODUCT_GENERATION', True)
     if product_gen == "wht":
         d.setVar('SHA', "1")# 1- SHA256
+        d.setVar('SHA_NAME', "SHA256")
 
     types = d.getVar('IMAGE_FSTYPES', True).split()
 

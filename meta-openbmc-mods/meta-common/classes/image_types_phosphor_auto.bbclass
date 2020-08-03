@@ -60,6 +60,7 @@ do_generate_auto() {
     ln ${IMGDEPLOYDIR}/${IMAGE_NAME}.auto.mtd \
         ${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.auto.mtd
     ln -sf ${IMAGE_NAME}.auto.mtd ${DEPLOY_DIR_IMAGE}/image-mtd
+    ln -sf ${IMAGE_NAME}.auto.mtd ${DEPLOY_DIR_IMAGE}/OBMC-${@ do_get_version(d)}.ROM
 }
 do_generate_auto[dirs] = "${S}/auto"
 do_generate_auto[depends] += " \

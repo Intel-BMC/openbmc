@@ -1,11 +1,13 @@
 COMPATIBLE_MACHINE = "intel-ast2500"
 FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files:"
+FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files/CVE-2020-10648:"
 
 # the meta-phosphor layer adds this patch, which conflicts
 # with the intel layout for environment
 SRC_URI_remove_intel-ast2500 = " file://0001-configs-ast-Add-redundnant-env.patch"
 
 SRC_URI_append_intel-ast2500 = " \
+    file://intel.cfg \
     file://0001-flash-use-readX-writeX-not-udelay.patch \
     file://0002-intel-layout-environment-addr.patch \
     file://0004-Make-sure-debug-uart-is-using-24MHz-clock-source.patch \
@@ -41,6 +43,19 @@ SRC_URI_append_intel-ast2500 = " \
     file://0038-Increase-default-fan-speed-for-cooper-city.patch \
     file://0040-Initialize-the-BMC-host-mailbox-at-reset-time.patch \
     file://0044-net-phy-realtek-Change-LED-configuration.patch \
+    file://0045-Apply-WDT1-2-reset-mask-to-reset-needed-controller.patch \
+    file://0046-Enable-FMC-DMA-for-memmove.patch \
+    file://0047-ast2500-parse-reset-reason.patch \
+    "
+# CVE-2020-10648 vulnerability fix
+SRC_URI_append_intel-ast2500 = " \
+    file://0001-image-Correct-comment-for-fit_conf_get_node.patch \
+    file://0002-image-Be-a-little-more-verbose-when-checking-signatu.patch \
+    file://0003-image-Return-an-error-message-from-fit_config_verify.patch \
+    file://0007-image-Check-hash-nodes-when-checking-configurations.patch \
+    file://0008-image-Load-the-correct-configuration-in-fit_check_si.patch \
+    file://0009-fit_check_sign-Allow-selecting-the-configuration-to-.patch \
+    file://0012-image-Use-constants-for-required-and-key-name-hint.patch \
     "
 PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \

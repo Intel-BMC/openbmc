@@ -1,7 +1,7 @@
 SUMMARY = "Settings"
 
-SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "bee56d62b209088454d166d1efae4825a2b175df"
+SRC_URI = "git://github.com/Intel-BMC/settings.git;protocol=ssh"
+SRCREV = "cf55f85c9cd676736356f06fc47a7e98abd297f3"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"
@@ -13,7 +13,7 @@ DEPENDS = "boost \
            nlohmann-json \
            sdbusplus"
 
-S = "${WORKDIR}/git/settings"
+S = "${WORKDIR}/git"
 inherit cmake systemd
 
 EXTRA_OECMAKE = "-DYOCTO=1"

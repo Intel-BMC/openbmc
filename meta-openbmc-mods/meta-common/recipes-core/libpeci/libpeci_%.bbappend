@@ -1,3 +1,3 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/libpeci"
-SRCREV = "a2ceec2aa139277cebb62e1eda449ef60fa4c962"
+SRCREV = "c965e72c6765e054531c1ab91e7fa13f04651f21"

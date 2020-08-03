@@ -1,0 +1,54 @@
+From c63c2466e3e8f61dd61fd98f4265af2e13ac9bac Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Mon, 6 Jul 2020 13:59:52 -0700
+Subject: [PATCH] Copy raw PECI response to user-space on timeout
+
+When a raw PECI command times out, the response is not copied
+to user-space, so the timeout completion code is lost.
+
+This follows the default flow and also copies the response to
+user-space on timeout to give the user a valid completion code.
+
+Tested:
+Forced PECI timeout and confirmed that the raw PECI command
+returns a valid completion code to the user.
+
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ drivers/peci/peci-dev.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/peci/peci-dev.c b/drivers/peci/peci-dev.c
+index e0fe09467a80..c574d13213af 100644
+--- a/drivers/peci/peci-dev.c
++++ b/drivers/peci/peci-dev.c
+@@ -138,8 +138,13 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
+ 		xmsg->tx_len = uxmsg.tx_len;
+ 		xmsg->rx_len = uxmsg.rx_len;
+ 
++		/*
++		 * Send the command and copy the results back to user space on
++		 * either success or timeout to provide the completion code to
++		 * the caller.
++		 */
+ 		ret = peci_command(peci_dev->adapter, cmd, xmsg);
+-		if (!ret && xmsg->rx_len &&
++		if ((!ret || ret == -ETIMEDOUT) && xmsg->rx_len &&
+ 		    copy_to_user((__u8 __user *)uxmsg.rx_buf, xmsg->rx_buf,
+ 				 xmsg->rx_len))
+ 			ret = -EFAULT;
+@@ -153,6 +158,11 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
+ 			break;
+ 		}
+ 
++		/*
++		 * Send the command and copy the results back to user space on
++		 * either success or timeout to provide the completion code to
++		 * the caller.
++		 */
+ 		ret = peci_command(peci_dev->adapter, cmd, msg);
+ 		if ((!ret || ret == -ETIMEDOUT) &&
+ 		    copy_to_user(umsg, msg, msg_len))
+-- 
+2.17.1
+

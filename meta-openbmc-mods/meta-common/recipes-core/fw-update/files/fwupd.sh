@@ -82,7 +82,7 @@ pfr_active_update() {
         systemctl start nv-sync.service || log "failed to start nv-sync"
         wait_for_log_sync
     fi
-    reboot
+    reboot -f
 }
 
 pfr_staging_update() {
@@ -268,7 +268,7 @@ ping_pong_update() {
     redfish_log_fw_evt success
     wait_for_log_sync
     # reboot
-    reboot
+    reboot -f
 }
 
 fetch_fw() {

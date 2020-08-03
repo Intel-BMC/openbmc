@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright 2017 Intel Corporation
+# Copyright 2017-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,14 @@
 #
 #
 
-if [ $(grep 192000000 /sys/class/tty/ttyS0/uartclk | wc -l) != 0 ]; then
+CPUPART="CPU part"
+AST2500_ID="0xb76"
+AST2600_ID="0xc07"
+
+if ([ $(grep "$CPUPART" /proc/cpuinfo | grep "$AST2500_ID" | wc -l) != 0 ] && \
+    [ $(grep 192000000 /sys/class/tty/ttyS0/uartclk | wc -l) != 0 ]) || \
+   ([ $(grep "$CPUPART" /proc/cpuinfo | grep "$AST2600_ID" | wc -l) != 0 ] && \
+    [ $(grep 14769216 /sys/class/tty/ttyS0/uartclk | wc -l) != 0 ]); then
   echo "hs-uart"
   sed -i -e 's/115200/921600/g' /etc/obmc-console.conf
 else

@@ -11,13 +11,6 @@ DEPENDS += " intel-blocksign-native"
 
 SRC_URI = " \
            file://pfr_image.py \
-           file://${PRODUCT_GENERATION}/pfr_manifest.json \
-           file://${PRODUCT_GENERATION}/pfm_config.xml \
-           file://${PRODUCT_GENERATION}/bmc_config.xml \
-           file://${PRODUCT_GENERATION}/csk_prv.pem \
-           file://${PRODUCT_GENERATION}/csk_pub.pem \
-           file://${PRODUCT_GENERATION}/rk_pub.pem \
-           file://${PRODUCT_GENERATION}/rk_prv.pem \
           "
 
 do_install () {
@@ -26,12 +19,5 @@ do_install () {
         install -d ${D}${bindir}
         install -d ${D}/${datadir}/pfrconfig
         install -m 775 ${WORKDIR}/pfr_image.py ${D}${bindir}/pfr_image.py
-        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/pfr_manifest.json ${D}/${datadir}/pfrconfig
-        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/pfm_config.xml ${D}/${datadir}/pfrconfig/pfm_config.xml
-        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/bmc_config.xml ${D}/${datadir}/pfrconfig/bmc_config.xml
-        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/csk_prv.pem ${D}/${datadir}/pfrconfig/csk_prv.pem
-        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/csk_pub.pem ${D}/${datadir}/pfrconfig/csk_pub.pem
-        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/rk_pub.pem ${D}/${datadir}/pfrconfig/rk_pub.pem
-        install -m 400 ${WORKDIR}/${PRODUCT_GENERATION}/rk_prv.pem ${D}/${datadir}/pfrconfig/rk_prv.pem
 }
 

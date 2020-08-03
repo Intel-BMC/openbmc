@@ -7,7 +7,7 @@ DESCRIPTION = "CPU utilities for dumping CPU Crashdump and registers over PECI"
 DEPENDS = "boost cjson sdbusplus safec gtest libpeci"
 inherit cmake
 
-EXTRA_OECMAKE = "-DCRASHDUMP_BUILD_UT=ON"
+EXTRA_OECMAKE = "-DYOCTO_DEPENDENCIES=ON -DCRASHDUMP_BUILD_UT=OFF"
 
 LICENSE = "Proprietary"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=43c09494f6b77f344027eea0a1c22830"

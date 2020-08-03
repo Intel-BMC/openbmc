@@ -1,0 +1,49 @@
+From f911c7c994bf57685254f3b92e03e999d9cf058a Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Thu, 25 Jun 2020 23:56:15 -0700
+Subject: [PATCH] watchdog: aspeed: fix AST2600 support
+
+AST2600 provides different function of WDT0C[4] and it doesn't
+provides WDT10[1] so this commit fixes driver to make it don't
+use these register bits in case of AST2600.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/watchdog/aspeed_wdt.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/watchdog/aspeed_wdt.c b/drivers/watchdog/aspeed_wdt.c
+index 7e00960651fa..5a74b439e3b1 100644
+--- a/drivers/watchdog/aspeed_wdt.c
++++ b/drivers/watchdog/aspeed_wdt.c
+@@ -279,6 +279,8 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
+ 	 *  - ast2500 only runs at 1MHz, hard coding bit 4 to 1
+ 	 *  - ast2600 always runs at 1MHz
+ 	 *
++	 * Note: ast2600 uses WDT0C[4] as 'Enable WDT to be reset by SOC reset'
++	 *
+ 	 * Set the ast2400 to run at 1MHz as it simplifies the driver.
+ 	 */
+ 	if (of_device_is_compatible(np, "aspeed,ast2400-wdt"))
+@@ -367,13 +369,12 @@ static int aspeed_wdt_probe(struct platform_device *pdev)
+ 		writel(duration - 1, wdt->base + WDT_RESET_WIDTH);
+ 	}
+ 
+-	status = readl(wdt->base + WDT_TIMEOUT_STATUS);
+-	if (status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY) {
+-		wdt->wdd.bootstatus = WDIOF_CARDRESET;
+-
+-		if (of_device_is_compatible(np, "aspeed,ast2400-wdt") ||
+-		    of_device_is_compatible(np, "aspeed,ast2500-wdt"))
++	if (!of_device_is_compatible(np, "aspeed,ast2600-wdt")) {
++		status = readl(wdt->base + WDT_TIMEOUT_STATUS);
++		if (status & WDT_TIMEOUT_STATUS_BOOT_SECONDARY) {
++			wdt->wdd.bootstatus = WDIOF_CARDRESET;
+ 			wdt->wdd.groups = bswitch_groups;
++		}
+ 	}
+ 
+ 	dev_set_drvdata(dev, wdt);
+-- 
+2.7.4
+

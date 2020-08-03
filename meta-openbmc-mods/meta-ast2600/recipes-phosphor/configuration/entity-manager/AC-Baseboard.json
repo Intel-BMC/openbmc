@@ -226,15 +226,15 @@
             "Type": "ADC"
         },
         {
-            "Index": 7,
-            "BridgeGPIO": [
+            "BridgeGpio": [
                 {
                     "Name": "A_P3V_BAT_SCALED_EN",
                     "Polarity": "High"
                 }
             ],
+            "Index": 7,
             "Name": "P3VBAT",
-            "ScaleFactor": 0.3333,
+            "ScaleFactor": 0.1111,
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -266,7 +266,7 @@
         {
             "CPURequired": 1,
             "Index": 8,
-            "Name": "PVCCIN_CPU0",
+            "Name": "PVCCIN_CPU1",
             "PowerState": "On",
             "ScaleFactor": 0.7505,
             "Thresholds": [
@@ -300,7 +300,7 @@
         {
             "CPURequired": 2,
             "Index": 9,
-            "Name": "PVCCIN_CPU1",
+            "Name": "PVCCIN_CPU2",
             "PowerState": "On",
             "ScaleFactor": 0.7505,
             "Thresholds": [
@@ -334,7 +334,7 @@
         {
             "CPURequired": 1,
             "Index": 10,
-            "Name": "PVCCINFAON_CPU0",
+            "Name": "PVCCINFAON_CPU1",
             "PowerState": "On",
             "Thresholds": [
                 {
@@ -367,7 +367,7 @@
         {
             "CPURequired": 2,
             "Index": 11,
-            "Name": "PVCCINFAON_CPU1",
+            "Name": "PVCCINFAON_CPU2",
             "PowerState": "On",
             "Thresholds": [
                 {
@@ -400,7 +400,7 @@
         {
             "CPURequired": 1,
             "Index": 12,
-            "Name": "PVCCFA_EHV_FIVRA_CPU0",
+            "Name": "PVCCFA_EHV_FIVRA_CPU1",
             "PowerState": "On",
             "Thresholds": [
                 {
@@ -433,7 +433,7 @@
         {
             "CPURequired": 2,
             "Index": 13,
-            "Name": "PVCCFA_EHV_FIVRA_CPU1",
+            "Name": "PVCCFA_EHV_FIVRA_CPU2",
             "PowerState": "On",
             "Thresholds": [
                 {
@@ -466,7 +466,7 @@
         {
             "CPURequired": 1,
             "Index": 14,
-            "Name": "PVCCD_HV_CPU0",
+            "Name": "PVCCD_HV_CPU1",
             "PowerState": "On",
             "Thresholds": [
                 {
@@ -499,7 +499,7 @@
         {
             "CPURequired": 2,
             "Index": 15,
-            "Name": "PVCCD_HV_CPU1",
+            "Name": "PVCCD_HV_CPU2",
             "PowerState": "On",
             "Thresholds": [
                 {
@@ -745,7 +745,7 @@
         {
             "Address": "0xC4",
             "Class": "MpsBridgeTemp",
-            "Name": "CPU0 VCCIN VR Temp",
+            "Name": "CPU1 VCCIN VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -777,7 +777,7 @@
         {
             "Address": "0xE0",
             "Class": "PxeBridgeTemp",
-            "Name": "CPU0 PVCCFA_EHV_FIVRA VR Temp",
+            "Name": "CPU1 PVCCFA_EHV_FIVRA VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -809,7 +809,7 @@
         {
             "Address": "0xF0",
             "Class": "PxeBridgeTemp",
-            "Name": "CPU0 PVCCD VR Temp",
+            "Name": "CPU1 PVCCD VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -841,7 +841,7 @@
         {
             "Address": "0xC0",
             "Class": "MpsBridgeTemp",
-            "Name": "CPU1 PVCCIN VR Temp",
+            "Name": "CPU2 PVCCIN VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -873,7 +873,7 @@
         {
             "Address": "0xE8",
             "Class": "PxeBridgeTemp",
-            "Name": "CPU1 PVCCFA_EHV_FIVRA VR Temp",
+            "Name": "CPU2 PVCCFA_EHV_FIVRA VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -903,9 +903,9 @@
             "Type": "IpmbSensor"
         },
         {
-            "Address": "0F4",
+            "Address": "0xF4",
             "Class": "PxeBridgeTemp",
-            "Name": "CPU1 PVCCD VR Temp",
+            "Name": "CPU2 PVCCD VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -993,7 +993,7 @@
             "Name": "Fan 1",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 1"
             ],
@@ -1019,7 +1019,7 @@
             "Name": "Fan 2",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 2"
             ],
@@ -1045,7 +1045,7 @@
             "Name": "Fan 3",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 3"
             ],
@@ -1071,7 +1071,7 @@
             "Name": "Fan 4",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 4"
             ],
@@ -1097,7 +1097,7 @@
             "Name": "Fan 5",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 5"
             ],
@@ -1123,7 +1123,7 @@
             "Name": "Fan 6",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 6"
             ],
@@ -1149,7 +1149,7 @@
             "Name": "Fan 7",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 13"
             ],
@@ -1175,7 +1175,7 @@
             "Name": "Fan 8",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 14"
             ],
@@ -1201,7 +1201,7 @@
             "Name": "Fan 9",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 15"
             ],
@@ -1227,7 +1227,7 @@
             "Name": "Fan 10",
             "NegativeHysteresis": 0.0,
             "OutLimitMax": 100.0,
-            "OutLimitMin": 30.0,
+            "OutLimitMin": 70.0,
             "Outputs": [
                 "Pwm 16"
             ],
@@ -1273,59 +1273,59 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "CPU0 North VR Temp"
-            ],
-            "Name": "CPU0 North VR Temp",
-            "NegativeHysteresis": 5.0,
-            "OutLimitMax": 100,
-            "OutLimitMin": 30,
-            "Outputs": [],
-            "PCoefficient": -0.15,
-            "PositiveHysteresis": 0.0,
-            "SetPoint": 80.0,
-            "SlewNeg": -1,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Left"
-            ]
-        },
-        {
-            "Class": "temp",
-            "FFGainCoefficient": 0.0,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": -1.0,
-            "ILimitMax": 100,
-            "ILimitMin": 30,
-            "Inputs": [
-                "CPU0 South VR Temp"
-            ],
-            "Name": "CPU0 South VR Temp",
-            "NegativeHysteresis": 5.0,
-            "OutLimitMax": 100,
-            "OutLimitMin": 30,
-            "Outputs": [],
-            "PCoefficient": -0.15,
-            "PositiveHysteresis": 0.0,
-            "SetPoint": 80.0,
-            "SlewNeg": -1,
-            "SlewPos": 0.0,
-            "Type": "Pid",
-            "Zones": [
-                "Left"
-            ]
-        },
-        {
-            "Class": "temp",
-            "FFGainCoefficient": 0.0,
-            "FFOffCoefficient": 0.0,
-            "ICoefficient": -1.0,
-            "ILimitMax": 100,
-            "ILimitMin": 30,
-            "Inputs": [
                 "CPU1 North VR Temp"
             ],
             "Name": "CPU1 North VR Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 80.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "CPU1 South VR Temp"
+            ],
+            "Name": "CPU1 South VR Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 80.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -1.0,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "CPU2 North VR Temp"
+            ],
+            "Name": "CPU2 North VR Temp",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
@@ -1348,9 +1348,9 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "CPU1 South VR Temp"
+                "CPU2 South VR Temp"
             ],
-            "Name": "CPU1 South VR Temp",
+            "Name": "CPU2 South VR Temp",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
@@ -1751,7 +1751,7 @@
         {
             "Address": "0x4C",
             "Bus": 6,
-            "Name": "CPU0 North VR Temp",
+            "Name": "CPU1 North VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -1783,7 +1783,7 @@
         {
             "Address": "0x4D",
             "Bus": 6,
-            "Name": "CPU0 South VR Temp",
+            "Name": "CPU1 South VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -1815,7 +1815,7 @@
         {
             "Address": "0x4E",
             "Bus": 6,
-            "Name": "CPU1 North VR Temp",
+            "Name": "CPU2 North VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -1847,7 +1847,7 @@
         {
             "Address": "0x4F",
             "Bus": 6,
-            "Name": "CPU1 South VR Temp",
+            "Name": "CPU2 South VR Temp",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -2050,6 +2050,12 @@
                 "PinName": "DBP_PRESENT_IN_R2_N"
             },
             "Type": "ASD"
+        },
+        {
+            "Address": "0x38",
+            "Bus": 4,
+            "Name": "PFR",
+            "Type": "PFR"
         }
     ],
     "Name": "AC Baseboard",

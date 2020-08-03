@@ -1,6 +1,6 @@
 # todo(james) remove nobranch
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "dc3fbbd0b0021ae888a97bf48a62f30129fc3f4d"
+SRCREV = "a502de3d661acf95613d4e4d27c9611f2c8148ea"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -12,7 +12,6 @@ GROUPADD_PARAM_${PN} = "web; redfish "
 
 SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
             file://0002-Use-chip-id-based-UUID-for-Service-Root.patch \
-            file://0003-Temporarily-disable-EventService-log-support.patch \
             file://0003-bmcweb-changes-for-setting-ApplyOptions-ClearCfg.patch \
 "
 

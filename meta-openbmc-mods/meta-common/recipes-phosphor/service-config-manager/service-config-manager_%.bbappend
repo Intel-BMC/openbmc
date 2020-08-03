@@ -1,3 +1,5 @@
-# Enable downstream autobump
+inherit meson pkgconfig systemd
 SRC_URI = "git://github.com/openbmc/service-config-manager"
-SRCREV = "ee853eb2d865c7da9eec99cdcac04f8aee750e49"
+SRCREV = "1a885d98eea964bd9a3d57152dcaae7d4808211f"
+
+

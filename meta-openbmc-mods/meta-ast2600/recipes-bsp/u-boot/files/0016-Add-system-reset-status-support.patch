@@ -1,0 +1,154 @@
+From 0a2511d407ad9294b8c08f5228d85e042c104aaa Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Tue, 9 Apr 2019 14:42:05 +0800
+Subject: [PATCH] Add system reset status support
+
+Will display the reset reasons and other CPU information in u-boot,
+and save the reset reasons into kernel command line,
+for applications to query.
+
+Change-Id: I87ada3ecf14368519e4d09035bb1e09fdc05469b
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/ast2600/scu_info.c |  4 ++
+ board/aspeed/ast2600_intel/intel.c      | 65 +++++++++++++++++++++++++++++++++
+ include/asm-generic/global_data.h       |  3 ++
+ 3 files changed, 72 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/ast2600/scu_info.c b/arch/arm/mach-aspeed/ast2600/scu_info.c
+index 2ee88b4dd39b..2cc6c3652bab 100644
+--- a/arch/arm/mach-aspeed/ast2600/scu_info.c
++++ b/arch/arm/mach-aspeed/ast2600/scu_info.c
+@@ -9,6 +9,8 @@
+ #include <asm/io.h>
+ #include <asm/arch/aspeed_scu_info.h>
+ 
++DECLARE_GLOBAL_DATA_PTR;
++
+ /* SoC mapping Table */
+ #define SOC_ID(str, rev) { .name = str, .rev_id = rev, }
+ 
+@@ -237,6 +239,8 @@ void aspeed_print_sysrst_info(void)
+ 			writel(SYS_EXT_RESET, ASPEED_SYS_RESET_CTRL);
+ 		}	
+ 	}
++
++	gd->reset_reason = rest;
+ }
+ 
+ #define SOC_FW_INIT_DRAM		BIT(7)
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index 05872b439361..95e5492009d7 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -5,6 +5,7 @@
+ #include <common.h>
+ #include <asm/gpio.h>
+ #include <asm/io.h>
++#include <malloc.h>
+ 
+ /* use GPIOC0 on intel boards */
+ #define FFUJ_GPIO "gpio@1e78000016"
+@@ -274,6 +275,65 @@ int board_early_init_r(void)
+ 	return 0;
+ }
+ 
++static void update_bootargs_cmd(const char *key, const char *value)
++{
++	int buf_len;
++	char *buf;
++	char *cmdline;
++	char comp_key[128];
++
++	if (!key || (key[0] == '\0')) {
++		printf("%s - Empty key not allowed\n", __func__);
++		return;
++	}
++
++	cmdline = env_get("bootargs");
++
++	/* Allocate space for maximum possible new command line */
++	if (value)
++		buf_len = strlen(cmdline) + strlen(key) + 3 + strlen(value);
++	else
++		buf_len = strlen(cmdline) + strlen(key) + 3;
++
++	buf = malloc(buf_len);
++	if (!buf) {
++		printf("%s: out of memory\n", __func__);
++		return;
++	}
++	memset(buf, 0, buf_len);
++
++	if (!cmdline) {
++		/* lets add key-value, though bootargs are empty */
++		snprintf(buf, buf_len, "%s=%s", key, (value ? value : ""));
++		env_set("bootargs", buf);
++		free(buf);
++		return;
++	}
++
++	snprintf(comp_key, sizeof(comp_key), "%s=", key);
++	char *start = strstr(cmdline, comp_key);
++
++	/* Check for full word match. Match should be start of cmdline
++	 * or there should be space before match */
++	if (start && ((start == cmdline) || (*(start-1) == ' '))) {
++		char *end = strchr(start, ' ');
++		strncpy(buf, cmdline, (start - cmdline));
++
++		if (end)
++			snprintf(buf, buf_len, "%s%s=%s %s", buf, key,
++				 (value ? value : ""), end+1);
++		else
++			snprintf(buf, buf_len, "%s%s=%s", buf, key,
++				 (value ? value : ""));
++	} else {
++		snprintf(buf, buf_len, "%s %s=%s", cmdline, key,
++			 (value ? value : ""));
++	}
++
++	env_set("bootargs", buf);
++	free(buf);
++}
++
+ extern void espi_init(void);
+ extern void kcs_init(void);
+ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
+@@ -283,12 +343,17 @@ int board_late_init(void)
+ #define SCU_014			0x014		/* Silicon Revision ID */
+ #define REV_ID_AST2600A0	0x05000303	/* AST2600 A0 */
+ #define ONE_MSEC_IN_USEC	1000
++	char value[11];
+ 
+ 	if (readl(SCU_BASE | SCU_014) == REV_ID_AST2600A0)
+ 		timer_enable(0, ONE_MSEC_IN_USEC, timer_callback, (void *)0);
+ 
+ 	espi_init();
+ 
++	/* Add reset reason to bootargs */
++	snprintf(value, sizeof(value), "0x%x", gd->reset_reason);
++	update_bootargs_cmd("resetreason", value);
++
+ 	if (read_ffuj())
+ 		kcs_init();
+ 
+diff --git a/include/asm-generic/global_data.h b/include/asm-generic/global_data.h
+index 78dcf40bff48..fa51e384520f 100644
+--- a/include/asm-generic/global_data.h
++++ b/include/asm-generic/global_data.h
+@@ -133,6 +133,9 @@ typedef struct global_data {
+ 	struct spl_handoff *spl_handoff;
+ # endif
+ #endif
++#ifdef CONFIG_ARCH_ASPEED
++	u32 reset_reason;
++#endif
+ } gd_t;
+ #endif
+ 
+-- 
+2.7.4
+
