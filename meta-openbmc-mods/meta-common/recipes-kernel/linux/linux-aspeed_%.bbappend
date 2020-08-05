@@ -82,6 +82,8 @@ SRC_URI += " \
         file://0110-USB-gadget-fix-illegal-array-access-in-binding-with-.patch \
         file://0111-Unconditionally-calculate-the-PECI-AW-FCS.patch \
         file://0112-AST2600-enable-UART-routing.patch \
+        file://0116-watchdog-aspeed-fix-AST2600-support.patch \
+        file://0117-Copy-raw-PECI-response-to-user-space-on-timeout.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

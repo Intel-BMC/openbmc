@@ -44,12 +44,9 @@ EXCLUDE_PAGES =[[0x80, 0x9f],[0x2a00,0x7fff]]
 PFM_OFFSET = 0x80000
 PFM_SPI = 0x1
 PFM_I2C = 0x2
-SHA = 0x1
 PFM_DEF_SIZE = 32 # 32 bytes of PFM header
 PFM_SPI_SIZE_DEF = 16 # 16 bytes of SPI PFM
-PFM_SPI_SIZE_HASH = 32 # 32 bytes of SPI region HASH
 PFM_I2C_SIZE = 40 # 40 bytes of i2c rules region in PFM
-
 PAGE_SIZE = 0x1000 # 4KB size of page
 
 def load_manifest(fname):
@@ -64,6 +61,10 @@ class pfm_spi(object):
         self.spi_pfm = PFM_SPI
         self.spi_prot_mask = prot_mask
         self.spi_hash_pres = hash_pres
+        print("hash_pres={}".format(self.spi_hash_pres))
+        print("spi_hash={}".format(hash))
+        print("spi_start_addr={}".format(start_addr))
+        print("spi_end_addr={}".format(end_addr))
         if hash_pres != 0:
             self.spi_hash = hash
         self.spi_pfm_rsvd = 0xffffffff        # b'\xff'*4
@@ -92,11 +93,11 @@ class pfr_bmc_image(object):
         self.build_hash = build_hash
         self.sha = sha
         if self.sha == "2":
-            SHA = 0x2
-            PFM_SPI_SIZE_HASH = 48
+            self.sha_version = 0x2
+            self.pfm_spi_size_hash = 48
         if self.sha == "1":
-            PFM_SPI_SIZE_HASH = 32
-            SHA = 0x1
+            self.pfm_spi_size_hash = 32
+            self.sha_version = 0x1
         self.pfr_rom_file = 'image-mtd-pfr'
         open(self.pfr_rom_file, 'a').close()
 
@@ -211,15 +212,14 @@ class pfr_bmc_image(object):
         if pfm_flag == 1:
            self.pfm_bytes += PFM_SPI_SIZE_DEF
 
-           hash = bytearray(PFM_SPI_SIZE_HASH)
+           hash = bytearray(self.pfm_spi_size_hash)
            hash_pres = 0
 
            if hash_flag == 1:
                # region's hash
                hash = hash_dgst.hexdigest()
-               hash_pres = SHA
-               self.pfm_bytes += PFM_SPI_SIZE_HASH
-
+               hash_pres = self.sha_version
+               self.pfm_bytes += self.pfm_spi_size_hash
            # append to SPI regions in PFM
            self.pfm_spi_regions.append(pfm_spi(pfm_prot_mask, start_addr, (start_addr+size), hash, hash_pres))
 

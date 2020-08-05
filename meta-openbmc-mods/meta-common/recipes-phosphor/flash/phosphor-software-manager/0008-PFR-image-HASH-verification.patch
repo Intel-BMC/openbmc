@@ -8,11 +8,43 @@ firmware updates
 
 Tested: tested firmware update with good and bad HASH images.
 
+A)
+1. Upload the corrupted image for fw update.
+2. Image present in /tmp/images/
+-rw-r--r--    1 root     root      22969344 Jun  3 09:27
+5dea710b-8b85-4065-8af7-3149ada81edf
+
+3. Journalctl logs during image verification
+Jun 03 09:27:20 intel-obmc phosphor-version-software-manager[4755]:
+Firmware image HASH verification failed
+Jun 03 09:27:20 intel-obmc phosphor-version-software-manager[4755]:
+Error verifying uploaded image
+Jun 03 09:27:20 intel-obmc phosphor-version-software-manager[4755]:
+Error processing image
+
+4. image deleted from /tmp/images/
+
+B)
+1. Upload the correct image.
+POST: https://<BMC_IP>/redfish/v1/UpdateService/
+      with <BMC_signed_cap> binary file
+2. Image verification is success and proceeds with update.
+{
+  "@odata.id": "/redfish/v1/TaskService/Tasks/0",
+  "@odata.type": "#Task.v1_4_3.Task",
+  "Id": "0",
+  "TaskState": "Running",
+  "TaskStatus": "OK"
+}
+
+Change-Id: I9336980bfb74c8136690024782bfef45f6b08d56
+Signed-off-by: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
+
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@linux.intel.com>
 ---
- pfr_image_manager.cpp | 149 ++++++++++++++++++++++++++++++++----------
+ pfr_image_manager.cpp | 150 +++++++++++++++++++++++++++++++++----------
  pfr_image_manager.hpp | 112 +++++++++++++++++++++++++++++--
- 2 files changed, 221 insertions(+), 40 deletions(-)
+ 2 files changed, 222 insertions(+), 40 deletions(-)
 
 diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
 index 242a6ca..1a41cbe 100644
@@ -168,7 +200,7 @@ index 242a6ca..1a41cbe 100644
          }
          catch (std::exception& e)
          {
-@@ -79,20 +174,20 @@ static int getPFRImgInfo(const std::filesystem::path imgPath, uint8_t& imgType,
+@@ -79,20 +174,21 @@ static int getPFRImgInfo(const std::filesystem::path imgPath, uint8_t& imgType,
  
  int Manager::processImage(const std::string& imgFilePath)
  {
@@ -189,6 +221,7 @@ index 242a6ca..1a41cbe 100644
          phosphor::logging::log<phosphor::logging::level::ERR>(
 -            "Error reading uploaded image type and version");
 +            "Error verifying uploaded image");
++        std::filesystem::remove_all(imgFilePath);
          return -1;
      }
  

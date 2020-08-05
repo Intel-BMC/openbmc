@@ -1045,6 +1045,30 @@
             "Type": "IpmbSensor"
         },
         {
+            "Address": 190,
+            "Class": "MESensor",
+            "Name": "Host Cpu Utilization",
+            "SensorType": "utilization",
+            "ScaleValue": 0.392,
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": 191,
+            "Class": "MESensor",
+            "Name": "Host Pci Bandwidth Utilization",
+            "SensorType": "utilization",
+            "ScaleValue": 0.392,
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": 192,
+            "Class": "MESensor",
+            "Name": "Host Memory Bandwidth Utilization",
+            "SensorType": "utilization",
+            "ScaleValue": 0.392,
+            "Type": "IpmbSensor"
+        },
+        {
             "EthIndex": 0,
             "Name": "Dedicated Management NIC",
             "Type": "NIC"
@@ -1918,9 +1942,9 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "DIMM [ABC]\\d+ CPU1"
+                "DIMM [ABCD]\\d+ CPU1"
             ],
-            "Name": "CPU1 DIMM ABC",
+            "Name": "CPU1 DIMM ABCD",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
@@ -1944,9 +1968,9 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "DIMM [DEF]\\d+ CPU1"
+                "DIMM [EFGH]\\d+ CPU1"
             ],
-            "Name": "CPU1 DIMM DEF",
+            "Name": "CPU1 DIMM EFGH",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
@@ -1969,9 +1993,9 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "DIMM [ABC]\\d+ CPU2"
+                "DIMM [ABCD]\\d+ CPU2"
             ],
-            "Name": "CPU2 DIMM ABC",
+            "Name": "CPU2 DIMM ABCD",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
@@ -1995,9 +2019,9 @@
             "ILimitMax": 100,
             "ILimitMin": 30,
             "Inputs": [
-                "DIMM [DEF]\\d+ CPU2"
+                "DIMM [EFGH]\\d+ CPU2"
             ],
-            "Name": "CPU2 DIMM DEF",
+            "Name": "CPU2 DIMM EFGH",
             "NegativeHysteresis": 5.0,
             "OutLimitMax": 100,
             "OutLimitMin": 30,
@@ -2399,6 +2423,12 @@
                 }
             ],
             "Type": "XeonCPU"
+        },
+        {
+            "Address": "0x38",
+            "Bus": 4,
+            "Name": "PFR",
+            "Type": "PFR"
         }
     ],
     "Name": "WC Baseboard",

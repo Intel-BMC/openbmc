@@ -1,0 +1,36 @@
+From bda505bc62f95ee927b75f87c52e04584dab4d79 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Fri, 26 Jun 2020 13:50:08 -0700
+Subject: [PATCH 1/1] Fix Memory Leak
+
+In mctp_send_tx_queue if rc is of an error,
+the packet does not get freed, causing a leak.
+
+Change-Id: Ic39b0920b454608841e6e879cc028e455520e67d
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ core.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/core.c b/core.c
+index 6e59993..c251b72 100644
+--- a/core.c
++++ b/core.c
+@@ -543,11 +543,11 @@ static void mctp_send_tx_queue(struct mctp_bus *bus)
+ 		int rc;
+ 
+ 		rc = mctp_packet_tx(bus, pkt);
+-		if (rc)
+-			break;
+-
+ 		bus->tx_queue_head = pkt->next;
+ 		mctp_pktbuf_free(pkt);
++
++		if (rc)
++			break;
+ 	}
+ 
+ 	if (!bus->tx_queue_head)
+-- 
+2.17.1
+

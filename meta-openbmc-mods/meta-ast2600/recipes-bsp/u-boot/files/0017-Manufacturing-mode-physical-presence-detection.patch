@@ -1,0 +1,106 @@
+From 8bfaae756740589ec9644a5ddcd8b19d7d7b9b73 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Thu, 20 Jun 2019 18:11:43 +0530
+Subject: [PATCH] Manufacturing mode physical presence detection
+
+Support for physical presence of manufacturing mode added.
+Front panel power button press for 15 seconds will be detected
+and marked as special mode for manufacturing request.
+//TODO:
+//There will be 10 second Status LED blink for 10 seconds to
+//do the physical indication to the user. This indicates the
+//user that he has pressed power button long enough for
+//manufacturing mode detection.
+
+Tested:
+1. Verified by holding the power button when u-boot boots for
+15 seconds, and confirmed that bootargs passed to linux has
+special=mfg string and status led blink physical indication
+has been provided
+2. Verified in normal condition special=mfg string is not passed
+and no physical indication has been provided
+
+Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/intel.c | 49 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)
+
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index 95e5492009d7..367657df56d1 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -39,6 +39,26 @@ int gpio_abort(void)
+ 	return value <= 0 ? 0 : 1;
+ }
+ 
++int read_frontpanel_power_button(void)
++{
++#define FP_PWRBTN_GPIO "gpio@1e780000122" /* GPIOP2 */
++	struct gpio_desc desc;
++	int ret;
++
++	ret = dm_gpio_lookup_name(FP_PWRBTN_GPIO, &desc);
++	if (ret)
++		return ret;
++	ret = dm_gpio_request(&desc, "fp_pwrbtn");
++	if (ret)
++		return ret;
++	ret = dm_gpio_set_dir_flags(&desc, GPIOD_ACTIVE_LOW);
++	if (ret)
++		return ret;
++	ret = dm_gpio_get_value(&desc);
++	dm_gpio_free(desc.dev, &desc);
++	return ret;
++}
++
+ #define SCU_BASE 0x1E6E2000
+ #define SCU_338 0x338 //Generate UART 24 MHz Reference from UXCLK
+ #define SCU_33C 0x33c //Generate UART 24 MHz Reference from HUXCLK
+@@ -334,6 +354,31 @@ static void update_bootargs_cmd(const char *key, const char *value)
+ 	free(buf);
+ }
+ 
++static bool is_mfg_mode_phy_req(void)
++{
++	/*
++	 * Assume mfg mode physical request is made, if power button
++	 * is pressed continously for 15 seconds, indicate the
++	 * same in bootargs
++	 */
++	const uint32_t delay_in_ms = 100;
++	const uint32_t read_count = ((15 * 1000) / delay_in_ms);
++	const uint32_t delay_for_indication = 10 * 1000;
++	for (uint32_t count = 0; count < read_count; ++count) {
++		if (read_frontpanel_power_button() != 1)
++			return false;
++
++		mdelay(delay_in_ms);
++	}
++	debug("is_mfg_mode_phy_req : detected mfg mode request\n");
++	// TODO: enable id led control
++	//id_led_control(GPIO_GREEN_LED, EIDLED_Blink_3HZ);
++	/* Delay the boot to do physical indication for mfg mode */
++	mdelay(delay_for_indication);
++
++	return true;
++}
++
+ extern void espi_init(void);
+ extern void kcs_init(void);
+ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
+@@ -354,6 +399,10 @@ int board_late_init(void)
+ 	snprintf(value, sizeof(value), "0x%x", gd->reset_reason);
+ 	update_bootargs_cmd("resetreason", value);
+ 
++	/* Update the special mode in bootargs */
++	if (is_mfg_mode_phy_req())
++		update_bootargs_cmd("special", "mfg");
++
+ 	if (read_ffuj())
+ 		kcs_init();
+ 
+-- 
+2.7.4
+

@@ -1,7 +1,10 @@
-From d629bf86a9ac970d8c0505c0aa2488373c9df102 Mon Sep 17 00:00:00 2001
+From b68d62ddf0a9d77a287a7e9a99762915e31d02b9 Mon Sep 17 00:00:00 2001
 From: Wiktor Golgowski <wiktor.golgowski@linux.intel.com>
 Date: Thu, 30 Apr 2020 11:09:35 +0200
 Subject: [PATCH] Use chip id-based UUID for Service Root.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 If the sysfs-provided chip id is available, it will be used as
 payload to generate Service Root UUID from hardcoded namespace.
@@ -12,15 +15,16 @@ If the sysfs node is not available, code falls back to randomly
 generated UUID.
 
 Signed-off-by: Wiktor Gołgowski <wiktor.golgowski@linux.intel.com>
+
 ---
- include/persistent_data_middleware.hpp | 32 +++++++++++++++++++++++---
+ include/persistent_data_middleware.hpp | 32 +++++++++++++++++++++++++++++---
  1 file changed, 29 insertions(+), 3 deletions(-)
 
 diff --git a/include/persistent_data_middleware.hpp b/include/persistent_data_middleware.hpp
-index 348079b..925e7b6 100644
+index de3a6ba..a20b213 100644
 --- a/include/persistent_data_middleware.hpp
 +++ b/include/persistent_data_middleware.hpp
-@@ -30,6 +30,10 @@ class Middleware
+@@ -31,6 +31,10 @@ class Middleware
    public:
      // todo(ed) should read this from a fixed location somewhere, not CWD
      static constexpr const char* filename = "bmcweb_persistent_data.json";
@@ -30,8 +34,8 @@ index 348079b..925e7b6 100644
 +    "944847ed76f5}";
  
      struct Context
-     {
-@@ -143,9 +147,31 @@ class Middleware
+     {};
+@@ -141,9 +145,31 @@ class Middleware
  
          if (systemUuid.empty())
          {
@@ -66,6 +70,3 @@ index 348079b..925e7b6 100644
          }
          if (fileRevision < jsonRevision)
          {
--- 
-2.20.1
-

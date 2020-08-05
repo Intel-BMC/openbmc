@@ -2,7 +2,7 @@ SUMMARY = "libmctp"
 DESCRIPTION = "Implementation of MCTP (DTMF DSP0236)"
 
 SRC_URI = "git://github.com/openbmc/libmctp.git"
-SRCREV = "8d53b1c368b5d498c4f241b2b492210780010bb9"
+SRCREV = "3ac70d62571953be172a0d16976e383490d25059"
 
 PV = "0.1+git${SRCPV}"
 
@@ -21,6 +21,7 @@ CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += "file://0001-Smbus-changes-for-libmctp.patch \
+            file://0002-Fix-Memory-Leak.patch \
             file://CMakeLists.txt \
             file://crc32c.c \
             file://crc32c.h  \

@@ -1,9 +1,11 @@
-SRCREV = "54ffb271b995db4f0b00f0661baab23763fae5bd"
+SRCREV = "5591cf0860895607bda0b8ae713e6b05ac0623b1"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 DEPENDS_append = " libgpiod libmctp"
 
 FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
 
-EXTRA_OECMAKE += "-DDISABLE_NVME=OFF"
-SYSTEMD_SERVICE_${PN} += " xyz.openbmc_project.nvmesensor.service"
+PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'disable-nvme-sensors', d)}"
+PACKAGECONFIG[disable-nvme-sensors] = "-DDISABLE_NVME=ON, -DDISABLE_NVME=OFF"
+
+SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('DISTRO_FEATURES', 'disable-nvme-sensors', '', 'xyz.openbmc_project.nvmesensor.service', d)}"

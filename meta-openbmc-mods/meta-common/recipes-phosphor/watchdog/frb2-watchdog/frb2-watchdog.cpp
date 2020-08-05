@@ -127,8 +127,7 @@ template <typename T> void setProperty(const std::string &key, const T &val)
                             boost::system::system_error(err).what()));
                 }
             },
-            wdBus, wdPath, propIntf, "Set", wdIntf, key,
-            sdbusplus::message::variant_ns::variant<T>(val));
+            wdBus, wdPath, propIntf, "Set", wdIntf, key, std::variant<T>(val));
     }
     catch (sdbusplus::exception::SdBusError &e)
     {

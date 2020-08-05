@@ -1,19 +1,20 @@
-From 1f14ea50ece39c59d23690690dc7c8b1059a35f6 Mon Sep 17 00:00:00 2001
+From 8e3ae96546010c5d4f3fce6df9c32aece1093458 Mon Sep 17 00:00:00 2001
 From: Nikhil Potade <nikhil.potade@linux.intel.com>
 Date: Tue, 19 Feb 2019 14:16:20 +0800
 Subject: [PATCH 1/1] Smbus changes for libmctp
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
  core.c    |  2 ++
  libmctp.h | 40 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 42 insertions(+)
 
 diff --git a/core.c b/core.c
-index e7f5689..3732e8a 100644
+index 6e59993..3b11672 100644
 --- a/core.c
 +++ b/core.c
-@@ -17,6 +17,7 @@
+@@ -19,6 +19,7 @@
  
  /* Internal data structures */
  
@@ -21,7 +22,7 @@ index e7f5689..3732e8a 100644
  struct mctp_bus {
  	mctp_eid_t		eid;
  	struct mctp_binding	*binding;
-@@ -56,6 +57,7 @@ struct mctp {
+@@ -58,6 +59,7 @@ struct mctp {
  		ROUTE_BRIDGE,
  	}			route_policy;
  };
@@ -30,18 +31,18 @@ index e7f5689..3732e8a 100644
  #ifndef BUILD_ASSERT
  #define BUILD_ASSERT(x) \
 diff --git a/libmctp.h b/libmctp.h
-index 69ec46a..b7212be 100644
+index 40e5371..766473b 100644
 --- a/libmctp.h
 +++ b/libmctp.h
-@@ -15,6 +15,7 @@ extern "C" {
- typedef uint8_t mctp_eid_t;
+@@ -19,6 +19,7 @@ typedef uint8_t mctp_eid_t;
+ #define MCTP_EID_BROADCAST 0xff
  
  /* MCTP packet definitions */
 +/* clang-format off */
  struct mctp_hdr {
  	uint8_t	ver;
  	uint8_t	dest;
-@@ -30,19 +31,56 @@ struct mctp_hdr {
+@@ -34,20 +35,57 @@ struct mctp_hdr {
  #define MCTP_HDR_SEQ_MASK	(0x3)
  #define MCTP_HDR_TAG_SHIFT	(0)
  #define MCTP_HDR_TAG_MASK	(0x7)
@@ -50,6 +51,7 @@ index 69ec46a..b7212be 100644
  /* Baseline Transmission Unit and packet size */
  #define MCTP_BTU		64
  #define MCTP_PACKET_SIZE(unit)	((unit) + sizeof(struct mctp_hdr))
+ #define MCTP_BODY_SIZE(unit)	((unit) - sizeof(struct mctp_hdr))
  
 +#define MCTP_CONTROL_MESSAGE_TYPE	0x00
 +
@@ -98,17 +100,17 @@ index 69ec46a..b7212be 100644
  
  struct mctp_binding;
  
-@@ -90,6 +128,7 @@ int mctp_message_tx(struct mctp *mctp, mctp_eid_t eid,
+@@ -96,6 +134,7 @@ int mctp_message_tx(struct mctp *mctp, mctp_eid_t eid,
  		void *msg, size_t msg_len);
  
  /* hardware bindings */
 +/* clang-format off */
  struct mctp_binding {
- 	const char	*name;
- 	uint8_t		version;
-@@ -101,6 +140,7 @@ struct mctp_binding {
- 	int		(*tx)(struct mctp_binding *binding,
- 				struct mctp_pktbuf *pkt);
+ 	const char *name;
+ 	uint8_t version;
+@@ -108,6 +147,7 @@ struct mctp_binding {
+ 	mctp_rx_fn control_rx;
+ 	void *control_rx_data;
  };
 +/* clang-format on */
  

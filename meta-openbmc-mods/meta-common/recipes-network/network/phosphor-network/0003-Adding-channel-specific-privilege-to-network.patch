@@ -200,7 +200,7 @@ index 68668d6..058d328 100644
  
  using IP = sdbusplus::xyz::openbmc_project::Network::server::IP;
  
-@@ -31,10 +35,15 @@ using EthernetInterfaceIntf =
+@@ -31,10 +35,14 @@ using EthernetInterfaceIntf =
      sdbusplus::xyz::openbmc_project::Network::server::EthernetInterface;
  using MacAddressIntf =
      sdbusplus::xyz::openbmc_project::Network::server::MACAddress;
@@ -210,8 +210,7 @@ index 68668d6..058d328 100644
  using ServerList = std::vector<std::string>;
  using ObjectPath = sdbusplus::message::object_path;
  
-+using DbusVariant =
-+    sdbusplus::message::variant<std::string, std::vector<std::string>>;
++using DbusVariant = std::variant<std::string, std::vector<std::string>>;
 +
  namespace fs = std::experimental::filesystem;
  
@@ -276,7 +275,7 @@ index 043d7a2..75f4e5f 100644
  Manager::Manager(sdbusplus::bus::bus& bus, const char* objPath,
                   const std::string& path) :
      details::VLANCreateIface(bus, objPath, true),
-@@ -41,6 +48,103 @@ Manager::Manager(sdbusplus::bus::bus& bus, const char* objPath,
+@@ -41,6 +48,101 @@ Manager::Manager(sdbusplus::bus::bus& bus, const char* objPath,
  {
      fs::path confDir(path);
      setConfDir(confDir);
@@ -345,12 +344,10 @@ index 043d7a2..75f4e5f 100644
 +            return;
 +        }
 +
-+        sdbusplus::message::variant<std::vector<std::string>> result;
++        std::variant<std::vector<std::string>> result;
 +        reply.read(result);
 +
-+        supportedPrivList =
-+            sdbusplus::message::variant_ns::get<std::vector<std::string>>(
-+                result);
++        supportedPrivList = std::get<std::vector<std::string>>(result);
 +    }
 +
 +    // Resgister the signal
@@ -370,8 +367,8 @@ index 043d7a2..75f4e5f 100644
 +                {
 +                    if (t.first == propNameAllPrivileges)
 +                    {
-+                        supportedPrivList = sdbusplus::message::variant_ns::get<
-+                            std::vector<std::string>>(t.second);
++                        supportedPrivList =
++                             std::get<std::vector<std::string>>(t.second);
 +                    }
 +                }
 +            });

@@ -1884,6 +1884,12 @@
                 "PinType": "PIN_NONE"
             },
             "Type": "ASD"
+        },
+        {
+            "Address": "0x38",
+            "Bus": 4,
+            "Name": "PFR",
+            "Type": "PFR"
         }
     ],
     "Name": "CPC Baseboard",

@@ -45,7 +45,7 @@
   },
   "4" : {
     "name" : "RESERVED",
-    "is_valid" : true,
+    "is_valid" : false,
     "active_sessions" : 0,
     "channel_info" : {
       "medium_type" : "reserved",

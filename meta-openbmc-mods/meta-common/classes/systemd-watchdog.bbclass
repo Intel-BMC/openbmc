@@ -28,6 +28,12 @@ add_watchdog_confs() {
         echo "[Service]" >> "${fname}"
         echo "StartLimitInterval=${interval}min" >> "${fname}"
         echo "StartLimitBurst=${count}" >> "${fname}"
+        echo "RestartSec=60" >> "${fname}"
+
+        if cat $D/lib/systemd/system/${service} | grep Restart > /dev/null; then
+             continue
+        fi
+        echo "Restart=on-failure" >> "${fname}"
      done
 
 }

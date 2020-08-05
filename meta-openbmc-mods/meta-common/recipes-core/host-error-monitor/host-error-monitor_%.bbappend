@@ -1,5 +1,5 @@
 # Enable downstream autobump
-SRC_URI = "git://github.com/openbmc/host-error-monitor"
-SRCREV = "5287c02c5f96b40f0941c9c72ab29d2c7ac44a96"
+#SRC_URI = "git://github.com/openbmc/host-error-monitor"
+SRCREV = "2fbb9eadeda2ae8a77ac53346b53f2d0a72f3e74"
 
 EXTRA_OECMAKE = "-DYOCTO=1"

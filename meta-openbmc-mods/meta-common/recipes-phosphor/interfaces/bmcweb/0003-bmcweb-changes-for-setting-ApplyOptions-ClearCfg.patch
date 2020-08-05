@@ -1,6 +1,6 @@
-From 4d88fcada1d95f485ea5a1dd418b31c508652712 Mon Sep 17 00:00:00 2001
+From e883ea9d43a84998641428448d7220c0f5be72c0 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
-Date: Fri, 15 May 2020 21:12:44 +0530
+Date: Tue, 30 Jun 2020 22:09:10 +0530
 Subject: [PATCH] bmcweb changes for setting ApplyOptions-ClearCfg
 
 ApplyOptions are used to specify firmware update specific options
@@ -25,10 +25,10 @@ Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
  create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index a913bac..3a64e63 100644
+index 86ddd8a..291acec 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
-@@ -579,6 +579,29 @@ class UpdateService : public Node
+@@ -691,6 +691,29 @@ class UpdateService : public Node
              "/xyz/openbmc_project/software/apply_time",
              "org.freedesktop.DBus.Properties", "Get",
              "xyz.openbmc_project.Software.ApplyTime", "RequestedApplyTime");
@@ -44,7 +44,7 @@ index a913bac..3a64e63 100644
 +                    return;
 +                }
 +
-+                const bool *b = std::get_if<bool>(&applyOption);
++                const bool* b = std::get_if<bool>(&applyOption);
 +
 +                if (b)
 +                {
@@ -57,8 +57,8 @@ index a913bac..3a64e63 100644
 +            "Get", "xyz.openbmc_project.Software.ApplyOptions", "ClearConfig");
      }
  
-     void doPatch(crow::Response &res, const crow::Request &req,
-@@ -591,15 +614,59 @@ class UpdateService : public Node
+     void doPatch(crow::Response& res, const crow::Request& req,
+@@ -703,15 +726,59 @@ class UpdateService : public Node
          std::optional<nlohmann::json> pushUriOptions;
          std::optional<std::vector<std::string>> imgTargets;
          std::optional<bool> imgTargetBusy;
