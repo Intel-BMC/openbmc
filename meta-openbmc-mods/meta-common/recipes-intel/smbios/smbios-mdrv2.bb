@@ -2,7 +2,7 @@ SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
 SRC_URI = "git://github.com/Intel-BMC/mdrv2.git;protocol=ssh"
-SRCREV = "5ae0c19064f010c9981cc90f4ddb2031887de4dc"
+SRCREV = "095102dfb5e2374834e33d1ec1a5e61388208a9e"
 
 S = "${WORKDIR}/git"
 
@@ -15,6 +15,7 @@ inherit cmake pkgconfig
 inherit obmc-phosphor-systemd
 
 SYSTEMD_SERVICE_${PN} += "smbios-mdrv2.service"
+SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.cpuinfo.service"
 
 DEPENDS += " \
     autoconf-archive-native \
@@ -25,7 +26,8 @@ DEPENDS += " \
     phosphor-dbus-interfaces \
     phosphor-dbus-interfaces-native \
     phosphor-logging \
+    libpeci \
+    i2c-tools \
     "
-
 PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'smbios-no-dimm', d)}"
 PACKAGECONFIG[smbios-no-dimm] = "-DDIMM_DBUS=OFF, -DDIMM_DBUS=ON"

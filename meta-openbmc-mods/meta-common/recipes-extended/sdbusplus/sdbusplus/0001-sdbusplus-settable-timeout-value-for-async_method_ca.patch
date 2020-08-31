@@ -1,0 +1,134 @@
+From 42040cbbc6c6691cef3bee4e42808c3921be9766 Mon Sep 17 00:00:00 2001
+From: Konrad Sztyber <konrad.sztyber@intel.com>
+Date: Fri, 27 Mar 2020 16:48:26 +0100
+Subject: [PATCH] sdbusplus: settable timeout value for async_method_call
+
+Added extra method, asio::connection::async_method_call_timed allowing
+the user to specify the value of the timeout to be used for that call
+(in microseconds).  Using 0 as the timeout results in using the default
+value, which is equivalent to calling asio::connection::async_method_call.
+
+Signed-off-by: Konrad Sztyber <konrad.sztyber@intel.com>
+Change-Id: Id79772e46a77f62af5b39ec341648e34af6aaf99
+---
+ sdbusplus/asio/connection.hpp                | 51 +++++++++++++++++---
+ sdbusplus/asio/detail/async_send_handler.hpp |  7 ++-
+ 2 files changed, 46 insertions(+), 12 deletions(-)
+
+diff --git a/sdbusplus/asio/connection.hpp b/sdbusplus/asio/connection.hpp
+index b3ff4fd..ec07e4e 100644
+--- a/sdbusplus/asio/connection.hpp
++++ b/sdbusplus/asio/connection.hpp
+@@ -84,7 +84,8 @@ class connection : public sdbusplus::bus::bus
+     inline BOOST_ASIO_INITFN_RESULT_TYPE(MessageHandler,
+                                          void(boost::system::error_code,
+                                               message::message&))
+-        async_send(message::message& m, MessageHandler&& handler)
++        async_send(message::message& m, MessageHandler&& handler,
++                   uint64_t timeout = 0)
+     {
+         boost::asio::async_completion<
+             MessageHandler, void(boost::system::error_code, message::message)>
+@@ -92,12 +93,12 @@ class connection : public sdbusplus::bus::bus
+         detail::async_send_handler<typename boost::asio::async_result<
+             MessageHandler, void(boost::system::error_code,
+                                  message::message)>::completion_handler_type>(
+-            std::move(init.completion_handler))(get(), m);
++            std::move(init.completion_handler))(get(), m, timeout);
+         return init.result.get();
+     }
+ 
+     /** @brief Perform an asynchronous method call, with input parameter packing
+-     *         and return value unpacking
++     *         and return value unpacking.
+      *
+      *  @param[in] handler - A function object that is to be called as a
+      *                       continuation for the async dbus method call. The
+@@ -108,6 +109,8 @@ class connection : public sdbusplus::bus::bus
+      *  @param[in] objpath - The object's path for the call.
+      *  @param[in] interf - The object's interface to call.
+      *  @param[in] method - The object's method to call.
++     *  @param[in] timeout - The timeout for the method call in usec (0 results
++     *                       in using the default value).
+      *  @param[in] a... - Optional parameters for the method call.
+      *
+      *  @return immediate return of the internal handler registration. The
+@@ -116,10 +119,12 @@ class connection : public sdbusplus::bus::bus
+      *          complete.
+      */
+     template <typename MessageHandler, typename... InputArgs>
+-    void async_method_call(MessageHandler&& handler, const std::string& service,
+-                           const std::string& objpath,
+-                           const std::string& interf, const std::string& method,
+-                           const InputArgs&... a)
++    void async_method_call_timed(MessageHandler&& handler,
++                                 const std::string& service,
++                                 const std::string& objpath,
++                                 const std::string& interf,
++                                 const std::string& method, uint64_t timeout,
++                                 const InputArgs&... a)
+     {
+         using FunctionTuple = boost::callable_traits::args_t<MessageHandler>;
+         using FunctionTupleType =
+@@ -184,7 +189,37 @@ class connection : public sdbusplus::bus::bus
+             applyHandler(ec, m);
+             return;
+         }
+-        async_send(m, std::forward<decltype(applyHandler)>(applyHandler));
++        async_send(m, std::forward<decltype(applyHandler)>(applyHandler),
++                   timeout);
++    }
++
++    /** @brief Perform an asynchronous method call, with input parameter packing
++     *         and return value unpacking. Uses the default timeout value.
++     *
++     *  @param[in] handler - A function object that is to be called as a
++     *                       continuation for the async dbus method call. The
++     *                       arguments to parse on the return are deduced from
++     *                       the handler's signature and then passed in along
++     *                       with an error code and optional message::message
++     *  @param[in] service - The service to call.
++     *  @param[in] objpath - The object's path for the call.
++     *  @param[in] interf - The object's interface to call.
++     *  @param[in] method - The object's method to call.
++     *  @param[in] a... - Optional parameters for the method call.
++     *
++     *  @return immediate return of the internal handler registration. The
++     *          result of the actual asynchronous call will get unpacked from
++     *          the message and passed into the handler when the call is
++     *          complete.
++     */
++    template <typename MessageHandler, typename... InputArgs>
++    void async_method_call(MessageHandler&& handler, const std::string& service,
++                           const std::string& objpath,
++                           const std::string& interf, const std::string& method,
++                           const InputArgs&... a)
++    {
++        async_method_call_timed(std::forward<MessageHandler>(handler), service,
++                                objpath, interf, method, 0, a...);
+     }
+ 
+     /** @brief Perform a yielding asynchronous method call, with input
+diff --git a/sdbusplus/asio/detail/async_send_handler.hpp b/sdbusplus/asio/detail/async_send_handler.hpp
+index bb896ad..cb91f51 100644
+--- a/sdbusplus/asio/detail/async_send_handler.hpp
++++ b/sdbusplus/asio/detail/async_send_handler.hpp
+@@ -35,12 +35,11 @@ struct async_send_handler
+     {}
+     async_send_handler(Handler& handler) : handler_(handler)
+     {}
+-    void operator()(sd_bus* conn, message::message& mesg)
++    void operator()(sd_bus* conn, message::message& mesg, uint64_t timeout)
+     {
+         async_send_handler* context = new async_send_handler(std::move(*this));
+-        // 0 is the default timeout
+-        int ec =
+-            sd_bus_call_async(conn, NULL, mesg.get(), &callback, context, 0);
++        int ec = sd_bus_call_async(conn, NULL, mesg.get(), &callback, context,
++                                   timeout);
+         if (ec < 0)
+         {
+             // add a deleter to context because handler may throw
+-- 
+2.25.1
+

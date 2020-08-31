@@ -25,7 +25,7 @@ SRC_URI_append_intel-ast2600 = " \
     file://0016-Add-system-reset-status-support.patch \
     file://0017-Manufacturing-mode-physical-presence-detection.patch \
     file://0018-Add-a-workaround-to-cover-VGA-memory-size-bug-in-A0.patch \
-    file://0019-Apply-WDT-reset-mask-to-reset-needed-controller.patch \
+    file://0019-Apply-WDT1-2-reset-mask-to-reset-needed-controller.patch \
     file://0020-Add-BMC-running-indicator-LED-control.patch \
     file://0022-Reboot-into-UBOOT-on-Watchdog-Failures.patch \
     "

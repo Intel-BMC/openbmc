@@ -1,0 +1,40 @@
+From ae3a9616b44677f20b4ca534c3f55ccb478fdf55 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Thu, 16 Jul 2020 14:16:28 -0700
+Subject: [PATCH] remove image file on pre-script failures
+
+Multiple back-to-back updates of bad images will cause the software
+manager to leave junk images hanging around. This is part of a fix that
+will remove them if the software manager never gets around to launching
+the fwupd.sh script. The other part is that the fwupd.sh script must
+always delete the image file on exit, success or failure.
+
+Tested: posted a garbage file, saw that it was deleted even though
+        fwupd.sh was never invoked.
+
+Change-Id: I6b049916a3edcb48f9d4ebe0d4715b94214b4feb
+Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
+---
+ watch.cpp | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/watch.cpp b/watch.cpp
+index ccdf594..c738945 100644
+--- a/watch.cpp
++++ b/watch.cpp
+@@ -106,6 +106,15 @@ int Watch::callback(sd_event_source* /* s */, int fd, uint32_t revents,
+             {
+                 log<level::ERR>("Error processing image",
+                                 entry("IMAGE=%s", tarballPath.c_str()));
++                std::error_code ec{};
++                fs::remove_all(tarballPath, ec);
++                if (!ec)
++                {
++                    log<level::ERR>(
++                        "Unable to remove image on processing failure",
++                        entry("ERROR=%s", ec.message().c_str()),
++                        entry("IMAGE=%s", tarballPath.c_str()));
++                }
+             }
+         }
+ 

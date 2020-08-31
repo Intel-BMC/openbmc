@@ -616,20 +616,6 @@
             "Type": "FanRedundancy"
         },
         {
-            "Direction": "Input",
-            "Index": 214,
-            "Name": "SMI Input",
-            "Polarity": "High",
-            "Type": "Gpio"
-        },
-        {
-            "Direction": "Input",
-            "Index": 218,
-            "Name": "ID Button",
-            "Polarity": "Low",
-            "Type": "Gpio"
-        },
-        {
             "Name": "System Fan connector 1",
             "Pwm": 0,
             "Tachs": [

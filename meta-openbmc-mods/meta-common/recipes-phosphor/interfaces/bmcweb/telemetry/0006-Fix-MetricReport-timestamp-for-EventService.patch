@@ -1,0 +1,78 @@
+From b71f087a173c36a16526156fa34581673e2b860c Mon Sep 17 00:00:00 2001
+From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
+Date: Fri, 24 Jul 2020 17:05:38 +0200
+Subject: [PATCH 6/6] Fix MetricReport timestamp for EventService
+
+Changed MetricReport timestamp type from std::string to int32_t.
+
+Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+Change-Id: I0a52b6963e7bedda89a216256f64764cd8799bf1
+---
+ redfish-core/include/event_service_manager.hpp | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index d2f4f2a..dc04ccb 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -38,7 +38,7 @@ namespace redfish
+ {
+ 
+ using ReadingsObjType =
+-    std::vector<std::tuple<std::string, std::string, double, std::string>>;
++    std::vector<std::tuple<std::string, std::string, double, int32_t>>;
+ using EventServiceConfig = std::tuple<bool, uint32_t, uint32_t>;
+ 
+ static constexpr const char* eventFormatType = "Event";
+@@ -532,10 +532,12 @@ class Subscription
+             metricValuesArray.push_back({});
+             nlohmann::json& entry = metricValuesArray.back();
+ 
+-            entry = {{"MetricId", std::get<0>(it)},
+-                     {"MetricProperty", std::get<1>(it)},
+-                     {"MetricValue", std::to_string(std::get<2>(it))},
+-                     {"Timestamp", std::get<3>(it)}};
++            auto& [id, property, value, timestamp] = it;
++
++            entry = {{"MetricId", id},
++                     {"MetricProperty", property},
++                     {"MetricValue", value},
++                     {"Timestamp", crow::utility::getDateTime(timestamp)}};
+         }
+ 
+         nlohmann::json msg = {
+@@ -1266,7 +1268,7 @@ class EventServiceManager
+             [idStr{std::move(idStr)}](
+                 const boost::system::error_code ec,
+                 boost::container::flat_map<
+-                    std::string, std::variant<std::string, ReadingsObjType>>&
++                    std::string, std::variant<int32_t, ReadingsObjType>>&
+                     resp) {
+                 if (ec)
+                 {
+@@ -1275,8 +1277,8 @@ class EventServiceManager
+                     return;
+                 }
+ 
+-                const std::string* timestampPtr =
+-                    std::get_if<std::string>(&resp["Timestamp"]);
++                const int32_t* timestampPtr =
++                    std::get_if<int32_t>(&resp["Timestamp"]);
+                 if (!timestampPtr)
+                 {
+                     BMCWEB_LOG_DEBUG << "Failed to Get timestamp.";
+@@ -1303,8 +1305,9 @@ class EventServiceManager
+                     std::shared_ptr<Subscription> entry = it.second;
+                     if (entry->eventFormatType == metricReportFormatType)
+                     {
+-                        entry->filterAndSendReports(idStr, *timestampPtr,
+-                                                    *readingsPtr);
++                        entry->filterAndSendReports(
++                            idStr, crow::utility::getDateTime(*timestampPtr),
++                            *readingsPtr);
+                     }
+                 }
+             },
+-- 
+2.16.6
+

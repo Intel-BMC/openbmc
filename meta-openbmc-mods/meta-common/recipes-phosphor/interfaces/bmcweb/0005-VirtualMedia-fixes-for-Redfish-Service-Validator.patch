@@ -1,0 +1,122 @@
+From 49dc25100ab8a4220f81bc8f9b54808850fe1267 Mon Sep 17 00:00:00 2001
+From: Przemyslaw Czarnowski <przemyslaw.hawrylewicz.czarnowski@intel.com>
+Date: Wed, 8 Jul 2020 15:17:31 +0200
+Subject: [PATCH] VirtualMedia fixes for Redfish Service Validator
+
+Removes all warnings and errors for VirtualMedia
+- rework for OemVirtualMedia
+- minor adjustments for jsons
+
+Tested:
+Redfish Service Validator ran with no errors and/or warnings
+
+Change-Id: Ic027166153a807a8bd3a6c04f042969f16e0dc6a
+Signed-off-by: Przemyslaw Czarnowski <przemyslaw.hawrylewicz.czarnowski@intel.com>
+---
+ redfish-core/lib/virtual_media.hpp            |  4 +--
+ .../v1/JsonSchemas/OemVirtualMedia/index.json | 28 +++----------------
+ .../redfish/v1/schema/OemVirtualMedia_v1.xml  | 12 ++++----
+ 3 files changed, 12 insertions(+), 32 deletions(-)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index 552e255..183abbe 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -129,7 +129,7 @@ static nlohmann::json vmItemTemplate(const std::string& name,
+     item["MediaTypes"] = {"CD", "USBStick"};
+     item["TransferMethod"] = "Stream";
+     item["TransferProtocolType"] = nullptr;
+-    item["Oem"]["OpenBmc"]["WebSocketEndpoint"] = nullptr;
++    item["Oem"]["OpenBMC"]["WebSocketEndpoint"] = nullptr;
+     item["Oem"]["OpenBMC"]["@odata.type"] =
+         "#OemVirtualMedia.v1_0_0.VirtualMedia";
+ 
+@@ -1039,7 +1039,7 @@ class VirtualMediaCollection : public Node
+             "#VirtualMediaCollection.VirtualMediaCollection";
+         res.jsonValue["Name"] = "Virtual Media Services";
+         res.jsonValue["@odata.id"] =
+-            "/redfish/v1/Managers/" + name + "/VirtualMedia/";
++            "/redfish/v1/Managers/" + name + "/VirtualMedia";
+ 
+         crow::connections::systemBus->async_method_call(
+             [asyncResp, name](const boost::system::error_code ec,
+diff --git a/static/redfish/v1/JsonSchemas/OemVirtualMedia/index.json b/static/redfish/v1/JsonSchemas/OemVirtualMedia/index.json
+index 78bd8b7..9ae641a 100644
+--- a/static/redfish/v1/JsonSchemas/OemVirtualMedia/index.json
++++ b/static/redfish/v1/JsonSchemas/OemVirtualMedia/index.json
+@@ -3,9 +3,10 @@
+     "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
+     "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
+     "definitions": {
+-        "OpenBmc": {
+-            "additionalProperties": true,
+-            "description": "Oem properties for OpenBmc.",
++        "VirtualMedia": {
++            "additionalProperties": false,
++            "description": "OEM Extension for VirtualMedia",
++            "longDescription": "OEM Extension for VirtualMedia to support Proxy mode.",
+             "patternProperties": {
+                 "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+                     "description": "This property shall specify a valid odata or Redfish property.",
+@@ -32,27 +33,6 @@
+                 }
+             },
+             "type": "object"
+-        },
+-        "VirtualMedia": {
+-            "additionalProperties": false,
+-            "description": "OEM Extension for VirtualMedia",
+-            "longDescription": "OEM Extension for VirtualMedia to support Proxy mode.",
+-            "patternProperties": {
+-                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
+-                    "description": "This property shall specify a valid odata or Redfish property.",
+-                    "type": [
+-                        "array",
+-                        "boolean",
+-                        "integer",
+-                        "number",
+-                        "null",
+-                        "object",
+-                        "string"
+-                    ]
+-                }
+-            },
+-            "properties": {},
+-            "type": "object"
+         }
+     },
+     "owningEntity": "OpenBMC",
+diff --git a/static/redfish/v1/schema/OemVirtualMedia_v1.xml b/static/redfish/v1/schema/OemVirtualMedia_v1.xml
+index 2b03a67..84afe73 100644
+--- a/static/redfish/v1/schema/OemVirtualMedia_v1.xml
++++ b/static/redfish/v1/schema/OemVirtualMedia_v1.xml
+@@ -25,20 +25,20 @@
+       <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
+       <Annotation Term="Redfish.Release" String="1.0"/>
+ 
+-      <ComplexType Name="OpenBmc" BaseType="Resource.OemObject">
+-        <Annotation Term="OData.AdditionalProperties" Bool="true"/>
+-	<Annotation Term="OData.Description" String="Oem properties for OpenBmc." />
+-
+-	<Property Name="WebSocketEndpoint" Type="Edm.String">
++        <Property Name="WebSocketEndpoint" Type="Edm.String">
+           <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
+           <Annotation Term="OData.Description" String="Indicates endpoint socket name and location."/>
+           <Annotation Term="OData.LongDescription" String="The value of this property shall be a structure ring indicating location and name of the socket used to communicate with nbd server."/>
+ 	</Property>
+-      </ComplexType>
+ 
+       <EntityType Name="VirtualMedia" BaseType="Resource.OemObject" Abstract="true">
+         <Annotation Term="OData.Description" String="OEM Extension for VirtualMedia"/>
+         <Annotation Term="OData.LongDescription" String="OEM Extension for VirtualMedia to support Proxy mode."/>
++        <Property Name="WebSocketEndpoint" Type="Edm.String">
++          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
++          <Annotation Term="OData.Description" String="Indicates endpoint socket name and location."/>
++          <Annotation Term="OData.LongDescription" String="The value of this property shall be a structure ring indicating location and name of the socket used to communicate with nbd server."/>
++	</Property>
+       </EntityType>
+     </Schema>
+ 
+-- 
+2.25.0
+

@@ -23,13 +23,12 @@ in order to avoid the host hang.
 1.  SDRAM controller
 2.  AHB Bridges
 3.  Graphics CRT controller
-4.  Reset Video Engine
-5.  LPC controller
-6.  CRT mode 2D Engine
-7.  PWM controller
-8.  MCTP Controller
-9.  X- DMA Controller
-10. SPI controller
+4.  LPC controller
+5.  CRT mode 2D Engine
+6.  PWM controller
+7.  MCTP Controller
+8.  X- DMA Controller
+9. SPI controller
 
 Quick Step to reproduce:
  Stop the BMC in uboot and add below bootcmd command
@@ -71,10 +70,10 @@ index b404353..97253f4 100644
      str   r1, [r0]
      ldr   r0, =0x1e78501c                        @ restore normal mask setting
 -    ldr   r1, =0x023FFFF3                        @ added 2016.09.06
-+    ldr   r1, =0x023CD773                        @ Changed 2020.06.18
++    ldr   r1, =0x023CDF73                        @ Changed 2020.06.18
 +    str   r1, [r0]
 +    ldr   r0, =0x1e78503c                        @ restore normal mask setting
-+    ldr   r1, =0x023CD773                        @ Changed 2020.07.08
++    ldr   r1, =0x023CDF73                        @ Changed 2020.07.08
      str   r1, [r0]
      b     bypass_first_reset
  

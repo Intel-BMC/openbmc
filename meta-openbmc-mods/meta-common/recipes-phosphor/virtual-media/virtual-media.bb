@@ -14,8 +14,7 @@ SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.VirtualMedia.service"
 
 DEPENDS = "udev boost nlohmann-json systemd sdbusplus"
 
-# Needed for legacy mode
-RDEPENDS_${PN} = "nbdkit"
+RDEPENDS_${PN} = "nbd-client nbdkit"
 
 inherit cmake systemd
 
