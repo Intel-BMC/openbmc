@@ -1,0 +1,78 @@
+From 9589a690577bdb4d2b79894d1c6a9c8396af5c2a Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Fri, 26 Jun 2020 17:42:47 -0700
+Subject: [PATCH] Add new_signal and extend set_property methods to
+ dbus_interface
+
+new_signal exports the same member function of sdbusplus::server::interface
+
+extend set_property to be able to return true only when the property value
+is changed. default behavior remains unchanged - returns true when property
+is updated successfully, value may be same or changed.
+
+With these two functions, dbus_interface can broadcast new signal when
+a property is changed. This allows a customized message to be sent
+when a property changes.
+
+Tested:
+Build test code to use the two new method to create and send new_signal when
+a property is changed.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Change-Id: I1815885bc77aad2c526b402f1386d4914479e738
+
+%% original patch: 0002-sdbusplus_Add_new_signal_and_extend_set_property_methods.patch
+---
+ sdbusplus/asio/object_server.hpp | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/sdbusplus/asio/object_server.hpp b/sdbusplus/asio/object_server.hpp
+index 7a3e8e7..35199bc 100644
+--- a/sdbusplus/asio/object_server.hpp
++++ b/sdbusplus/asio/object_server.hpp
+@@ -494,7 +494,7 @@ class dbus_interface
+ 
+         return true;
+     }
+-    template <typename PropertyType>
++    template <typename PropertyType, bool changesOnly = false>
+     bool set_property(const std::string& name, const PropertyType& value)
+     {
+         if (!initialized_)
+@@ -511,8 +511,12 @@ class dbus_interface
+                 if (status != SetPropertyReturnValue::sameValueUpdated)
+                 {
+                     signal_property(name);
++                    return true;
++                }
++                if constexpr (!changesOnly)
++                {
++                    return true;
+                 }
+-                return true;
+             }
+         }
+         return false;
+@@ -720,6 +724,19 @@ class dbus_interface
+         return sd_bus_error_set_const(error, SD_BUS_ERROR_INVALID_ARGS, NULL);
+     }
+ 
++    /** @brief Create a new signal message.
++     *
++     *  @param[in] member - The signal name to create.
++     */
++    auto new_signal(const char* member)
++    {
++        if (!initialized_)
++        {
++            return message::message(nullptr);
++        }
++        return interface_->new_signal(member);
++    }
++
+     bool initialize(const bool skipPropertyChangedSignal = false)
+     {
+         // can only register once
+-- 
+2.17.1
+

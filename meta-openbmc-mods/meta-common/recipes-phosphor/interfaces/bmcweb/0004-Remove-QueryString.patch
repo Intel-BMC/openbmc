@@ -1,0 +1,621 @@
+From f8749b5898403ee04a623a5bc534bd939865e221 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Wed, 22 Jul 2020 09:08:38 -0700
+Subject: [PATCH 1/1] Remove QueryString
+
+QueryString is an error-prone library that was
+leftover from crow. Replace it with boost::url,
+a header only library based and written by the
+one of the authors of boost beast.
+
+Tested: Verified logging paging still worked
+as expected
+
+Change-Id: I47c225089aa7d0f7d2299142f91806294f879381
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ CMakeLists.txt                     |   2 +
+ CMakeLists.txt.in                  |  10 +
+ http/http_connection.h             |  21 +-
+ http/http_request.h                |   5 +-
+ http/query_string.h                | 421 -----------------------------
+ redfish-core/lib/event_service.hpp |   7 +-
+ redfish-core/lib/log_services.hpp  |  20 +-
+ 7 files changed, 45 insertions(+), 441 deletions(-)
+ delete mode 100644 http/query_string.h
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2886438..50483ad 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -280,6 +280,8 @@ add_definitions (-DBOOST_ALL_NO_LIB)
+ add_definitions (-DBOOST_NO_RTTI)
+ add_definitions (-DBOOST_NO_TYPEID)
+ add_definitions (-DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
++add_definitions (-DBOOST_URL_STANDALONE)
++add_definitions (-DBOOST_URL_HEADER_ONLY)
+ 
+ # sdbusplus
+ if (NOT ${YOCTO_DEPENDENCIES})
+diff --git a/CMakeLists.txt.in b/CMakeLists.txt.in
+index d14910f..5cd73f6 100644
+--- a/CMakeLists.txt.in
++++ b/CMakeLists.txt.in
+@@ -53,3 +53,13 @@ externalproject_add (
+     cp -r "${CMAKE_BINARY_DIR}/nlohmann-json-src/include/nlohmann"
+     "${CMAKE_BINARY_DIR}/prefix/include"
+ )
++
++externalproject_add (
++    Boost-URL GIT_REPOSITORY "https://github.com/CPPAlliance/url.git" GIT_TAG
++    a56ae0df6d3078319755fbaa67822b4fa7fd352b SOURCE_DIR
++    "${CMAKE_BINARY_DIR}/boost-url-src" BINARY_DIR
++    "${CMAKE_BINARY_DIR}/boost-url-build" CONFIGURE_COMMAND "" BUILD_COMMAND
++    "" INSTALL_COMMAND mkdir -p "${CMAKE_BINARY_DIR}/prefix/include" &&
++    cp -r "${CMAKE_BINARY_DIR}/boost-url-src/include/boost"
++    "${CMAKE_BINARY_DIR}/prefix/include"
++)
+diff --git a/http/http_connection.h b/http/http_connection.h
+index 35bf99c..8dba3d6 100644
+--- a/http/http_connection.h
++++ b/http/http_connection.h
+@@ -728,13 +728,9 @@ class Connection :
+                     return;
+                 }
+ 
+-                // Compute the url parameters for the request
+-                req->url = req->target();
+-                std::size_t index = req->url.find("?");
+-                if (index != std::string_view::npos)
+-                {
+-                    req->url = req->url.substr(0, index);
+-                }
++                req->urlView = boost::urls::url_view(req->target());
++                req->url = req->urlView.encoded_path();
++
+                 crow::authorization::authenticate(*req, res, session);
+ 
+                 bool loggedIn = req && req->session;
+@@ -743,7 +739,16 @@ class Connection :
+                     startDeadline(loggedInAttempts);
+                     BMCWEB_LOG_DEBUG << "Starting slow deadline";
+ 
+-                    req->urlParams = QueryString(std::string(req->target()));
++                    req->urlParams = req->urlView.params();
++
++#ifdef BMCWEB_ENABLE_DEBUG
++                    std::string paramList = "";
++                    for (const auto param : req->urlParams)
++                    {
++                        paramList += param->key() + " " + param->value() + " ";
++                    }
++                    BMCWEB_LOG_DEBUG << "QueryParams: " << paramList;
++#endif
+                 }
+                 else
+                 {
+diff --git a/http/http_request.h b/http/http_request.h
+index 0691465..95f88c7 100644
+--- a/http/http_request.h
++++ b/http/http_request.h
+@@ -1,7 +1,6 @@
+ #pragma once
+ 
+ #include "common.h"
+-#include "query_string.h"
+ 
+ #include "sessions.hpp"
+ 
+@@ -9,6 +8,7 @@
+ #include <boost/beast/http.hpp>
+ #include <boost/beast/ssl/ssl_stream.hpp>
+ #include <boost/beast/websocket.hpp>
++#include <boost/url/url_view.hpp>
+ 
+ namespace crow
+ {
+@@ -24,7 +24,8 @@ struct Request
+     boost::beast::http::request<boost::beast::http::string_body>& req;
+     boost::beast::http::fields& fields;
+     std::string_view url{};
+-    QueryString urlParams{};
++    boost::urls::url_view urlView{};
++    boost::urls::url_view::params_type urlParams{};
+     bool isSecure{false};
+ 
+     const std::string& body;
+diff --git a/http/query_string.h b/http/query_string.h
+deleted file mode 100644
+index e980280..0000000
+--- a/http/query_string.h
++++ /dev/null
+@@ -1,421 +0,0 @@
+-#pragma once
+-
+-#include <cstdio>
+-#include <cstring>
+-#include <iostream>
+-#include <string>
+-#include <vector>
+-
+-namespace crow
+-{
+-// ----------------------------------------------------------------------------
+-// qs_parse (modified)
+-// https://github.com/bartgrantham/qs_parse
+-// ----------------------------------------------------------------------------
+-/*  Similar to strncmp, but handles URL-encoding for either string  */
+-int qsStrncmp(const char* s, const char* qs, size_t n);
+-
+-/*  Finds the beginning of each key/value pair and stores a pointer in qs_kv.
+- *  Also decodes the value portion of the k/v pair *in-place*.  In a future
+- *  enhancement it will also have a compile-time option of sorting qs_kv
+- *  alphabetically by key.  */
+-size_t qsParse(char* qs, char* qs_kv[], size_t qs_kv_size);
+-
+-/*  Used by qs_parse to decode the value portion of a k/v pair  */
+-int qsDecode(char* qs);
+-
+-/*  Looks up the value according to the key on a pre-processed query string
+- *  A future enhancement will be a compile-time option to look up the key
+- *  in a pre-sorted qs_kv array via a binary search.  */
+-// char * qs_k2v(const char * key, char * qs_kv[], int qs_kv_size);
+-char* qsK2v(const char* key, char* const* qs_kv, int qs_kv_size, int nth);
+-
+-/*  Non-destructive lookup of value, based on key.  User provides the
+- *  destinaton string and length.  */
+-char* qsScanvalue(const char* key, const char* qs, char* val, size_t val_len);
+-
+-// TODO: implement sorting of the qs_kv array; for now ensure it's not compiled
+-#undef _qsSORTING
+-
+-// isxdigit _is_ available in <ctype.h>, but let's avoid another header instead
+-#define BMCWEB_QS_ISHEX(x)                                                     \
+-    ((((x) >= '0' && (x) <= '9') || ((x) >= 'A' && (x) <= 'F') ||              \
+-      ((x) >= 'a' && (x) <= 'f'))                                              \
+-         ? 1                                                                   \
+-         : 0)
+-#define BMCWEB_QS_HEX2DEC(x)                                                   \
+-    (((x) >= '0' && (x) <= '9')                                                \
+-         ? (x)-48                                                              \
+-         : ((x) >= 'A' && (x) <= 'F')                                          \
+-               ? (x)-55                                                        \
+-               : ((x) >= 'a' && (x) <= 'f') ? (x)-87 : 0)
+-#define BMCWEB_QS_ISQSCHR(x)                                                   \
+-    ((((x) == '=') || ((x) == '#') || ((x) == '&') || ((x) == '\0')) ? 0 : 1)
+-
+-inline int qsStrncmp(const char* s, const char* qs, size_t n)
+-{
+-    int i = 0;
+-    char u1, u2;
+-    char unyb, lnyb;
+-
+-    while (n-- > 0)
+-    {
+-        u1 = *s++;
+-        u2 = *qs++;
+-
+-        if (!BMCWEB_QS_ISQSCHR(u1))
+-        {
+-            u1 = '\0';
+-        }
+-        if (!BMCWEB_QS_ISQSCHR(u2))
+-        {
+-            u2 = '\0';
+-        }
+-
+-        if (u1 == '+')
+-        {
+-            u1 = ' ';
+-        }
+-        if (u1 == '%') // easier/safer than scanf
+-        {
+-            unyb = static_cast<char>(*s++);
+-            lnyb = static_cast<char>(*s++);
+-            if (BMCWEB_QS_ISHEX(unyb) && BMCWEB_QS_ISHEX(lnyb))
+-            {
+-                u1 = static_cast<char>((BMCWEB_QS_HEX2DEC(unyb) * 16) +
+-                                       BMCWEB_QS_HEX2DEC(lnyb));
+-            }
+-            else
+-            {
+-                u1 = '\0';
+-            }
+-        }
+-
+-        if (u2 == '+')
+-        {
+-            u2 = ' ';
+-        }
+-        if (u2 == '%') // easier/safer than scanf
+-        {
+-            unyb = static_cast<char>(*qs++);
+-            lnyb = static_cast<char>(*qs++);
+-            if (BMCWEB_QS_ISHEX(unyb) && BMCWEB_QS_ISHEX(lnyb))
+-            {
+-                u2 = static_cast<char>((BMCWEB_QS_HEX2DEC(unyb) * 16) +
+-                                       BMCWEB_QS_HEX2DEC(lnyb));
+-            }
+-            else
+-            {
+-                u2 = '\0';
+-            }
+-        }
+-
+-        if (u1 != u2)
+-        {
+-            return u1 - u2;
+-        }
+-        if (u1 == '\0')
+-        {
+-            return 0;
+-        }
+-        i++;
+-    }
+-    if (BMCWEB_QS_ISQSCHR(*qs))
+-    {
+-        return -1;
+-    }
+-    else
+-    {
+-        return 0;
+-    }
+-}
+-
+-inline size_t qsParse(char* qs, char* qs_kv[], size_t qs_kv_size)
+-{
+-    size_t i;
+-    size_t j;
+-    char* substrPtr;
+-
+-    for (i = 0; i < qs_kv_size; i++)
+-    {
+-        qs_kv[i] = nullptr;
+-    }
+-
+-    // find the beginning of the k/v substrings or the fragment
+-    substrPtr = qs + strcspn(qs, "?#");
+-    if (substrPtr[0] != '\0')
+-    {
+-        substrPtr++;
+-    }
+-    else
+-    {
+-        return 0; // no query or fragment
+-    }
+-
+-    i = 0;
+-    while (i < qs_kv_size)
+-    {
+-        qs_kv[i++] = substrPtr;
+-        j = strcspn(substrPtr, "&");
+-        if (substrPtr[j] == '\0')
+-        {
+-            break;
+-        }
+-        substrPtr += j + 1;
+-    }
+-
+-    // we only decode the values in place, the keys could have '='s in them
+-    // which will hose our ability to distinguish keys from values later
+-    for (j = 0; j < i; j++)
+-    {
+-        substrPtr = qs_kv[j] + strcspn(qs_kv[j], "=&#");
+-        if (substrPtr[0] == '&' || substrPtr[0] == '\0')
+-        { // blank value: skip decoding
+-            substrPtr[0] = '\0';
+-        }
+-        else
+-        {
+-            qsDecode(++substrPtr);
+-        }
+-    }
+-
+-#ifdef _qsSORTING
+-// TODO: qsort qs_kv, using qs_strncmp() for the comparison
+-#endif
+-
+-    return i;
+-}
+-
+-inline int qsDecode(char* qs)
+-{
+-    int i = 0, j = 0;
+-
+-    while (BMCWEB_QS_ISQSCHR(qs[j]))
+-    {
+-        if (qs[j] == '+')
+-        {
+-            qs[i] = ' ';
+-        }
+-        else if (qs[j] == '%') // easier/safer than scanf
+-        {
+-            if (!BMCWEB_QS_ISHEX(qs[j + 1]) || !BMCWEB_QS_ISHEX(qs[j + 2]))
+-            {
+-                qs[i] = '\0';
+-                return i;
+-            }
+-            qs[i] = static_cast<char>((BMCWEB_QS_HEX2DEC(qs[j + 1]) * 16) +
+-                                      BMCWEB_QS_HEX2DEC(qs[j + 2]));
+-            j += 2;
+-        }
+-        else
+-        {
+-            qs[i] = qs[j];
+-        }
+-        i++;
+-        j++;
+-    }
+-    qs[i] = '\0';
+-
+-    return i;
+-}
+-
+-inline char* qsK2v(const char* key, char* const* qs_kv, int qs_kv_size,
+-                   int nth = 0)
+-{
+-    int i;
+-    size_t keyLen, skip;
+-
+-    keyLen = strlen(key);
+-
+-#ifdef _qsSORTING
+-// TODO: binary search for key in the sorted qs_kv
+-#else  // _qsSORTING
+-    for (i = 0; i < qs_kv_size; i++)
+-    {
+-        // we rely on the unambiguous '=' to find the value in our k/v pair
+-        if (qsStrncmp(key, qs_kv[i], keyLen) == 0)
+-        {
+-            skip = strcspn(qs_kv[i], "=");
+-            if (qs_kv[i][skip] == '=')
+-            {
+-                skip++;
+-            }
+-            // return (zero-char value) ? ptr to trailing '\0' : ptr to value
+-            if (nth == 0)
+-            {
+-                return qs_kv[i] + skip;
+-            }
+-            else
+-            {
+-                --nth;
+-            }
+-        }
+-    }
+-#endif // _qsSORTING
+-
+-    return nullptr;
+-}
+-
+-inline char* qsScanvalue(const char* key, const char* qs, char* val,
+-                         size_t val_len)
+-{
+-    size_t i, keyLen;
+-    const char* tmp;
+-
+-    // find the beginning of the k/v substrings
+-    if ((tmp = strchr(qs, '?')) != nullptr)
+-    {
+-        qs = tmp + 1;
+-    }
+-
+-    keyLen = strlen(key);
+-    while (qs[0] != '#' && qs[0] != '\0')
+-    {
+-        if (qsStrncmp(key, qs, keyLen) == 0)
+-        {
+-            break;
+-        }
+-        qs += strcspn(qs, "&") + 1;
+-    }
+-
+-    if (qs[0] == '\0')
+-    {
+-        return nullptr;
+-    }
+-
+-    qs += strcspn(qs, "=&#");
+-    if (qs[0] == '=')
+-    {
+-        qs++;
+-        i = strcspn(qs, "&=#");
+-        strncpy(val, qs, (val_len - 1) < (i + 1) ? (val_len - 1) : (i + 1));
+-        qsDecode(val);
+-    }
+-    else
+-    {
+-        if (val_len > 0)
+-        {
+-            val[0] = '\0';
+-        }
+-    }
+-
+-    return val;
+-}
+-} // namespace crow
+-// ----------------------------------------------------------------------------
+-
+-namespace crow
+-{
+-class QueryString
+-{
+-  public:
+-    static const size_t maxKeyValuePairsCount = 256;
+-
+-    QueryString() = default;
+-
+-    QueryString(const QueryString& qs) : url(qs.url)
+-    {
+-        for (auto p : qs.keyValuePairs)
+-        {
+-            keyValuePairs.push_back(
+-                const_cast<char*>(p - qs.url.c_str() + url.c_str()));
+-        }
+-    }
+-
+-    QueryString& operator=(const QueryString& qs)
+-    {
+-        if (this == &qs)
+-        {
+-            return *this;
+-        }
+-
+-        url = qs.url;
+-        keyValuePairs.clear();
+-        for (auto p : qs.keyValuePairs)
+-        {
+-            keyValuePairs.push_back(
+-                const_cast<char*>(p - qs.url.c_str() + url.c_str()));
+-        }
+-        return *this;
+-    }
+-
+-    QueryString& operator=(QueryString&& qs)
+-    {
+-        keyValuePairs = std::move(qs.keyValuePairs);
+-        auto* oldData = const_cast<char*>(qs.url.c_str());
+-        url = std::move(qs.url);
+-        for (auto& p : keyValuePairs)
+-        {
+-            p += const_cast<char*>(url.c_str()) - oldData;
+-        }
+-        return *this;
+-    }
+-
+-    explicit QueryString(std::string newUrl) : url(std::move(newUrl))
+-    {
+-        if (url.empty())
+-        {
+-            return;
+-        }
+-
+-        keyValuePairs.resize(maxKeyValuePairsCount);
+-
+-        size_t count =
+-            qsParse(&url[0], &keyValuePairs[0], maxKeyValuePairsCount);
+-        keyValuePairs.resize(count);
+-    }
+-
+-    void clear()
+-    {
+-        keyValuePairs.clear();
+-        url.clear();
+-    }
+-
+-    friend std::ostream& operator<<(std::ostream& os, const QueryString& qs)
+-    {
+-        os << "[ ";
+-        for (size_t i = 0; i < qs.keyValuePairs.size(); ++i)
+-        {
+-            if (i != 0u)
+-            {
+-                os << ", ";
+-            }
+-            os << qs.keyValuePairs[i];
+-        }
+-        os << " ]";
+-        return os;
+-    }
+-
+-    char* get(const std::string& name) const
+-    {
+-        char* ret = qsK2v(name.c_str(), keyValuePairs.data(),
+-                          static_cast<int>(keyValuePairs.size()));
+-        return ret;
+-    }
+-
+-    std::vector<char*> getList(const std::string& name) const
+-    {
+-        std::vector<char*> ret;
+-        std::string plus = name + "[]";
+-        char* element = nullptr;
+-
+-        int count = 0;
+-        while (true)
+-        {
+-            element = qsK2v(plus.c_str(), keyValuePairs.data(),
+-                            static_cast<int>(keyValuePairs.size()), count++);
+-            if (element == nullptr)
+-            {
+-                break;
+-            }
+-            ret.push_back(element);
+-        }
+-        return ret;
+-    }
+-
+-  private:
+-    std::string url;
+-    std::vector<char*> keyValuePairs;
+-};
+-
+-} // namespace crow
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index b27c6e0..8bd30f5 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -445,13 +445,16 @@ class EventServiceSSE : public Node
+         subValue->protocol = "Redfish";
+         subValue->retryPolicy = "TerminateAfterRetries";
+ 
+-        char* filters = req.urlParams.get("$filter");
+-        if (filters == nullptr)
++        boost::urls::url_view::params_type::iterator it =
++            req.urlParams.find("$filter");
++        if (it == req.urlParams.end())
+         {
+             subValue->eventFormatType = "Event";
+         }
++
+         else
+         {
++            std::string filters = it->value();
+             // Reading from query params.
+             bool status = readSSEQueryParams(
+                 filters, subValue->eventFormatType, subValue->registryMsgIds,
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index bee1a92..590243c 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -218,12 +218,14 @@ static bool getEntryTimestamp(sd_journal* journal, std::string& entryTimestamp)
+ static bool getSkipParam(crow::Response& res, const crow::Request& req,
+                          uint64_t& skip)
+ {
+-    char* skipParam = req.urlParams.get("$skip");
+-    if (skipParam != nullptr)
++    boost::urls::url_view::params_type::iterator it =
++        req.urlParams.find("$skip");
++    if (it != req.urlParams.end())
+     {
++        std::string skipParam = it->value();
+         char* ptr = nullptr;
+-        skip = std::strtoul(skipParam, &ptr, 10);
+-        if (*skipParam == '\0' || *ptr != '\0')
++        skip = std::strtoul(skipParam.c_str(), &ptr, 10);
++        if (skipParam.empty() || *ptr != '\0')
+         {
+ 
+             messages::queryParameterValueTypeError(res, std::string(skipParam),
+@@ -238,12 +240,14 @@ static constexpr const uint64_t maxEntriesPerPage = 1000;
+ static bool getTopParam(crow::Response& res, const crow::Request& req,
+                         uint64_t& top)
+ {
+-    char* topParam = req.urlParams.get("$top");
+-    if (topParam != nullptr)
++    boost::urls::url_view::params_type::iterator it =
++        req.urlParams.find("$top");
++    if (it != req.urlParams.end())
+     {
++        std::string topParam = it->value();
+         char* ptr = nullptr;
+-        top = std::strtoul(topParam, &ptr, 10);
+-        if (*topParam == '\0' || *ptr != '\0')
++        top = std::strtoul(topParam.c_str(), &ptr, 10);
++        if (topParam.empty() || *ptr != '\0')
+         {
+             messages::queryParameterValueTypeError(res, std::string(topParam),
+                                                    "$top");
+-- 
+2.17.1
+

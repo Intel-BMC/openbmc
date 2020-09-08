@@ -1,0 +1,913 @@
+From 7820421433349df28bd393e8d610d1848af0f1c8 Mon Sep 17 00:00:00 2001
+From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
+Date: Mon, 27 Apr 2020 17:24:15 +0200
+Subject: [PATCH 1/5] Redfish TelemetryService schema implementation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Added TelemetryService, MetricReports, MetricReportCollection,
+MetricReportDefinition and MetricReportDefinitionCollection schemas
+with GET method support. Added TelemetryService URI to root service.
+Implemented communication with backend - MonitoringService.
+Added schemes attributes that are supported by MonitoringService
+design. User is able to fetch basic information about reports if
+MonitoringService is present in OpenBMC.
+
+Tested:
+  - Succesfully passed RedfishServiceValidator.py
+  - Validated conversion to duration format using whole
+    range of uint32_t type
+  - Validated assigning value to JSON response using different
+    closures and std::functions types
+
+Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+Signed-off-by: Adrian Ambrożewicz <adrian.ambrozewicz@linux.intel.com>
+Change-Id: Ie6b0b49f4ef5eeaef07d1209b6c349270c04d570
+---
+ include/dbus_utility.hpp                       |  21 +++
+ redfish-core/include/redfish.hpp               |  10 ++
+ redfish-core/include/utils/json_utils.hpp      | 101 +++++++++++++
+ redfish-core/include/utils/telemetry_utils.hpp | 100 +++++++++++++
+ redfish-core/include/utils/time_utils.hpp      |  97 +++++++++++++
+ redfish-core/lib/metric_report.hpp             | 149 +++++++++++++++++++
+ redfish-core/lib/metric_report_definition.hpp  | 193 +++++++++++++++++++++++++
+ redfish-core/lib/service_root.hpp              |   2 +
+ redfish-core/lib/telemetry_service.hpp         |  92 ++++++++++++
+ 9 files changed, 765 insertions(+)
+ create mode 100644 redfish-core/include/utils/telemetry_utils.hpp
+ create mode 100644 redfish-core/include/utils/time_utils.hpp
+ create mode 100644 redfish-core/lib/metric_report.hpp
+ create mode 100644 redfish-core/lib/metric_report_definition.hpp
+ create mode 100644 redfish-core/lib/telemetry_service.hpp
+
+diff --git a/include/dbus_utility.hpp b/include/dbus_utility.hpp
+index e1360f7..3df88d8 100644
+--- a/include/dbus_utility.hpp
++++ b/include/dbus_utility.hpp
+@@ -109,5 +109,26 @@ inline void checkDbusPathExists(const std::string& path, Callback&& callback)
+         std::array<std::string, 0>());
+ }
+ 
++template <typename Array, typename Callback>
++inline void getSubTreePaths(Callback&& callback, const std::string& path,
++                            int depth, Array& interfaces)
++{
++    crow::connections::systemBus->async_method_call(
++        callback, "xyz.openbmc_project.ObjectMapper",
++        "/xyz/openbmc_project/object_mapper",
++        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", path, depth,
++        interfaces);
++}
++
++template <typename Callback>
++inline void getAllProperties(Callback&& callback, const std::string& service,
++                             const std::string& path,
++                             const std::string& interface)
++{
++    crow::connections::systemBus->async_method_call(
++        callback, service, path, "org.freedesktop.DBus.Properties", "GetAll",
++        interface);
++}
++
+ } // namespace utility
+ } // namespace dbus
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index cc98e1a..3d4c117 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -25,6 +25,8 @@
+ #include "../lib/log_services.hpp"
+ #include "../lib/managers.hpp"
+ #include "../lib/message_registries.hpp"
++#include "../lib/metric_report.hpp"
++#include "../lib/metric_report_definition.hpp"
+ #include "../lib/network_protocol.hpp"
+ #include "../lib/pcie.hpp"
+ #include "../lib/power.hpp"
+@@ -35,6 +37,7 @@
+ #include "../lib/storage.hpp"
+ #include "../lib/systems.hpp"
+ #include "../lib/task.hpp"
++#include "../lib/telemetry_service.hpp"
+ #include "../lib/thermal.hpp"
+ #include "../lib/update_service.hpp"
+ #ifdef BMCWEB_ENABLE_VM_NBDPROXY
+@@ -202,6 +205,13 @@ class RedfishService
+         nodes.emplace_back(std::make_unique<HypervisorInterface>(app));
+         nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
+ 
++        nodes.emplace_back(std::make_unique<TelemetryService>(app));
++        nodes.emplace_back(
++            std::make_unique<MetricReportDefinitionCollection>(app));
++        nodes.emplace_back(std::make_unique<MetricReportDefinition>(app));
++        nodes.emplace_back(std::make_unique<MetricReportCollection>(app));
++        nodes.emplace_back(std::make_unique<MetricReport>(app));
++
+         for (const auto& node : nodes)
+         {
+             node->initPrivileges();
+diff --git a/redfish-core/include/utils/json_utils.hpp b/redfish-core/include/utils/json_utils.hpp
+index d578de4..fbb259d 100644
+--- a/redfish-core/include/utils/json_utils.hpp
++++ b/redfish-core/include/utils/json_utils.hpp
+@@ -13,15 +13,19 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ */
++
+ #pragma once
+ 
+ #include <http_request.h>
+ #include <http_response.h>
+ 
++#include <boost/container/flat_map.hpp>
+ #include <error_messages.hpp>
+ #include <nlohmann/json.hpp>
+ 
+ #include <bitset>
++#include <string>
++#include <variant>
+ 
+ namespace redfish
+ {
+@@ -436,5 +440,102 @@ bool getValueFromJsonObject(nlohmann::json& jsonData, const std::string& key,
+     return details::unpackValue(jsonValue, key, value);
+ }
+ 
++template <class T>
++struct IsStdFunction
++{
++    static constexpr bool value = false;
++};
++
++template <class T>
++struct IsStdFunction<std::function<T>>
++{
++    static constexpr bool value = true;
++};
++
++template <class T>
++constexpr bool is_std_function_v = IsStdFunction<T>::value;
++
++/**
++ * @brief Assign dbus property to http response attribute if property is stored
++ *        on the map.
++ */
++template <typename T, typename S, typename... V>
++bool assignIfPresent(
++    const boost::container::flat_map<std::string, std::variant<V...>>& ret,
++    const char* propertyName, nlohmann::json& attribute, const S& convert)
++{
++    if constexpr (is_std_function_v<S>)
++    {
++        if (!convert)
++        {
++            BMCWEB_LOG_ERROR << "Passed empty target as convert argument";
++            return false;
++        }
++    }
++
++    auto found = ret.find(propertyName);
++    if (found != ret.end())
++    {
++        auto property = std::get_if<T>(&found->second);
++        if (property)
++        {
++            attribute = convert(*property);
++            return true;
++        }
++        else
++        {
++            BMCWEB_LOG_ERROR << "Variant does not contain this type";
++        }
++    }
++    else
++    {
++        BMCWEB_LOG_ERROR << "Element not found in map";
++    }
++
++    return false;
++}
++
++template <typename T, typename... V>
++bool assignIfPresent(
++    const boost::container::flat_map<std::string, std::variant<V...>>& ret,
++    const char* propertyName, nlohmann::json& attribute)
++{
++    return assignIfPresent<T>(ret, propertyName, attribute,
++                              [](const T& v) -> T { return v; });
++}
++
++template <typename T, typename... V>
++bool assignIfPresent(
++    const boost::container::flat_map<std::string, std::variant<V...>>& ret,
++    const char* attributeName, crow::Response& res)
++{
++    return assignIfPresent<T>(ret, attributeName, res.jsonValue[attributeName]);
++}
++
++/**
++ * @brief Translate dbusPaths received from ObjectMapper into Redfish
++ *        collection members and fill http response with those information.
++ */
++inline void dbusPathsToMembersArray(crow::Response& res,
++                                    const std::vector<std::string>& reports,
++                                    const char* path)
++{
++    nlohmann::json& members = res.jsonValue["Members"];
++    members = nlohmann::json::array();
++
++    for (const std::string& objpath : reports)
++    {
++        std::size_t lastPos = objpath.rfind("/");
++        if (lastPos == std::string::npos)
++        {
++            BMCWEB_LOG_ERROR << "Failed to find '/' in " << objpath;
++            continue;
++        }
++        members.push_back({{"@odata.id", path + objpath.substr(lastPos + 1)}});
++    }
++
++    res.jsonValue["Members@odata.count"] = members.size();
++}
++
+ } // namespace json_util
+ } // namespace redfish
+diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
+new file mode 100644
+index 0000000..05ed00f
+--- /dev/null
++++ b/redfish-core/include/utils/telemetry_utils.hpp
+@@ -0,0 +1,100 @@
++/*
++// Copyright (c) 2018-2020 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#pragma once
++
++namespace redfish
++{
++
++namespace telemetry
++{
++
++static constexpr const char* metricReportDefinitionUri =
++    "/redfish/v1/TelemetryService/MetricReportDefinitions/";
++static constexpr const char* metricReportUri =
++    "/redfish/v1/TelemetryService/MetricReports/";
++static constexpr const char* reportInterface =
++    "xyz.openbmc_project.MonitoringService.Report";
++static constexpr const char* telemetryPath =
++    "/xyz/openbmc_project/MonitoringService/Reports/TelemetryService";
++
++static void getReportCollection(const std::shared_ptr<AsyncResp>& asyncResp,
++                                const char* uri)
++{
++    const std::array<const char*, 1> interfaces = {reportInterface};
++
++    dbus::utility::getSubTreePaths(
++        [asyncResp, uri](const boost::system::error_code ec,
++                         const std::vector<std::string>& reports) {
++            if (ec == boost::system::errc::no_such_file_or_directory)
++            {
++                asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
++                asyncResp->res.jsonValue["Members@odata.count"] = 0;
++                return;
++            }
++
++            if (ec)
++            {
++                messages::internalError(asyncResp->res);
++                BMCWEB_LOG_ERROR << "respHandler DBus error " << ec;
++                return;
++            }
++
++            json_util::dbusPathsToMembersArray(asyncResp->res, reports, uri);
++        },
++        telemetryPath, 1, interfaces);
++}
++
++template <typename Callback>
++static void getReport(const std::shared_ptr<AsyncResp>& asyncResp,
++                      const std::string& id, const char* schemaType,
++                      const Callback&& callback)
++{
++    const std::array<const char*, 1> interfaces = {reportInterface};
++
++    dbus::utility::getSubTreePaths(
++        [asyncResp, id, schemaType,
++         callback](const boost::system::error_code ec,
++                   const std::vector<std::string>& reports) {
++            if (ec == boost::system::errc::no_such_file_or_directory)
++            {
++                messages::resourceNotFound(asyncResp->res, schemaType, id);
++                return;
++            }
++
++            if (ec)
++            {
++                messages::internalError(asyncResp->res);
++                BMCWEB_LOG_ERROR << "respHandler DBus error " << ec;
++                return;
++            }
++
++            const std::string target = "/xyz/openbmc_project/"
++                                       "MonitoringService/Reports/"
++                                       "TelemetryService/" +
++                                       id;
++            auto path = std::find(reports.begin(), reports.end(), target);
++            if (path == std::end(reports))
++            {
++                messages::resourceNotFound(asyncResp->res, schemaType, id);
++                return;
++            }
++            callback(asyncResp, *path, id);
++        },
++        telemetryPath, 1, interfaces);
++}
++} // namespace telemetry
++} // namespace redfish
+diff --git a/redfish-core/include/utils/time_utils.hpp b/redfish-core/include/utils/time_utils.hpp
+new file mode 100644
+index 0000000..0256b3f
+--- /dev/null
++++ b/redfish-core/include/utils/time_utils.hpp
+@@ -0,0 +1,97 @@
++/*
++// Copyright (c) 2020 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#pragma once
++
++#include <boost/algorithm/string/trim.hpp>
++
++#include <chrono>
++#include <cstdint>
++#include <string>
++#include <type_traits>
++
++namespace redfish
++{
++
++namespace time_utils
++{
++
++namespace details
++{
++
++template <typename T>
++std::string toDurationFormatItem(std::chrono::milliseconds& duration,
++                                 const char* postfix)
++{
++    const auto t = std::chrono::duration_cast<T>(duration);
++    if (t.count() == 0)
++    {
++        return "";
++    }
++
++    std::stringstream ss;
++    if constexpr (std::is_same<T, std::chrono::milliseconds>::value)
++    {
++        ss << static_cast<float>(t.count()) /
++                  static_cast<float>(std::chrono::milliseconds::period::den);
++    }
++    else
++    {
++        ss << t.count();
++    }
++    ss << postfix;
++    duration -= t;
++    return ss.str();
++}
++
++} // namespace details
++
++/**
++ * @brief Convert time value into duration format that is based on ISO 8601.
++ *        Pattern: "-?P(\\d+D)?(T(\\d+H)?(\\d+M)?(\\d+(.\\d+)?S)?)?"
++ *        Reference: "Redfish Telemetry White Paper".
++ */
++std::string toDurationFormat(const uint32_t ms)
++{
++    std::chrono::milliseconds duration(ms);
++    if (duration.count() == 0)
++    {
++        return "PT0S";
++    }
++
++    std::string fmt;
++    fmt.reserve(sizeof("PxxxDTxxHxxMxx.xxxxxxS"));
++
++    using Days = std::chrono::duration<int, std::ratio<24 * 60 * 60>>;
++
++    fmt += "P";
++    fmt += details::toDurationFormatItem<Days>(duration, "D");
++    if (duration.count() == 0)
++    {
++        return fmt;
++    }
++
++    fmt += "T";
++    fmt += details::toDurationFormatItem<std::chrono::hours>(duration, "H");
++    fmt += details::toDurationFormatItem<std::chrono::minutes>(duration, "M");
++    fmt +=
++        details::toDurationFormatItem<std::chrono::milliseconds>(duration, "S");
++
++    return fmt;
++}
++
++} // namespace time_utils
++} // namespace redfish
+diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
+new file mode 100644
+index 0000000..a52d680
+--- /dev/null
++++ b/redfish-core/lib/metric_report.hpp
+@@ -0,0 +1,149 @@
++/*
++// Copyright (c) 2018-2020 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#pragma once
++
++#include "node.hpp"
++#include "utils/telemetry_utils.hpp"
++
++#include <boost/container/flat_map.hpp>
++
++#include <system_error>
++#include <variant>
++
++namespace redfish
++{
++
++class MetricReportCollection : public Node
++{
++  public:
++    MetricReportCollection(CrowApp& app) : Node(app, telemetry::metricReportUri)
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++    }
++
++  private:
++    void doGet(crow::Response& res, const crow::Request& req,
++               const std::vector<std::string>& params) override
++    {
++        res.jsonValue["@odata.type"] =
++            "#MetricReportCollection.MetricReportCollection";
++        res.jsonValue["@odata.id"] =
++            "/redfish/v1/TelemetryService/MetricReports";
++        res.jsonValue["Name"] = "Metric Report Collection";
++
++        auto asyncResp = std::make_shared<AsyncResp>(res);
++        telemetry::getReportCollection(asyncResp, telemetry::metricReportUri);
++    }
++};
++
++class MetricReport : public Node
++{
++  public:
++    MetricReport(CrowApp& app) :
++        Node(app, std::string(telemetry::metricReportUri) + "<str>/",
++             std::string())
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++    }
++
++  private:
++    void doGet(crow::Response& res, const crow::Request& req,
++               const std::vector<std::string>& params) override
++    {
++        auto asyncResp = std::make_shared<AsyncResp>(res);
++
++        if (params.size() != 1)
++        {
++            messages::internalError(asyncResp->res);
++            return;
++        }
++
++        const std::string& id = params[0];
++        telemetry::getReport(asyncResp, id, schemaType, getReportProperties);
++    }
++
++    using Readings =
++        std::vector<std::tuple<std::string, std::string, double, int32_t>>;
++    using MetricValues = std::vector<std::map<std::string, std::string>>;
++
++    static MetricValues toMetricValues(const Readings& readings)
++    {
++        MetricValues metricValues;
++
++        for (auto& [id, metadata, sensorValue, timestamp] : readings)
++        {
++            metricValues.push_back({
++                {"MetricId", id},
++                {"MetricProperty", metadata},
++                {"MetricValue", std::to_string(sensorValue)},
++                {"Timestamp", crow::utility::getDateTime(timestamp)},
++            });
++        }
++
++        return metricValues;
++    }
++
++    static void getReportProperties(const std::shared_ptr<AsyncResp> asyncResp,
++                                    const std::string& reportPath,
++                                    const std::string& id)
++    {
++        asyncResp->res.jsonValue["@odata.type"] = schemaType;
++        asyncResp->res.jsonValue["@odata.id"] = telemetry::metricReportUri + id;
++        asyncResp->res.jsonValue["Id"] = id;
++        asyncResp->res.jsonValue["Name"] = id;
++        asyncResp->res.jsonValue["MetricReportDefinition"]["@odata.id"] =
++            telemetry::metricReportDefinitionUri + id;
++
++        dbus::utility::getAllProperties(
++            [asyncResp](
++                const boost::system::error_code ec,
++                const boost::container::flat_map<
++                    std::string, std::variant<Readings, int32_t>>& ret) {
++                if (ec)
++                {
++                    messages::internalError(asyncResp->res);
++                    BMCWEB_LOG_ERROR << "respHandler DBus error " << ec;
++                    return;
++                }
++
++                json_util::assignIfPresent<int32_t>(
++                    ret, "Timestamp", asyncResp->res.jsonValue["Timestamp"],
++                    crow::utility::getDateTime);
++                json_util::assignIfPresent<Readings>(
++                    ret, "Readings", asyncResp->res.jsonValue["MetricValues"],
++                    toMetricValues);
++            },
++            "xyz.openbmc_project.MonitoringService", reportPath,
++            "xyz.openbmc_project.MonitoringService.Report");
++    }
++
++    static constexpr const char* schemaType =
++        "#MetricReport.v1_3_0.MetricReport";
++};
++} // namespace redfish
+diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
+new file mode 100644
+index 0000000..d82ae59
+--- /dev/null
++++ b/redfish-core/lib/metric_report_definition.hpp
+@@ -0,0 +1,193 @@
++/*
++// Copyright (c) 2018-2020 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#pragma once
++
++#include "node.hpp"
++#include "utils/telemetry_utils.hpp"
++#include "utils/time_utils.hpp"
++
++#include <boost/container/flat_map.hpp>
++
++#include <system_error>
++#include <variant>
++
++namespace redfish
++{
++
++class MetricReportDefinitionCollection : public Node
++{
++  public:
++    MetricReportDefinitionCollection(CrowApp& app) :
++        Node(app, telemetry::metricReportDefinitionUri)
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++    }
++
++  private:
++    void doGet(crow::Response& res, const crow::Request& req,
++               const std::vector<std::string>& params) override
++    {
++        res.jsonValue["@odata.type"] = "#MetricReportDefinitionCollection."
++                                       "MetricReportDefinitionCollection";
++        res.jsonValue["@odata.id"] =
++            "/redfish/v1/TelemetryService/MetricReportDefinitions";
++        res.jsonValue["Name"] = "Metric Definition Collection";
++
++        auto asyncResp = std::make_shared<AsyncResp>(res);
++        telemetry::getReportCollection(asyncResp,
++                                       telemetry::metricReportDefinitionUri);
++    }
++};
++
++class MetricReportDefinition : public Node
++{
++  public:
++    MetricReportDefinition(CrowApp& app) :
++        Node(app, std::string(telemetry::metricReportDefinitionUri) + "<str>/",
++             std::string())
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++    }
++
++  private:
++    void doGet(crow::Response& res, const crow::Request& req,
++               const std::vector<std::string>& params) override
++    {
++        auto asyncResp = std::make_shared<AsyncResp>(res);
++
++        if (params.size() != 1)
++        {
++            messages::internalError(asyncResp->res);
++            return;
++        }
++
++        const std::string& id = params[0];
++
++        telemetry::getReport(asyncResp, id, schemaType,
++                             getReportDefinitonProperties);
++    }
++
++    static std::vector<std::string>
++        toReportActions(const std::vector<std::string>& actions)
++    {
++        const boost::container::flat_map<std::string, std::string>
++            reportActions = {
++                {"Event", "RedfishEvent"},
++                {"Log", "LogToMetricReportsCollection"},
++            };
++
++        std::vector<std::string> out;
++        for (auto& action : actions)
++        {
++            auto found = reportActions.find(action);
++            if (found != reportActions.end())
++            {
++                out.emplace_back(found->second);
++            }
++        }
++        return out;
++    }
++
++    using ReadingParameters =
++        std::vector<std::tuple<std::vector<sdbusplus::message::object_path>,
++                               std::string, std::string, std::string>>;
++    using Metrics = std::vector<std::map<
++        std::string, std::variant<std::string, std::vector<std::string>>>>;
++
++    static Metrics toMetrics(const ReadingParameters& params)
++    {
++        Metrics metrics;
++
++        for (auto& [sensorPaths, operationType, id, metadata] : params)
++        {
++            metrics.push_back({
++                {"MetricId", id},
++                {"MetricProperties", std::vector<std::string>() = {metadata}},
++            });
++        }
++
++        return metrics;
++    }
++
++    static void
++        getReportDefinitonProperties(const std::shared_ptr<AsyncResp> asyncResp,
++                                     const std::string& reportPath,
++                                     const std::string& id)
++    {
++        asyncResp->res.jsonValue["@odata.type"] = schemaType;
++        asyncResp->res.jsonValue["@odata.id"] =
++            telemetry::metricReportDefinitionUri + id;
++        asyncResp->res.jsonValue["Id"] = id;
++        asyncResp->res.jsonValue["Name"] = id;
++        asyncResp->res.jsonValue["MetricReport"]["@odata.id"] =
++            telemetry::metricReportUri + id;
++        asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
++
++        dbus::utility::getAllProperties(
++            [asyncResp](const boost::system::error_code ec,
++                        const boost::container::flat_map<
++                            std::string,
++                            std::variant<std::string, std::vector<std::string>,
++                                         uint32_t, ReadingParameters>>& ret) {
++                if (ec)
++                {
++                    messages::internalError(asyncResp->res);
++                    BMCWEB_LOG_ERROR << "respHandler DBus error " << ec;
++                    return;
++                }
++
++                json_util::assignIfPresent<std::vector<std::string>>(
++                    ret, "ReportAction",
++                    asyncResp->res.jsonValue["ReportActions"], toReportActions);
++                auto assigned = json_util::assignIfPresent<std::string>(
++                    ret, "ReportingType",
++                    asyncResp->res.jsonValue["MetricReportDefinitionType"]);
++                if (assigned &&
++                    asyncResp->res.jsonValue["MetricReportDefinitionType"] ==
++                        "Periodic")
++                {
++                    json_util::assignIfPresent<uint32_t>(
++                        ret, "ScanPeriod",
++                        asyncResp->res
++                            .jsonValue["Schedule"]["RecurrenceInterval"],
++                        time_utils::toDurationFormat);
++                }
++                json_util::assignIfPresent<ReadingParameters>(
++                    ret, "ReadingParameters",
++                    asyncResp->res.jsonValue["Metrics"], toMetrics);
++            },
++            "xyz.openbmc_project.MonitoringService", reportPath,
++            "xyz.openbmc_project.MonitoringService.Report");
++    }
++
++  public:
++    static constexpr const char* schemaType =
++        "#MetricReportDefinition.v1_3_0.MetricReportDefinition";
++};
++} // namespace redfish
+diff --git a/redfish-core/lib/service_root.hpp b/redfish-core/lib/service_root.hpp
+index b6bd6e0..3302390 100644
+--- a/redfish-core/lib/service_root.hpp
++++ b/redfish-core/lib/service_root.hpp
+@@ -69,6 +69,8 @@ class ServiceRoot : public Node
+         res.jsonValue["Tasks"] = {{"@odata.id", "/redfish/v1/TaskService"}};
+         res.jsonValue["EventService"] = {
+             {"@odata.id", "/redfish/v1/EventService"}};
++        res.jsonValue["TelemetryService"] = {
++            {"@odata.id", "/redfish/v1/TelemetryService"}};
+         res.end();
+     }
+ 
+diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
+new file mode 100644
+index 0000000..a410700
+--- /dev/null
++++ b/redfish-core/lib/telemetry_service.hpp
+@@ -0,0 +1,92 @@
++/*
++// Copyright (c) 2018-2020 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#pragma once
++
++#include "node.hpp"
++#include "utils/time_utils.hpp"
++
++#include <boost/container/flat_map.hpp>
++
++#include <variant>
++
++namespace redfish
++{
++
++class TelemetryService : public Node
++{
++  public:
++    TelemetryService(CrowApp& app) : Node(app, "/redfish/v1/TelemetryService/")
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++    }
++
++  private:
++    void doGet(crow::Response& res, const crow::Request& req,
++               const std::vector<std::string>& params) override
++    {
++        res.jsonValue["@odata.type"] =
++            "#TelemetryService.v1_2_0.TelemetryService";
++        res.jsonValue["@odata.id"] = "/redfish/v1/TelemetryService";
++        res.jsonValue["Id"] = "TelemetryService";
++        res.jsonValue["Name"] = "Telemetry Service";
++
++        res.jsonValue["LogService"]["@odata.id"] =
++            "/redfish/v1/Managers/bmc/LogServices/Journal";
++        res.jsonValue["MetricReportDefinitions"]["@odata.id"] =
++            "/redfish/v1/TelemetryService/MetricReportDefinitions";
++        res.jsonValue["MetricReports"]["@odata.id"] =
++            "/redfish/v1/TelemetryService/MetricReports";
++
++        getMonitoringServiceProperties(res);
++    }
++
++    void getMonitoringServiceProperties(crow::Response& res)
++    {
++        auto asyncResp = std::make_shared<AsyncResp>(res);
++        dbus::utility::getAllProperties(
++            [asyncResp](
++                const boost::system::error_code ec,
++                const boost::container::flat_map<std::string,
++                                                 std::variant<uint32_t>>& ret) {
++                if (ec)
++                {
++                    asyncResp->res.jsonValue["Status"]["State"] = "Absent";
++                    BMCWEB_LOG_ERROR << "respHandler DBus error " << ec;
++                    return;
++                }
++
++                asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
++
++                json_util::assignIfPresent<uint32_t>(ret, "MaxReports",
++                                                     asyncResp->res);
++                json_util::assignIfPresent<uint32_t>(
++                    ret, "PollRateResolution",
++                    asyncResp->res.jsonValue["MinCollectionInterval"],
++                    time_utils::toDurationFormat);
++            },
++            "xyz.openbmc_project.MonitoringService",
++            "/xyz/openbmc_project/MonitoringService/Reports",
++            "xyz.openbmc_project.MonitoringService.ReportsManagement");
++    }
++};
++} // namespace redfish
+-- 
+2.16.6
+

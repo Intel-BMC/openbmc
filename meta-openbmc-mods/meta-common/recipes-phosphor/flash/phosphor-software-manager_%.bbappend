@@ -12,12 +12,13 @@ SRC_URI += "file://0001-Add-more-error-types.patch \
             file://0006-Modify-the-ID-of-software-image-updater-object-on-DB.patch \
             file://0007-Adding-StandBySpare-for-firmware-activation.patch \
             file://0008-item_updater-update-the-bmc_active-objectPath.patch \
+            file://0009-Add-ApplyOptions-D-bus-property-under-Software.patch \
             file://0011-Fix-for-RedudancyPriority-in-item_updater.patch \
+            file://0013-remove-image-file-on-pre-script-failures.patch \
            "
 
 SRC_URI_PFR = "file://0007-PFR-images-support.patch \
                file://0008-PFR-image-HASH-verification.patch \
-               file://0009-Add-ApplyOptions-D-bus-property-under-Software.patch \
                file://0010-Add-error-reporting-to-pfr_image_manager.patch \
               "
 

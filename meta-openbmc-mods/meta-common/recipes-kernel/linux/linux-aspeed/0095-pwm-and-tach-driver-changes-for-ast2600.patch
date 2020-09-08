@@ -21,7 +21,7 @@ index 1894f6ad5edb..9551a17e7f55 100644
  #define  PWM_RISING_RISING_BIT			(0)	//pwm rising point bit [7:0]
  
 +#define  PWM_PERIOD_MAX			255
-+#define  PWM_FALLING_DEFAULT		150 /* 58% */
++#define  PWM_FALLING_DEFAULT		255 /* 100% */
 +
  #define ASPEED_TACHO_CTRL		0x08	//TACH0 General Register
  #define ASPEED_TACHO_CTRL_CH(x)			((x * 0x10) + 0x08)

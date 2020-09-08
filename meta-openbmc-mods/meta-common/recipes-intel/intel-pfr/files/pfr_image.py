@@ -14,7 +14,7 @@
 # TODO: figure out if active and recovery actually have different sigs
 # TODO: build hashmap from payload manifest
 # TODO: figure out exact struct layout for PFR metadata
-import os, hashlib, struct, json, sys, subprocess, mmap, io, array, binascii, copy, shutil, re
+import os, hashlib, struct, json, sys, subprocess, mmap, io, array, binascii, copy, shutil, re, getopt
 from array import array
 from binascii import unhexlify
 from hashlib import sha1, sha256, sha384, sha512
@@ -84,7 +84,7 @@ class pfm_i2c(object):
 class pfr_bmc_image(object):
 
 # json_file, firmware_file
-    def __init__(self, manifest, firmware_file, build_ver, build_num, build_hash, sha):
+    def __init__(self, manifest, firmware_file, build_ver, build_num, build_hash, sha, output_filename):
 
         self.manifest = load_manifest(manifest)
         self.firmware_file = firmware_file
@@ -98,7 +98,7 @@ class pfr_bmc_image(object):
         if self.sha == "1":
             self.pfm_spi_size_hash = 32
             self.sha_version = 0x1
-        self.pfr_rom_file = 'image-mtd-pfr'
+        self.pfr_rom_file = output_filename
         open(self.pfr_rom_file, 'a').close()
 
         self.page_size = PAGE_SIZE
@@ -366,20 +366,59 @@ class pfr_bmc_image(object):
             # write the padding bytes at the end
             f.write(b'\xff' * padding_bytes)
 
-def main():
-    if len(sys.argv) != 7: #< pfr_image.py manifest.json> <update.bin> <build_version> <build_number> <build_hash> <sha>
-        print('usage: {} <manifest.json> <firmware.bin> <build_version> <build_number> <build_hash> <sha>'.format(sys.argv[0]))
-        return
+def usage(prog):
+    sys.stderr.write(prog +
+        " -m manifest -i rom-image -n build_version -b build_number -h build_hash -s sha -o output_file_name\n")
 
-    json_file = sys.argv[1]
-    firmware_file = sys.argv[2]
-    build_ver = sys.argv[3]
-    build_num = sys.argv[4]
-    build_hash = sys.argv[5]
-    sha = sys.argv[6]
+def main():
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "m:i:n:b:h:s:o:",
+                     ["manifest=", "image=", "build_version=","build_number=","build_hash=","sha=", "output_file_name="])
+    except getopt.GetoptError as err:
+        sys.stderr.write(str(err) + "\n")
+        sys.exit(2)
+    json_file = None
+    firmware_file = None
+    build_ver = None
+    build_num = None
+    build_hash = None
+    sha = None
+    output_filename = None
+
+    for o, a in opts:
+        if o in ("-m", "--manifest"):
+            json_file = a
+        elif o in ("-i", "--image"):
+            firmware_file = a
+        elif o in ("-n", "--build_version"):
+            build_ver = a
+        elif o in ("-b", "--build_number"):
+            build_num = a
+        elif o in ("-h", "--build_hash"):
+            build_hash = a
+        elif o in ("-s", "--sha"):
+            sha = a
+        elif o in ("-o", "--output_file_name"):
+            output_filename = a
+        else:
+            usage(sys.argv[0])
+            assert False, "unhandled argument: " + o
+
+    if json_file is None or firmware_file is None or build_ver is None or build_num is None or build_hash is None or sha is None or output_filename is None:
+        usage(sys.argv[0])
+        sys.exit(-1)
+
+    print("manifest: %s" % json_file)
+    print("image: %s" % firmware_file)
+    print("build_ver: %s" % build_ver)
+    print("build_number: %s" % build_num)
+    print("build_hash: %s" % build_hash)
+    print("Sha: %s" % sha)
+    print("output_filename: %s" % output_filename)
+
 
     # function to generate BMC PFM, PBC header and BMC compressed image
-    pfr_bmc_image(json_file, firmware_file, build_ver, build_num, build_hash, sha)
+    pfr_bmc_image(json_file, firmware_file, build_ver, build_num, build_hash, sha ,output_filename)
 
 if __name__ == '__main__':
     main()

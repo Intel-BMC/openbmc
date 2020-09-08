@@ -32,8 +32,65 @@ RC_IMAGE_OFFSET = "0x02a00000"
 # RC_IMAGE_PAGE= 0x02a00000/1024 = 0xA800 or 43008
 RC_IMAGE_PAGE = "43008"
 
+do_image_pfr_internal () {
+    local manifest_json="pfr_manifest${bld_suffix}.json"
+    local pfmconfig_xml="pfm_config${bld_suffix}.xml"
+    local bmcconfig_xml="bmc_config${bld_suffix}.xml"
+    local pfm_signed_bin="pfm_signed${bld_suffix}.bin"
+    local signed_cap_bin="bmc_signedcap${bld_suffix}.bin"
+    local unsigned_cap_bin="bmc_unsigned_cap${bld_suffix}.bin"
+    local unsigned_cap_align_bin="bmc_unsigned_cap${bld_suffix}.bin_aligned"
+    local output_bin="image-mtd-pfr${bld_suffix}"
+
+    # python script that does creating PFM & BMC unsigned, compressed image (from BMC 128MB raw binary file).
+    ${PFR_SCRIPT_DIR}/pfr_image.py -m ${PFR_CFG_DIR}/${manifest_json} -i ${DEPLOY_DIR_IMAGE}/image-mtd -n ${build_version} -b ${build_number} \
+        -h ${build_hash} -s ${SHA} -o ${output_bin}
+
+    # sign the PFM region
+    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/${pfmconfig_xml} -o ${PFR_IMAGES_DIR}/${pfm_signed_bin} ${PFR_IMAGES_DIR}/pfm.bin -v
+
+    # Add the signed PFM to rom image
+    dd bs=1k conv=notrunc seek=${PFM_OFFSET_PAGE} if=${PFR_IMAGES_DIR}/${pfm_signed_bin} of=${PFR_IMAGES_DIR}/${output_bin}
+
+    # Create unsigned BMC update capsule - append with 1. pfm_signed, 2. pbc, 3. bmc compressed
+    dd if=${PFR_IMAGES_DIR}/${pfm_signed_bin} bs=1k >> ${PFR_IMAGES_DIR}/${unsigned_cap_bin}
+
+    dd if=${PFR_IMAGES_DIR}/pbc.bin bs=1k >> ${PFR_IMAGES_DIR}/${unsigned_cap_bin}
+
+    dd if=${PFR_IMAGES_DIR}/bmc_compressed.bin bs=1k >> ${PFR_IMAGES_DIR}/${unsigned_cap_bin}
+
+    # Sign the BMC update capsule
+    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/${bmcconfig_xml} -o ${PFR_IMAGES_DIR}/${signed_cap_bin} ${PFR_IMAGES_DIR}/${unsigned_cap_bin} -v
+
+    # Add the signed bmc update capsule to full rom image @ 0x2a00000
+    dd bs=1k conv=notrunc seek=${RC_IMAGE_PAGE} if=${PFR_IMAGES_DIR}/${signed_cap_bin} of=${PFR_IMAGES_DIR}/${output_bin}
+
+    # Rename all PFR output images by appending date and time, so that they don't meddle with subsequent call to this function.
+    mv ${PFR_IMAGES_DIR}/${pfm_signed_bin}         ${PFR_IMAGES_DIR}/pfm_signed${bld_suffix}-${DATETIME}.bin
+    mv ${PFR_IMAGES_DIR}/${unsigned_cap_bin}       ${PFR_IMAGES_DIR}/bmc_unsigned_cap${bld_suffix}-${DATETIME}.bin
+    mv ${PFR_IMAGES_DIR}/${unsigned_cap_align_bin} ${PFR_IMAGES_DIR}/bmc_unsigned_cap${bld_suffix}-${DATETIME}.bin_aligned
+    mv ${PFR_IMAGES_DIR}/${signed_cap_bin}         ${PFR_IMAGES_DIR}/bmc_signed_cap${bld_suffix}-${DATETIME}.bin
+    mv ${PFR_IMAGES_DIR}/${output_bin}             ${PFR_IMAGES_DIR}/image-mtd-pfr${bld_suffix}-${DATETIME}.bin
+    # Append date and time to all 'pfr_image.py' output binaries.
+    mv ${PFR_IMAGES_DIR}/pfm.bin            ${PFR_IMAGES_DIR}/pfm${bld_suffix}-${DATETIME}.bin
+    mv ${PFR_IMAGES_DIR}/pfm.bin_aligned    ${PFR_IMAGES_DIR}/pfm${bld_suffix}-${DATETIME}.bin_aligned
+    mv ${PFR_IMAGES_DIR}/pbc.bin            ${PFR_IMAGES_DIR}/pbc${bld_suffix}-${DATETIME}.bin
+    mv ${PFR_IMAGES_DIR}/bmc_compressed.bin ${PFR_IMAGES_DIR}/bmc_compressed${bld_suffix}-${DATETIME}.bin
+
+    # Use relative links. The build process removes some of the build
+    # artifacts and that makes fully qualified pathes break. Relative links
+    # work because of the 'cd "${PFR_IMAGES_DIR}"' at the start of this section.
+    ln -sf image-mtd-pfr${bld_suffix}-${DATETIME}.bin  ${PFR_IMAGES_DIR}/image-mtd-pfr${bld_suffix}.bin
+    ln -sf image-mtd-pfr${bld_suffix}-${DATETIME}.bin  ${PFR_IMAGES_DIR}/OBMC${bld_suffix}-${@ do_get_version(d)}-pfr-full.ROM
+    ln -sf bmc_signed_cap${bld_suffix}-${DATETIME}.bin ${PFR_IMAGES_DIR}/bmc_signed_cap${bld_suffix}.bin
+    ln -sf bmc_signed_cap${bld_suffix}-${DATETIME}.bin ${PFR_IMAGES_DIR}/OBMC${bld_suffix}-${@ do_get_version(d)}-pfr-oob.bin
+}
+
 do_image_pfr () {
-    bbplain "Generating Intel PFR compliant BMC image"
+    # PFR image, additional build components information suffix.
+    local bld_suffix=""
+
+    bbplain "Generating Intel PFR compliant BMC image for '${PRODUCT_GENERATION}'"
 
     bbplain "Build Version = ${build_version}"
     bbplain "Build Number = ${build_number}"
@@ -43,47 +100,21 @@ do_image_pfr () {
     mkdir -p "${PFR_IMAGES_DIR}"
     cd "${PFR_IMAGES_DIR}"
 
-    # python script that does the creating PFM, BMC compressed and unsigned images from BMC 128MB raw binary file.
-    ${PFR_SCRIPT_DIR}/pfr_image.py ${PFR_CFG_DIR}/pfr_manifest.json ${DEPLOY_DIR_IMAGE}/image-mtd ${build_version} ${build_number} ${build_hash} ${SHA}
+    # First, Build default image.
+    bld_suffix=""
+    do_image_pfr_internal
 
-    # sign the PFM region
-    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/pfm_config.xml -o ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm.bin -v
-
-    # Add the signed PFM to rom image
-    dd bs=1k conv=notrunc seek=${PFM_OFFSET_PAGE} if=${PFR_IMAGES_DIR}/pfm_signed.bin of=${PFR_IMAGES_DIR}/image-mtd-pfr
-
-    # Create unsigned BMC update capsule - append with 1. pfm_signed, 2. pbc, 3. bmc compressed
-    dd if=${PFR_IMAGES_DIR}/pfm_signed.bin bs=1k >> ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
-
-    dd if=${PFR_IMAGES_DIR}/pbc.bin bs=1k >> ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
-
-    dd if=${PFR_IMAGES_DIR}/bmc_compressed.bin bs=1k >> ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin
-
-    # Sign the BMC update capsule
-    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/bmc_config.xml -o ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin -v
-
-    # Add the signed bmc update capsule to full rom image @ 0x2a00000
-    dd bs=1k conv=notrunc seek=${RC_IMAGE_PAGE} if=${PFR_IMAGES_DIR}/bmc_signed_cap.bin of=${PFR_IMAGES_DIR}/image-mtd-pfr
-
-    # Append date and time to all the PFR images
-    mv ${PFR_IMAGES_DIR}/pfm_signed.bin ${PFR_IMAGES_DIR}/pfm_signed-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/pfm.bin ${PFR_IMAGES_DIR}/pfm-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/pbc.bin ${PFR_IMAGES_DIR}/pbc-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/bmc_compressed.bin ${PFR_IMAGES_DIR}/bmc_compressed-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/bmc_unsigned_cap.bin ${PFR_IMAGES_DIR}/bmc_unsigned_cap-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/bmc_signed_cap.bin ${PFR_IMAGES_DIR}/bmc_signed_cap-${DATETIME}.bin
-    mv ${PFR_IMAGES_DIR}/image-mtd-pfr ${PFR_IMAGES_DIR}/image-mtd-pfr-${DATETIME}.bin
-
-    # Use relative links. The build process removes some of the build
-    # artifacts and that makes fully qualified pathes break. Relative links
-    # work because of the 'cd "${PFR_IMAGES_DIR}"' at the start of this section.
-    ln -sf image-mtd-pfr-${DATETIME}.bin ${PFR_IMAGES_DIR}/image-mtd-pfr.bin
-    ln -sf image-mtd-pfr-${DATETIME}.bin ${PFR_IMAGES_DIR}/OBMC-${@ do_get_version(d)}-pfr-full.ROM
-    ln -sf bmc_signed_cap-${DATETIME}.bin ${PFR_IMAGES_DIR}/bmc_signed_cap.bin
-    ln -sf bmc_signed_cap-${DATETIME}.bin ${PFR_IMAGES_DIR}/OBMC-${@ do_get_version(d)}-pfr-oob.bin
+    if [ ${PRODUCT_GENERATION} = "wht" ]; then
+        #Build additional component images also, for whitley generation, if needed.
+        if ! [ -z ${BUILD_SEGD} ] && [ ${BUILD_SEGD} = "yes" ]; then
+            bld_suffix="_d"
+            do_image_pfr_internal
+        fi
+    fi
 }
 
-do_image_pfr[vardepsexclude] += "DATE DATETIME"
+# Include 'do_image_pfr_internal' in 'vardepsexclude';Else Taskhash mismatch error will occur.
+do_image_pfr[vardepsexclude] += "do_image_pfr_internal DATE DATETIME BUILD_SEGD"
 do_image_pfr[vardeps] += "IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
 do_image_pfr[depends] += " \
                          obmc-intel-pfr-image-native:do_populate_sysroot \
