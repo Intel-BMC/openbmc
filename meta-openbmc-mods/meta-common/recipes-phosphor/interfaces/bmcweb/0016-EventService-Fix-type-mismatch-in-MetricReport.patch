@@ -1,18 +1,23 @@
-From b71f087a173c36a16526156fa34581673e2b860c Mon Sep 17 00:00:00 2001
+From cdfc5cfad41bcfa3fc0e53023bd62bdadf15ad86 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Fri, 24 Jul 2020 17:05:38 +0200
-Subject: [PATCH 6/6] Fix MetricReport timestamp for EventService
+Subject: [PATCH] EventService: Fix type mismatch in MetricReport
 
-Changed MetricReport timestamp type from std::string to int32_t.
+Fix the type mismatch in MetricReport data which
+is sent to Event Subscribers. Change below properties
+type to match with MetricReport schema.
+ - Timestamp: It should be uint32_t type.
+ - MetricValue: It should be string type.
 
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Change-Id: I0a52b6963e7bedda89a216256f64764cd8799bf1
 ---
  redfish-core/include/event_service_manager.hpp | 23 +++++++++++++----------
  1 file changed, 13 insertions(+), 10 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index d2f4f2a..dc04ccb 100644
+index 3e3058f..0f5c6b7 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -38,7 +38,7 @@ namespace redfish
@@ -36,12 +41,12 @@ index d2f4f2a..dc04ccb 100644
 +
 +            entry = {{"MetricId", id},
 +                     {"MetricProperty", property},
-+                     {"MetricValue", value},
++                     {"MetricValue", std::to_string(value)},
 +                     {"Timestamp", crow::utility::getDateTime(timestamp)}};
          }
  
          nlohmann::json msg = {
-@@ -1266,7 +1268,7 @@ class EventServiceManager
+@@ -1270,7 +1272,7 @@ class EventServiceManager
              [idStr{std::move(idStr)}](
                  const boost::system::error_code ec,
                  boost::container::flat_map<
@@ -50,7 +55,7 @@ index d2f4f2a..dc04ccb 100644
                      resp) {
                  if (ec)
                  {
-@@ -1275,8 +1277,8 @@ class EventServiceManager
+@@ -1279,8 +1281,8 @@ class EventServiceManager
                      return;
                  }
  
@@ -61,7 +66,7 @@ index d2f4f2a..dc04ccb 100644
                  if (!timestampPtr)
                  {
                      BMCWEB_LOG_DEBUG << "Failed to Get timestamp.";
-@@ -1303,8 +1305,9 @@ class EventServiceManager
+@@ -1307,8 +1309,9 @@ class EventServiceManager
                      std::shared_ptr<Subscription> entry = it.second;
                      if (entry->eventFormatType == metricReportFormatType)
                      {
@@ -74,5 +79,5 @@ index d2f4f2a..dc04ccb 100644
                  }
              },
 -- 
-2.16.6
+2.7.4
 

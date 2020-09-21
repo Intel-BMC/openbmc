@@ -1,0 +1,262 @@
+From 5fd71f098aad2f6d64e94343738c43ffdff5709e Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Tue, 8 Sep 2020 16:19:30 +0530
+Subject: [PATCH] EventService: Validate SSE query filters
+
+Validate the query filters which are specified in
+requested url and return with error if not supported.
+Also RegistryPrefix and MessageId are mutually exclusive
+as per redfish specification. so return error if user
+specifies both.
+
+Tested:
+ - Checked with invalid query filters and it returns
+   the error.
+
+Change-Id: If07341f39d8c6b9bc229baae966f8569ebdd7b19
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/include/error_messages.hpp            |  9 ++
+ .../include/registries/base_message_registry.hpp   | 14 ++-
+ redfish-core/lib/event_service.hpp                 | 99 +++++++++++++++-------
+ redfish-core/src/error_messages.cpp                | 26 ++++++
+ 4 files changed, 116 insertions(+), 32 deletions(-)
+
+diff --git a/redfish-core/include/error_messages.hpp b/redfish-core/include/error_messages.hpp
+index 9a2d1ca..fd6bb48 100644
+--- a/redfish-core/include/error_messages.hpp
++++ b/redfish-core/include/error_messages.hpp
+@@ -801,6 +801,15 @@ nlohmann::json mutualExclusiveProperties(const std::string& arg1,
+ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
+                                const std::string& arg2);
+ 
++/**
++ * @brief Formats InvalidQueryFilter message into JSON
++ * Message body: "The requested URL contains the invalid query filters"
++ *
++ * @returns Message InvalidQueryFilter formatted to JSON */
++nlohmann::json invalidQueryFilter();
++
++void invalidQueryFilter(crow::Response& res);
++
+ } // namespace messages
+ 
+ } // namespace redfish
+diff --git a/redfish-core/include/registries/base_message_registry.hpp b/redfish-core/include/registries/base_message_registry.hpp
+index 7c385a0..18085c8 100644
+--- a/redfish-core/include/registries/base_message_registry.hpp
++++ b/redfish-core/include/registries/base_message_registry.hpp
+@@ -36,7 +36,7 @@ const Header header = {
+ constexpr const char* url =
+     "https://redfish.dmtf.org/registries/Base.1.8.1.json";
+ 
+-constexpr std::array<MessageEntry, 74> registry = {
++constexpr std::array<MessageEntry, 75> registry = {
+     MessageEntry{
+         "AccessDenied",
+         {
+@@ -403,6 +403,18 @@ constexpr std::array<MessageEntry, 74> registry = {
+             "Either the object is malformed or the URI is not correct.  "
+             "Correct the condition and resubmit the request if it failed.",
+         }},
++    MessageEntry{
++        "InvalidQueryFilter",
++        {
++            "Indicates the request url contains invalid query filter.",
++            "The requested url contains the invalid query filter.",
++            "Warning",
++            "Warning",
++            0,
++            {},
++            "Ensure the correct query filter is specified in requested url "
++            "and resubmit the request if the operation failed.",
++        }},
+     MessageEntry{"MalformedJSON",
+                  {
+                      "Indicates that the request body was malformed JSON.  "
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index f14c03e..b91b745 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -462,73 +462,110 @@ class EventServiceSSE : public Node
+             return;
+         }
+ 
+-        std::shared_ptr<crow::Request::Adaptor> sseConn =
+-            std::make_shared<crow::Request::Adaptor>(std::move(req.socket()));
+-        std::shared_ptr<Subscription> subValue =
+-            std::make_shared<Subscription>(sseConn);
+-
+-        // GET on this URI means, Its SSE subscriptionType.
+-        subValue->subscriptionType = subscriptionTypeSSE;
+-
+-        // Default values
+-        subValue->protocol = "Redfish";
+-        subValue->retryPolicy = "TerminateAfterRetries";
+-
+-        boost::urls::url_view::params_type::iterator it =
+-            req.urlParams.find("$filter");
+-        if (it == req.urlParams.end())
++        // It supports only "$filter" query param.
++        if (req.urlParams.size() > 1)
+         {
+-            subValue->eventFormatType = "Event";
++            messages::invalidQueryFilter(res);
++            res.end();
++            return;
+         }
+ 
++        std::string eventFormatType;
++        std::string queryFilters;
++        if (req.urlParams.size())
++        {
++            boost::urls::url_view::params_type::iterator it =
++                req.urlParams.find("$filter");
++            if (it == req.urlParams.end())
++            {
++                messages::invalidQueryFilter(res);
++                res.end();
++                return;
++            }
++            else
++            {
++                queryFilters = it->value();
++            }
++        }
+         else
+         {
+-            std::string filters = it->value();
+-            // Reading from query params.
+-            bool status = readSSEQueryParams(
+-                filters, subValue->eventFormatType, subValue->registryMsgIds,
+-                subValue->registryPrefixes, subValue->metricReportDefinitions);
++            eventFormatType = "Event";
++        }
+ 
++        std::vector<std::string> msgIds;
++        std::vector<std::string> regPrefixes;
++        std::vector<std::string> mrdsArray;
++        if (!queryFilters.empty())
++        {
++            // Reading from query params.
++            bool status = readSSEQueryParams(queryFilters, eventFormatType,
++                                             msgIds, regPrefixes, mrdsArray);
+             if (!status)
+             {
+-                messages::invalidObject(res, filters);
++                messages::invalidObject(res, queryFilters);
++                res.end();
+                 return;
+             }
+ 
+-            if (!subValue->eventFormatType.empty())
++            // RegsitryPrefix and messageIds are mutuly exclusive as per redfish
++            // specification.
++            if (regPrefixes.size() && msgIds.size())
++            {
++                messages::mutualExclusiveProperties(res, "RegistryPrefix",
++                                                    "MessageId");
++                res.end();
++                return;
++            }
++
++            if (!eventFormatType.empty())
+             {
+                 if (std::find(supportedEvtFormatTypes.begin(),
+                               supportedEvtFormatTypes.end(),
+-                              subValue->eventFormatType) ==
+-                    supportedEvtFormatTypes.end())
++                              eventFormatType) == supportedEvtFormatTypes.end())
+                 {
+-                    messages::propertyValueNotInList(
+-                        res, subValue->eventFormatType, "EventFormatType");
++                    messages::propertyValueNotInList(res, eventFormatType,
++                                                     "EventFormatType");
++                    res.end();
+                     return;
+                 }
+             }
+             else
+             {
+                 // If nothing specified, using default "Event"
+-                subValue->eventFormatType.assign({"Event"});
++                eventFormatType.assign({"Event"});
+             }
+ 
+-            if (!subValue->registryPrefixes.empty())
++            if (!regPrefixes.empty())
+             {
+-                for (const std::string& it : subValue->registryPrefixes)
++                for (const std::string& it : regPrefixes)
+                 {
+                     if (std::find(supportedRegPrefixes.begin(),
+                                   supportedRegPrefixes.end(),
+                                   it) == supportedRegPrefixes.end())
+                     {
+                         messages::propertyValueNotInList(res, it,
+-                                                         "RegistryPrefixes");
++                                                         "RegistryPrefix");
++                        res.end();
+                         return;
+                     }
+                 }
+             }
+         }
+ 
++        std::shared_ptr<crow::Request::Adaptor> sseConn =
++            std::make_shared<crow::Request::Adaptor>(std::move(req.socket()));
++        std::shared_ptr<Subscription> subValue =
++            std::make_shared<Subscription>(sseConn);
++
++        // GET on this URI means, Its SSE subscriptionType.
++        subValue->subscriptionType = subscriptionTypeSSE;
++        subValue->protocol = "Redfish";
++        subValue->retryPolicy = "TerminateAfterRetries";
++        subValue->eventFormatType = eventFormatType;
++        subValue->registryMsgIds = msgIds;
++        subValue->registryPrefixes = regPrefixes;
++        subValue->metricReportDefinitions = mrdsArray;
++
+         std::string id =
+             EventServiceManager::getInstance().addSubscription(subValue, false);
+         if (id.empty())
+diff --git a/redfish-core/src/error_messages.cpp b/redfish-core/src/error_messages.cpp
+index c6938ba..290d3f2 100644
+--- a/redfish-core/src/error_messages.cpp
++++ b/redfish-core/src/error_messages.cpp
+@@ -1779,6 +1779,32 @@ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
+     addMessageToErrorJson(res.jsonValue, mutualExclusiveProperties(arg1, arg2));
+ }
+ 
++/**
++ * @internal
++ * @brief Formats InvalidQueryFilter into JSON
++ *
++ * See header file for more information
++ * @endinternal
++ */
++nlohmann::json invalidQueryFilter()
++{
++    return nlohmann::json{
++        {"@odata.type", "#Message.v1_0_0.Message"},
++        {"MessageId", "Base.1.5.0.InvalidQueryFilter"},
++        {"Message", "The requested url contains the invalid query filter."},
++        {"MessageArgs", nlohmann::json::array()},
++        {"Severity", "Warning"},
++        {"Resolution",
++         "Ensure the correct query filter is specified in requested url "
++         "and resubmit the request."}};
++}
++
++void invalidQueryFilter(crow::Response& res)
++{
++    res.result(boost::beast::http::status::bad_request);
++    addMessageToErrorJson(res.jsonValue, invalidQueryFilter());
++}
++
+ } // namespace messages
+ 
+ } // namespace redfish
+-- 
+2.7.4
+

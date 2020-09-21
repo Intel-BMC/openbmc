@@ -83,10 +83,32 @@ SRC_URI += " \
         file://0110-USB-gadget-fix-illegal-array-access-in-binding-with-.patch \
         file://0111-Unconditionally-calculate-the-PECI-AW-FCS.patch \
         file://0112-AST2600-enable-UART-routing.patch \
+        file://0113-hwmon-peci-PCS-utils.patch \
+        file://0114-hwmon-peci-cpupower-extension.patch \
+        file://0115-hwmon-peci-dimmpower-implementation.patch \
         file://0116-watchdog-aspeed-fix-AST2600-support.patch \
         file://0117-Copy-raw-PECI-response-to-user-space-on-timeout.patch \
         file://0118-Recalculate-AW-FCS-on-WrEndPointConfig-command.patch \
         "
+
+# CVE-2020-16166 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-16166:"
+SRC_URI += " \
+    file://0001-random32-update-the-net-random-state-on-interrupt-an.patch \
+    "
+
+# CVE-2019-19770 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2019-19770:"
+SRC_URI += " \
+    file://0001-blktrace-fix-debugfs-use-after-free.patch \
+    "
+
+# CVE-2020-14356 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-14356:"
+SRC_URI += " \
+    file://0001-cgroup-fix-cgroup_sk_alloc-for-sk_clone_lock.patch \
+    file://0002-cgroup-Fix-sock_cgroup_data-on-big-endian.patch \
+    "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"
 SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'file://debug.cfg', '', d)}"

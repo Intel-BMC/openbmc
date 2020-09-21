@@ -1,0 +1,64 @@
+From 80207e6202d0f2dad62e8c5d9e83704bfe68c07c Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Sat, 4 Jul 2020 16:34:15 +0000
+Subject: [PATCH] apphandler: Fix for total session slots count
+
+Issue: Get session info shows 60 sessions as total number of sessions
+       for all medium_type as lan-802 channels instead actual sessions.
+
+Fix: Initialize the channel Info structure to empty to avoid wrong
+     calculation of total number of session slots for all channels
+     which are having medium_type as lan-802.
+
+Tested:
+Verified using ipmitool command.
+Before:
+Command: ipmitool -I lanplus -H <BMC-IP> -C 17 -U root -P <Password> session info all
+Response:
+session handle                : 129
+slot count                    : 60
+active sessions               : 1
+user id                       : 1
+privilege level               : ADMINISTRATOR
+session type                  : IPMIv2/RMCP+
+channel number                : 0x03
+console ip                    : 10.190.201.113
+console mac                   : 00:00:00:00:00:00
+console port                  : 42963
+
+After:
+Command: ipmitool -I lanplus -H <BMC-IP> -C 17 -U root -P <Password> session info all
+Response:
+session handle                : 129
+slot count                    : 30
+active sessions               : 1
+user id                       : 1
+privilege level               : ADMINISTRATOR
+session type                  : IPMIv2/RMCP+
+channel number                : 0x03
+console ip                    : 10.190.201.113
+console mac                   : 00:00:00:00:00:00
+console port                  : 48994
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: I9a4523bfbaeb0178f15e8b40f034b43d7ce4b8a0
+---
+ apphandler.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apphandler.cpp b/apphandler.cpp
+index 8baff39..4ba637f 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -944,7 +944,7 @@ uint8_t getTotalSessionCount()
+     while (ch < ipmi::maxIpmiChannels &&
+            count < session::maxNetworkInstanceSupported)
+     {
+-        ipmi::ChannelInfo chInfo;
++        ipmi::ChannelInfo chInfo{};
+         ipmi::getChannelInfo(ch, chInfo);
+         if (static_cast<ipmi::EChannelMediumType>(chInfo.mediumType) ==
+             ipmi::EChannelMediumType::lan8032)
+-- 
+2.17.1
+

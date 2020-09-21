@@ -1,0 +1,121 @@
+From e45333a83822e8ccb8e3dbc1e547fbe45b8cf959 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 22 Jul 2020 22:06:37 +0800
+Subject: [PATCH] Fix cold redundancy is not runing as user configuration.
+
+Cold redundancy service is not runing as user configuration.
+1. Properties are not sync between settings server and daemon.
+2. Wrong property is used to config cold redundancy enabling.
+
+Tested:
+Cold redundancy is working as user config.
+
+Change-Id: Ia0b7aa6aff65be4d86daa82616eefaea575baf5e
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ src/oemcommands.cpp | 44 +++++++++-----------------------------------
+ 1 file changed, 9 insertions(+), 35 deletions(-)
+
+diff --git a/src/oemcommands.cpp b/src/oemcommands.cpp
+index 78f4f82..d2a1811 100644
+--- a/src/oemcommands.cpp
++++ b/src/oemcommands.cpp
+@@ -2060,7 +2060,7 @@ int setCRConfig(ipmi::Context::ptr ctx, const std::string& property,
+ {
+     boost::system::error_code ec;
+     ctx->bus->yield_method_call<void>(
+-        ctx->yield, ec, "xyz.openbmc_project.Settings",
++        ctx->yield, ec, "xyz.openbmc_project.PSURedundancy",
+         "/xyz/openbmc_project/control/power_supply_redundancy",
+         "org.freedesktop.DBus.Properties", "Set",
+         "xyz.openbmc_project.Control.PowerSupplyRedundancy", property, value);
+@@ -2074,10 +2074,10 @@ int setCRConfig(ipmi::Context::ptr ctx, const std::string& property,
+     return 0;
+ }
+ 
+-int getCRConfig(ipmi::Context::ptr ctx, const std::string& property,
+-                crConfigVariant& value,
+-                const std::string& service = "xyz.openbmc_project.Settings",
+-                std::chrono::microseconds timeout = ipmi::IPMI_DBUS_TIMEOUT)
++int getCRConfig(
++    ipmi::Context::ptr ctx, const std::string& property, crConfigVariant& value,
++    const std::string& service = "xyz.openbmc_project.PSURedundancy",
++    std::chrono::microseconds timeout = ipmi::IPMI_DBUS_TIMEOUT)
+ {
+     boost::system::error_code ec;
+     value = ctx->bus->yield_method_call<crConfigVariant>(
+@@ -2172,25 +2172,6 @@ ipmi::RspType<uint8_t> ipmiOEMSetCRConfig(ipmi::Context::ptr ctx,
+ {
+     switch (static_cast<crParameter>(parameter))
+     {
+-        case crParameter::crFeature:
+-        {
+-            uint8_t param1;
+-            if (payload.unpack(param1) || !payload.fullyUnpacked())
+-            {
+-                return ipmi::responseReqDataLenInvalid();
+-            }
+-            // ColdRedundancy Enable can only be true or flase
+-            if (param1 > 1)
+-            {
+-                return ipmi::responseInvalidFieldRequest();
+-            }
+-            if (setCRConfig(ctx, "ColdRedundancyEnabled",
+-                            static_cast<bool>(param1)))
+-            {
+-                return ipmi::responseResponseError();
+-            }
+-            break;
+-        }
+         case crParameter::rotationFeature:
+         {
+             uint8_t param1;
+@@ -2301,13 +2282,6 @@ ipmi::RspType<uint8_t> ipmiOEMSetCRConfig(ipmi::Context::ptr ctx,
+         }
+     }
+ 
+-    // TODO Halfwidth needs to set SetInProgress
+-    if (setCRConfig(ctx, "ColdRedundancyStatus",
+-                    std::string("xyz.openbmc_project.Control."
+-                                "PowerSupplyRedundancy.Status.completed")))
+-    {
+-        return ipmi::responseResponseError();
+-    }
+     return ipmi::responseSuccess(crSetCompleted);
+ }
+ 
+@@ -2338,11 +2312,11 @@ ipmi::RspType<uint8_t, std::variant<uint8_t, uint32_t, std::vector<uint8_t>>>
+             {
+                 case server::PowerSupplyRedundancy::Status::inProgress:
+                     return ipmi::responseSuccess(parameter,
+-                                                 static_cast<uint8_t>(0));
++                                                 static_cast<uint8_t>(1));
+ 
+                 case server::PowerSupplyRedundancy::Status::completed:
+                     return ipmi::responseSuccess(parameter,
+-                                                 static_cast<uint8_t>(1));
++                                                 static_cast<uint8_t>(0));
+                 default:
+                     phosphor::logging::log<phosphor::logging::level::ERR>(
+                         "Error to get valid status");
+@@ -2351,7 +2325,7 @@ ipmi::RspType<uint8_t, std::variant<uint8_t, uint32_t, std::vector<uint8_t>>>
+         }
+         case crParameter::crFeature:
+         {
+-            if (getCRConfig(ctx, "ColdRedundancyEnabled", value))
++            if (getCRConfig(ctx, "PowerSupplyRedundancyEnabled", value))
+             {
+                 return ipmi::responseResponseError();
+             }
+@@ -2359,7 +2333,7 @@ ipmi::RspType<uint8_t, std::variant<uint8_t, uint32_t, std::vector<uint8_t>>>
+             if (!pResponse)
+             {
+                 phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Error to get ColdRedundancyEnable property");
++                    "Error to get PowerSupplyRedundancyEnabled property");
+                 return ipmi::responseResponseError();
+             }
+ 
+-- 
+2.17.1
+

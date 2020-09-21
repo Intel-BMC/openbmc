@@ -10,6 +10,15 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0062-Update-IPMI-Chassis-Control-command.patch \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
             file://0001-Modify-Get-Lan-Configuration-IP-Address-Source-to-us.patch \
+            file://0064-transporthandler-Fix-for-invalid-VLAN-id.patch \
+            file://0065-apphandler-Fix-for-set-system-Info-parameter-cmd.patch \
+            file://0066-apphandler-Fix-for-total-session-slots-count.patch \
+            file://0067-Fix-for-get-Channel-Info-cmd-for-reserved-channels.patch \
+            file://0068-Removal-of-OEM-privilege-setting-for-User.patch \
+            file://0069-apphandler-Fix-for-get-system-info-command.patch \
+            file://0070-minor-fix-corrected-cc-for-get-channel-access.patch \
+            file://0071-chassishandler-SetSystemBootOptions-to-new-API.patch \
+            file://0072-chassishandler-GetSystemBootOptions-to-new-API.patch \
             "
 
 EXTRA_OECONF_append = " --disable-i2c-whitelist-check"

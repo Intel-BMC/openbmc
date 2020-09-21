@@ -1,0 +1,43 @@
+From 785223a6867f7914e9f549cf06655034eea95b4e Mon Sep 17 00:00:00 2001
+From: srikanta mondal <srikantax.mondal@intel.com>
+Date: Fri, 10 Apr 2020 11:35:32 +0000
+Subject: [PATCH] Removal of OEM privilege setting for User
+
+Issue: Set OEM user Privilege is success for Set user access command
+
+Fix: Set user access - provided fix to deny set OEM user privilege
+     for all channel.
+
+Tested:
+Before:
+Command: ipmitool raw 0x06 0x43 0x93 0x07 0x05 0x00 // Set user access
+Response:  // Success
+
+After:
+Command: ipmitool raw 0x06 0x43 0x93 0x07 0x05 0x00 // Set user access
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x43 rsp=0xcc): Invalid data field in request
+
+Signed-off-by: srikanta mondal <srikantax.mondal@intel.com>
+Change-Id: Iec38bd15d087a34b2178b8b578dc599817b7e3d1
+---
+ user_channel/channel_layer.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/user_channel/channel_layer.cpp b/user_channel/channel_layer.cpp
+index 38fd43f..03b1729 100644
+--- a/user_channel/channel_layer.cpp
++++ b/user_channel/channel_layer.cpp
+@@ -45,7 +45,8 @@ bool doesDeviceExist(const uint8_t chNum)
+ bool isValidPrivLimit(const uint8_t privLimit)
+ {
+     // Callback privilege is deprecated in OpenBMC
+-    return ((privLimit > PRIVILEGE_CALLBACK) && (privLimit <= PRIVILEGE_OEM));
++    // At present, "OEM Privilege" is not used in OpenBMC
++    return ((privLimit > PRIVILEGE_CALLBACK) && (privLimit < PRIVILEGE_OEM));
+ }
+ 
+ bool isValidAccessMode(const uint8_t accessMode)
+-- 
+2.17.1
+

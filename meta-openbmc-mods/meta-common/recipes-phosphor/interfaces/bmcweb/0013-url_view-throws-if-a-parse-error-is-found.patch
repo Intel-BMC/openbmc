@@ -1,0 +1,54 @@
+From 6ab885e4cabe28f74050b7e996868e4d8387e94d Mon Sep 17 00:00:00 2001
+From: Ed Tanous <ed@tanous.net>
+Date: Mon, 17 Aug 2020 15:04:58 -0700
+Subject: [PATCH] url_view throws if a parse error is found
+
+This causes a strange condition where the webserver crashes on bad urls.
+
+Tested:
+Loaded on RPI.  Verified that this particular crash no longer breaks the
+fuzzer.
+
+Signed-off-by: Ed Tanous <ed@tanous.net>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Change-Id: I459421e27c8d07c2bc45099b5942f7c7c929610d
+---
+ http/http_connection.h | 21 ++++++++++++++++++---
+ 1 file changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/http/http_connection.h b/http/http_connection.h
+index 8dba3d6..8db8108 100644
+--- a/http/http_connection.h
++++ b/http/http_connection.h
+@@ -728,9 +728,24 @@ class Connection :
+                     return;
+                 }
+ 
+-                req->urlView = boost::urls::url_view(req->target());
+-                req->url = req->urlView.encoded_path();
+-
++                // Note, despite the bmcweb coding policy on use of exceptions
++                // for error handling, this one particular use of exceptions is
++                // deemed acceptible, as it solved a significant error handling
++                // problem that resulted in seg faults, the exact thing that the
++                // exceptions rule is trying to avoid. If at some point,
++                // boost::urls makes the parser object public (or we port it
++                // into bmcweb locally) this will be replaced with
++                // parser::parse, which returns a status code
++
++                try
++                {
++                    req->urlView = boost::urls::url_view(req->target());
++                    req->url = req->urlView.encoded_path();
++                }
++                catch (std::exception& p)
++                {
++                    BMCWEB_LOG_ERROR << p.what();
++                }
+                 crow::authorization::authenticate(*req, res, session);
+ 
+                 bool loggedIn = req && req->session;
+-- 
+2.7.4
+

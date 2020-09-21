@@ -2,10 +2,8 @@
 Description=Overlay sync to NV storage
 
 [Service]
-# Run rsync periodically to sync the overlay to NV storage
-ExecStart=bash -c 'while true; do rsync -a --delete /tmp/.overlay/ /tmp/.rwfs/.overlay; sync /tmp/.rwfs/.overlay; sleep 10; done'
-# On shutdown, archive the bash history so we don't lose it and run one last sync
-ExecStop=bash -c 'history -a; rsync -a --delete /tmp/.overlay/ /tmp/.rwfs/.overlay; sync /tmp/.rwfs/.overlay; sleep 5'
+# Run a job to periodically sync the overlay to NV storage
+ExecStart=/usr/bin/nv-syncd
 # Due to sync delay stopping this service will take more than default 10 seconds
 TimeoutStopSec=20
 

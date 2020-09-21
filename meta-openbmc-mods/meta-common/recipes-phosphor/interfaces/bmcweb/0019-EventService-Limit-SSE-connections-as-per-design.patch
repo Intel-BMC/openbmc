@@ -1,0 +1,108 @@
+From eb1f888660bd34bde0c049e48db2404803b57d6e Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Tue, 8 Sep 2020 02:37:19 +0530
+Subject: [PATCH] EventService: Limit SSE connections as per design
+
+Limit the number of SSE connections for event service.
+
+Tested:
+  - Tried creating more than 10 SSE connections and it fails.
+
+Change-Id: I4c7aa5c05a832115717e1261e330350ce59ab630
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/include/event_service_manager.hpp | 17 +++++++++++++++++
+ redfish-core/lib/event_service.hpp             | 14 +++++++++-----
+ 2 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 502a6f7..22d1f10 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -44,6 +44,9 @@ using EventServiceConfig = std::tuple<bool, uint32_t, uint32_t>;
+ static constexpr const char* eventFormatType = "Event";
+ static constexpr const char* metricReportFormatType = "MetricReport";
+ 
++static constexpr const char* subscriptionTypeRedfishEvent = "RedfishEvent";
++static constexpr const char* subscriptionTypeSSE = "SSE";
++
+ static constexpr const char* eventServiceFile =
+     "/var/lib/bmcweb/eventservice_config.json";
+ 
+@@ -983,6 +986,20 @@ class EventServiceManager
+         return subscriptionsMap.size();
+     }
+ 
++    size_t getNumberOfSSESubscriptions()
++    {
++        size_t count = 0;
++        for (const auto& it : this->subscriptionsMap)
++        {
++            std::shared_ptr<Subscription> entry = it.second;
++            if (entry->subscriptionType == subscriptionTypeSSE)
++            {
++                count++;
++            }
++        }
++        return count;
++    }
++
+     std::vector<std::string> getAllIDs()
+     {
+         std::vector<std::string> idList;
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 4804d26..f14c03e 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -27,6 +27,7 @@ static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
+     "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
+ 
+ static constexpr const uint8_t maxNoOfSubscriptions = 20;
++static constexpr const uint8_t maxNoOfSSESubscriptions = 10;
+ 
+ class EventService : public Node
+ {
+@@ -307,7 +308,7 @@ class EventDestinationCollection : public Node
+ 
+         if (subscriptionType)
+         {
+-            if (*subscriptionType != "RedfishEvent")
++            if (*subscriptionType != subscriptionTypeRedfishEvent)
+             {
+                 messages::propertyValueNotInList(
+                     asyncResp->res, *subscriptionType, "SubscriptionType");
+@@ -317,7 +318,8 @@ class EventDestinationCollection : public Node
+         }
+         else
+         {
+-            subValue->subscriptionType = "RedfishEvent"; // Default
++            subValue->subscriptionType =
++                subscriptionTypeRedfishEvent; // Default
+         }
+ 
+         if (protocol != "Redfish")
+@@ -450,8 +452,10 @@ class EventServiceSSE : public Node
+     void doGet(crow::Response& res, const crow::Request& req,
+                const std::vector<std::string>& params) override
+     {
+-        if (EventServiceManager::getInstance().getNumberOfSubscriptions() >=
+-            maxNoOfSubscriptions)
++        if ((EventServiceManager::getInstance().getNumberOfSubscriptions() >=
++             maxNoOfSubscriptions) ||
++            EventServiceManager::getInstance().getNumberOfSSESubscriptions() >=
++                maxNoOfSSESubscriptions)
+         {
+             messages::eventSubscriptionLimitExceeded(res);
+             res.end();
+@@ -464,7 +468,7 @@ class EventServiceSSE : public Node
+             std::make_shared<Subscription>(sseConn);
+ 
+         // GET on this URI means, Its SSE subscriptionType.
+-        subValue->subscriptionType = "SSE";
++        subValue->subscriptionType = subscriptionTypeSSE;
+ 
+         // Default values
+         subValue->protocol = "Redfish";
+-- 
+2.7.4
+

@@ -242,6 +242,7 @@ EOF
 # $5 ... config ID
 # $6 ... default flag
 # $7 ... Hash type
+# $8 ... DTB index
 fitimage_emit_section_config() {
 
     conf_csum="${7}"
@@ -430,7 +431,7 @@ fitimage_assemble() {
     if [ -n "${DTBS}" ]; then
         i=1
         for DTB in ${DTBS}; do
-            fitimage_emit_section_config ${1} "${kernelcount}" "${DTB}" "${ramdiskcount}" "${setupcount}" "`expr ${i} = ${dtbcount}`" "${hash_type}"
+            fitimage_emit_section_config ${1} "${kernelcount}" "${DTB}" "${ramdiskcount}" "${setupcount}" "`expr ${i} = ${dtbcount}`" "${hash_type}" "${i}"
             i=`expr ${i} + 1`
         done
     fi
@@ -468,6 +469,43 @@ python do_generate_phosphor_manifest() {
         fd.write('version={}\n'.format(version.strip('"')))
         fd.write('KeyType={}\n'.format("OpenBMC"))
         fd.write('HashType=RSA-SHA256\n')
+}
+
+# Get HEAD git hash
+def get_head_hash(codebase):
+    err = None
+    try:
+        cmd = 'git --work-tree {} --git-dir {}/.git {}'.format(codebase, codebase, "rev-parse HEAD")
+        ret, err = bb.process.run(cmd)
+        if err is not None:
+            ret += err
+    except bb.process.ExecutionError as e:
+        ret = ''
+        if e.stdout is not None:
+            ret += e.stdout
+        if e.stderr is not None:
+            ret += e.stderr
+    except Exception as e:
+        ret = str(e)
+    return ret.split("\n")[0]
+
+# Generate file 'RELEASE'
+# It contains git hash info which is required by rest of release process (release note, for example)
+python do_generate_release_metainfo() {
+    b        = d.getVar('DEPLOY_DIR_IMAGE', True)
+    corebase = d.getVar('COREBASE', True)
+    intelbase = os.path.join(corebase, 'meta-openbmc-mods')
+    filename  = os.path.join(b, "RELEASE")
+    version   = do_get_version(d)
+
+    with open(filename, 'w') as fd:
+        fd.write('VERSION_ID={}\n'.format(version.strip('"')))
+        if os.path.exists(corebase):
+            obmc_hash = get_head_hash(corebase)
+            fd.write('COMMUNITY_HASH={}\n'.format(obmc_hash))
+        if os.path.exists(intelbase):
+            intel_hash = get_head_hash(intelbase)
+            fd.write('INTEL_HASH={}\n'.format(intel_hash))
 }
 
 def get_pubkey_type(d):
@@ -521,7 +559,9 @@ do_image_fitimage_rootfs() {
     tar -h -cvf "${DEPLOY_DIR_IMAGE}/${PN}-image-update-${MACHINE}-${DATETIME}.tar" MANIFEST image-u-boot image-runtime image-kernel image-rofs image-rwfs
     # make a symlink
     ln -sf "${PN}-image-update-${MACHINE}-${DATETIME}.tar" "${DEPLOY_DIR_IMAGE}/image-update-${MACHINE}"
+    ln -sf "${PN}-image-update-${MACHINE}-${DATETIME}.tar" "${DEPLOY_DIR_IMAGE}/OBMC-${@ do_get_version(d)}-oob.bin"
     ln -sf "image-update-${MACHINE}" "${DEPLOY_DIR_IMAGE}/image-update"
+    ln -sf "image-update-${MACHINE}" "${DEPLOY_DIR_IMAGE}/OBMC-${@ do_get_version(d)}-inband.bin"
 }
 
 do_image_fitimage_rootfs[vardepsexclude] = "DATETIME"
@@ -530,3 +570,4 @@ do_image_fitimage_rootfs[depends] += " ${DEPS}"
 
 addtask do_image_fitimage_rootfs before do_generate_auto after do_image_complete
 addtask do_generate_phosphor_manifest before do_image_fitimage_rootfs after do_image_complete
+addtask do_generate_release_metainfo before do_generate_phosphor_manifest after do_image_complete

@@ -1,0 +1,48 @@
+From 1e2ab0613dde7d8051052eecf6f5f2381e91ce87 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 3 Aug 2020 16:57:00 +0000
+Subject: [PATCH] storagecommands: Fix for GetFruAreaInfo command
+
+Issue: GetFruAreaInfo command is giving incorrect response for Invalid
+FRU Device ID's.
+
+Fix: Add check for invalid FRU Device ID's to return completion code as
+0xCB.
+
+Tested:
+Verified using ipmitool raw commands.
+Case 1: Valid FRU Device ID:
+Command:  ipmitool raw 0x0a 0x10 0xce //Get fru Area info
+Response: a9 00 00
+Case 2: Invalid FRU Device ID:
+Command:  ipmitool raw 0x0a 0x10 0x01 //Get fru Area info
+Response: Unable to send RAW command (channel=0x0 netfn=0xa lun=0x0
+          cmd=0x10 rsp=0xcb): Requested sensor, data, or record not
+          found
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: I8e3416beff40c133804af9e913d83c2372784439
+---
+ src/storagecommands.cpp | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index f1b98e0..bd43a34 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -538,7 +538,11 @@ ipmi::RspType<uint16_t, // inventorySize
+         return ipmi::responseInvalidFieldRequest();
+     }
+ 
+-    getFru(ctx, fruDeviceId);
++    ipmi::Cc ret = getFru(ctx, fruDeviceId);
++    if (ret != ipmi::ccSuccess)
++    {
++        return ipmi::response(ret);
++    }
+ 
+     constexpr uint8_t accessType =
+         static_cast<uint8_t>(GetFRUAreaAccessType::byte);
+-- 
+2.17.1
+

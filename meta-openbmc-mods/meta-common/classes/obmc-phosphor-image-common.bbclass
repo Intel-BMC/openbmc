@@ -47,7 +47,9 @@ IMAGE_INSTALL_append = " \
         host-misc-comm-manager \
         "
 
-IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
+IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
+
+IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'ncsi-monitor', '', d)}"
 
 # this package was flagged as a security risk
 IMAGE_INSTALL_remove += " lrzsz"
