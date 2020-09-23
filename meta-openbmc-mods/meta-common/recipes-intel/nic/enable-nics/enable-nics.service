@@ -1,7 +1,6 @@
 [Unit]
 Description=Re-enable NICs mistakenly disabled by earlier BMC firmware
 Wants=multi-user.target
-After=multi-user.target
 
 [Service]
 Type=oneshot

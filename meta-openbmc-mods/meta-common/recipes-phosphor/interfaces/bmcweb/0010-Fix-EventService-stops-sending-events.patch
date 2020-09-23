@@ -1,0 +1,67 @@
+From 27705854ade6832bc1e91dada33fee43ee4b2bc9 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Sun, 2 Aug 2020 17:03:10 +0530
+Subject: [PATCH 2/2] Fix: EventService stops sending events
+
+When redfish log file(/var/log/redfish) is recreated
+by rsyslog daemon, EventService stops sending events
+to subscribers.
+
+The rsyslog service take redfish log files to back up
+as per design. EventService has inotify on redfish log
+file modifications. It needs to be removed from inotify
+watcher list and added with new File descriptor.
+Corrected code to handle remove & add of new descriptor.
+Also corrected code to properly handle last event timestamp.
+
+Tested:
+ - Ran stress test on redfish log file to create multiple
+   backup files and events sends to clients properly, in
+   all switching scenarios.
+
+Change-Id: Ic0378edfc2cae86d1f69f6df4c429d07c2744bdf
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/include/event_service_manager.hpp | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 7c47842..4671995 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -1019,6 +1019,7 @@ class EventServiceManager
+ #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
+     void cacheLastEventTimestamp()
+     {
++        lastEventTStr.clear();
+         std::ifstream logStream(redfishEventLogFile);
+         if (!logStream.good())
+         {
+@@ -1062,7 +1063,7 @@ class EventServiceManager
+         std::string logEntry;
+         while (std::getline(logStream, logEntry))
+         {
+-            if (!startLogCollection)
++            if (!startLogCollection && !lastEventTStr.empty())
+             {
+                 if (boost::starts_with(logEntry, lastEventTStr))
+                 {
+@@ -1160,9 +1161,12 @@ class EventServiceManager
+                             if (fileWatchDesc != -1)
+                             {
+                                 BMCWEB_LOG_DEBUG
+-                                    << "Redfish log file is already on "
+-                                       "inotify_add_watch.";
+-                                return;
++                                    << "Remove and Add inotify watcher on "
++                                       "redfish event log file";
++                                // Remove existing inotify watcher and add
++                                // with new redfish event log file.
++                                inotify_rm_watch(inotifyFd, fileWatchDesc);
++                                fileWatchDesc = -1;
+                             }
+ 
+                             fileWatchDesc = inotify_add_watch(
+-- 
+2.7.4
+

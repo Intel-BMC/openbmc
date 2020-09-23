@@ -1,0 +1,98 @@
+From 3c5e413b55e60bdf4c7c34d06485e00915a969dd Mon Sep 17 00:00:00 2001
+From: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 27 Apr 2020 23:00:05 +0000
+Subject: [PATCH] apphandler: Fix for set system Info parameter cmd
+
+Issue: Get System Info parameter command returning incorrect response if
+       set system info command set the values less than 16 bytes.
+
+Fix: Appending zero's if user setting less than 16 bytes data using set
+     system info parameter API.
+
+Tested:
+Before:
+Command: ipmitool raw 0x06 0x58 0x02 0x00 0x00 0x69 0x6e 0x74 0x65 0x6c
+         0x2d 0x6f 0x70 0x65 0x6e 0x62 0x6d 0x63 //Set system info
+Response:                            //success
+Commands: ipmitool raw 0x06 0x59 0x00 0x02 0x00 0x00  //Get system info
+Response: 11 00 00 69 6e 74 65 6c 2d 6f 70 65 6e 62 6d 63
+          2d 6d
+Commands: ipmitool raw 0x06 0x58 0x08 0x00 0x00 0x69 0x6e 0x74 0x65 0x6c
+          0x2d 0x6f 0x70 0x65 0x6e 0x62 0x6d 0x63
+Response:                            //success
+Commands: ipmitool raw 0x06 0x58 0xff 0x00 0x00 0x69 0x6e 0x74 0x65 0x6c
+          0x2d 0x6f 0x70 0x65 0x6e 0x62 0x6d 0x63 0x10
+Response:                            //success
+
+After:
+Commands: ipmitool raw 0x06 0x58 0x02 0x00 0x00 0x69 0x6e 0x74 0x65 0x6c
+          0x2d 0x6f 0x70 0x65 0x6e 0x62 0x6d 0x63  //Set system info
+Response:                            //success
+Commands: ipmitool raw 0x06 0x59 0x00 0x02 0x00 0x00 //Get system info
+Response: 11 00 00 69 6e 74 65 6c 2d 6f 70 65 6e 62 6d 63
+          00 00
+Commands: ipmitool raw 0x06 0x58 0x08 0x00 0x00 0x69 0x6e 0x74 0x65
+          0x6c 0x2d 0x6f 0x70 0x65 0x6e 0x62 0x6d 0x63 //Set system info
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x58 rsp=0xcc): Invalid data field in request
+Commands: ipmitool raw 0x06 0x58 0xff 0x00 0x00 0x69 0x6e 0x74 0x65
+          0x6c 0x2d 0x6f 0x70 0x65 0x6e 0x62 0x6d 0x63 0x10
+                                                      //Set system info
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x58 rsp=0x80): Unknown (0x80)
+
+Signed-off-by: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: I10be443df0bd5828f447919f919a9824352cc36b
+---
+ apphandler.cpp | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/apphandler.cpp b/apphandler.cpp
+index d567fe3..8baff39 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -89,6 +89,10 @@ static constexpr const char* cmdMaskStr = "commandMask";
+ static constexpr int base_16 = 16;
+ #endif // ENABLE_I2C_WHITELIST_CHECK
+ static constexpr uint8_t maxIPMIWriteReadSize = 144;
++static constexpr uint8_t oemCmdStart = 192;
++static constexpr uint8_t oemCmdEnd = 255;
++static constexpr uint8_t invalidParamSelectorStart = 8;
++static constexpr uint8_t invalidParamSelectorEnd = 191;
+ 
+ /**
+  * @brief Returns the Version info from primary s/w object
+@@ -1350,6 +1354,16 @@ ipmi::RspType<uint8_t,                // Parameter revision
+ ipmi::RspType<> ipmiAppSetSystemInfo(uint8_t paramSelector, uint8_t data1,
+                                      std::vector<uint8_t> configData)
+ {
++    if (paramSelector >= invalidParamSelectorStart &&
++        paramSelector <= invalidParamSelectorEnd)
++    {
++        return ipmi::responseInvalidFieldRequest();
++    }
++    if ((paramSelector >= oemCmdStart) && (paramSelector <= oemCmdEnd))
++    {
++        return ipmi::responseParmNotSupported();
++    }
++
+     if (paramSelector == 0)
+     {
+         // attempt to set the 'set in progress' value (in parameter #0)
+@@ -1375,6 +1389,13 @@ ipmi::RspType<> ipmiAppSetSystemInfo(uint8_t paramSelector, uint8_t data1,
+         return ipmi::responseInvalidFieldRequest();
+     }
+ 
++    // Append zero's to remaining bytes
++    if (configData.size() < configParameterLength)
++    {
++        fill_n(back_inserter(configData),
++               (configParameterLength - configData.size()), 0x00);
++    }
++
+     if (!sysInfoParamStore)
+     {
+         sysInfoParamStore = std::make_unique<SysInfoParamStore>();
+-- 
+2.17.1
+

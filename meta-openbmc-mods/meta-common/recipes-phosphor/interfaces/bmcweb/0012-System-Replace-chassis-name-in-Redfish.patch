@@ -1,0 +1,64 @@
+From e0e19506ac81b3fa858de30c90ed3d75e10df749 Mon Sep 17 00:00:00 2001
+From: srikanta mondal <srikantax.mondal@intel.com>
+Date: Wed, 12 Aug 2020 18:26:26 +0000
+Subject: [PATCH] System: Replace chassis name in Redfish
+
+Modify code to replace chassis name to WC_Baseboard
+
+Note: This patch will be removed after code is up streamed.
+https://gerrit.openbmc-project.xyz/#/c/openbmc/bmcweb/+/31748/
+
+Tested:
+1. Verified redfish validator passed
+2. Verified details from Redfish
+
+GET: https://<BMC-IP>/redfish/v1/Systems/system
+Response:
+{
+  ....
+  "Links": {
+    "Chassis": [
+      {
+        "@odata.id": "/redfish/v1/Chassis/WC_Baseboard"
+      }
+    ],
+    "ManagedBy": [
+      {
+        "@odata.id": "/redfish/v1/Managers/bmc"
+      }
+    ]
+  },
+  ....
+}
+
+GET: https://<BMC-IP>/redfish/v1/Chassis/WC_Baseboard
+Response:
+{
+   // SUCCESS
+}
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+Signed-off-by: srikanta mondal <srikantax.mondal@intel.com>
+---
+ redfish-core/lib/redfish_util.hpp | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/redfish-core/lib/redfish_util.hpp b/redfish-core/lib/redfish_util.hpp
+index 5701712..3adb392 100644
+--- a/redfish-core/lib/redfish_util.hpp
++++ b/redfish-core/lib/redfish_util.hpp
+@@ -57,9 +57,8 @@ void getMainChassisId(std::shared_ptr<AsyncResp> asyncResp,
+         "/xyz/openbmc_project/object_mapper",
+         "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+         "/xyz/openbmc_project/inventory", 0,
+-        std::array<const char*, 2>{
+-            "xyz.openbmc_project.Inventory.Item.Board",
+-            "xyz.openbmc_project.Inventory.Item.Chassis"});
++        std::array<const char*, 1>{
++            "xyz.openbmc_project.Inventory.Item.System"});
+ }
+ } // namespace redfish
+ #endif
+-- 
+2.17.1
+

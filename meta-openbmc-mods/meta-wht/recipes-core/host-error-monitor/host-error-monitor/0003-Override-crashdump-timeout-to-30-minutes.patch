@@ -1,0 +1,41 @@
+From 6d3f28619226c0dbfca6feb320a2fa292aa11f40 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@intel.com>
+Date: Wed, 2 Sep 2020 18:23:00 -0700
+Subject: [PATCH] Override crashdump timeout to 30 minutes
+
+The current crashdump timeout is set to 5 minutes, so if it takes
+longer than 5 minutes to complete the crashdump, then
+host-error-monitor will not reset the system to recover from the
+error.
+
+My current crashdump on a single socket is taking about 11 minutes
+to complete.  This is a workaround to change the timeout to 30
+minutes to give enough time for crashdump to complete before timing
+out.
+
+Tested:
+Confirmed that when I inject an IERR on my system, it will correctly
+reset after 11 minutes when crashdump completes.
+
+Change-Id: I36ac3f0c83ae1634e486d9f8413b38fae5efb561
+Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
+---
+ src/host_error_monitor.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/host_error_monitor.cpp b/src/host_error_monitor.cpp
+index fd453ccdc..9dabb52bb 100644
+--- a/src/host_error_monitor.cpp
++++ b/src/host_error_monitor.cpp
+@@ -46,7 +46,7 @@ static size_t caterrTimeoutMs = 2000;
+ const static constexpr size_t caterrTimeoutMsMax = 600000; // 10 minutes maximum
+ const static constexpr size_t errTimeoutMs = 90000;
+ const static constexpr size_t smiTimeoutMs = 90000;
+-const static constexpr size_t crashdumpTimeoutS = 300;
++const static constexpr size_t crashdumpTimeoutS = 1800;
+ 
+ // Timers
+ // Timer for CATERR asserted
+-- 
+2.17.1
+

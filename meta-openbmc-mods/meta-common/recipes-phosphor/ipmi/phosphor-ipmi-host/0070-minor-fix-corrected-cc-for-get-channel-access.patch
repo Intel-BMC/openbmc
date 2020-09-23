@@ -1,0 +1,39 @@
+From c4f4f7a6f541412a70483241395239f4652c8462 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Mon, 13 Jul 2020 16:43:59 +0530
+Subject: [PATCH 1/4] minor fix: corrected cc for get channel access
+
+As per IPMI spec, get channel access don't have
+specific cc code 0x83(Access mode not supported).
+Whereas set channel access has that specific cc.
+So changed cc to generic 0xcc(invalid field request)
+in get channel access mode command.
+
+Tested:
+For reserved access mode byte 2 request, return 0xCC.
+ipmitool -I lanplus -U <> -P <> -H <IP> raw 6 0x41 0x01 0x00
+Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+cmd=0x41 rsp=0xcc): Invalid data field in request
+
+Change-Id: I75256b9f74eddaf95a9f78d95730332877d21dfd
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ user_channel/channelcommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/user_channel/channelcommands.cpp b/user_channel/channelcommands.cpp
+index 6987e04..b774d3f 100644
+--- a/user_channel/channelcommands.cpp
++++ b/user_channel/channelcommands.cpp
+@@ -180,7 +180,7 @@ ipmi ::RspType<uint3_t, // access mode,
+     if ((accessSetMode == doNotSet) || (accessSetMode == reserved))
+     {
+         log<level::DEBUG>("Get channel access - Invalid Access mode");
+-        return response(ccAccessModeNotSupportedForChannel);
++        return responseInvalidFieldRequest();
+     }
+ 
+     const uint8_t chNum =
+-- 
+2.7.4
+

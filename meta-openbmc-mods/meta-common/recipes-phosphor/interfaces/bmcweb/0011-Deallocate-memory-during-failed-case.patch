@@ -1,0 +1,32 @@
+From cf5ba2028909d4fa0ee3bba4b60620e72cd612f0 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 7 Aug 2020 01:37:28 +0530
+Subject: [PATCH] Deallocate memory during failed case
+
+Free memory during failed case inside
+pamFunctionConversation() function.
+
+Tested:
+ - Pam authentication works as normal.
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Change-Id: I81c06a3d674b0806c96e5847cda6f208795bd02c
+---
+ include/pam_authenticate.hpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/pam_authenticate.hpp b/include/pam_authenticate.hpp
+index f2c7356..3e5c691 100644
+--- a/include/pam_authenticate.hpp
++++ b/include/pam_authenticate.hpp
+@@ -30,6 +30,7 @@ inline int pamFunctionConversation(int numMsg, const struct pam_message** msg,
+ 
+     if (resp == nullptr)
+     {
++        free(pass);
+         return PAM_AUTH_ERR;
+     }
+ 
+-- 
+2.7.4
+

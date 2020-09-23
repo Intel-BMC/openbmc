@@ -1,0 +1,231 @@
+From 7e50451bc8d4c4e8fa5ee1b0e2af86c800ea2efc Mon Sep 17 00:00:00 2001
+From: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 13 Apr 2020 23:31:06 +0000
+Subject: [PATCH] cpudimm: get cpu details from Redfish
+
+Modified the code to fetch cpu details from Redfish
+
+Note: This patch will be removed after code is up streamed.
+https://gerrit.openbmc-project.xyz/#/c/openbmc/bmcweb/+/31294/
+
+Tested:
+1. Verified redfish validator passed
+2. Get cpu details from Redfish
+GET: https://<BMC-IP>/redfish/v1/Systems/system/Processors/cpu0
+Response:
+{
+  "@odata.id": "/redfish/v1/Systems/system/Processors/cpu0",
+  "@odata.type": "#Processor.v1_7_0.Processor",
+  "Id": "cpu0",
+  "InstructionSet": "x86-64",
+  "Manufacturer": "Intel(R) Corporation",
+  "MaxSpeedMHz": 4000,
+  "Model": "",
+  "Name": "Central Processor",
+  "ProcessorArchitecture": "x86",
+  "ProcessorId": {
+    "EffectiveFamily": "Intel Xeon processor",
+    "VendorId": "329300"
+  },
+  "ProcessorType": "CPU",
+  "SerialNumber": "",
+  "Socket": "CPU0",
+  "Status": {
+    "Health": "OK",
+    "HealthRollup": "OK",
+    "State": "Enabled"
+  },
+  "TotalCores": 18,
+  "TotalThreads": 36,
+  "Version": "Intel(R) Xeon(R) Gold 6139 CPU @ 2.30GHz"
+}
+
+GET: https://<BMC-IP>/redfish/v1/Systems/system/Processors/cpu1
+Response:
+{
+  "@odata.id": "/redfish/v1/Systems/system/Processors/cpu1",
+  "@odata.type": "#Processor.v1_7_0.Processor",
+  "Id": "cpu1",
+  "Name": "Processor",
+  "ProcessorType": "CPU",
+  "Status": {
+    "Health": "OK",
+    "HealthRollup": "OK",
+    "State": "Absent"
+  }
+}
+
+Signed-off-by: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: Idcad6e643684f4912f24c259b075a443e1da5007
+---
+ redfish-core/lib/cpudimm.hpp | 81 ++++++++++++++++++++----------------
+ 1 file changed, 46 insertions(+), 35 deletions(-)
+
+diff --git a/redfish-core/lib/cpudimm.hpp b/redfish-core/lib/cpudimm.hpp
+index ed5e641..e332a11 100644
+--- a/redfish-core/lib/cpudimm.hpp
++++ b/redfish-core/lib/cpudimm.hpp
+@@ -73,8 +73,13 @@ void getCpuDataByInterface(std::shared_ptr<AsyncResp> aResp,
+ {
+     BMCWEB_LOG_DEBUG << "Get CPU resources by interface.";
+ 
+-    const bool* present = nullptr;
+-    const bool* functional = nullptr;
++    // Added for future purpose. Once present and functional attributes added
++    // in busctl call, need to add actual logic to fetch original values.
++    bool present = false;
++    const bool functional = true;
++    auto health = std::make_shared<HealthPopulate>(aResp);
++    health->populate();
++
+     for (const auto& interface : cpuInterfacesProperties)
+     {
+         for (const auto& property : interface.second)
+@@ -93,10 +98,13 @@ void getCpuDataByInterface(std::shared_ptr<AsyncResp> aResp,
+                 {
+                     // Slot is not populated, set status end return
+                     aResp->res.jsonValue["Status"]["State"] = "Absent";
+-                    aResp->res.jsonValue["Status"]["Health"] = "OK";
+                     // HTTP Code will be set up automatically, just return
+                     return;
+                 }
++                else
++                {
++                    aResp->res.jsonValue["Status"]["State"] = "Enabled";
++                }
+ 
+                 aResp->res.jsonValue["TotalCores"] = *coresCount;
+             }
+@@ -104,7 +112,7 @@ void getCpuDataByInterface(std::shared_ptr<AsyncResp> aResp,
+             {
+                 aResp->res.jsonValue["Name"] = property.second;
+             }
+-            else if (property.first == "Manufacturer")
++            else if (property.first == "ProcessorManufacturer")
+             {
+                 const std::string* value =
+                     std::get_if<std::string>(&property.second);
+@@ -128,50 +136,48 @@ void getCpuDataByInterface(std::shared_ptr<AsyncResp> aResp,
+             {
+                 aResp->res.jsonValue["MaxSpeedMHz"] = property.second;
+             }
+-            else if (property.first == "ProcessorThreadCount")
+-            {
+-                aResp->res.jsonValue["TotalThreads"] = property.second;
+-            }
+-            else if (property.first == "Model")
++            else if (property.first == "ProcessorSocket")
+             {
+                 const std::string* value =
+                     std::get_if<std::string>(&property.second);
+                 if (value != nullptr)
+                 {
+-                    aResp->res.jsonValue["Model"] = *value;
++                    aResp->res.jsonValue["Socket"] = *value;
+                 }
+             }
+-            else if (property.first == "PartNumber")
++            else if (property.first == "ProcessorThreadCount")
+             {
+-                aResp->res.jsonValue["PartNumber"] = property.second;
++                aResp->res.jsonValue["TotalThreads"] = property.second;
+             }
+-            else if (property.first == "SerialNumber")
++            else if (property.first == "ProcessorFamily")
+             {
+-                aResp->res.jsonValue["SerialNumber"] = property.second;
++                const std::string* value =
++                    std::get_if<std::string>(&property.second);
++                if (value != nullptr)
++                {
++                    aResp->res.jsonValue["ProcessorId"]["EffectiveFamily"] =
++                        *value;
++                }
+             }
+-            else if (property.first == "Version")
++            else if (property.first == "ProcessorVersion")
+             {
+                 aResp->res.jsonValue["Version"] = property.second;
+             }
+-            else if (property.first == "Present")
+-            {
+-                present = std::get_if<bool>(&property.second);
+-            }
+-            else if (property.first == "Functional")
++            else if (property.first == "ProcessorId")
+             {
+-                functional = std::get_if<bool>(&property.second);
++                const uint32_t* value = std::get_if<uint32_t>(&property.second);
++
++                if (value != nullptr && *value != 0)
++                {
++                    present = true;
++                    aResp->res.jsonValue["ProcessorId"]["VendorId"] =
++                        boost::lexical_cast<std::string>(*value);
++                }
+             }
+         }
+     }
+ 
+-    if ((present == nullptr) || (functional == nullptr))
+-    {
+-        // Important property not in desired type
+-        messages::internalError(aResp->res);
+-        return;
+-    }
+-
+-    if (*present == false)
++    if (present == false)
+     {
+         aResp->res.jsonValue["Status"]["State"] = "Absent";
+         aResp->res.jsonValue["Status"]["Health"] = "OK";
+@@ -179,7 +185,7 @@ void getCpuDataByInterface(std::shared_ptr<AsyncResp> aResp,
+     else
+     {
+         aResp->res.jsonValue["Status"]["State"] = "Enabled";
+-        if (*functional == true)
++        if (functional)
+         {
+             aResp->res.jsonValue["Status"]["Health"] = "OK";
+         }
+@@ -212,6 +218,7 @@ void getCpuDataByService(std::shared_ptr<AsyncResp> aResp,
+             aResp->res.jsonValue["Name"] = "Processor";
+             aResp->res.jsonValue["ProcessorType"] = "CPU";
+ 
++            bool slotPresent = false;
+             std::string corePath = objPath + "/core";
+             size_t totalCores = 0;
+             for (const auto& object : dbusData)
+@@ -237,6 +244,7 @@ void getCpuDataByService(std::shared_ptr<AsyncResp> aResp,
+                                     {
+                                         if (*present == true)
+                                         {
++                                            slotPresent = true;
+                                             totalCores++;
+                                         }
+                                     }
+@@ -249,13 +257,16 @@ void getCpuDataByService(std::shared_ptr<AsyncResp> aResp,
+             // In getCpuDataByInterface(), state and health are set
+             // based on the present and functional status. If core
+             // count is zero, then it has a higher precedence.
+-            if (totalCores == 0)
++            if (slotPresent)
+             {
+-                // Slot is not populated, set status end return
+-                aResp->res.jsonValue["Status"]["State"] = "Absent";
+-                aResp->res.jsonValue["Status"]["Health"] = "OK";
++                if (totalCores == 0)
++                {
++                    // Slot is not populated, set status end return
++                    aResp->res.jsonValue["Status"]["State"] = "Absent";
++                    aResp->res.jsonValue["Status"]["Health"] = "OK";
++                }
++                aResp->res.jsonValue["TotalCores"] = totalCores;
+             }
+-            aResp->res.jsonValue["TotalCores"] = totalCores;
+             return;
+         },
+         service, "/xyz/openbmc_project/inventory",
+-- 
+2.17.1
+

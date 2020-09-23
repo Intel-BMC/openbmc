@@ -1,0 +1,61 @@
+From afd12b4ecc381e21b05e90368ccd29a96ff644b4 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Tue, 7 Jul 2020 01:06:57 +0000
+Subject: [PATCH] Fix for get Channel Info cmd for reserved channels
+
+Issue: Get channel info command returning improper response as "0x82"
+       which is not expected for reserved channels 5, 11, 12, 13.
+
+Fix: Return proper completion code for reserved channels.
+
+Tested:
+Verified using ipmitool raw commands
+Before:
+Command:  ipmitool raw 6 0x42 0x05 //get Channel Info
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0x82): Unknown (0x82)
+Command:  ipmitool raw 6 0x42 0x0b
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0x82): Unknown (0x82)
+Command:  ipmitool raw 6 0x42 0x0c
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0x82): Unknown (0x82)
+Command:  ipmitool raw 6 0x42 0x0d
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0x82): Unknown (0x82)
+After:
+Command:  ipmitool raw 6 0x42 0x05 //get Channel Info
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0xcc): Invalid data field in request
+Command:  ipmitool raw 6 0x42 0x0b
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0xcc): Invalid data field in request
+Command:  ipmitool raw 6 0x42 0x0c
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0xcc): Invalid data field in request
+Command:  ipmitool raw 6 0x42 0x0d
+Response: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+          cmd=0x42 rsp=0xcc): Invalid data field in request
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: Ic5a5bb2317ee301a1ecc37350cbe1b289d33ca38
+---
+ user_channel/channelcommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/user_channel/channelcommands.cpp b/user_channel/channelcommands.cpp
+index 4bf8071..6987e04 100644
+--- a/user_channel/channelcommands.cpp
++++ b/user_channel/channelcommands.cpp
+@@ -258,7 +258,7 @@ RspType<uint4_t,  // chNum
+     if (!isValidChannel(chNum))
+     {
+         log<level::DEBUG>("Get channel Info - No support on channel");
+-        return response(ccActionNotSupportedForChannel);
++        return responseInvalidFieldRequest();
+     }
+ 
+     ChannelInfo chInfo;
+-- 
+2.17.1
+

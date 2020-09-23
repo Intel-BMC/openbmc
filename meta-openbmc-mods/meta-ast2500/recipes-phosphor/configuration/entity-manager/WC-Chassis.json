@@ -3,6 +3,7 @@
         {
             "BindConnector": "System Fan connector 1",
             "Index": 0,
+            "MaxReading": 21000,
             "Name": "Fan 1",
             "Thresholds": [
                 {
@@ -23,6 +24,7 @@
         {
             "BindConnector": "System Fan connector 2",
             "Index": 2,
+            "MaxReading": 21000,
             "Name": "Fan 2",
             "Thresholds": [
                 {
@@ -43,6 +45,7 @@
         {
             "BindConnector": "System Fan connector 3",
             "Index": 4,
+            "MaxReading": 21000,
             "Name": "Fan 3",
             "Thresholds": [
                 {
@@ -63,6 +66,7 @@
         {
             "BindConnector": "System Fan connector 6",
             "Index": 10,
+            "MaxReading": 21000,
             "Name": "Fan 4",
             "Thresholds": [
                 {
@@ -83,6 +87,7 @@
         {
             "BindConnector": "System Fan connector 7",
             "Index": 12,
+            "MaxReading": 21000,
             "Name": "Fan 5",
             "Thresholds": [
                 {
@@ -103,6 +108,7 @@
         {
             "BindConnector": "System Fan connector 8",
             "Index": 14,
+            "MaxReading": 21000,
             "Name": "Fan 6",
             "Thresholds": [
                 {

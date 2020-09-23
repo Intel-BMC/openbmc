@@ -1,0 +1,74 @@
+From c03fa3c7b6c98d299f18e106c1aabf655db10327 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 4 Sep 2020 16:44:52 +0530
+Subject: [PATCH] Add sse event sequence number
+
+Add sequence number to sse events.
+This is different for event ID's.
+
+Tested:
+ - The sequence number increments properly
+   after sending sse events.
+
+Change-Id: I8f48082497094a0435d4a400cb8068c3af506a7a
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/include/event_service_manager.hpp | 2 +-
+ redfish-core/include/server_sent_events.hpp    | 7 ++++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 4671995..1a99e54 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -415,7 +415,7 @@ class Subscription
+ 
+         if (sseConn != nullptr)
+         {
+-            sseConn->sendData(eventSeqNum, msg);
++            sseConn->sendData(msg);
+         }
+     }
+ 
+diff --git a/redfish-core/include/server_sent_events.hpp b/redfish-core/include/server_sent_events.hpp
+index 1c4d2a5..23517ca 100644
+--- a/redfish-core/include/server_sent_events.hpp
++++ b/redfish-core/include/server_sent_events.hpp
+@@ -56,6 +56,7 @@ class ServerSentEvents : public std::enable_shared_from_this<ServerSentEvents>
+     SseConnState state;
+     int retryCount;
+     int maxRetryAttempts;
++    uint64_t sseEventId;
+ 
+     void sendEvent(const std::string& id, const std::string& msg)
+     {
+@@ -260,7 +261,7 @@ class ServerSentEvents : public std::enable_shared_from_this<ServerSentEvents>
+ 
+     ServerSentEvents(const std::shared_ptr<crow::Request::Adaptor>& adaptor) :
+         sseConn(std::move(adaptor)), state(SseConnState::startInit),
+-        retryCount(0), maxRetryAttempts(5)
++        retryCount(0), maxRetryAttempts(5), sseEventId(1)
+     {
+         startSSE();
+     }
+@@ -268,7 +269,7 @@ class ServerSentEvents : public std::enable_shared_from_this<ServerSentEvents>
+     ~ServerSentEvents()
+     {}
+ 
+-    void sendData(const uint64_t& id, const std::string& data)
++    void sendData(const std::string& data)
+     {
+         if (state == SseConnState::suspended)
+         {
+@@ -277,7 +278,7 @@ class ServerSentEvents : public std::enable_shared_from_this<ServerSentEvents>
+ 
+         if (requestDataQueue.size() <= maxReqQueueSize)
+         {
+-            requestDataQueue.push(std::pair(id, data));
++            requestDataQueue.push(std::pair(sseEventId++, data));
+             checkQueue(true);
+         }
+         else
+-- 
+2.7.4
+

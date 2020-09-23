@@ -292,12 +292,6 @@ static void beep(const uint8_t& beepPriority)
         return;
     }
 
-    // Log into redfish event log
-    sd_journal_send("MESSAGE=BeepCode: Priority=%d", beepPriority,
-                    "PRIORITY=%i", LOG_INFO, "REDFISH_MESSAGE_ID=%s",
-                    "OpenBMC.0.1.BeepCode", "REDFISH_MESSAGE_ARGS=%d",
-                    beepPriority, NULL);
-
     beeper.beep(beepPriority);
 
     return;

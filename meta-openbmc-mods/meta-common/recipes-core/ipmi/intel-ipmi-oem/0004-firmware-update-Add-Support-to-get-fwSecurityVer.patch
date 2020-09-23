@@ -1,0 +1,111 @@
+From a8dd197a4b729c10d09c55ebf26ed7d0796fd261 Mon Sep 17 00:00:00 2001
+From: Punith Nadur Basavarajaiah <punitx.basavarajaiah@intel.com>
+Date: Wed, 19 Aug 2020 18:05:44 +0000
+Subject: [PATCH] firmware-update:Add Support to get fwSecurityVer
+
+Add support to read BKC and SVN version for BMC Active and Recovery
+image.
+
+Tested:
+Command : ipmitool raw 0x08 0x21 //get firmware security version
+Response:  02 01 01 01 02 01 01
+
+Signed-off-by: Punith Nadur Basavarajaiah <punitx.basavarajaiah@intel.com>
+Change-Id: I25a801fe00fef3c4c65b57aacb59089be1705d58
+---
+ src/firmware-update.cpp | 70 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 64 insertions(+), 6 deletions(-)
+
+diff --git a/src/firmware-update.cpp b/src/firmware-update.cpp
+index ec1d14a..d27b8c6 100644
+--- a/src/firmware-update.cpp
++++ b/src/firmware-update.cpp
+@@ -72,6 +72,13 @@ static inline auto responseNotSupportedInPresentState()
+ }
+ } // namespace ipmi
+ 
++static constexpr size_t imageCount = 2;
++std::array<std::array<uint8_t, imageCount>, imageCount> imgFwSecurityVersion = {
++    (0, 0), (0, 0)};
++static constexpr size_t svnActiveVerOffsetInPfm = 0x404;
++static constexpr size_t bkcActiveVerOffsetInPfm = 0x405;
++static constexpr size_t svnRecoveryVerOffsetInPfm = 0x804;
++static constexpr size_t bkcRecoveryVerOffsetInPfm = 0x805;
+ static constexpr const char* bmcStateIntf = "xyz.openbmc_project.State.BMC";
+ static constexpr const char* bmcStatePath = "/xyz/openbmc_project/state/bmc0";
+ static constexpr const char* bmcStateReady =
+@@ -888,14 +895,65 @@ ipmi::RspType<uint8_t, std::vector<fwVersionInfoType>> ipmiGetFwVersionInfo()
+ 
+     return ipmi::responseSuccess(fwVerInfoList.size(), fwVerInfoList);
+ }
+-using fwSecurityVersionInfoType = std::tuple<uint8_t,  // ID Tag
+-                                             uint8_t,  // BKC Version
+-                                             uint8_t>; // SVN Version
+-ipmi::RspType<uint8_t, std::vector<fwSecurityVersionInfoType>>
++
++std::array<uint8_t, imageCount> getSecurityVersionInfo(const char* mtdDevBuf,
++                                                       size_t svnVerOffsetInPfm,
++                                                       size_t bkcVerOffsetInPfm)
++{
++    constexpr size_t bufLength = 1;
++    std::array<uint8_t, imageCount> fwSecurityVersionBuf = {0}, temp;
++    constexpr uint8_t svnIndexValue = 0x00;
++    constexpr uint8_t bkcIndexValue = 0x01;
++    constexpr uint8_t tempIndexValue = 0x00;
++    try
++    {
++        SPIDev spiDev(mtdDevBuf);
++        spiDev.spiReadData(svnVerOffsetInPfm, bufLength, temp.data());
++        fwSecurityVersionBuf.at(svnIndexValue) = temp.at(tempIndexValue);
++        spiDev.spiReadData(bkcVerOffsetInPfm, bufLength, temp.data());
++        fwSecurityVersionBuf.at(bkcIndexValue) = temp.at(tempIndexValue);
++    }
++    catch (const std::exception& e)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "Exception caught in getSecurityVersionInfo",
++            phosphor::logging::entry("MSG=%s", e.what()));
++        fwSecurityVersionBuf = {0, 0};
++    }
++
++    return fwSecurityVersionBuf;
++}
++
++ipmi::RspType<
++    uint8_t,                         // device ID
++    uint8_t,                         // Active Image Value
++    std::array<uint8_t, imageCount>, // Security version for Active Image
++    uint8_t,                         // recovery Image Value
++    std::array<uint8_t, imageCount>> // Security version for Recovery Image
+     ipmiGetFwSecurityVersionInfo()
+ {
+-    // TODO: Need to add support.
+-    return ipmi::responseInvalidCommand();
++    static bool cacheFlag = false;
++    constexpr std::array<const char*, imageCount> mtdDevBuf = {
++        bmcActivePfmMTDDev, bmcRecoveryImgMTDDev};
++
++    // To avoid multiple reading from SPI device
++    if (!cacheFlag)
++    {
++        imgFwSecurityVersion[0] = getSecurityVersionInfo(
++            mtdDevBuf[0], svnActiveVerOffsetInPfm, bkcActiveVerOffsetInPfm);
++        imgFwSecurityVersion[1] = getSecurityVersionInfo(
++            mtdDevBuf[1], svnRecoveryVerOffsetInPfm, bkcRecoveryVerOffsetInPfm);
++        cacheFlag = true;
++    }
++
++    constexpr uint8_t ActivePfmMTDDev = 0x00;
++    constexpr uint8_t RecoveryImgMTDDev = 0x01;
++
++    return ipmi::responseSuccess(
++        imageCount, static_cast<uint8_t>(FWDeviceIDTag::bmcActiveImage),
++        imgFwSecurityVersion[ActivePfmMTDDev],
++        static_cast<uint8_t>(FWDeviceIDTag::bmcRecoveryImage),
++        imgFwSecurityVersion[RecoveryImgMTDDev]);
+ }
+ 
+ ipmi::RspType<std::array<uint8_t, certKeyLen>,
+-- 
+2.17.1
+

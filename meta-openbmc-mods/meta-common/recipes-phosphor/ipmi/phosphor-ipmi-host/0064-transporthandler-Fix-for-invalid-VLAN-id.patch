@@ -1,0 +1,94 @@
+From 84c49dc17fecc69bdb88dbc7cfb4b67eff81a4e6 Mon Sep 17 00:00:00 2001
+From: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 18 May 2020 23:12:13 +0000
+Subject: [PATCH] transporthandler: Fix for invalid VLAN id
+
+Issue: Set LAN configuration, allowing invalid VLAN ID's and giving
+exception when user trying to set VLAN.
+
+Fix: Add condition to return proper error for invalid VLAN ID's and add
+a condition to skip exception temporarily.
+
+Tested:
+Verified using ipmitool raw commands
+Command: ipmitool raw 0x0c 0x01 0x1 0x14 0x00 0x80 //Set Lan, vlan id=0
+Response: Unable to send RAW command (channel=0x0 netfn=0xc lun=0x0
+          cmd=0x1 rsp=0xcc): Invalid data field in request
+Command: ipmitool raw 0x0c 0x01 0x1 0x14 0xff 0x8f
+                       //Set Lan, vlan id=4095
+Response: Unable to send RAW command (channel=0x0 netfn=0xc lun=0x0
+          cmd=0x1 rsp=0xcc): Invalid data field in request
+Command: ipmitool raw 0x0c 0x01 0x1 0x14 0x00 0x82
+Response:                  //Success
+
+Command: ipmitool lan print 1
+Response:
+Set in Progress         : Set Complete
+Auth Type Support       :
+Auth Type Enable        : Callback :
+                        : User     :
+                        : Operator :
+                        : Admin    :
+                        : OEM      :
+IP Address Source       : DHCP Address
+IP Address              : 0.0.0.0
+Subnet Mask             : 255.255.255.255
+MAC Address             : a6:41:81:e8:39:33
+Default Gateway IP      : 10.190.164.1
+Default Gateway MAC     : 00:00:00:00:00:00
+802.1q VLAN ID          : 512
+RMCP+ Cipher Suites     : 17
+Cipher Suite Priv Max   : aaaaaaaaaaaaaaa
+                        :     X=Cipher Suite Unused
+                        :     c=CALLBACK
+                        :     u=USER
+                        :     o=OPERATOR
+                        :     a=ADMIN
+                        :     O=OEM
+Bad Password Threshold  : Not Available
+
+Command:  ipmitool raw 0x0c 0x01 0x1 0x14 0x00 0x00
+Response:                    //Success
+Command: ipmitool lan print 1
+Response:
+......
+802.1q VLAN ID          : Disabled
+
+Signed-off-by: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: I3d3fe1c9fa5d629fc88f13577d2ac138e9fd4933
+---
+ transporthandler.cpp | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 3813d05..6e11535 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -772,7 +772,9 @@ void deleteObjectIfExists(sdbusplus::bus::bus& bus, const std::string& service,
+     }
+     catch (const sdbusplus::exception::SdBusError& e)
+     {
+-        if (strcmp(e.name(), "org.freedesktop.DBus.Error.UnknownObject") != 0)
++        if (strcmp(e.name(),
++                   "xyz.openbmc_project.Common.Error.InternalFailure") != 0 &&
++            strcmp(e.name(), "org.freedesktop.DBus.Error.UnknownObject") != 0)
+         {
+             // We want to rethrow real errors
+             throw;
+@@ -1538,8 +1540,12 @@ RspType<> setLan(Context::ptr ctx, uint4_t channelBits, uint4_t reserved1,
+                 lastDisabledVlan[channel] = vlan;
+                 vlan = 0;
+             }
+-            channelCall<reconfigureVLAN>(channel, vlan);
++            else if (vlan == 0 || vlan == VLAN_VALUE_MASK)
++            {
++                return responseInvalidFieldRequest();
++            }
+ 
++            channelCall<reconfigureVLAN>(channel, vlan);
+             return responseSuccess();
+         }
+         case LanParam::CiphersuiteSupport:
+-- 
+2.17.1
+

@@ -1,0 +1,72 @@
+From d61d668f6db81bed90f41c3a128ce6fd652cc98c Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Wed, 12 Aug 2020 14:45:32 -0700
+Subject: [PATCH] Add firmware activation messages to the registry
+
+In some situations a firmware requires activation rather than
+update.  These messages are intended to cover those situations.
+
+Tested:
+Logged these events and confirmed that they appear correctly in
+Redfish.
+
+Change-Id: I6171b9584626e049349a26c414146f37c04768c7
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ .../registries/openbmc_message_registry.hpp   | 33 ++++++++++++++++++-
+ 1 file changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 236002e..58c085d 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -29,7 +29,7 @@ const Header header = {
+     "0.1.0",
+     "OpenBMC",
+ };
+-constexpr std::array<MessageEntry, 182> registry = {
++constexpr std::array<MessageEntry, 185> registry = {
+     MessageEntry{
+         "ADDDCCorrectable",
+         {
+@@ -443,6 +443,37 @@ constexpr std::array<MessageEntry, 182> registry = {
+                      {"string"},
+                      "None.",
+                  }},
++    MessageEntry{
++        "FirmwareActivationCompleted",
++        {
++            "Indicates a firmware activation has completed successfully.",
++            "%1 firmware activation completed successfully.",
++            "OK",
++            "OK",
++            1,
++            {"string"},
++            "None.",
++        }},
++    MessageEntry{"FirmwareActivationFailed",
++                 {
++                     "Indicates a firmware activation has failed.",
++                     "%1 firmware activation failed: %2.",
++                     "Warning",
++                     "Warning",
++                     2,
++                     {"string", "string"},
++                     "None.",
++                 }},
++    MessageEntry{"FirmwareActivationStarted",
++                 {
++                     "Indicates a firmware activation has started.",
++                     "%1 firmware activation started.",
++                     "OK",
++                     "OK",
++                     1,
++                     {"string"},
++                     "None.",
++                 }},
+     MessageEntry{"FirmwareUpdateCompleted",
+                  {
+                      "Indicates a firmware update has completed successfully.",
+-- 
+2.17.1
+
