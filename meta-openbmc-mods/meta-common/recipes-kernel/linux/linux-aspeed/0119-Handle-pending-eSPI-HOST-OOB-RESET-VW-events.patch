@@ -1,0 +1,56 @@
+From 562a6d31576b91d1c7f2c9df0d12966a1f034ac6 Mon Sep 17 00:00:00 2001
+From: Saravanan Palanisamy <saravanan.palanisamy@intel.com>
+Date: Wed, 23 Sep 2020 19:23:37 +0000
+Subject: [PATCH] Handle pending eSPI HOST, OOB RESET VW events.
+
+Add support for handling of HOST_RESET_WARN, OOB_RESET_WARN VW events received
+before espi-ISR is registered.
+Without this support, SoC does not boot to BIOS and wait for ACK endlessly
+for these events.  These events can be induced in some platforms in ME-recovery
+mode.
+
+Tested:
+1. Test: Induce HOST_RESET_WARN event before BMC uboot espi is initialized.
+   Expected: BMC should send HOST_RESET_ACK from uboot. PASS.
+2. Test: Disable the HOST_RESET_WARN ACK support for early events in uboot,
+   and repeat test case 1.
+   Expected: BMC should send HOST_RESET_ACK from kernel(this change). PASS.
+
+Signed-off-by: Saravanan Palanisamy <saravanan.palanisamy@intel.com>
+Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+---
+ drivers/misc/aspeed-espi-slave.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/drivers/misc/aspeed-espi-slave.c b/drivers/misc/aspeed-espi-slave.c
+index cb8ed585c69f..ed7bff4d5046 100644
+--- a/drivers/misc/aspeed-espi-slave.c
++++ b/drivers/misc/aspeed-espi-slave.c
+@@ -179,6 +179,24 @@ static void aspeed_espi_boot_ack(struct aspeed_espi *priv)
+ 			     evt | ASPEED_ESPI_SYSEVT1_SUS_ACK);
+ 		dev_dbg(priv->dev, "Boot SYSEVT1_SUS_WARN: acked\n");
+ 	}
++
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT, &evt);
++	if (evt & ASPEED_ESPI_SYSEVT_HOST_RST_WARN &&
++	    !(evt & ASPEED_ESPI_SYSEVT_HOST_RST_ACK)) {
++		regmap_write_bits(priv->map, ASPEED_ESPI_SYSEVT,
++				  ASPEED_ESPI_SYSEVT_HOST_RST_ACK,
++				  ASPEED_ESPI_SYSEVT_HOST_RST_ACK);
++		dev_dbg(priv->dev, "Boot SYSEVT_HOST_RST_WARN: acked\n");
++	}
++
++	regmap_read(priv->map, ASPEED_ESPI_SYSEVT, &evt);
++	if (evt & ASPEED_ESPI_SYSEVT_OOB_RST_WARN &&
++	    !(evt & ASPEED_ESPI_SYSEVT_OOB_RST_ACK)) {
++		regmap_write_bits(priv->map, ASPEED_ESPI_SYSEVT,
++				  ASPEED_ESPI_SYSEVT_OOB_RST_ACK,
++				  ASPEED_ESPI_SYSEVT_OOB_RST_ACK);
++		dev_dbg(priv->dev, "Boot SYSEVT_OOB_RST_WARN: acked\n");
++	}
+ }
+ 
+ static irqreturn_t aspeed_espi_irq(int irq, void *arg)
+-- 
+2.17.1
+

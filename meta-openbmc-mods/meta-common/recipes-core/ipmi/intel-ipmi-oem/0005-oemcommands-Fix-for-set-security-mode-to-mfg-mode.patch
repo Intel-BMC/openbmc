@@ -1,0 +1,50 @@
+From d77489f18e044448778a7c651dddea7a13e3eaca Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Sat, 5 Sep 2020 01:00:04 +0000
+Subject: [PATCH] oemcommands: Fix for set security mode to mfg mode
+
+Issue: Set security mode fails to enter manufacturing mode even though
+       command got executed successfully.
+Fix: As manufacturing mode is reserved, can't enable using set security
+     mode command. So returning 0xCC as completion code.
+
+Tested:
+Verified using ipmitool raw commands.
+Before fix:
+Command: ipmitool raw 0x30 0xb4 0x03 0x01 //set security mode to mfg
+Response:                       //Success
+
+After fix:
+Command:  ipmitool raw 0x30 0xb4 0x03 0x01  //set security mode to mfg
+Response: Unable to send RAW command (channel=0x0 netfn=0x30 lun=0x0
+          cmd=0xb4 rsp=0xcc): Invalid data field in request
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: Ib166bb7d4a5248a7f6f5b04615a9d80e8a78b3fe
+---
+ src/oemcommands.cpp | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/oemcommands.cpp b/src/oemcommands.cpp
+index d2a1811..107a1fe 100644
+--- a/src/oemcommands.cpp
++++ b/src/oemcommands.cpp
+@@ -2838,6 +2838,15 @@ ipmi::RspType<> ipmiSetSecurityMode(ipmi::Context::ptr ctx,
+ #ifdef BMC_VALIDATION_UNSECURE_FEATURE
+     if (specialMode)
+     {
++        constexpr uint8_t mfgMode = 0x01;
++        // Manufacturing mode is reserved. So can't enable this mode.
++        if (specialMode.value() == mfgMode)
++        {
++            phosphor::logging::log<phosphor::logging::level::INFO>(
++                "ipmiSetSecurityMode: Can't enable Manufacturing mode");
++            return ipmi::responseInvalidFieldRequest();
++        }
++
+         ec.clear();
+         ctx->bus->yield_method_call<>(
+             ctx->yield, ec, specialModeService, specialModeBasePath,
+-- 
+2.17.1
+

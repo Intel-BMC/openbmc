@@ -1,7 +1,7 @@
-From e883ea9d43a84998641428448d7220c0f5be72c0 Mon Sep 17 00:00:00 2001
+From c3948dcb2c472bcb2931e581bcec70004cc61bcf Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Tue, 30 Jun 2020 22:09:10 +0530
-Subject: [PATCH] bmcweb changes for setting ApplyOptions-ClearCfg
+Subject: [PATCH 1/1] bmcweb changes for setting ApplyOptions-ClearCfg
 
 ApplyOptions are used to specify firmware update specific options
 such as ClearConfig which is used while activating the updated
@@ -16,19 +16,21 @@ Tested: Tested setting ClearConfig to true or false using PATCH
         Ran Redfish-Service-Validator and no new issues found.
 
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- redfish-core/lib/update_service.hpp           | 69 ++++++++++++++++++-
- .../JsonSchemas/OemUpdateService/index.json   | 69 +++++++++++++++++++
+ redfish-core/lib/update_service.hpp           | 71 ++++++++++++++++++-
+ static/redfish/v1/$metadata/index.xml         |  5 +-
+ .../JsonSchemas/OemUpdateService/index.json   | 69 ++++++++++++++++++
  .../redfish/v1/schema/OemUpdateService_v1.xml | 40 +++++++++++
- 3 files changed, 177 insertions(+), 1 deletion(-)
+ 4 files changed, 183 insertions(+), 2 deletions(-)
  create mode 100644 static/redfish/v1/JsonSchemas/OemUpdateService/index.json
  create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index 86ddd8a..291acec 100644
+index bc68510..7ca3c69 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
-@@ -691,6 +691,29 @@ class UpdateService : public Node
+@@ -691,6 +691,31 @@ class UpdateService : public Node
              "/xyz/openbmc_project/software/apply_time",
              "org.freedesktop.DBus.Properties", "Get",
              "xyz.openbmc_project.Software.ApplyTime", "RequestedApplyTime");
@@ -48,6 +50,8 @@ index 86ddd8a..291acec 100644
 +
 +                if (b)
 +                {
++                    aResp->res.jsonValue["Oem"]["ApplyOptions"]["@odata.type"] =
++                         "#OemUpdateService.ApplyOptions";
 +                    aResp->res.jsonValue["Oem"]["ApplyOptions"]["ClearConfig"] =
 +                        *b;
 +                }
@@ -58,7 +62,7 @@ index 86ddd8a..291acec 100644
      }
  
      void doPatch(crow::Response& res, const crow::Request& req,
-@@ -703,15 +726,59 @@ class UpdateService : public Node
+@@ -703,15 +728,59 @@ class UpdateService : public Node
          std::optional<nlohmann::json> pushUriOptions;
          std::optional<std::vector<std::string>> imgTargets;
          std::optional<bool> imgTargetBusy;
@@ -119,6 +123,22 @@ index 86ddd8a..291acec 100644
          if (pushUriOptions)
          {
              std::optional<nlohmann::json> pushUriApplyTime;
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index 19f0fd9..09bddf3 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2502,7 +2502,10 @@
+     <edmx:Reference Uri="/redfish/v1/schema/OemManager_v1.xml">
+         <edmx:Include Namespace="OemManager"/>
+     </edmx:Reference>
+-    <edmx:Reference Uri="/redfish/v1/schema/OemCrashdump_v1.xml">
++    <edmx:Reference Uri="/redfish/v1/schema/OemUpdateService_v1.xml">
++        <edmx:Include Namespace="OemUpdateService"/>
++    </edmx:Reference>
++   <edmx:Reference Uri="/redfish/v1/schema/OemCrashdump_v1.xml">
+         <edmx:Include Namespace="OemCrashdump.v1_0_0"/>
+     </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/OemComputerSystem_v1.xml">
 diff --git a/static/redfish/v1/JsonSchemas/OemUpdateService/index.json b/static/redfish/v1/JsonSchemas/OemUpdateService/index.json
 new file mode 100644
 index 0000000..74e39cd

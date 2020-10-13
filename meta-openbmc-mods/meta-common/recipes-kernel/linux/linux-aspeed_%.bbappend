@@ -89,6 +89,7 @@ SRC_URI += " \
         file://0116-watchdog-aspeed-fix-AST2600-support.patch \
         file://0117-Copy-raw-PECI-response-to-user-space-on-timeout.patch \
         file://0118-Recalculate-AW-FCS-on-WrEndPointConfig-command.patch \
+        file://0119-Handle-pending-eSPI-HOST-OOB-RESET-VW-events.patch \
         "
 
 # CVE-2020-16166 vulnerability fix
@@ -108,6 +109,12 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-14356:"
 SRC_URI += " \
     file://0001-cgroup-fix-cgroup_sk_alloc-for-sk_clone_lock.patch \
     file://0002-cgroup-Fix-sock_cgroup_data-on-big-endian.patch \
+    "
+
+# CVE-2020-14386 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-14386:"
+SRC_URI += " \
+    file://0001-net-packet-fix-overflow-in-tpacket_rcv.patch \
     "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

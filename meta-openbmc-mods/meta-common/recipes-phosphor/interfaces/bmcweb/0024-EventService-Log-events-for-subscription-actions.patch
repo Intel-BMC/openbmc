@@ -1,0 +1,178 @@
+From c9d0aca4db7cfb646da38f1ac3fabe13790b6f3c Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Thu, 24 Sep 2020 03:04:36 +0530
+Subject: [PATCH] EventService: Log events for subscription actions
+
+Log the redfish event for below 3 actions
+ - Add new subscription
+ - Update existing subscription properties
+ - Delete existing subscription
+
+Tested:
+ - Performed all the above actions and  verified
+   the redfish events.
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/include/event_service_manager.hpp     | 33 ++++++++++++++---
+ .../registries/openbmc_message_registry.hpp        | 41 +++++++++++++++++++++-
+ redfish-core/lib/event_service.hpp                 |  2 +-
+ 3 files changed, 70 insertions(+), 6 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index fd42985..8397159 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -20,6 +20,7 @@
+ #include "registries/openbmc_message_registry.hpp"
+ 
+ #include <sys/inotify.h>
++#include <systemd/sd-journal.h>
+ 
+ #include <boost/asio/io_context.hpp>
+ #include <boost/container/flat_map.hpp>
+@@ -763,7 +764,7 @@ class EventServiceManager
+         return;
+     }
+ 
+-    void updateSubscriptionData()
++    void persistSubscriptionData()
+     {
+         // Persist the config and subscription data.
+         nlohmann::json jsonData;
+@@ -858,7 +859,7 @@ class EventServiceManager
+ 
+         if (updateConfig)
+         {
+-            updateSubscriptionData();
++            persistSubscriptionData();
+         }
+ 
+         if (updateRetryCfg)
+@@ -945,7 +946,7 @@ class EventServiceManager
+ 
+         if (updateFile)
+         {
+-            updateSubscriptionData();
++            persistSubscriptionData();
+         }
+ 
+ #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
+@@ -958,6 +959,12 @@ class EventServiceManager
+         subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
+         subValue->updateRetryPolicy();
+ 
++        /* Log event for subscription addition */
++        sd_journal_send("MESSAGE=Event subscription added(Id: %s)", id.c_str(),
++                        "PRIORITY=%i", LOG_INFO, "REDFISH_MESSAGE_ID=%s",
++                        "OpenBMC.0.1.EventSubscriptionAdded",
++                        "REDFISH_MESSAGE_ARGS=%s", id.c_str(), NULL);
++
+         return id;
+     }
+ 
+@@ -978,10 +985,28 @@ class EventServiceManager
+         {
+             subscriptionsMap.erase(obj);
+             updateNoOfSubscribersCount();
+-            updateSubscriptionData();
++            persistSubscriptionData();
++            /* Log event for subscription delete. */
++            sd_journal_send("MESSAGE=Event subscription removed.(Id = %s)",
++                            id.c_str(), "PRIORITY=%i", LOG_INFO,
++                            "REDFISH_MESSAGE_ID=%s",
++                            "OpenBMC.0.1.EventSubscriptionRemoved",
++                            "REDFISH_MESSAGE_ARGS=%s", id.c_str(), NULL);
+         }
+     }
+ 
++    void updateSubscription(const std::string& id)
++    {
++        persistSubscriptionData();
++
++        /* Log event for subscription delete. */
++        sd_journal_send("MESSAGE=Event subscription updated.(Id = %s)",
++                        id.c_str(), "PRIORITY=%i", LOG_INFO,
++                        "REDFISH_MESSAGE_ID=%s",
++                        "OpenBMC.0.1.EventSubscriptionUpdated",
++                        "REDFISH_MESSAGE_ARGS=%s", id.c_str(), NULL);
++    }
++
+     size_t getNumberOfSubscriptions()
+     {
+         return subscriptionsMap.size();
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 58c085d..6f1fec3 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -29,7 +29,7 @@ const Header header = {
+     "0.1.0",
+     "OpenBMC",
+ };
+-constexpr std::array<MessageEntry, 185> registry = {
++constexpr std::array<MessageEntry, 188> registry = {
+     MessageEntry{
+         "ADDDCCorrectable",
+         {
+@@ -403,6 +403,45 @@ constexpr std::array<MessageEntry, 185> registry = {
+                      {},
+                      "None.",
+                  }},
++    MessageEntry{"EventSubscriptionAdded",
++                 {
++                     "Indicates that an Event subscription with specific "
++                     "id was added.",
++                     "Event subscription with id %1 was added.",
++                     "OK",
++                     "OK",
++                     1,
++                     {
++                         "string",
++                     },
++                     "None.",
++                 }},
++    MessageEntry{"EventSubscriptionRemoved",
++                 {
++                     "Indicates that an Event subscription with specific "
++                     "id was removed.",
++                     "Event subscription with id %1 was removed.",
++                     "OK",
++                     "OK",
++                     1,
++                     {
++                         "string",
++                     },
++                     "None.",
++                 }},
++    MessageEntry{"EventSubscriptionUpdated",
++                 {
++                     "Indicates that an Event subscription with specific "
++                     " id was updated.",
++                     "Event subscription with id %1 was updated.",
++                     "OK",
++                     "OK",
++                     1,
++                     {
++                         "string",
++                     },
++                     "None.",
++                 }},
+     MessageEntry{"FanInserted",
+                  {
+                      "Indicates that a system fan has been inserted.",
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index b91b745..351f689 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -694,7 +694,7 @@ class EventDestination : public Node
+             subValue->updateRetryPolicy();
+         }
+ 
+-        EventServiceManager::getInstance().updateSubscriptionData();
++        EventServiceManager::getInstance().updateSubscription(params[0]);
+     }
+ 
+     void doDelete(crow::Response& res, const crow::Request& req,
+-- 
+2.7.4
+

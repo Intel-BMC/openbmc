@@ -1,0 +1,33 @@
+From fd0fac037fea6414cdafda27b4b71f486802e68d Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Thu, 24 Sep 2020 01:16:25 +0530
+Subject: [PATCH] http status code for subscriber limit exceed
+
+Correct the http status code for subscribers
+limit exceed. It should be 503 - Service unavailable.
+
+Tested:
+ - Created 20 subscribers and it return proper status code.
+
+Change-Id: Iad6242c8b842ad7ae7fd7ac39790004a581c52a8
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/src/error_messages.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/redfish-core/src/error_messages.cpp b/redfish-core/src/error_messages.cpp
+index 290d3f2..1cc8191 100644
+--- a/redfish-core/src/error_messages.cpp
++++ b/redfish-core/src/error_messages.cpp
+@@ -624,7 +624,7 @@ nlohmann::json eventSubscriptionLimitExceeded(void)
+ 
+ void eventSubscriptionLimitExceeded(crow::Response& res)
+ {
+-    res.result(boost::beast::http::status::forbidden);
++    res.result(boost::beast::http::status::service_unavailable);
+     addMessageToErrorJson(res.jsonValue, eventSubscriptionLimitExceeded());
+ }
+ 
+-- 
+2.7.4
+

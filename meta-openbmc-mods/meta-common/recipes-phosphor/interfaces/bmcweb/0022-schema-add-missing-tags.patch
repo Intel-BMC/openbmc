@@ -1,0 +1,51 @@
+From bbf1a93eb6935c426deb0ecbcf3d8611b17aeb30 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Tue, 22 Sep 2020 17:09:03 -0700
+Subject: [PATCH] schema: add missing tags
+
+Tested: Made validator pass for OemManager
+
+Change-Id: I2acef893bb5ead465ebdfb631259f34f8e93031d
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ static/redfish/v1/schema/OemAccountService_v1.xml | 2 +-
+ static/redfish/v1/schema/OemManager_v1.xml        | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/static/redfish/v1/schema/OemAccountService_v1.xml b/static/redfish/v1/schema/OemAccountService_v1.xml
+index c5783ca..7d58b2b 100644
+--- a/static/redfish/v1/schema/OemAccountService_v1.xml
++++ b/static/redfish/v1/schema/OemAccountService_v1.xml
+@@ -25,7 +25,7 @@
+       <Annotation Term="Redfish.OwningEntity" String="OpenBMC"/>
+       <Annotation Term="Redfish.Release" String="1.0"/>
+ 
+-      <ComplexType Name="AuthMethodsConfig">
++      <ComplexType Name="AuthMethodsConfig" BaseType="Resource.OemObject">
+         <Annotation Term="OData.AdditionalProperties" Bool="false"/>
+         <Annotation Term="OData.Description" String="Authorization Methods configuration."/>
+         <Annotation Term="OData.LongDescription" String="Configuration describing which auth methods are enabled."/>
+diff --git a/static/redfish/v1/schema/OemManager_v1.xml b/static/redfish/v1/schema/OemManager_v1.xml
+index 26498f0..9a7a8c4 100644
+--- a/static/redfish/v1/schema/OemManager_v1.xml
++++ b/static/redfish/v1/schema/OemManager_v1.xml
+@@ -28,14 +28,14 @@
+                 <Property Name="OpenBmc" Type="OemManager.OpenBmc"/>
+             </ComplexType>
+ 
+-            <ComplexType Name="OpenBmc">
++            <ComplexType Name="OpenBmc" BaseType="Resource.OemObject">
+                 <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                 <Annotation Term="OData.Description" String="Oem properties for OpenBmc." />
+                 <Annotation Term="OData.AutoExpand"/>
+                 <Property Name="Fan" Type="OemManager.Fan"/>
+             </ComplexType>
+ 
+-            <ComplexType Name="Fan">
++            <ComplexType Name="Fan" BaseType="Resource.OemObject">
+                 <Annotation Term="OData.AdditionalProperties" Bool="true" />
+                 <Annotation Term="OData.Description" String="OpenBmc oem fan properties." />
+                 <Annotation Term="OData.AutoExpand"/>
+-- 
+2.17.1
+

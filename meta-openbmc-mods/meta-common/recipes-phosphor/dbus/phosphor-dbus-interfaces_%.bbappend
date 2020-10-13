@@ -16,4 +16,5 @@ SRC_URI += "file://0005-Add-DBUS-interface-of-CPU-and-Memory-s-properties.patch 
             file://0026-Add-StandbySpare-support-for-software-inventory.patch \
             file://0027-Apply-Options-interface-for-Software.patch \
             file://0028-MCTP-Daemon-D-Bus-interface-definition.patch \
+            file://0029-Add-RedundantCount-property-for-PSU-redundancy.patch \
             "

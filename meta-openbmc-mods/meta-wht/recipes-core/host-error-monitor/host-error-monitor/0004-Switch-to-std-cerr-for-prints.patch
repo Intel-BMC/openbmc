@@ -1,0 +1,67 @@
+From 0a8773020bd5bf7516d1b790f98f47ab6c0e2b64 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@intel.com>
+Date: Thu, 27 Aug 2020 11:42:43 -0700
+Subject: [PATCH] Switch to std::cerr for prints
+
+std::cout is buffered, so the prints don't always show up with
+the correct timestamp.  The better change is probably to move
+to phosphor::logging, but for now just change to std::cerr to
+get the prints immediately.
+
+Tested:
+Confirmed that the print messages show up immediately with the
+correct timestamps.
+
+Change-Id: I208eb042e00275889dda3dd088095e4c57db880d
+Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
+---
+ src/host_error_monitor.cpp | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/host_error_monitor.cpp b/src/host_error_monitor.cpp
+index 9dabb52bb..1b10cd38e 100644
+--- a/src/host_error_monitor.cpp
++++ b/src/host_error_monitor.cpp
+@@ -483,7 +483,7 @@ static void startWarmReset()
+ static void startCrashdumpAndRecovery(bool recoverSystem,
+                                       const std::string& triggerType)
+ {
+-    std::cout << "Starting crashdump\n";
++    std::cerr << "Starting crashdump\n";
+     static std::shared_ptr<sdbusplus::bus::match::match> crashdumpCompleteMatch;
+     static boost::asio::steady_timer crashdumpTimer(io);
+ 
+@@ -493,10 +493,10 @@ static void startCrashdumpAndRecovery(bool recoverSystem,
+         "member='PropertiesChanged',arg0namespace='com.intel.crashdump'",
+         [recoverSystem](sdbusplus::message::message& msg) {
+             crashdumpTimer.cancel();
+-            std::cout << "Crashdump completed\n";
++            std::cerr << "Crashdump completed\n";
+             if (recoverSystem)
+             {
+-                std::cout << "Recovering the system\n";
++                std::cerr << "Recovering the system\n";
+                 startWarmReset();
+             }
+             crashdumpCompleteMatch.reset();
+@@ -512,7 +512,7 @@ static void startCrashdumpAndRecovery(bool recoverSystem,
+                 std::cerr << "Crashdump async_wait failed: " << ec.message()
+                           << "\n";
+             }
+-            std::cout << "Crashdump timer canceled\n";
++            std::cerr << "Crashdump timer canceled\n";
+             return;
+         }
+         std::cerr << "Crashdump failed to complete before timeout\n";
+@@ -1545,7 +1545,7 @@ static void smiAssertHandler()
+ #else
+                 if (*reset)
+                 {
+-                    std::cout << "Recovering the system\n";
++                    std::cerr << "Recovering the system\n";
+                     startWarmReset();
+                 }
+ #endif
+-- 
+2.17.1
+

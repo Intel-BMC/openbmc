@@ -1684,7 +1684,7 @@
             "Type": "PSUPresence"
         },
         {
-            "RedundantCount": 1,
+            "RedundantCount": 2,
             "Name": "Power Unit Redundancy",
             "Type": "PURedundancy"
         },

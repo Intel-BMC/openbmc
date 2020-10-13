@@ -10,4 +10,4 @@ StartLimitInterval=0
 Type=simple
 
 [Install]
-WantedBy=sysinit.target
+WantedBy=multi-user.target
