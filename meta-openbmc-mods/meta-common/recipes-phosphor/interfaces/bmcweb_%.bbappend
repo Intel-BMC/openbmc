@@ -35,6 +35,12 @@ SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
             file://0018-Add-sse-event-sequence-number.patch \
             file://0019-EventService-Limit-SSE-connections-as-per-design.patch \
             file://0020-EventService-Validate-SSE-query-filters.patch \
+            file://0021-Define-PSU-redundancy-property.patch \
+            file://0022-schema-add-missing-tags.patch \
+            file://0023-OemComputerSystems-add-missing-odata.types.patch \
+            file://0024-EventService-Log-events-for-subscription-actions.patch \
+            file://0025-Add-missing-Context-property-to-MetricReport.patch \
+            file://0026-http-status-code-for-subscriber-limit-exceed.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details

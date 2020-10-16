@@ -1,0 +1,28 @@
+From daa5fdb53f4ed5d40063daf3a3b8ee40115fe5bd Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 11 Sep 2020 09:19:43 -0700
+Subject: [PATCH] Enable CONFIG_DDR4_SUPPORT_HYNIX
+
+This commit enables CONFIG_DDR4_SUPPORT_HYNIX for test.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/platform_g5.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
+index f221c97b19dc..4276d6db3a9a 100644
+--- a/arch/arm/mach-aspeed/platform_g5.S
++++ b/arch/arm/mach-aspeed/platform_g5.S
+@@ -149,7 +149,7 @@
+   on the MB layout. Customer can find the appropriate frequency for their products.
+   Below are the new defined parameters for the Hynix DDR4 supporting.
+  ******************************************************************************/
+-//#define CONFIG_DDR4_SUPPORT_HYNIX              @ Enable this when Hynix DDR4 included in the BOM
++#define CONFIG_DDR4_SUPPORT_HYNIX              @ Enable this when Hynix DDR4 included in the BOM
+ //#define CONFIG_DDR4_HYNIX_SET_1536
+ //#define CONFIG_DDR4_HYNIX_SET_1488
+ #define CONFIG_DDR4_HYNIX_SET_1440
+-- 
+2.17.1
+

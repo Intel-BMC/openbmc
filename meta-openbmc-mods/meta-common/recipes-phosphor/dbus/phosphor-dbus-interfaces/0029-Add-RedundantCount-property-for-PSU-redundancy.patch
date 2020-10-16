@@ -1,0 +1,33 @@
+From 09f95d9d57a9a5e6c739444dec367cdf9bf4bc16 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Tue, 1 Sep 2020 13:52:30 +0800
+Subject: [PATCH] Add RedundantCount property for PSU redundancy
+
+RedundantCount is the min number of PSUs in the system
+required to obtain redundancy
+
+Change-Id: Icdfd9d2c473a793d3792a335a04aff1838d7d99c
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ .../Control/PowerSupplyRedundancy.interface.yaml             | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/xyz/openbmc_project/Control/PowerSupplyRedundancy.interface.yaml b/xyz/openbmc_project/Control/PowerSupplyRedundancy.interface.yaml
+index e02e0aa..7f7d27b 100644
+--- a/xyz/openbmc_project/Control/PowerSupplyRedundancy.interface.yaml
++++ b/xyz/openbmc_project/Control/PowerSupplyRedundancy.interface.yaml
+@@ -35,6 +35,11 @@ properties:
+       type: byte
+       description: >
+         Number of PSUs are currently on system.
++    - name: RedundantCount
++      type: byte
++      description: >
++        The min number of PSUs in the system required to obtain redundancy
++      default: 2
+ 
+ enumerations:
+     - name: Algo
+-- 
+2.17.1
+

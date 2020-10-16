@@ -1,4 +1,4 @@
-From 0253fd1d68d6a42c95c425b1a61fa2d53b2b2469 Mon Sep 17 00:00:00 2001
+From 4e8b5e2a7cef7e8a4f7a9af077da76c3b7eb6a24 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@intel.com>
 Date: Wed, 22 Jul 2020 14:30:04 -0700
 Subject: [PATCH] Filter memory thermtrip events based on DIMM status
@@ -26,7 +26,7 @@ Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
  1 file changed, 75 insertions(+), 2 deletions(-)
 
 diff --git a/src/host_error_monitor.cpp b/src/host_error_monitor.cpp
-index 1c6a2e70d..aa4a9b672 100644
+index 313ef29e0..ca089f70d 100644
 --- a/src/host_error_monitor.cpp
 +++ b/src/host_error_monitor.cpp
 @@ -17,6 +17,7 @@
@@ -115,7 +115,7 @@ index 1c6a2e70d..aa4a9b672 100644
  static std::shared_ptr<sdbusplus::bus::match::match> startHostStateMonitor()
  {
      return std::make_shared<sdbusplus::bus::match::match>(
-@@ -826,7 +891,9 @@ static void cpu1MemtripHandler()
+@@ -842,7 +907,9 @@ static void cpu1MemtripHandler()
  
      bool cpu1Memtrip =
          gpioLineEvent.event_type == gpiod::line_event::FALLING_EDGE;
@@ -126,7 +126,7 @@ index 1c6a2e70d..aa4a9b672 100644
      {
          memThermTripLog(1);
      }
-@@ -886,7 +953,9 @@ static void cpu2MemtripHandler()
+@@ -902,7 +969,9 @@ static void cpu2MemtripHandler()
  
      bool cpu2Memtrip =
          gpioLineEvent.event_type == gpiod::line_event::FALLING_EDGE;
@@ -137,7 +137,7 @@ index 1c6a2e70d..aa4a9b672 100644
      {
          memThermTripLog(2);
      }
-@@ -1605,6 +1674,10 @@ int main(int argc, char* argv[])
+@@ -1621,6 +1690,10 @@ int main(int argc, char* argv[])
      std::shared_ptr<sdbusplus::bus::match::match> hostStateMonitor =
          host_error_monitor::startHostStateMonitor();
  

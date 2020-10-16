@@ -1,0 +1,79 @@
+From ce1995cc4854007a7c732e285b87480f323a7504 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@intel.com>
+Date: Tue, 22 Sep 2020 15:24:58 -0700
+Subject: [PATCH] Correct model-specific error code checks for IERR logging
+
+The model-specific error code holds a byte value that is a
+specific code.  The current logic incorrectly checks if bits
+are set rather than checking the full code.
+
+This changes the code to extract the error code byte and compare
+the full value with the expected error codes.
+
+Tested:
+Injected an IERR and confirmed that the model-specific error code
+is correctly checked.
+
+Change-Id: I671109aecf1ae5bbf707adaefaf47e95f09ca248
+Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
+---
+ src/host_error_monitor.cpp | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/host_error_monitor.cpp b/src/host_error_monitor.cpp
+index 5e6d7a82c..6120a8798 100644
+--- a/src/host_error_monitor.cpp
++++ b/src/host_error_monitor.cpp
+@@ -644,9 +644,8 @@ static bool checkIERRCPUs()
+                     // MCA_SVID_VCCIN_VR_ICC_MAX_FAILURE (0x40),
+                     // MCA_SVID_VCCIN_VR_VOUT_FAILURE (0x42), or
+                     // MCA_SVID_CPU_VR_CAPABILITY_ERROR (0x43)
+-                    if ((mc4Status & (0x40 << 24)) ||
+-                        (mc4Status & (0x42 << 24)) ||
+-                        (mc4Status & (0x43 << 24)))
++                    uint64_t msec = (mc4Status >> 24) & 0xFF;
++                    if (msec == 0x40 || msec == 0x42 || msec == 0x43)
+                     {
+                         cpuIERRLog(cpu, "CPU/VR Mismatch");
+                         continue;
+@@ -696,8 +695,7 @@ static bool checkIERRCPUs()
+                     // MCA_FIVR_CATAS_OVERCUR_FAULT (0x52), then log it as an
+                     // uncore FIVR fault
+                     if (!coreFIVRErrLog && !uncoreFIVRErrLog &&
+-                        ((mc4Status & (0x51 << 24)) ||
+-                         (mc4Status & (0x52 << 24))))
++                        (msec == 0x51 || msec == 0x52))
+                     {
+                         cpuIERRLog(cpu, "Uncore FIVR Fault");
+                         continue;
+@@ -733,14 +731,12 @@ static bool checkIERRCPUs()
+                         printPECIError("IA32_MC4_STATUS", addr, peciStatus, cc);
+                         continue;
+                     }
+-                    // TODO: Update MSEC/MSCOD_31_24 check
+                     // Check MSEC bits 31:24 for
+                     // MCA_SVID_VCCIN_VR_ICC_MAX_FAILURE (0x40),
+                     // MCA_SVID_VCCIN_VR_VOUT_FAILURE (0x42), or
+                     // MCA_SVID_CPU_VR_CAPABILITY_ERROR (0x43)
+-                    if ((mc4Status & (0x40 << 24)) ||
+-                        (mc4Status & (0x42 << 24)) ||
+-                        (mc4Status & (0x43 << 24)))
++                    uint64_t msec = (mc4Status >> 24) & 0xFF;
++                    if (msec == 0x40 || msec == 0x42 || msec == 0x43)
+                     {
+                         cpuIERRLog(cpu, "CPU/VR Mismatch");
+                         continue;
+@@ -801,9 +797,7 @@ static bool checkIERRCPUs()
+                     // MCA_FIVR_CATAS_OVERCUR_FAULT (0x52), then log it as an
+                     // uncore FIVR fault
+                     if (!coreFIVRErrLog0 && !coreFIVRErrLog1 &&
+-                        !uncoreFIVRErrLog &&
+-                        ((mc4Status & (0x51 << 24)) ||
+-                         (mc4Status & (0x52 << 24))))
++                        !uncoreFIVRErrLog && (msec == 0x51 || msec == 0x52))
+                     {
+                         cpuIERRLog(cpu, "Uncore FIVR Fault");
+                         continue;
+-- 
+2.17.1
+

@@ -1,0 +1,72 @@
+From 40be5b0a1376ece0265aa42817fa8fd643fb18d9 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Thu, 10 Sep 2020 14:49:25 -0700
+Subject: [PATCH 1/1] Add retries to mapper calls
+
+During cycling we're seeing sometimes we exit due
+to mapper errors. Put in retries to avoid EM shutting
+down.
+
+Tested: Saw retries happen and EM stay up
+
+Change-Id: I2caa4a7ca0ae17a621c23152b3c362442c45592e
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ src/EntityManager.cpp | 27 ++++++++++++++++++++++-----
+ 1 file changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/EntityManager.cpp b/src/EntityManager.cpp
+index ec38dde..c96725d 100644
+--- a/src/EntityManager.cpp
++++ b/src/EntityManager.cpp
+@@ -184,7 +184,7 @@ void getInterfaces(
+ // getManagedObjects
+ void findDbusObjects(std::vector<std::shared_ptr<PerformProbe>>&& probeVector,
+                      boost::container::flat_set<std::string>&& interfaces,
+-                     std::shared_ptr<PerformScan> scan)
++                     std::shared_ptr<PerformScan> scan, size_t retries = 5)
+ {
+ 
+     for (const auto& [interface, _] : scan->dbusProbeObjects)
+@@ -199,8 +199,8 @@ void findDbusObjects(std::vector<std::shared_ptr<PerformProbe>>&& probeVector,
+     // find all connections in the mapper that expose a specific type
+     SYSTEM_BUS->async_method_call(
+         [interfaces{std::move(interfaces)}, probeVector{std::move(probeVector)},
+-         scan](boost::system::error_code& ec,
+-               const GetSubTreeType& interfaceSubtree) {
++         scan, retries](boost::system::error_code& ec,
++                        const GetSubTreeType& interfaceSubtree) mutable {
+             boost::container::flat_set<
+                 std::tuple<std::string, std::string, std::string>>
+                 interfaceConnections;
+@@ -212,8 +212,25 @@ void findDbusObjects(std::vector<std::shared_ptr<PerformProbe>>&& probeVector,
+                 }
+                 std::cerr << "Error communicating to mapper.\n";
+ 
+-                // if we can't communicate to the mapper something is very wrong
+-                std::exit(EXIT_FAILURE);
++                if (!retries)
++                {
++                    // if we can't communicate to the mapper something is very
++                    // wrong
++                    std::exit(EXIT_FAILURE);
++                }
++                std::shared_ptr<boost::asio::steady_timer> timer =
++                    std::make_shared<boost::asio::steady_timer>(io);
++                timer->expires_after(std::chrono::seconds(10));
++
++                timer->async_wait(
++                    [timer, interfaces{std::move(interfaces)}, scan,
++                     probeVector{std::move(probeVector)},
++                     retries](const boost::system::error_code&) mutable {
++                        findDbusObjects(std::move(probeVector),
++                                        std::move(interfaces), scan,
++                                        retries - 1);
++                    });
++                return;
+             }
+ 
+             for (const auto& [path, object] : interfaceSubtree)
+-- 
+2.17.1
+

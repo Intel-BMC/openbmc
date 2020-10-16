@@ -103,7 +103,7 @@ diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-int
 index 06c6708..e6dd2e6 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -661,6 +661,15 @@ extern void espi_init(void);
+@@ -662,6 +662,15 @@ extern void espi_init(void);
  extern void kcs_init(void);
  void ast_g5_intel(void)
  {
@@ -116,9 +116,9 @@ index 06c6708..e6dd2e6 100644
 +	 */
 +	ast_scu_write(AST_WDT_RESET_MASK, AST_SCU_WDT_RESET);
 +
- 	/* Disable uart port debug function */
- 	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) |
- 		      SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);
+ #ifdef USE_SOC_UART_DEBUG
+        /* Enable uart port debug function */
+        ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) &
 -- 
 2.7.4
 

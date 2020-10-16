@@ -1,0 +1,33 @@
+From cf618cc42f1baa3531385d53e25df517f41e668a Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Wed, 23 Sep 2020 14:40:47 -0700
+Subject: [PATCH 1/1] OemComputerSystems: add missing odata.types
+
+odata.type wasn't added causing the validator to fail.
+
+Tested: Validator errors went away
+
+Change-Id: I26e2f4ba13051d6d3e18ddc94eac13bca1bad71c
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ redfish-core/lib/systems.hpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/redfish-core/lib/systems.hpp b/redfish-core/lib/systems.hpp
+index 0788e84..9220279 100644
+--- a/redfish-core/lib/systems.hpp
++++ b/redfish-core/lib/systems.hpp
+@@ -1412,6 +1412,10 @@ inline void getProvisioningStatus(std::shared_ptr<AsyncResp> aResp)
+                     propertiesList) {
+             nlohmann::json& oemPFR =
+                 aResp->res.jsonValue["Oem"]["OpenBmc"]["FirmwareProvisioning"];
++            aResp->res.jsonValue["Oem"]["OpenBmc"]["@odata.type"] =
++                "#OemComputerSystem.OpenBmc";
++            oemPFR["@odata.type"] = "#OemComputerSystem.FirmwareProvisioning";
++
+             if (ec)
+             {
+                 BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
+-- 
+2.17.1
+
