@@ -47,8 +47,8 @@ SRC_URI_append_intel-ast2500 = " \
     file://0046-Enable-FMC-DMA-for-memmove.patch \
     file://0047-ast2500-parse-reset-reason.patch \
     file://0049-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
-    file://0050-Enable-CONFIG_DDR4_SUPPORT_HYNIX.patch \
     file://0051-Add-Aspeed-DRAM-stress-test-command.patch \
+    file://0052-Fix-issue-on-host-console-is-broken-due-to-BMC-reset.patch \
     "
 # CVE-2020-10648 vulnerability fix
 SRC_URI_append_intel-ast2500 = " \

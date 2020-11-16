@@ -234,7 +234,7 @@ index d82ae59..ecbab0c 100644
 +static constexpr size_t maxShortParamLength = 255;
 +static constexpr size_t maxLongParamLength = 1024;
 +static constexpr size_t maxDbusNameLength = 255;
-+static constexpr size_t maxArraySize = 100;
++static constexpr size_t maxArraySize = 200;
 +static constexpr size_t maxReportIdLen =
 +    maxDbusNameLength - std::string_view(telemetry::telemetryPath).size() -
 +    std::string_view("/").size();

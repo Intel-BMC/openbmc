@@ -1,0 +1,191 @@
+From 90035d4ef6ffb7893f629fa427db77c79e1e50e7 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Sat, 24 Oct 2020 13:43:23 -0700
+Subject: [PATCH] Add a WA to defer flash writes on PS_ALERT_N assertion
+
+To prevent SPI flash corruption, this commit adds a WA which monitors
+PS_ALERT_N signal for detecting AC loss and it defers flash writes
+when the signal is asserted. Actually, the PS_ALERT_N is asserted
+even when PSU is in an unhealthy state so it also adds 10 seconds
+of timeout for the deferring that covers AC loss case effectively.
+If PSU gets back to healthy state, flash writes will be continued
+immediately.
+
+Note: This would be a customization for some specific platforms
+and this is a WA to cover a defect of H/W design. Do not try
+upstream it.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ .../arm/boot/dts/aspeed-bmc-intel-ast2500.dts |  7 ++-
+ .../arm/boot/dts/aspeed-bmc-intel-ast2600.dts |  4 ++
+ drivers/mtd/spi-nor/aspeed-smc.c              | 61 +++++++++++++++++++
+ 3 files changed, 71 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
+index e4ac4e3696f5..74fd5c52d7e3 100644
+--- a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
++++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
+@@ -3,6 +3,7 @@
+ #include "aspeed-g5.dtsi"
+ #include <dt-bindings/gpio/aspeed-gpio.h>
+ #include <dt-bindings/i2c/i2c.h>
++#include <dt-bindings/interrupt-controller/irq.h>
+ 
+ / {
+ 	model = "Intel AST2500 BMC";
+@@ -92,6 +93,10 @@
+ };
+ 
+ &fmc {
++	/delete-property/ interrupts;
++	interrupts-extended = <&vic 19>,
++			      <&gpio ASPEED_GPIO(AA, 1) IRQ_TYPE_EDGE_BOTH>;
++	ps-alert-gpio = <&gpio ASPEED_GPIO(AA, 1) GPIO_ACTIVE_HIGH>;
+ 	status = "okay";
+ 	flash@0 {
+ 		status = "okay";
+@@ -185,7 +190,7 @@
+ 	/*X0-X7*/	"","","","","","","","",
+ 	/*Y0-Y7*/	"SIO_S3","SIO_S5","","SIO_ONCONTROL","","","","",
+ 	/*Z0-Z7*/	"","SIO_POWER_GOOD","","","","","","",
+-	/*AA0-AA7*/	"P3VBAT_BRIDGE_EN","","","","PREQ_N","TCK_MUX_SEL","SMI","POST_COMPLETE",
++	/*AA0-AA7*/	"P3VBAT_BRIDGE_EN","IRQ_SML1_PMBUS_BMC_ALERT_N","","","PREQ_N","TCK_MUX_SEL","SMI","POST_COMPLETE",
+ 	/*AB0-AB7*/	"","NMI_BUTTON","ID_BUTTON","PS_PWROK","","","","",
+ 	/*AC0-AC7*/	"","","","","","","","";
+ };
+diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
+index e9cea7b63836..0ff929a68dd4 100644
+--- a/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
++++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2600.dts
+@@ -85,6 +85,10 @@
+ };
+ 
+ &fmc {
++	/delete-property/ interrupts;
++	interrupts-extended = <&gic GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
++			      <&gpio0 ASPEED_GPIO(Y, 3) IRQ_TYPE_EDGE_BOTH>;
++	ps-alert-gpio = <&gpio0 ASPEED_GPIO(Y, 3) GPIO_ACTIVE_HIGH>;
+ 	status = "okay";
+ 	flash@0 {
+ 		status = "okay";
+diff --git a/drivers/mtd/spi-nor/aspeed-smc.c b/drivers/mtd/spi-nor/aspeed-smc.c
+index 6e2f3802d162..397c2998e620 100644
+--- a/drivers/mtd/spi-nor/aspeed-smc.c
++++ b/drivers/mtd/spi-nor/aspeed-smc.c
+@@ -9,12 +9,14 @@
+ #include <linux/clk.h>
+ #include <linux/device.h>
+ #include <linux/io.h>
++#include <linux/gpio.h>
+ #include <linux/module.h>
+ #include <linux/mutex.h>
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/partitions.h>
+ #include <linux/mtd/spi-nor.h>
+ #include <linux/of.h>
++#include <linux/of_gpio.h>
+ #include <linux/of_platform.h>
+ #include <linux/sizes.h>
+ #include <linux/slab.h>
+@@ -216,10 +218,16 @@ struct aspeed_smc_controller {
+ 	u32 ahb_window_size;			/* full mapping window size */
+ 
+ 	unsigned long	clk_frequency;
++	unsigned int ps_alert_gpio;
+ 
+ 	struct aspeed_smc_chip *chips[0];	/* pointers to attached chips */
+ };
+ 
++static unsigned long aspeed_smc_flags = 0;
++#define FLAG_DEFER_WRITE		0
++#define WRITE_DEFER_MSEC		100 /* 100ms */
++#define WRITE_DEFER_MAX_COUNT		100 /* 100 x 100 = 10secs */
++
+ #define ASPEED_SPI_DEFAULT_FREQ		50000000
+ 
+ /*
+@@ -411,6 +419,17 @@ static int aspeed_smc_write_to_ahb(void __iomem *dst, const void *buf,
+ 				   size_t len)
+ {
+ 	size_t offset = 0;
++	int defer_cnt = 0;
++
++	while (test_bit(FLAG_DEFER_WRITE, &aspeed_smc_flags)) {
++		pr_warn("%s deferring write, count: %d\n", DEVICE_NAME,
++			defer_cnt);
++		msleep(WRITE_DEFER_MSEC);
++		if (defer_cnt++ > WRITE_DEFER_MAX_COUNT) {
++			clear_bit(FLAG_DEFER_WRITE, &aspeed_smc_flags);
++			break;
++		}
++	}
+ 
+ 	if (IS_ALIGNED((uintptr_t)dst, sizeof(uintptr_t)) &&
+ 	    IS_ALIGNED((uintptr_t)buf, sizeof(uintptr_t))) {
+@@ -1363,6 +1382,21 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
+ 	return ret;
+ }
+ 
++static irqreturn_t aspeed_smc_ps_alert_irq(int irq, void *arg)
++{
++	struct aspeed_smc_controller *controller = arg;
++
++	if (gpio_get_value(controller->ps_alert_gpio)) {
++		clear_bit(FLAG_DEFER_WRITE, &aspeed_smc_flags);
++		dev_warn(controller->dev, "clear FLAG_DEFER_WRITE\n");
++	} else {
++		set_bit(FLAG_DEFER_WRITE, &aspeed_smc_flags);
++		dev_warn(controller->dev, "set FLAG_DEFER_WRITE\n");
++	}
++
++	return IRQ_HANDLED;
++}
++
+ static int aspeed_smc_probe(struct platform_device *pdev)
+ {
+ 	struct device_node *np = pdev->dev.of_node;
+@@ -1373,6 +1407,7 @@ static int aspeed_smc_probe(struct platform_device *pdev)
+ 	struct clk *clk;
+ 	struct resource *res;
+ 	int ret;
++	int irq;
+ 
+ 	match = of_match_device(aspeed_smc_matches, &pdev->dev);
+ 	if (!match || !match->data)
+@@ -1409,6 +1444,32 @@ static int aspeed_smc_probe(struct platform_device *pdev)
+ 	controller->clk_frequency = clk_get_rate(clk);
+ 	devm_clk_put(&pdev->dev, clk);
+ 
++	controller->ps_alert_gpio = of_get_named_gpio(np, "ps-alert-gpio", 0);
++	if (!gpio_is_valid(controller->ps_alert_gpio)) {
++		dev_err(dev, "No valid ps-alert-gpio\n");
++		ret = controller->ps_alert_gpio;
++		return ret;
++	}
++
++	ret = devm_gpio_request_one(dev, controller->ps_alert_gpio,
++				    GPIOF_DIR_IN, "ps-alert-gpio");
++	if (ret) {
++		dev_err(dev, "request gpio failed %d\n", ret);
++		return ret;
++	}
++
++	irq = platform_get_irq(pdev, 1);
++	if (irq < 0)
++		return irq;
++
++	ret = devm_request_irq(&pdev->dev, irq, aspeed_smc_ps_alert_irq,
++			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
++			       "ps-alert-irq", controller);
++	if (ret) {
++		dev_err(dev, "request irq failed %d\n", ret);
++		return ret;
++	}
++
+ 	ret = aspeed_smc_setup_flash(controller, np, res);
+ 	if (ret)
+ 		dev_err(dev, "Aspeed SMC probe failed %d\n", ret);
+-- 
+2.17.1
+

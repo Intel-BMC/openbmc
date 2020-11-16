@@ -1,0 +1,73 @@
+From 5829d9e6e1956ebb34ed8a723b0758146529459f Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Wed, 7 Oct 2020 22:42:26 +0530
+Subject: [PATCH] disable PSU cold redundancy
+
+In RP platforms, single PSU also considered as
+valid configuration. We don't have user configuration
+option to enable/disable PSU cold redundancy. So
+it should be disabled by default to avoid issues in
+Rp platforms.
+Also make sure if persistent config already set this
+to true, make it to false.
+
+This avoids unwanted critical event logs and
+unexpected LED status for RP platforms where
+single PSU also considered as valid config.
+
+Tested:
+ - Rebooted BMC and observed no CR event logs and
+   no amber blocking of status LED.
+ - Set the persistent store to true, rebooted
+   BMC and value changed back to disabled.
+
+Change-Id: Ie0f1f3f8daa95593af6db698d65ea804cebfee87
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ src/cold_redundancy.cpp | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cold_redundancy.cpp b/src/cold_redundancy.cpp
+index d64a9e3..3bfd37f 100644
+--- a/src/cold_redundancy.cpp
++++ b/src/cold_redundancy.cpp
+@@ -76,8 +76,9 @@ ColdRedundancy::ColdRedundancy(
+         std::cerr << "error initializing assoc interface\n";
+     }
+ 
++    // For RP platforms, default cold redundancy should be disabled.
++    powerSupplyRedundancyEnabled(false);
+     // set default configuration
+-    powerSupplyRedundancyEnabled(true);
+     rotationEnabled(true);
+     periodOfRotation(7 * oneDay);
+     rotationAlgorithm(Algo::bmcSpecific);
+@@ -109,6 +110,14 @@ ColdRedundancy::ColdRedundancy(
+                 return;
+             }
+ 
++            // For RP platforms, cold redundancy should be disabled.
++            // If its already set to true in persistent area, Lets
++            // override to false during bootup.
++            if (*redundancyEnabled)
++            {
++                *redundancyEnabled = false;
++            }
++
+             if (*period >= minRotationPeriod && *period <= maxRotationPeriod)
+             {
+                 periodOfRotation(*period);
+@@ -867,6 +876,10 @@ void ColdRedundancy::readPmbus(uint8_t bus, uint8_t slaveAddr, int& value)
+ 
+ void ColdRedundancy::checkRedundancyEvent()
+ {
++    if (!crSupported || !powerSupplyRedundancyEnabled())
++    {
++        return;
++    }
+     puRedundantTimer.expires_after(std::chrono::seconds(2));
+     puRedundantTimer.async_wait([this](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+-- 
+2.7.4
+

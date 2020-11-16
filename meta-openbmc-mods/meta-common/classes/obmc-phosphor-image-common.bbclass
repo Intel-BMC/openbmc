@@ -45,6 +45,7 @@ IMAGE_INSTALL_append = " \
         virtual-media \
         enable-nics \
         host-misc-comm-manager \
+        dhcp-check \
         "
 
 IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"

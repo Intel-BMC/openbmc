@@ -12,4 +12,5 @@ SRC_URI += "file://0001-Fix-cold-redundancy-is-not-runing-as-user-configurat.pat
             file://0003-storagecommands-Fix-for-GetFruAreaInfo-command.patch \
             file://0004-firmware-update-Add-Support-to-get-fwSecurityVer.patch \
             file://0005-oemcommands-Fix-for-set-security-mode-to-mfg-mode.patch \
+            file://0006-Update-Product-ID-for-EEPROM-FRU-platforms.patch \
            "

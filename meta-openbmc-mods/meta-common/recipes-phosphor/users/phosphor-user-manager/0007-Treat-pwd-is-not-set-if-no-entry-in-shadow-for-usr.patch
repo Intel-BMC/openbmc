@@ -1,0 +1,49 @@
+From 5f401fe15b7911292ca3bf5de9068813cc8c0a10 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Fri, 18 Sep 2020 15:59:06 +0000
+Subject: [PATCH] Treat pwd is not set if no entry in shadow for usr
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+There are situations (mostly manipulated), when user entry is present
+in /etc/password, but not in /etc/shadow. Even though user can’t login
+without proper entry in /etc/shadow, it is a valid user and password
+update is only required
+
+Tested:
+1. Manually removed a user entry in /etc/shadow
+2. Restarted phosphor-user-manager service
+3. Made sure user is listed, and able to update the password through
+   ipmitool set password command
+4. Queried the user entry again and confirmed PasswordExpired is
+   returned as false.
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: I818be9a63121448210a99c175005708788279963
+---
+ user_mgr.cpp | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/user_mgr.cpp b/user_mgr.cpp
+index d1f881e..0447fe7 100644
+--- a/user_mgr.cpp
++++ b/user_mgr.cpp
+@@ -763,9 +763,11 @@ bool UserMgr::userPasswordExpired(const std::string &userName)
+     }
+     else
+     {
+-        log<level::ERR>("User does not exist",
+-                        entry("USER_NAME=%s", userName.c_str()));
+-        elog<UserNameDoesNotExist>();
++        // User entry is missing in /etc/shadow, indicating no SHA password.
++        // Treat this as new user without password entry in /etc/shadow
++        // TODO: Add property to indicate user password was not set yet
++        // https://github.com/openbmc/phosphor-user-manager/issues/8
++        return false;
+     }
+ 
+     return false;
+-- 
+2.26.2
+

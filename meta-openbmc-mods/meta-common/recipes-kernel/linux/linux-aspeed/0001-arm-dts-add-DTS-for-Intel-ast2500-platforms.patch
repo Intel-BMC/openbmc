@@ -1,4 +1,4 @@
-From 7ad89fd032d56cc20622d34cf9d0d09adacb2796 Mon Sep 17 00:00:00 2001
+From e82178e44348a8594bc4ae2c3c5473336033483f Mon Sep 17 00:00:00 2001
 From: Yuan Li <yuan.li@linux.intel.com>
 Date: Tue, 19 Sep 2017 15:55:39 +0800
 Subject: [PATCH] arm: dts: add DTS for Intel ast2500 platforms
@@ -24,7 +24,7 @@ Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 
 diff --git a/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 new file mode 100644
-index 000000000000..7a09ca54f161
+index 000000000000..09198052fdd5
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed-bmc-intel-ast2500.dts
 @@ -0,0 +1,477 @@
@@ -56,9 +56,9 @@ index 000000000000..7a09ca54f161
 +		#size-cells = <1>;
 +		ranges;
 +
-+		vga_memory: framebuffer@7f000000 {
++		vga_memory: framebuffer@9f000000 {
 +			no-map;
-+			reg = <0x7f000000 0x01000000>;
++			reg = <0x9f000000 0x01000000>;
 +		};
 +
 +		gfx_memory: framebuffer {

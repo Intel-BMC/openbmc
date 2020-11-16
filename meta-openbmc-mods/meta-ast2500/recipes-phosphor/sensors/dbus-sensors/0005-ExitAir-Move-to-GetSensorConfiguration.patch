@@ -1,0 +1,75 @@
+From 655f376a240ce73f7c3fb6f37cd6da0cbce1693e Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Mon, 5 Oct 2020 15:28:15 -0700
+Subject: [PATCH 1/1] ExitAir: Move to GetSensorConfiguration
+
+GetSensorConfiguration has improved to have retries
+and avoid more expensive GetManagedOjects calls. Use
+it.
+
+Tested: System Airflow still worked
+
+Change-Id: Icbbabb6ebda771b9cde563559a83f633ffc3769f
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ src/ExitAirTempSensor.cpp | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)
+
+diff --git a/src/ExitAirTempSensor.cpp b/src/ExitAirTempSensor.cpp
+index 41d9a19..c667457 100644
+--- a/src/ExitAirTempSensor.cpp
++++ b/src/ExitAirTempSensor.cpp
+@@ -61,6 +61,9 @@ static constexpr double cfmMinReading = 0;
+ 
+ static constexpr size_t minSystemCfm = 50;
+ 
++constexpr const std::array<const char*, 2> monitorIfaces = {exitAirIface,
++                                                            cfmIface};
++
+ static std::vector<std::shared_ptr<CFMSensor>> cfmSensors;
+ 
+ static void setupSensorMatch(
+@@ -827,14 +830,10 @@ void createSensor(sdbusplus::asio::object_server& objectServer,
+         std::cerr << "Connection not created\n";
+         return;
+     }
+-    dbusConnection->async_method_call(
+-        [&](boost::system::error_code ec, const ManagedObjectType& resp) {
+-            if (ec)
+-            {
+-                std::cerr << "Error contacting entity manager\n";
+-                return;
+-            }
+-
++    auto getter = std::make_shared<GetSensorConfiguration>(
++        dbusConnection,
++        std::move([&objectServer, &dbusConnection,
++                   &exitAirSensor](const ManagedObjectType& resp) {
+             cfmSensors.clear();
+             for (const auto& pathPair : resp)
+             {
+@@ -908,9 +907,9 @@ void createSensor(sdbusplus::asio::object_server& objectServer,
+                 exitAirSensor->setupMatches();
+                 exitAirSensor->updateReading();
+             }
+-        },
+-        entityManagerName, "/", "org.freedesktop.DBus.ObjectManager",
+-        "GetManagedObjects");
++        }));
++    getter->getConfiguration(
++        std::vector<std::string>(monitorIfaces.begin(), monitorIfaces.end()));
+ }
+ 
+ int main()
+@@ -944,8 +943,6 @@ int main()
+                 }
+             });
+         };
+-    constexpr const std::array<const char*, 2> monitorIfaces = {exitAirIface,
+-                                                                cfmIface};
+     for (const char* type : monitorIfaces)
+     {
+         auto match = std::make_unique<sdbusplus::bus::match::match>(
+-- 
+2.17.1
+

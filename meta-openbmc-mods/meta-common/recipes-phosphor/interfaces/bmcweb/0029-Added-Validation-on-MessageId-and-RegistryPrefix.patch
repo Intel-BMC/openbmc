@@ -1,0 +1,166 @@
+From 729f09fd4918fec4615d6cee898fbb7aaebd6751 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Sat, 26 Sep 2020 03:45:41 +0530
+Subject: [PATCH] Added Validation on MessageId and RegistryPrefix
+
+Message ID's and Registry prefixes used to subscribe to an event
+will be checked against allowed values.
+Base registry prefix is removed, because there won't be any Redfish
+events logged with Base registry prefix.
+Corrected "Task" registry prefix to "TaskEvent".
+
+Tested:
+ - Validated POST action with different combinations of
+   Message id's and Registry Prefix.
+ - Redfish validator passed.
+
+Change-Id: Ie6dc0268ffaf03606395f9d78f19cfcb6f432120
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/include/event_service_manager.hpp | 48 +++++++++++++++++++-------
+ redfish-core/lib/event_service.hpp             | 48 +++++++++++++++++++++++---
+ 2 files changed, 80 insertions(+), 16 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index b6b8b5a..afbf799 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -18,6 +18,7 @@
+ #include "registries.hpp"
+ #include "registries/base_message_registry.hpp"
+ #include "registries/openbmc_message_registry.hpp"
++#include "registries/task_event_message_registry.hpp"
+ 
+ #include <sys/inotify.h>
+ #include <systemd/sd-journal.h>
+@@ -68,6 +69,40 @@ using EventLogObjectsType =
+ 
+ namespace message_registries
+ {
++static bool
++    isValidMessageId(const std::string& messageId,
++                     const boost::beast::span<const MessageEntry>& registry)
++{
++    boost::beast::span<const MessageEntry>::const_iterator messageIdIt =
++        std::find_if(registry.cbegin(), registry.cend(),
++                     [&messageId](const MessageEntry& messageEntry) {
++                         return !messageId.compare(messageEntry.first);
++                     });
++    if (messageIdIt != registry.cend())
++    {
++        return true;
++    }
++
++    return false;
++}
++
++static const boost::beast::span<const MessageEntry>
++    getRegistryFromPrefix(const std::string& registryName)
++{
++    if (std::string(task_event::header.registryPrefix) == registryName)
++    {
++        return boost::beast::span<const MessageEntry>(task_event::registry);
++    }
++    else if (std::string(openbmc::header.registryPrefix) == registryName)
++    {
++        return boost::beast::span<const MessageEntry>(openbmc::registry);
++    }
++    else if (std::string(base::header.registryPrefix) == registryName)
++    {
++        return boost::beast::span<const MessageEntry>(base::registry);
++    }
++    return boost::beast::span<const MessageEntry>(openbmc::registry);
++}
+ static const Message*
+     getMsgFromRegistry(const std::string& messageKey,
+                        const boost::beast::span<const MessageEntry>& registry)
+@@ -101,18 +136,7 @@ static const Message* formatMessage(const std::string_view& messageID)
+     std::string& messageKey = fields[3];
+ 
+     // Find the right registry and check it for the MessageKey
+-    if (std::string(base::header.registryPrefix) == registryName)
+-    {
+-        return getMsgFromRegistry(
+-            messageKey, boost::beast::span<const MessageEntry>(base::registry));
+-    }
+-    if (std::string(openbmc::header.registryPrefix) == registryName)
+-    {
+-        return getMsgFromRegistry(
+-            messageKey,
+-            boost::beast::span<const MessageEntry>(openbmc::registry));
+-    }
+-    return nullptr;
++    return getMsgFromRegistry(messageKey, getRegistryFromPrefix(registryName));
+ }
+ } // namespace message_registries
+ 
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index c3addca..095b76d 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -21,8 +21,8 @@ namespace redfish
+ 
+ static constexpr const std::array<const char*, 2> supportedEvtFormatTypes = {
+     eventFormatType, metricReportFormatType};
+-static constexpr const std::array<const char*, 3> supportedRegPrefixes = {
+-    "Base", "OpenBMC", "Task"};
++static constexpr const std::array<const char*, 2> supportedRegPrefixes = {
++    "OpenBMC", "TaskEvent"};
+ static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
+     "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
+ 
+@@ -393,8 +393,48 @@ class EventDestinationCollection : public Node
+ 
+         if (msgIds)
+         {
+-            // Do we need to loop-up MessageRegistry and validate
+-            // data for authenticity??? Not mandate, i believe.
++            std::vector<std::string> registryPrefix;
++
++            // If no registry prefixes are mentioned, consider all supported
++            // prefixes
++            if (subValue->registryPrefixes.empty())
++            {
++                registryPrefix.assign(supportedRegPrefixes.begin(),
++                                      supportedRegPrefixes.end());
++            }
++            else
++            {
++                registryPrefix = subValue->registryPrefixes;
++            }
++
++            for (const std::string& id : *msgIds)
++            {
++                bool validId = false;
++
++                // Check for Message ID in each of the selected Registry
++                for (const std::string& it : registryPrefix)
++                {
++                    const boost::beast::span<
++                        const redfish::message_registries::MessageEntry>&
++                        registry =
++                            redfish::message_registries::getRegistryFromPrefix(
++                                it);
++
++                    if (isValidMessageId(id, registry))
++                    {
++                        validId = true;
++                        break;
++                    }
++                }
++
++                if (!validId)
++                {
++                    messages::propertyValueNotInList(asyncResp->res, id,
++                                                     "MessageIds");
++                    return;
++                }
++            }
++
+             subValue->registryMsgIds = *msgIds;
+         }
+ 
+-- 
+2.7.4
+

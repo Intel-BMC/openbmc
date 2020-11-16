@@ -544,11 +544,11 @@ index f5e7375..ca7cd2c 100644
 +        uint2_t setStatus;
 +        uint6_t rsvd;
 +
-+        if (data.unpack(rsvd, setStatus) != 0 || !data.fullyUnpacked())
++        if (data.unpack(setStatus, rsvd) != 0 || !data.fullyUnpacked())
 +        {
 +            return ipmi::responseReqDataLenInvalid();
 +        }
-+        if (rsvd || setStatus != static_cast<uint2_t>(setComplete))
++        if (rsvd)
 +        {
 +            return ipmi::responseInvalidFieldRequest();
 +        }

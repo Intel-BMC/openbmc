@@ -1,0 +1,43 @@
+From f0a37caf96a1583ed190abd7837f124dfadd5743 Mon Sep 17 00:00:00 2001
+From: Zev Weiss <zev@bewilderbeest.net>
+Date: Sun, 27 Sep 2020 07:27:33 +1000
+Subject: [PATCH] peci: fix error-handling in peci_dev_ioctl()
+
+peci_get_xfer_msg() returns NULL on failure, not an ERR_PTR.  Also
+avoid calling kfree() on an ERR_PTR.
+
+Signed-off-by: Zev Weiss <zev@bewilderbeest.net>
+Reviewed-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ drivers/peci/peci-dev.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/peci/peci-dev.c b/drivers/peci/peci-dev.c
+index c574d13213af..8104468864bf 100644
+--- a/drivers/peci/peci-dev.c
++++ b/drivers/peci/peci-dev.c
+@@ -122,8 +122,8 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
+ 		}
+ 
+ 		xmsg = peci_get_xfer_msg(uxmsg.tx_len, uxmsg.rx_len);
+-		if (IS_ERR(xmsg)) {
+-			ret = PTR_ERR(xmsg);
++		if (!xmsg) {
++			ret = -ENOMEM;
+ 			break;
+ 		}
+ 
+@@ -172,7 +172,8 @@ static long peci_dev_ioctl(struct file *file, uint iocmd, ulong arg)
+ 	}
+ 
+ 	peci_put_xfer_msg(xmsg);
+-	kfree(msg);
++	if (!IS_ERR(msg))
++		kfree(msg);
+ 
+ 	return (long)ret;
+ }
+-- 
+2.17.1
+

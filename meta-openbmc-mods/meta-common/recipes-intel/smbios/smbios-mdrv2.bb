@@ -17,6 +17,10 @@ inherit obmc-phosphor-systemd
 SYSTEMD_SERVICE_${PN} += "smbios-mdrv2.service"
 SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.cpuinfo.service"
 
+
+SRC_URI += "file://0001-Replace-throw-with-log-error-message.patch \
+"
+
 DEPENDS += " \
     autoconf-archive-native \
     boost \

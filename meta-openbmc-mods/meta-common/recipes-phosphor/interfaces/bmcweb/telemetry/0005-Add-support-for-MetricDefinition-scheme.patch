@@ -1,4 +1,4 @@
-From b1da8901b5985d6a77b63ca9eb0570b46528f0bd Mon Sep 17 00:00:00 2001
+From fe2ed86210958f23fa0a8bd14c260e9cf4648e5a Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 8 Jun 2020 17:15:54 +0200
 Subject: [PATCH 5/5] Add support for MetricDefinition scheme
@@ -17,15 +17,15 @@ Change-Id: I3086e1302e1ba2e5442d1367939fd5507a0cbc00
 ---
  redfish-core/include/redfish.hpp               |   3 +
  redfish-core/include/utils/telemetry_utils.hpp |   2 +
- redfish-core/lib/metric_definition.hpp         | 300 +++++++++++++++++++++++++
- redfish-core/lib/metric_report.hpp             |  65 +++++-
+ redfish-core/lib/metric_definition.hpp         | 299 +++++++++++++++++++++++++
+ redfish-core/lib/metric_report.hpp             |  66 +++++-
  redfish-core/lib/sensors.hpp                   |  43 +++-
  redfish-core/lib/telemetry_service.hpp         |   2 +
  6 files changed, 402 insertions(+), 13 deletions(-)
  create mode 100644 redfish-core/lib/metric_definition.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index 3d4c117..2a12bf9 100644
+index 898f548..1c3b5de 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -25,6 +25,7 @@
@@ -36,7 +36,7 @@ index 3d4c117..2a12bf9 100644
  #include "../lib/metric_report.hpp"
  #include "../lib/metric_report_definition.hpp"
  #include "../lib/network_protocol.hpp"
-@@ -206,6 +207,8 @@ class RedfishService
+@@ -213,6 +214,8 @@ class RedfishService
          nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
  
          nodes.emplace_back(std::make_unique<TelemetryService>(app));
@@ -60,10 +60,10 @@ index 6c4e810..bb747c4 100644
  static constexpr const char* metricReportUri =
 diff --git a/redfish-core/lib/metric_definition.hpp b/redfish-core/lib/metric_definition.hpp
 new file mode 100644
-index 0000000..837a068
+index 0000000..ff1b1ad
 --- /dev/null
 +++ b/redfish-core/lib/metric_definition.hpp
-@@ -0,0 +1,300 @@
+@@ -0,0 +1,299 @@
 +/*
 +// Copyright (c) 2018-2020 Intel Corporation
 +//
@@ -323,7 +323,6 @@ index 0000000..837a068
 +            asyncResp->res.jsonValue["MetricType"] = "Numeric";
 +            asyncResp->res.jsonValue["Implementation"] = "PhysicalSensor";
 +            asyncResp->res.jsonValue["IsLinear"] = true;
-+            asyncResp->res.jsonValue["TimestampAccuracy"] = "PT0.1S";
 +            auto unit = sensorUnits.find(id);
 +            if (unit != sensorUnits.end())
 +            {
@@ -365,12 +364,12 @@ index 0000000..837a068
 +
 +} // namespace redfish
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
-index 877e7f1..be72b18 100644
+index f8230a5..d4cdee1 100644
 --- a/redfish-core/lib/metric_report.hpp
 +++ b/redfish-core/lib/metric_report.hpp
-@@ -91,6 +91,9 @@ class MetricReport : public Node
-     using Readings =
+@@ -92,6 +92,9 @@ class MetricReport : public Node
          std::vector<std::tuple<std::string, std::string, double, int32_t>>;
+     using TimestampAndReadings = std::tuple<int32_t, Readings>;
      using MetricValues = std::vector<std::map<std::string, std::string>>;
 +    using ReadingParameters =
 +        std::vector<std::tuple<std::vector<sdbusplus::message::object_path>,
@@ -378,7 +377,7 @@ index 877e7f1..be72b18 100644
  
      static MetricValues toMetricValues(const Readings& readings)
      {
-@@ -109,6 +112,49 @@ class MetricReport : public Node
+@@ -110,6 +113,49 @@ class MetricReport : public Node
          return metricValues;
      }
  
@@ -428,22 +427,23 @@ index 877e7f1..be72b18 100644
      static void getReportProperties(const std::shared_ptr<AsyncResp> asyncResp,
                                      const std::string& reportPath,
                                      const std::string& id)
-@@ -124,7 +170,8 @@ class MetricReport : public Node
+@@ -125,7 +171,9 @@ class MetricReport : public Node
              [asyncResp](
                  const boost::system::error_code ec,
                  const boost::container::flat_map<
--                    std::string, std::variant<Readings, int32_t>>& ret) {
+-                    std::string, std::variant<TimestampAndReadings>>& ret) {
 +                    std::string,
-+                    std::variant<Readings, int32_t, ReadingParameters>>& ret) {
++                    std::variant<TimestampAndReadings,
++                                 ReadingParameters>>& ret) {
                  if (ec)
                  {
                      messages::internalError(asyncResp->res);
-@@ -138,6 +185,22 @@ class MetricReport : public Node
-                 json_util::assignIfPresent<Readings>(
-                     ret, "Readings", asyncResp->res.jsonValue["MetricValues"],
-                     toMetricValues);
+@@ -153,6 +201,22 @@ class MetricReport : public Node
+                     crow::utility::getDateTime(timestamp);
+                 asyncResp->res.jsonValue["MetricValues"] =
+                     toMetricValues(readings);
 +
-+                auto found = ret.find("ReadingParameters");
++                found = ret.find("ReadingParameters");
 +                if (found != ret.end())
 +                {
 +                    auto params =
@@ -462,7 +462,7 @@ index 877e7f1..be72b18 100644
              "xyz.openbmc_project.MonitoringService", reportPath,
              "xyz.openbmc_project.MonitoringService.Report");
 diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
-index f12bbe0..1fa1009 100644
+index 48aa439..e700081 100644
 --- a/redfish-core/lib/sensors.hpp
 +++ b/redfish-core/lib/sensors.hpp
 @@ -53,20 +53,39 @@ static constexpr std::string_view thermal = "Thermal";

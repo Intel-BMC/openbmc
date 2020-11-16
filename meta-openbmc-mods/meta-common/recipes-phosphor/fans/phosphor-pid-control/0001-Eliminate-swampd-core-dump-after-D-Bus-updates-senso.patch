@@ -1,0 +1,172 @@
+From 26db33e341f7e96931905aee4358353b0c6aee39 Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Mon, 28 Sep 2020 11:06:58 -0700
+Subject: [PATCH] Eliminate swampd core dump after D-Bus updates sensors
+
+The swamp daemon intializes a list of sensors and uses those to
+periodically scan the state associated devices. Reading the sensors is
+done with an async timer, that runs code to re-arm an async timer.
+
+There is also a D-Bus update cycle that is independent of the async
+timer reading the sensors. When the D-Bus updates the number of
+sensors in the system a new list must be created. In order to create
+the new list the timers using the old list must be stopped. Only after
+those timers have stopped may a new list be generated, and a new set of
+timers started.
+
+The two processes are unware of each other. To safely perform the
+change the pointers to the list of zones and timers must be kept alive
+until all timer actions complete. Only after all references to the
+pointers have been release may the new state be built, and new timers
+started.
+
+Prior to this change swampd would throw a SYSSEGV fault due to an
+attempt to use a pointer that was no longer active.
+
+Tested:
+Issued a "reset -w" (Warm Reset command) from the EFI shell.
+Waited for the system to reboot, and enter EFI
+Checked for a core file in /var/lib/systemd/coredump
+Repeated step 1 if coredump file was not present.
+Completed 2900+ passes successfully when ealier code failed at less
+than 800 passes.
+
+Change-Id: I10ab824d8050be9eca63c18d7e5a62bdb41e9c64
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ main.cpp        | 14 ++++++++++----
+ pid/builder.cpp |  6 +++---
+ pid/builder.hpp |  2 +-
+ pid/pidloop.cpp | 13 +++++++------
+ pid/pidloop.hpp |  3 ++-
+ 5 files changed, 23 insertions(+), 15 deletions(-)
+
+diff --git a/main.cpp b/main.cpp
+index 2ab3fc4..46cb38d 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -72,10 +72,15 @@ static sdbusplus::asio::connection
+ void restartControlLoops()
+ {
+     static SensorManager mgmr;
+-    static std::unordered_map<int64_t, std::unique_ptr<PIDZone>> zones;
+-    static std::list<boost::asio::steady_timer> timers;
++    static std::unordered_map<int64_t, std::shared_ptr<PIDZone>> zones;
++    static std::vector<std::shared_ptr<boost::asio::steady_timer>> timers;
+ 
++    for (const auto timer : timers)
++    {
++        timer->cancel();
++    }
+     timers.clear();
++    zones.clear();
+ 
+ #if CONFIGURE_DBUS
+ 
+@@ -117,9 +122,10 @@ void restartControlLoops()
+ 
+     for (const auto& i : zones)
+     {
+-        auto& timer = timers.emplace_back(io);
++        std::shared_ptr<boost::asio::steady_timer> timer = timers.emplace_back(
++            std::make_shared<boost::asio::steady_timer>(io));
+         std::cerr << "pushing zone " << i.first << "\n";
+-        pidControlLoop(i.second.get(), timer);
++        pidControlLoop(i.second, timer);
+     }
+ }
+ 
+diff --git a/pid/builder.cpp b/pid/builder.cpp
+index 1fbfbd4..15fc4cd 100644
+--- a/pid/builder.cpp
++++ b/pid/builder.cpp
+@@ -35,12 +35,12 @@ static std::string getControlPath(int64_t zone)
+     return std::string(objectPath) + std::to_string(zone);
+ }
+ 
+-std::unordered_map<int64_t, std::unique_ptr<PIDZone>>
++std::unordered_map<int64_t, std::shared_ptr<PIDZone>>
+     buildZones(std::map<int64_t, conf::PIDConf>& zonePids,
+                std::map<int64_t, struct conf::ZoneConfig>& zoneConfigs,
+                SensorManager& mgr, sdbusplus::bus::bus& modeControlBus)
+ {
+-    std::unordered_map<int64_t, std::unique_ptr<PIDZone>> zones;
++    std::unordered_map<int64_t, std::shared_ptr<PIDZone>> zones;
+ 
+     for (const auto& zi : zonePids)
+     {
+@@ -62,7 +62,7 @@ std::unordered_map<int64_t, std::unique_ptr<PIDZone>>
+ 
+         const conf::PIDConf& pidConfig = zi.second;
+ 
+-        auto zone = std::make_unique<PIDZone>(
++        auto zone = std::make_shared<PIDZone>(
+             zoneId, zoneConf->second.minThermalOutput,
+             zoneConf->second.failsafePercent, mgr, modeControlBus,
+             getControlPath(zi.first).c_str(), deferSignals);
+diff --git a/pid/builder.hpp b/pid/builder.hpp
+index e500503..e3ba88c 100644
+--- a/pid/builder.hpp
++++ b/pid/builder.hpp
+@@ -7,7 +7,7 @@
+ #include <sdbusplus/bus.hpp>
+ #include <unordered_map>
+ 
+-std::unordered_map<int64_t, std::unique_ptr<PIDZone>>
++std::unordered_map<int64_t, std::shared_ptr<PIDZone>>
+     buildZones(std::map<int64_t, conf::PIDConf>& zonePids,
+                std::map<int64_t, struct conf::ZoneConfig>& zoneConfigs,
+                SensorManager& mgr, sdbusplus::bus::bus& modeControlBus);
+diff --git a/pid/pidloop.cpp b/pid/pidloop.cpp
+index 56bf8bd..14225ec 100644
+--- a/pid/pidloop.cpp
++++ b/pid/pidloop.cpp
+@@ -27,7 +27,7 @@
+ #include <thread>
+ #include <vector>
+ 
+-static void processThermals(PIDZone* zone)
++static void processThermals(std::shared_ptr<PIDZone> zone)
+ {
+     // Get the latest margins.
+     zone->updateSensors();
+@@ -40,8 +40,9 @@ static void processThermals(PIDZone* zone)
+     zone->determineMaxSetPointRequest();
+ }
+ 
+-void pidControlLoop(PIDZone* zone, boost::asio::steady_timer& timer, bool first,
+-                    int ms100cnt)
++void pidControlLoop(std::shared_ptr<PIDZone> zone,
++                    std::shared_ptr<boost::asio::steady_timer> timer,
++                    bool first, int ms100cnt)
+ {
+     if (first)
+     {
+@@ -54,9 +55,9 @@ void pidControlLoop(PIDZone* zone, boost::asio::steady_timer& timer, bool first,
+         processThermals(zone);
+     }
+ 
+-    timer.expires_after(std::chrono::milliseconds(100));
+-    timer.async_wait(
+-        [zone, &timer, ms100cnt](const boost::system::error_code& ec) mutable {
++    timer->expires_after(std::chrono::milliseconds(100));
++    timer->async_wait(
++        [zone, timer, ms100cnt](const boost::system::error_code& ec) mutable {
+             if (ec == boost::asio::error::operation_aborted)
+             {
+                 return; // timer being canceled, stop loop
+diff --git a/pid/pidloop.hpp b/pid/pidloop.hpp
+index 3a67954..7aef73a 100644
+--- a/pid/pidloop.hpp
++++ b/pid/pidloop.hpp
+@@ -14,5 +14,6 @@
+  * @param[in] first - boolean to denote if initialization needs to be run.
+  * @param[in] ms100cnt - loop timer counter.
+  */
+-void pidControlLoop(PIDZone* zone, boost::asio::steady_timer& timer,
++void pidControlLoop(std::shared_ptr<PIDZone> zone,
++                    std::shared_ptr<boost::asio::steady_timer> timer,
+                     bool first = true, int ms100cnt = 0);
+-- 
+2.26.2
+

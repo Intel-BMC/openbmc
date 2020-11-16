@@ -1,0 +1,99 @@
+From 22a81c2898d6d3da1ba82cd9efead70b860b0acb Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Thu, 1 Oct 2020 08:54:32 -0700
+Subject: [PATCH] Check readingStateGood before updating thresholds property
+
+Sensor read function checks for readingStateGood before
+start. But if host resets while reading is in progress,
+incorrect sensor value maybe returned.
+Check readingStateGood before changing threshold.
+
+Add a timer async call for checkThresholds. This gives
+power match callback a chance to run to update power state.
+This change is only added for cpu sensors to minimize the
+the impact and test needed. Change for other sensors or
+in base class can be done as a follow up task.
+
+Tested:
+Run host reset test for 500 cycles, no erronous sensor
+events were reported. Before the change, same tests
+never run more than 200 cycles.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ include/CPUSensor.hpp |  1 +
+ src/CPUSensor.cpp     | 18 +++++++++++++++---
+ src/Thresholds.cpp    | 10 ++++++++++
+ 3 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 07f7ffd..4a56b21 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -37,6 +37,7 @@ class CPUSensor : public Sensor
+ 
+   private:
+     sdbusplus::asio::object_server& objServer;
++    std::shared_ptr<sdbusplus::asio::connection>& busConn;
+     boost::asio::posix::stream_descriptor inputDev;
+     boost::asio::deadline_timer waitTimer;
+     boost::asio::streambuf readBuf;
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 127d68a..401412f 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -45,8 +45,8 @@ CPUSensor::CPUSensor(const std::string& path, const std::string& objectType,
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(_thresholds), sensorConfiguration, objectType, maxReading,
+            minReading, PowerState::on),
+-    objServer(objectServer), inputDev(io), waitTimer(io), path(path),
+-    privTcontrol(std::numeric_limits<double>::quiet_NaN()),
++    objServer(objectServer), busConn(conn), inputDev(io), waitTimer(io),
++    path(path), privTcontrol(std::numeric_limits<double>::quiet_NaN()),
+     dtsOffset(dtsOffset), show(show), pollTime(CPUSensor::sensorPollMs)
+ {
+     nameTcontrol = labelTcontrol;
+@@ -288,6 +288,18 @@ void CPUSensor::checkThresholds(void)
+ {
+     if (show)
+     {
+-        thresholds::checkThresholds(this);
++        // give the power match callback to have a chance to run
++        // checkThresholds checks for host power state
++        auto timer = std::make_shared<boost::asio::steady_timer>(
++            busConn->get_io_context());
++        timer->expires_after(std::chrono::milliseconds(100));
++        timer->async_wait([this, timer](boost::system::error_code ec) {
++            if (ec)
++            {
++                // log the error but still check the thresholds
++                std::cerr << "Cpu sensor threshold timer error!\n";
++            }
++            thresholds::checkThresholds(this);
++        });
+     }
+ }
+diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
+index 025057e..ce1c759 100644
+--- a/src/Thresholds.cpp
++++ b/src/Thresholds.cpp
+@@ -421,6 +421,16 @@ void assertThresholds(Sensor* sensor, double assertValue,
+         return;
+     }
+ 
++    // readingState is verified before sensor read,
++    // but it can change during sensor read
++    // and return an incorrect value
++    if (assert && !sensor->readingStateGood())
++    {
++        std::cout << "bad readingState, ignore theshold assert " << sensor->name
++                  << " assert value " << assertValue << "\n";
++        return;
++    }
++
+     if (interface->set_property<bool, true>(property, assert))
+     {
+         try
+-- 
+2.17.1
+

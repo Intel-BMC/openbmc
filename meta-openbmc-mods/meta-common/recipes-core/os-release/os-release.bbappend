@@ -9,6 +9,8 @@ require version-vars.inc
 
 OS_RELEASE_FIELDS_append = " OPENBMC_VERSION IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
 
+OS_RELEASE_FIELDS_remove = "BUILD_ID"
+
 python do_compile_append () {
     import glob
     with open(d.expand('${B}/os-release'), 'a') as f:

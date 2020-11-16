@@ -90,6 +90,10 @@ SRC_URI += " \
         file://0117-Copy-raw-PECI-response-to-user-space-on-timeout.patch \
         file://0118-Recalculate-AW-FCS-on-WrEndPointConfig-command.patch \
         file://0119-Handle-pending-eSPI-HOST-OOB-RESET-VW-events.patch \
+        file://0123-peci-fix-error-handling-in-peci_dev_ioctl.patch \
+        file://1001-Igore-0x3FF-in-aspeed_adc-driver.patch \
+        file://0120-media-aspeed-adjust-irq-enabling-timing-and-resource.patch \
+        file://0121-Add-a-WA-to-defer-flash-writes-on-PS_ALERT_N-asserti.patch \
         "
 
 # CVE-2020-16166 vulnerability fix
