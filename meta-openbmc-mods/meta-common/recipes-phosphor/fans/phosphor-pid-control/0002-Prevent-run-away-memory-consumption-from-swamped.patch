@@ -1,0 +1,270 @@
+From 76b39bb8e638114fdc448334926fe82003fc9598 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Wed, 21 Oct 2020 11:02:50 -0700
+Subject: [PATCH] Prevent run away memory consumption from swamped
+
+These set of changes mitigates swampd memory leak.
+Root cause of memory leak has not been identified.
+Changes include:
+1. Do not rebuild pid control loop for voltage sensor changes
+2. Use default system dbus for helper function temp dbus connection
+3. Only rebuild pid control loop when reload timer is not active
+4. Explicit clear sensor map in static sensor manager struct before
+rebuildng pid control loop.
+5. Add abort flag in pid loop.
+6. Increase event handler timeout time from 2 seconds to 8 seconds.
+
+Tested:
+Build and run 1000 dc cycle, reset and stop/start psusensor service.
+Swampd memory comsumption was stable after some increase.
+Statm for swampd:
+iteration 1:    1922 1326 1098 101 0 238 0
+iteration 1000: 2056 1506 1139 101 0 372 0
+Maximum statm for swampd: 2126 1546 1139 101 0 442 0
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ dbus/dbusconfiguration.cpp | 36 ++++++++++++++++++++++++++++--------
+ dbus/dbuspassive.cpp       |  2 +-
+ dbus/dbuswrite.cpp         |  8 ++++----
+ main.cpp                   |  7 ++++++-
+ pid/pidloop.cpp            | 15 +++++++++++++++
+ pid/zone.hpp               |  2 ++
+ sensors/manager.hpp        |  6 ++++++
+ 7 files changed, 62 insertions(+), 14 deletions(-)
+
+diff --git a/dbus/dbusconfiguration.cpp b/dbus/dbusconfiguration.cpp
+index bfa2a7c..82e1da0 100644
+--- a/dbus/dbusconfiguration.cpp
++++ b/dbus/dbusconfiguration.cpp
+@@ -18,6 +18,7 @@
+ #include "util.hpp"
+ 
+ #include <algorithm>
++#include <boost/algorithm/string/predicate.hpp>
+ #include <boost/asio/steady_timer.hpp>
+ #include <chrono>
+ #include <functional>
+@@ -270,6 +271,11 @@ int eventHandler(sd_bus_message* m, void* context, sd_bus_error*)
+                 }
+             }
+         }
++
++        if (path.str.find("/xyz/openbmc_project/sensors/voltage") == 0)
++        {
++            return 1;
++        }
+     }
+ 
+     boost::asio::steady_timer* timer =
+@@ -277,16 +283,27 @@ int eventHandler(sd_bus_message* m, void* context, sd_bus_error*)
+ 
+     // do a brief sleep as we tend to get a bunch of these events at
+     // once
+-    timer->expires_after(std::chrono::seconds(2));
++    static int timercnt = 0;
++    ++timercnt;
++    timer->expires_after(std::chrono::seconds(8));
+     timer->async_wait([](const boost::system::error_code ec) {
+-        if (ec == boost::asio::error::operation_aborted)
++        --timercnt;
++        if (ec)
+         {
+-            /* another timer started*/
++            if (ec != boost::asio::error::operation_aborted)
++            {
++                // ec == boost::asio::error::operation_aborted means
++                // another timer started, which is normal
++                std::cerr << "Reload timer async handler error - timerCnt "
++                          << timercnt << "\n";
++            }
+             return;
+         }
+-
+-        std::cout << "New configuration detected, reloading\n.";
+-        tryRestartControlLoops();
++        if (timercnt <= 0)
++        {
++            std::cout << "New configuration detected, reloading\n.";
++            tryRestartControlLoops();
++        }
+     });
+ 
+     return 1;
+@@ -433,7 +450,6 @@ void populatePidInfo(
+ 
+ bool init(sdbusplus::bus::bus& bus, boost::asio::steady_timer& timer)
+ {
+-
+     sensorConfig.clear();
+     zoneConfig.clear();
+     zoneDetailsConfig.clear();
+@@ -486,6 +502,11 @@ bool init(sdbusplus::bus::bus& bus, boost::asio::steady_timer& timer)
+     {
+         for (const auto& ownerPair : objectPair.second)
+         {
++            if (boost::ends_with(ownerPair.first, "ADCSensor"))
++            {
++                continue;
++            }
++
+             auto& owner = owners[ownerPair.first];
+             for (const std::string& interface : ownerPair.second)
+             {
+@@ -629,7 +650,6 @@ bool init(sdbusplus::bus::bus& bus, boost::asio::steady_timer& timer)
+         auto findBase = configuration.second.find(pidConfigurationInterface);
+         if (findBase != configuration.second.end())
+         {
+-
+             const auto& base =
+                 configuration.second.at(pidConfigurationInterface);
+             const std::vector<std::string>& zones =
+diff --git a/dbus/dbuspassive.cpp b/dbus/dbuspassive.cpp
+index 02d1beb..4c6e405 100644
+--- a/dbus/dbuspassive.cpp
++++ b/dbus/dbuspassive.cpp
+@@ -41,7 +41,7 @@ std::unique_ptr<ReadInterface> DbusPassive::createDbusPassive(
+     }
+ 
+     /* Need to get the scale and initial value */
+-    auto tempBus = sdbusplus::bus::new_system();
++    auto tempBus = sdbusplus::bus::new_default_system();
+ 
+     /* service == busname */
+     std::string path = getSensorPath(type, id);
+diff --git a/dbus/dbuswrite.cpp b/dbus/dbuswrite.cpp
+index 76f4ada..583a065 100644
+--- a/dbus/dbuswrite.cpp
++++ b/dbus/dbuswrite.cpp
+@@ -31,7 +31,7 @@ std::unique_ptr<WriteInterface>
+     DbusWritePercent::createDbusWrite(const std::string& path, int64_t min,
+                                       int64_t max, DbusHelperInterface& helper)
+ {
+-    auto tempBus = sdbusplus::bus::new_system();
++    auto tempBus = sdbusplus::bus::new_default_system();
+     std::string connectionName;
+ 
+     try
+@@ -59,7 +59,7 @@ void DbusWritePercent::write(double value)
+     {
+         return;
+     }
+-    auto writeBus = sdbusplus::bus::new_default();
++    auto writeBus = sdbusplus::bus::new_default_system();
+     auto mesg =
+         writeBus.new_method_call(connectionName.c_str(), path.c_str(),
+                                  "org.freedesktop.DBus.Properties", "Set");
+@@ -85,7 +85,7 @@ std::unique_ptr<WriteInterface>
+     DbusWrite::createDbusWrite(const std::string& path, int64_t min,
+                                int64_t max, DbusHelperInterface& helper)
+ {
+-    auto tempBus = sdbusplus::bus::new_system();
++    auto tempBus = sdbusplus::bus::new_default_system();
+     std::string connectionName;
+ 
+     try
+@@ -106,7 +106,7 @@ void DbusWrite::write(double value)
+     {
+         return;
+     }
+-    auto writeBus = sdbusplus::bus::new_default();
++    auto writeBus = sdbusplus::bus::new_default_system();
+     auto mesg =
+         writeBus.new_method_call(connectionName.c_str(), path.c_str(),
+                                  "org.freedesktop.DBus.Properties", "Set");
+diff --git a/main.cpp b/main.cpp
+index 46cb38d..a07ca80 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -79,11 +79,15 @@ void restartControlLoops()
+     {
+         timer->cancel();
+     }
++    for (const auto zone : zones)
++    {
++        zone.second->abort = true;
++    }
+     timers.clear();
+     zones.clear();
++    mgmr.clearSensor();
+ 
+ #if CONFIGURE_DBUS
+-
+     static boost::asio::steady_timer reloadTimer(io);
+     if (!dbus_configuration::init(modeControlBus, reloadTimer))
+     {
+@@ -190,5 +194,6 @@ int main(int argc, char* argv[])
+     tryRestartControlLoops();
+ 
+     io.run();
++
+     return 0;
+ }
+diff --git a/pid/pidloop.cpp b/pid/pidloop.cpp
+index 14225ec..62bf323 100644
+--- a/pid/pidloop.cpp
++++ b/pid/pidloop.cpp
+@@ -22,6 +22,7 @@
+ 
+ #include <boost/asio/steady_timer.hpp>
+ #include <chrono>
++#include <iostream>
+ #include <map>
+ #include <memory>
+ #include <thread>
+@@ -60,8 +61,22 @@ void pidControlLoop(std::shared_ptr<PIDZone> zone,
+         [zone, timer, ms100cnt](const boost::system::error_code& ec) mutable {
+             if (ec == boost::asio::error::operation_aborted)
+             {
++                std::cerr << "pid loop timer cancelled " << zone << "\n";
+                 return; // timer being canceled, stop loop
+             }
++            if (ec)
++            {
++                std::cerr << "pid loop timer err " << zone << "\n";
++                return;
++            }
++
++            if (zone->abort)
++            {
++                // on our way to destruct and construct new zone and timer
++                // stop the loop
++                std::cerr << "pid loop abort zone " << zone << "\n";
++                return;
++            }
+ 
+             /*
+              * This should sleep on the conditional wait for the listen thread
+diff --git a/pid/zone.hpp b/pid/zone.hpp
+index 3cf4e59..899636c 100644
+--- a/pid/zone.hpp
++++ b/pid/zone.hpp
+@@ -97,6 +97,8 @@ class PIDZone : public ZoneInterface, public ModeObject
+     /* Method for reading whether in fail-safe mode over dbus */
+     bool failSafe() const override;
+ 
++    bool abort = false;
++
+   private:
+     std::ofstream _log;
+ 
+diff --git a/sensors/manager.hpp b/sensors/manager.hpp
+index 411b302..5c7e69a 100644
+--- a/sensors/manager.hpp
++++ b/sensors/manager.hpp
+@@ -51,6 +51,12 @@ class SensorManager
+         return *_hostSensorBus;
+     }
+ 
++    void clearSensor(void)
++    {
++        _sensorMap.clear();
++        _sensorTypeList.clear();
++    }
++
+   private:
+     std::map<std::string, std::unique_ptr<Sensor>> _sensorMap;
+     std::map<std::string, std::vector<std::string>> _sensorTypeList;
+-- 
+2.17.1
+

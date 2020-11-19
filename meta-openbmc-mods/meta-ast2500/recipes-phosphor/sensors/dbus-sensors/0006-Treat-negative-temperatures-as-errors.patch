@@ -1,0 +1,73 @@
+From 6f6b9cb68992e3493489d16b28bd0903e66ce587 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 6 Oct 2020 15:34:29 -0700
+Subject: [PATCH] Treat negative temperatures as errors
+
+During normal operations, temperature sensors are not expected to
+read as zero or have negative values.
+There might be some other root cause need to be identified
+and addressed. Treat zeros and negative readings as errors
+in temperatures as a workaround.
+
+Tested:
+Valid temperature reading are being reported.
+Negative readings are ignored.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/HwmonTempSensor.cpp | 13 +++++++++++--
+ src/IpmbSensor.cpp      |  7 ++++---
+ 2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index 649ca68..5514504 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -116,8 +116,17 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+         try
+         {
+             double nvalue = std::stod(response);
+-            nvalue /= sensorScaleFactor;
+-            updateValue(nvalue);
++            if (nvalue < 0)
++            {
++                std::cerr << "Hwmon temp sensor " << name
++                          << ": ignore negative rawValue " << nvalue << "\n";
++                incrementError();
++            }
++            else
++            {
++                nvalue /= sensorScaleFactor;
++                updateValue(nvalue);
++            }
+         }
+         catch (const std::invalid_argument&)
+         {
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index bc9d842..1855519 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -241,7 +241,6 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+                 return false;
+             }
+             resp = data[0];
+-
+             return true;
+         }
+         case (ReadingFormat::byte3):
+@@ -341,8 +340,10 @@ void IpmbSensor::read(void)
+                 }
+ 
+                 double value = 0;
+-
+-                if (!processReading(data, value))
++                // Temperature sensors are not expected to read 0
++                // treat them as errors
++                if (!processReading(data, value) ||
++                    (subType == IpmbSubType::temp && value == 0.0))
+                 {
+                     incrementError();
+                     read();
+-- 
+2.17.1
+

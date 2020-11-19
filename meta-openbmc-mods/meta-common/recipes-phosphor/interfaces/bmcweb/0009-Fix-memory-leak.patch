@@ -1,0 +1,124 @@
+From 8bb79ae9384e876b617663a7df4fc8a7a749219e Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Mon, 28 Sep 2020 15:52:59 -0700
+Subject: [PATCH 1/1] Fix memory leak
+
+Downstream only fix to resolve leak. This makes the
+socket lambda capture by weak_ptr so that it no longer
+has ownership.
+
+Tested: Used script that creates leak, no more leak
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ http/http_connection.h                | 10 ++++++++--
+ http/http_request.h                   |  2 +-
+ include/dump_offload.hpp              |  9 +++++++--
+ redfish-core/lib/event_service.hpp    | 10 +++++++---
+ redfish-core/lib/redfish_sessions.hpp | 12 +++++++-----
+ 5 files changed, 30 insertions(+), 13 deletions(-)
+
+diff --git a/http/http_connection.h b/http/http_connection.h
+index 8db8108..4093e95 100644
+--- a/http/http_connection.h
++++ b/http/http_connection.h
+@@ -531,8 +531,14 @@ class Connection :
+ 
+         if (!isInvalidRequest)
+         {
+-            req->socket = [this, self = shared_from_this()]() -> Adaptor& {
+-                return self->socket();
++            auto self = this->weak_from_this();
++            req->socket = [self]() -> Adaptor* {
++                auto shared = self.lock();
++                if (shared)
++                {
++                    return &(shared->socket());
++                }
++                return nullptr;
+             };
+ 
+             res.completeRequestHandler = [] {};
+diff --git a/http/http_request.h b/http/http_request.h
+index 95f88c7..3313582 100644
+--- a/http/http_request.h
++++ b/http/http_request.h
+@@ -36,7 +36,7 @@ struct Request
+     std::shared_ptr<crow::persistent_data::UserSession> session;
+ 
+     std::string userRole{};
+-    std::function<Adaptor&()> socket;
++    std::function<Adaptor*()> socket;
+     Request(
+         boost::beast::http::request<boost::beast::http::string_body>& reqIn) :
+         req(reqIn),
+diff --git a/include/dump_offload.hpp b/include/dump_offload.hpp
+index 1777dfe..a01fb32 100644
+--- a/include/dump_offload.hpp
++++ b/include/dump_offload.hpp
+@@ -290,8 +290,13 @@ inline void handleDumpOffloadUrl(const crow::Request& req, crow::Response& res,
+     boost::asio::io_context* io_con = req.ioService;
+ 
+     handler = std::make_shared<Handler>(media, *io_con, entryId);
+-    handler->stream =
+-        std::make_shared<crow::Request::Adaptor>(std::move(req.socket()));
++    handler->stream = nullptr;
++    auto socket = req.socket();
++    if (socket)
++    {
++        handler->stream =
++            std::make_shared<crow::Request::Adaptor>(std::move(*socket));
++    }
+     handler->connect();
+     handler->waitForMessageOnSocket();
+ }
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 351f689..40758e7 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -551,9 +551,13 @@ class EventServiceSSE : public Node
+                 }
+             }
+         }
+-
+-        std::shared_ptr<crow::Request::Adaptor> sseConn =
+-            std::make_shared<crow::Request::Adaptor>(std::move(req.socket()));
++        auto socket = req.socket();
++        std::shared_ptr<crow::Request::Adaptor> sseConn = nullptr;
++        if (socket)
++        {
++            sseConn =
++                std::make_shared<crow::Request::Adaptor>(std::move((*socket)));
++        }
+         std::shared_ptr<Subscription> subValue =
+             std::make_shared<Subscription>(sseConn);
+ 
+diff --git a/redfish-core/lib/redfish_sessions.hpp b/redfish-core/lib/redfish_sessions.hpp
+index 8080e6f..267f98a 100644
+--- a/redfish-core/lib/redfish_sessions.hpp
++++ b/redfish-core/lib/redfish_sessions.hpp
+@@ -227,14 +227,16 @@ class SessionCollection : public Node
+             }
+         }
+ #endif
+-
++        auto socket = req.socket();
++        if (socket)
++        {
+ #ifdef BMCWEB_ENABLE_SSL
+-        clientIp =
+-            req.socket().next_layer().remote_endpoint().address().to_string();
++            clientIp =
++                (*socket).next_layer().remote_endpoint().address().to_string();
+ #else
+-        clientIp = req.socket().remote_endpoint().address().to_string();
++            clientIp = (*socket).remote_endpoint().address().to_string();
+ #endif
+-
++        }
+         // User is authenticated - create session
+         std::shared_ptr<crow::persistent_data::UserSession> session =
+             crow::persistent_data::SessionStore::getInstance()
+-- 
+2.17.1
+

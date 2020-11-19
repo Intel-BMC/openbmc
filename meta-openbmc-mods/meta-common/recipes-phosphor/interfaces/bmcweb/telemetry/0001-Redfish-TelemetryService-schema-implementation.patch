@@ -1,4 +1,4 @@
-From 7820421433349df28bd393e8d610d1848af0f1c8 Mon Sep 17 00:00:00 2001
+From 505ae9c2e6af470cdddcac9bac0de98afe0cfe58 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 27 Apr 2020 17:24:15 +0200
 Subject: [PATCH 1/5] Redfish TelemetryService schema implementation
@@ -30,11 +30,11 @@ Change-Id: Ie6b0b49f4ef5eeaef07d1209b6c349270c04d570
  redfish-core/include/utils/json_utils.hpp      | 101 +++++++++++++
  redfish-core/include/utils/telemetry_utils.hpp | 100 +++++++++++++
  redfish-core/include/utils/time_utils.hpp      |  97 +++++++++++++
- redfish-core/lib/metric_report.hpp             | 149 +++++++++++++++++++
+ redfish-core/lib/metric_report.hpp             | 164 +++++++++++++++++++++
  redfish-core/lib/metric_report_definition.hpp  | 193 +++++++++++++++++++++++++
  redfish-core/lib/service_root.hpp              |   2 +
  redfish-core/lib/telemetry_service.hpp         |  92 ++++++++++++
- 9 files changed, 765 insertions(+)
+ 9 files changed, 780 insertions(+)
  create mode 100644 redfish-core/include/utils/telemetry_utils.hpp
  create mode 100644 redfish-core/include/utils/time_utils.hpp
  create mode 100644 redfish-core/lib/metric_report.hpp
@@ -73,7 +73,7 @@ index e1360f7..3df88d8 100644
  } // namespace utility
  } // namespace dbus
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index cc98e1a..3d4c117 100644
+index 2e568da..898f548 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -25,6 +25,8 @@
@@ -93,7 +93,7 @@ index cc98e1a..3d4c117 100644
  #include "../lib/thermal.hpp"
  #include "../lib/update_service.hpp"
  #ifdef BMCWEB_ENABLE_VM_NBDPROXY
-@@ -202,6 +205,13 @@ class RedfishService
+@@ -209,6 +212,13 @@ class RedfishService
          nodes.emplace_back(std::make_unique<HypervisorInterface>(app));
          nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
  
@@ -445,10 +445,10 @@ index 0000000..0256b3f
 +} // namespace redfish
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
 new file mode 100644
-index 0000000..a52d680
+index 0000000..d2f9dd5
 --- /dev/null
 +++ b/redfish-core/lib/metric_report.hpp
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,164 @@
 +/*
 +// Copyright (c) 2018-2020 Intel Corporation
 +//
@@ -541,6 +541,7 @@ index 0000000..a52d680
 +
 +    using Readings =
 +        std::vector<std::tuple<std::string, std::string, double, int32_t>>;
++    using TimestampAndReadings = std::tuple<int32_t, Readings>;
 +    using MetricValues = std::vector<std::map<std::string, std::string>>;
 +
 +    static MetricValues toMetricValues(const Readings& readings)
@@ -575,7 +576,7 @@ index 0000000..a52d680
 +            [asyncResp](
 +                const boost::system::error_code ec,
 +                const boost::container::flat_map<
-+                    std::string, std::variant<Readings, int32_t>>& ret) {
++                    std::string, std::variant<TimestampAndReadings>>& ret) {
 +                if (ec)
 +                {
 +                    messages::internalError(asyncResp->res);
@@ -583,12 +584,26 @@ index 0000000..a52d680
 +                    return;
 +                }
 +
-+                json_util::assignIfPresent<int32_t>(
-+                    ret, "Timestamp", asyncResp->res.jsonValue["Timestamp"],
-+                    crow::utility::getDateTime);
-+                json_util::assignIfPresent<Readings>(
-+                    ret, "Readings", asyncResp->res.jsonValue["MetricValues"],
-+                    toMetricValues);
++                auto found = ret.find("Readings");
++                if (found == ret.end())
++                {
++                    messages::internalError(asyncResp->res);
++                    BMCWEB_LOG_ERROR << "Missing Readings property";
++                    return;
++                }
++
++                const TimestampAndReadings* timestampAndReadingsPtr =
++                    std::get_if<TimestampAndReadings>(&found->second);
++                if (!timestampAndReadingsPtr)
++                {
++                    messages::internalError(asyncResp->res);
++                    return;
++                }
++                const auto& [timestamp, readings] = *timestampAndReadingsPtr;
++                asyncResp->res.jsonValue["Timestamp"] =
++                    crow::utility::getDateTime(timestamp);
++                asyncResp->res.jsonValue["MetricValues"] =
++                    toMetricValues(readings);
 +            },
 +            "xyz.openbmc_project.MonitoringService", reportPath,
 +            "xyz.openbmc_project.MonitoringService.Report");

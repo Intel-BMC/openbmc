@@ -1,0 +1,42 @@
+From ab6152177b105625512c524f5c862acde260d72a Mon Sep 17 00:00:00 2001
+From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
+Date: Mon, 19 Oct 2020 13:07:45 +0200
+Subject: [PATCH] Avoid using deleted Connection in Response
+
+Connection is destroyed when completeRequestHandler is nulled. It
+causes that memory is freed. When Response::end() is called and
+connection is not alive, completeRequest() method removes last
+shared_ptr reference by setting nullptr on completeRequestHandler
+member of Response. In this moment code is executed on destroyed
+object and can cause stack overflow.
+Fixed it by moving a call to completeRequest method to Asio
+executor in completeRequestHandler.
+
+Tested:
+ - Ran stress test that send a lot of GET and POST requests
+   without a bmcweb service crash
+
+Change-Id: Idcf6a06dac32e9eac08285b9b53a5e8afe36c955
+Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+---
+ http/http_connection.h | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/http/http_connection.h b/http/http_connection.h
+index 4093e95..59a134f 100644
+--- a/http/http_connection.h
++++ b/http/http_connection.h
+@@ -557,7 +557,9 @@ class Connection :
+             {
+                 needToCallAfterHandlers = true;
+                 res.completeRequestHandler = [self(shared_from_this())] {
+-                    self->completeRequest();
++                    boost::asio::post(self->adaptor.get_executor(), [self] {
++                            self->completeRequest();
++                        });
+                 };
+                 if (req->isUpgrade() &&
+                     boost::iequals(
+-- 
+2.16.6
+

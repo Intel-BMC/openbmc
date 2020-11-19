@@ -28,7 +28,6 @@ SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
             file://0012-System-Replace-chassis-name-in-Redfish.patch \
             file://0013-url_view-throws-if-a-parse-error-is-found.patch \
             file://0014-add-sufficient-delay-to-create-fw-update-object.patch \
-            file://0009-Workaround-Fix-memory-leak.patch \
             file://0015-Add-firmware-activation-messages-to-the-registry.patch \
             file://0016-EventService-Fix-type-mismatch-in-MetricReport.patch \
             file://0017-Add-MutualExclusiveProperties-registry.patch \
@@ -41,6 +40,14 @@ SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
             file://0024-EventService-Log-events-for-subscription-actions.patch \
             file://0025-Add-missing-Context-property-to-MetricReport.patch \
             file://0026-http-status-code-for-subscriber-limit-exceed.patch \
+            file://0009-Fix-memory-leak.patch \
+            file://0027-EventService-Improvements-and-limitations.patch \
+            file://0028-EventService-Schedule-MetricReport-data-format.patch \
+            file://0029-Added-Validation-on-MessageId-and-RegistryPrefix.patch \
+            file://0030-Initialize-Event-Service-Config-on-bmcweb-restart.patch \
+            file://0031-get-on-crashdump-can-follow-redfish-privileges.patch \
+            file://0034-Avoid-using-deleted-Connection-in-Response.patch \
+            file://0035-EventService-Fix-hostname-resolve-issue.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details

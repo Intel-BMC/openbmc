@@ -1,0 +1,58 @@
+From 4b586eba14826f19daf84c17bd6b8170ce7d6337 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 2 Oct 2020 16:18:04 +0530
+Subject: [PATCH] EventService: Schedule MetricReport data format
+
+Stress test with telemetric report data, bmcweb
+slows down in responding to redfish requests.
+Scheduling the MtericReport data filtering and
+MetricReport formmating to place back of queue.
+
+Tested:
+ - Improved redfish request data procesing
+
+Change-Id: I3664bbaa3ee2d749310205b574f5d969574cf29a
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/include/event_service_manager.hpp | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index b503e2f..b6b8b5a 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -1323,16 +1323,21 @@ class EventServiceManager
+             return;
+         }
+ 
+-        for (const auto& it :
+-             EventServiceManager::getInstance().subscriptionsMap)
+-        {
+-            std::shared_ptr<Subscription> entry = it.second;
+-            if (entry->eventFormatType == metricReportFormatType)
+-            {
+-                entry->filterAndSendReports(
+-                    idStr, crow::utility::getDateTime(reportTs), readings);
+-            }
+-        }
++        boost::asio::post(
++            crow::connections::systemBus->get_io_context(),
++            [this, idStr, reportTs, readings] {
++                for (const auto& it :
++                     EventServiceManager::getInstance().subscriptionsMap)
++                {
++                    std::shared_ptr<Subscription> entry = it.second;
++                    if (entry->eventFormatType == metricReportFormatType)
++                    {
++                        entry->filterAndSendReports(
++                            idStr, crow::utility::getDateTime(reportTs),
++                            readings);
++                    }
++                }
++            });
+     }
+ 
+     void unregisterMetricReportSignal()
+-- 
+2.7.4
+

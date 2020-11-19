@@ -1,0 +1,36 @@
+From 20f61051cc1dc68b5be2419a4ec0fdbfedf3466e Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Wed, 7 Oct 2020 01:45:28 +0530
+Subject: [PATCH] Initialize Event Service Config on bmcweb restart
+
+Added instantiation of EventServiceManager Object in the
+EventService constructor to initialize Event Service Config
+and register the subscriptions from the config.
+
+Tested:
+ - Subscribed Events were successfully received on restart
+   of bmcweb Service as well as on reboot of bmc
+
+Change-Id: Ie2d446b49e172a057ba53e3d3692c40010fb88ff
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ redfish-core/lib/event_service.hpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 095b76d..7a29af5 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -42,6 +42,9 @@ class EventService : public Node
+             {boost::beast::http::verb::put, {{"ConfigureManager"}}},
+             {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
+             {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++
++        // Create EventServiceManager instance and initialize Config
++        EventServiceManager::getInstance();
+     }
+ 
+   private:
+-- 
+2.17.1
+

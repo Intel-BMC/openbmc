@@ -1,0 +1,61 @@
+From ed3e946c02c89c389c0e28360692e51971734728 Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Thu, 24 Sep 2020 15:31:03 -0700
+Subject: [PATCH 1/1] Fix PSU PWM fan control
+
+105a19754f003956def5934612b1de86225a4bc1 broke the control
+interface range as the interface is supposed to accept 0-255
+fix it.
+
+Tested:
+PSU PID control worked again
+
+Change-Id: I89c03c3382b221256353cc28b1f182c80a063249
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+---
+ src/PwmSensor.cpp | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/PwmSensor.cpp b/src/PwmSensor.cpp
+index 0c5d439..4824489 100644
+--- a/src/PwmSensor.cpp
++++ b/src/PwmSensor.cpp
+@@ -27,6 +27,7 @@
+ static constexpr size_t sysPwmMax = 255;
+ static constexpr size_t psuPwmMax = 100;
+ static constexpr double defaultPwm = 30.0;
++static constexpr size_t targetIfaceMax = 255;
+ 
+ PwmSensor::PwmSensor(const std::string& name, const std::string& sysPath,
+                      std::shared_ptr<sdbusplus::asio::connection>& conn,
+@@ -99,7 +100,7 @@ PwmSensor::PwmSensor(const std::string& name, const std::string& sysPath,
+     controlInterface->register_property(
+         "Target", static_cast<uint64_t>(pwmValue),
+         [this](const uint64_t& req, uint64_t& resp) {
+-            if (req > pwmMax)
++            if (req > targetIfaceMax)
+             {
+                 throw std::runtime_error("Value out of range");
+                 return -1;
+@@ -108,7 +109,8 @@ PwmSensor::PwmSensor(const std::string& name, const std::string& sysPath,
+             {
+                 return 1;
+             }
+-            setValue(req);
++            setValue(
++                std::round(pwmMax * static_cast<double>(req) / targetIfaceMax));
+             resp = req;
+ 
+             sensorInterface->signal_property("Value");
+@@ -117,6 +119,8 @@ PwmSensor::PwmSensor(const std::string& name, const std::string& sysPath,
+         },
+         [this](uint64_t& curVal) {
+             uint64_t value = getValue();
++            value = static_cast<uint64_t>(std::round(
++                (static_cast<double>(value) / pwmMax) * targetIfaceMax));
+             if (curVal != value)
+             {
+                 curVal = value;
+-- 
+2.17.1
+

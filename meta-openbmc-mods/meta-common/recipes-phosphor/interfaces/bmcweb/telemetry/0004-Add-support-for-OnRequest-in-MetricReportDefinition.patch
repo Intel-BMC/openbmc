@@ -1,4 +1,4 @@
-From 9fc7d722b3192df9940062185b40ebb0fabad518 Mon Sep 17 00:00:00 2001
+From 1ccc028dc20ab1e585de225b8c50a7492499008c Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Date: Mon, 8 Jun 2020 15:16:10 +0200
 Subject: [PATCH 4/5] Add support for "OnRequest" in MetricReportDefinition
@@ -94,7 +94,7 @@ index 05ed00f..6c4e810 100644
              {
                  messages::resourceNotFound(asyncResp->res, schemaType, id);
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
-index a52d680..877e7f1 100644
+index d2f9dd5..f8230a5 100644
 --- a/redfish-core/lib/metric_report.hpp
 +++ b/redfish-core/lib/metric_report.hpp
 @@ -85,7 +85,7 @@ class MetricReport : public Node
@@ -106,7 +106,7 @@ index a52d680..877e7f1 100644
      }
  
      using Readings =
-@@ -143,6 +143,57 @@ class MetricReport : public Node
+@@ -158,6 +158,57 @@ class MetricReport : public Node
              "xyz.openbmc_project.MonitoringService.Report");
      }
  

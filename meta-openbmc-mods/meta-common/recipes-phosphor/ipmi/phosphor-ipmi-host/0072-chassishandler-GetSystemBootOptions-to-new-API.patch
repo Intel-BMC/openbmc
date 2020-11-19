@@ -35,12 +35,12 @@ Boot parameter data: 8008000000
 Signed-off-by: srikanta mondal <srikantax.mondal@intel.com>
 Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 ---
- chassishandler.cpp | 231 +++++++++++++++++++++++----------------------
+ chassishandler.cpp | 232 +++++++++++++++++++++++----------------------
  chassishandler.hpp |   7 --
- 2 files changed, 119 insertions(+), 119 deletions(-)
+ 2 files changed, 120 insertions(+), 119 deletions(-)
 
 diff --git a/chassishandler.cpp b/chassishandler.cpp
-index ca7cd2c..bbb3f81 100644
+index 4cce657..5f0cba3 100644
 --- a/chassishandler.cpp
 +++ b/chassishandler.cpp
 @@ -44,9 +44,6 @@ static constexpr uint8_t setParmBootFlagsPermanent = 0x40;
@@ -192,7 +192,7 @@ index ca7cd2c..bbb3f81 100644
      }
  #endif
  
-@@ -1561,44 +1567,52 @@ static ipmi::Cc setBootMode(const Mode::Modes& mode)
+@@ -1561,44 +1567,53 @@ static ipmi::Cc setBootMode(const Mode::Modes& mode)
  static constexpr uint8_t setComplete = 0x0;
  static constexpr uint8_t setInProgress = 0x1;
  static uint8_t transferStatus = setComplete;
@@ -249,7 +249,8 @@ index ca7cd2c..bbb3f81 100644
 -        resp->parm = static_cast<uint8_t>(BootOptionParameter::setInProgress);
 -        resp->data[0] = transferStatus;
 -        return IPMI_CC_OK;
-+        return ipmi::response(transferStatus);
++        response.pack(bootOptionParameter, reserved1, transferStatus);
++        return ipmi::responseSuccess(std::move(response));
      }
  
 -    std::memset(resp, 0, sizeof(*resp));
@@ -269,7 +270,7 @@ index ca7cd2c..bbb3f81 100644
          using namespace chassis::internal;
          using namespace chassis::internal::cache;
  
-@@ -1619,8 +1633,7 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -1619,8 +1634,7 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
              {
                  log<level::ERR>("Error in BootSource Get");
                  report<InternalFailure>();
@@ -279,7 +280,7 @@ index ca7cd2c..bbb3f81 100644
              }
              std::variant<std::string> result;
              reply.read(result);
-@@ -1638,8 +1651,7 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -1638,8 +1652,7 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
              {
                  log<level::ERR>("Error in BootMode Get");
                  report<InternalFailure>();
@@ -289,7 +290,7 @@ index ca7cd2c..bbb3f81 100644
              }
              reply.read(result);
              auto bootMode =
-@@ -1655,59 +1667,54 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -1655,59 +1668,54 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
              {
                  bootOption = modeDbusToIpmi.at(bootMode);
              }
@@ -384,7 +385,7 @@ index ca7cd2c..bbb3f81 100644
  }
  
  ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
-@@ -1820,7 +1827,6 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
+@@ -1820,7 +1828,6 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
              if (sourceIpmiToDbus.end() != sourceItr)
              {
                  rc = setBootSource(sourceItr->second);
@@ -392,7 +393,7 @@ index ca7cd2c..bbb3f81 100644
                  if (rc != ipmi::ccSuccess)
                  {
                      log<level::ERR>("ipmiChassisSetSysBootOptions: Error in "
-@@ -2067,9 +2073,10 @@ void register_netfn_chassis_functions()
+@@ -2067,9 +2074,10 @@ void register_netfn_chassis_functions()
                            ipmi::Privilege::User, ipmiSetChassisCap);
  
      // <Get System Boot Options>

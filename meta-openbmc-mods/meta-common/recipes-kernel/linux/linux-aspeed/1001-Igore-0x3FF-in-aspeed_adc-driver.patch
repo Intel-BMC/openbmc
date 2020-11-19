@@ -1,0 +1,75 @@
+From d1fb9431676f37ddf2a8673f84368793e5a88ab0 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Mon, 14 Sep 2020 12:02:03 -0700
+Subject: [PATCH] Igore 0x3FF in aspeed_adc driver
+
+ADC are 10 bits, 0x3FF means voltage exceeded reference voltage
+Several ADC voltages reported rare transient events corresponding
+to this value. Aspeed was consulted and did not identify possible
+root causes. As a work around, igore these valuse and return
+previous readings. If there were real issues, a slightly different
+reading like 0x3FE will still be returned and resulted in a sensor
+event.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ drivers/iio/adc/aspeed_adc.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/drivers/iio/adc/aspeed_adc.c b/drivers/iio/adc/aspeed_adc.c
+index 1dd5a97a16bc..c115797c4cc5 100644
+--- a/drivers/iio/adc/aspeed_adc.c
++++ b/drivers/iio/adc/aspeed_adc.c
+@@ -53,6 +53,9 @@
+ #define ASPEED_ADC_INIT_POLLING_TIME	500
+ #define ASPEED_ADC_INIT_TIMEOUT		500000
+ 
++#define ASPEED_ADC_CHANNELS_MAX	16
++#define ASPEED_ADC_RAW_VALUE_MAX	0x3ff
++
+ struct aspeed_adc_model_data {
+ 	const char *model_name;
+ 	unsigned int min_sampling_rate;	// Hz
+@@ -71,6 +74,7 @@ struct aspeed_adc_data {
+ 	struct clk_hw		*clk_scaler;
+ 	struct reset_control	*rst;
+ 	int 				cv;
++	int channel_raw_value[ASPEED_ADC_CHANNELS_MAX];
+ };
+ 
+ #define ASPEED_CHAN(_idx, _data_reg_addr) {			\
+@@ -124,6 +128,13 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
+ 	switch (mask) {
+ 	case IIO_CHAN_INFO_RAW:
+ 		*val = readw(data->base + chan->address);
++		if (*val == ASPEED_ADC_RAW_VALUE_MAX) {
++			*val = data->channel_raw_value[chan->channel];
++			pr_err("aspeed_adc: channel %d drop invalid raw reading 0x3FF %d\n",
++				chan->channel, ASPEED_ADC_RAW_VALUE_MAX);
++		} else {
++			data->channel_raw_value[chan->channel] = *val;
++		}
+ 		return IIO_VAL_INT;
+ 
+ 	case IIO_CHAN_INFO_SCALE:
+@@ -206,6 +217,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
+ 	int ret;
+ 	u32 eng_ctrl = 0;
+ 	u32 adc_engine_control_reg_val;
++	int i;
+ 
+ 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*data));
+ 	if (!indio_dev)
+@@ -298,6 +310,9 @@ static int aspeed_adc_probe(struct platform_device *pdev)
+ 
+ 	data->cv = 0x200 - (readl(data->base + 0x10) & GENMASK(9, 0));
+ 
++	for (i = 0; i < ASPEED_ADC_CHANNELS_MAX; i++)
++		data->channel_raw_value[i] = ASPEED_ADC_RAW_VALUE_MAX;
++
+ 	writel(eng_ctrl | ASPEED_OPERATION_MODE_NORMAL |
+ 			ASPEED_ENGINE_ENABLE | ASPEED_AUTOPENSATING, data->base + ASPEED_REG_ENGINE_CONTROL);
+ 	printk(KERN_INFO "aspeed_adc: cv %d \n", data->cv);
+-- 
+2.17.1
+

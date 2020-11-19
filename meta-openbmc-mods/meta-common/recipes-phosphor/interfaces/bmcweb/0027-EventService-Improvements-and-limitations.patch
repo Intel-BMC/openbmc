@@ -1,0 +1,265 @@
+From 1a848063c3a90dd0910a33e8d5d01ef6fd48fdd6 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 2 Oct 2020 02:03:08 +0530
+Subject: [PATCH] EventService: Improvements and limitations
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Below improvements are made for MetricReport event
+format Types:
+ - To reduce load on D-Bus, removed “GetAll” D-Bus
+   method call. Use “PropertiesChanged” Signal
+   instead of “ReportUpdated” signal
+ - Optimize the getDateTime function call
+ - Set the sublimit of 2 for MetricReport subscriptions.
+ - Read ReportTimestamp from signal & fromat it.
+
+Tested:
+ - Stressed EventService along with Telemetry reports and
+   it works fine.
+ - Tried adding more than two MetricReport subscriptions
+   and it returns error as expected.
+ - Report timestamp works.
+
+Change-Id: I58773ea4e25eb0c792c2c43b7450ef52f01996fa
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ http/utility.h                                 |  14 ++-
+ redfish-core/include/event_service_manager.hpp | 116 +++++++++++++------------
+ redfish-core/lib/event_service.hpp             |  17 ++++
+ 3 files changed, 83 insertions(+), 64 deletions(-)
+
+diff --git a/http/utility.h b/http/utility.h
+index 8254091..666c13e 100644
+--- a/http/utility.h
++++ b/http/utility.h
+@@ -775,18 +775,16 @@ inline void convertToLinks(std::string& s)
+  */
+ inline std::string getDateTime(const std::time_t& time)
+ {
+-    std::array<char, 128> dateTime;
+-    std::string redfishDateTime("0000-00-00T00:00:00Z00:00");
++    std::array<char, sizeof("0000-00-00T00:00:00+00:00\0")> dateTime;
+ 
+-    if (std::strftime(dateTime.begin(), dateTime.size(), "%FT%T%z",
+-                      std::localtime(&time)))
++    size_t sz = std::strftime(dateTime.begin(), dateTime.size(), "%FT%T+00:00",
++                              std::gmtime(&time));
++    if (sz == 0 || sz > dateTime.size())
+     {
+-        // insert the colon required by the ISO 8601 standard
+-        redfishDateTime = std::string(dateTime.data());
+-        redfishDateTime.insert(redfishDateTime.end() - 2, ':');
++        return "";
+     }
+ 
+-    return redfishDateTime;
++    return std::string(dateTime.data(), sz);
+ }
+ 
+ inline std::string dateTimeNow()
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 8397159..b503e2f 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -40,6 +40,7 @@ namespace redfish
+ 
+ using ReadingsObjType =
+     std::vector<std::tuple<std::string, std::string, double, int32_t>>;
++using ReadingsAndTimestamp = std::tuple<int32_t, ReadingsObjType>;
+ using EventServiceConfig = std::tuple<bool, uint32_t, uint32_t>;
+ 
+ static constexpr const char* eventFormatType = "Event";
+@@ -1026,6 +1027,11 @@ class EventServiceManager
+         return count;
+     }
+ 
++    size_t getMetricReportSubscriptionsCount()
++    {
++        return noOfMetricReportSubscribers;
++    }
++
+     std::vector<std::string> getAllIDs()
+     {
+         std::vector<std::string> idList;
+@@ -1294,8 +1300,8 @@ class EventServiceManager
+ 
+ #endif
+ 
+-    void getMetricReading(const std::string& service,
+-                          const std::string& objPath, const std::string& intf)
++    void getMetricReading(const std::string& objPath, const int32_t& reportTs,
++                          const ReadingsObjType& readings)
+     {
+         std::size_t found = objPath.find_last_of("/");
+         if (found == std::string::npos)
+@@ -1311,55 +1317,22 @@ class EventServiceManager
+             return;
+         }
+ 
+-        crow::connections::systemBus->async_method_call(
+-            [idStr{std::move(idStr)}](
+-                const boost::system::error_code ec,
+-                boost::container::flat_map<
+-                    std::string, std::variant<int32_t, ReadingsObjType>>&
+-                    resp) {
+-                if (ec)
+-                {
+-                    BMCWEB_LOG_DEBUG
+-                        << "D-Bus call failed to GetAll metric readings.";
+-                    return;
+-                }
+-
+-                const int32_t* timestampPtr =
+-                    std::get_if<int32_t>(&resp["Timestamp"]);
+-                if (!timestampPtr)
+-                {
+-                    BMCWEB_LOG_DEBUG << "Failed to Get timestamp.";
+-                    return;
+-                }
+-
+-                ReadingsObjType* readingsPtr =
+-                    std::get_if<ReadingsObjType>(&resp["Readings"]);
+-                if (!readingsPtr)
+-                {
+-                    BMCWEB_LOG_DEBUG << "Failed to Get Readings property.";
+-                    return;
+-                }
+-
+-                if (!readingsPtr->size())
+-                {
+-                    BMCWEB_LOG_DEBUG << "No metrics report to be transferred";
+-                    return;
+-                }
++        if (!readings.size())
++        {
++            BMCWEB_LOG_DEBUG << "No metrics in report to be transferred";
++            return;
++        }
+ 
+-                for (const auto& it :
+-                     EventServiceManager::getInstance().subscriptionsMap)
+-                {
+-                    std::shared_ptr<Subscription> entry = it.second;
+-                    if (entry->eventFormatType == metricReportFormatType)
+-                    {
+-                        entry->filterAndSendReports(
+-                            idStr, crow::utility::getDateTime(*timestampPtr),
+-                            *readingsPtr);
+-                    }
+-                }
+-            },
+-            service, objPath, "org.freedesktop.DBus.Properties", "GetAll",
+-            intf);
++        for (const auto& it :
++             EventServiceManager::getInstance().subscriptionsMap)
++        {
++            std::shared_ptr<Subscription> entry = it.second;
++            if (entry->eventFormatType == metricReportFormatType)
++            {
++                entry->filterAndSendReports(
++                    idStr, crow::utility::getDateTime(reportTs), readings);
++            }
++        }
+     }
+ 
+     void unregisterMetricReportSignal()
+@@ -1382,22 +1355,53 @@ class EventServiceManager
+ 
+         BMCWEB_LOG_DEBUG << "Metrics report signal - Register";
+         std::string matchStr(
+-            "type='signal',member='ReportUpdate', "
+-            "interface='xyz.openbmc_project.MonitoringService.Report'");
++            "type='signal',member='PropertiesChanged',"
++            "sender='xyz.openbmc_project.MonitoringService',"
++            "interface='org.freedesktop.DBus.Properties',"
++            "path_namespace='/xyz/openbmc_project/MonitoringService/Reports/"
++            "TelemetryService',"
++            "arg0='xyz.openbmc_project.MonitoringService.Report'");
+ 
+         matchTelemetryMonitor = std::make_shared<sdbusplus::bus::match::match>(
+             *crow::connections::systemBus, matchStr,
+             [this](sdbusplus::message::message& msg) {
+                 if (msg.is_method_error())
+                 {
+-                    BMCWEB_LOG_ERROR << "TelemetryMonitor Signal error";
++                    BMCWEB_LOG_ERROR << "Received error in monitor signal";
+                     return;
+                 }
+ 
+-                std::string service = msg.get_sender();
+                 std::string objPath = msg.get_path();
+-                std::string intf = msg.get_interface();
+-                getMetricReading(service, objPath, intf);
++                std::string intf;
++                std::vector<
++                    std::pair<std::string, std::variant<ReadingsAndTimestamp>>>
++                    msgData;
++                msg.read(intf, msgData);
++
++                if (intf != "xyz.openbmc_project.MonitoringService.Report")
++                {
++                    BMCWEB_LOG_ERROR
++                        << "Received property from wrong interface";
++                    return;
++                }
++
++                const ReadingsAndTimestamp* dataPtr = nullptr;
++                for (const auto& [key, var] : msgData)
++                {
++                    if (key == "Readings")
++                    {
++                        dataPtr = std::get_if<ReadingsAndTimestamp>(&var);
++                        break;
++                    }
++                }
++                if (!dataPtr)
++                {
++                    BMCWEB_LOG_ERROR << "Failed to get readings from signal";
++                    return;
++                }
++
++                const auto& [timestamp, readings] = *dataPtr;
++                getMetricReading(objPath, timestamp, readings);
+             });
+     }
+ 
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 40758e7..c3addca 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -28,6 +28,7 @@ static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
+ 
+ static constexpr const uint8_t maxNoOfSubscriptions = 20;
+ static constexpr const uint8_t maxNoOfSSESubscriptions = 10;
++static constexpr const uint8_t maxNoOfMetricReportSubscriptions = 2;
+ 
+ class EventService : public Node
+ {
+@@ -253,6 +254,22 @@ class EventDestinationCollection : public Node
+             }
+         }
+ 
++        if (eventFormatType)
++        {
++            if (*eventFormatType == metricReportFormatType)
++            {
++                if (EventServiceManager::getInstance()
++                        .getMetricReportSubscriptionsCount() >=
++                    maxNoOfMetricReportSubscriptions)
++                {
++                    BMCWEB_LOG_ERROR
++                        << "Max metric report subscription limit reached";
++                    messages::eventSubscriptionLimitExceeded(asyncResp->res);
++                    return;
++                }
++            }
++        }
++
+         // Validate the URL using regex expression
+         // Format: <protocol>://<host>:<port>/<uri>
+         // protocol: http/https
+-- 
+2.7.4
+

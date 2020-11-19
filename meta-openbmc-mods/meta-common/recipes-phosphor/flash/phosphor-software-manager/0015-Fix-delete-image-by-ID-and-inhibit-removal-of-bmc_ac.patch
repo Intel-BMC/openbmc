@@ -1,0 +1,153 @@
+From f2dd5e13a0774d8683542798dd96979f9d7a6691 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Tue, 29 Sep 2020 13:38:35 -0700
+Subject: [PATCH] Fix delete image by ID and inhibit removal of bmc_active
+
+Delete image by ID was broken because when hitting the delete dbus
+interface, it recalculated the ID from the parent version, which then
+does not match because of the random number addition that was added to
+the ID when the parent interface was created. This saves away the parent
+interface ID and recalls it rather than recalculating it.
+
+Also, there was a logic error in deleting images that would delete the
+active BMC image. This fixes up that error.
+
+Tested: run multiple back-to back updates and see that when the fwupd
+        script calls delete on the seamless images, the interfaces are
+        deleted and that the bmc_active interface is not deleted.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
+---
+ item_updater.cpp      | 17 +++++++++++------
+ pfr_image_manager.cpp |  2 +-
+ version.cpp           |  2 +-
+ version.hpp           | 19 +++++++++++++++----
+ 4 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/item_updater.cpp b/item_updater.cpp
+index db255d6..90970d3 100644
+--- a/item_updater.cpp
++++ b/item_updater.cpp
+@@ -133,7 +133,7 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
+                                          activationState, associations)));
+ 
+         auto versionPtr = std::make_unique<VersionClass>(
+-            bus, path, version, purpose, filePath,
++            bus, path, versionId, version, purpose, filePath,
+             std::bind(&ItemUpdater::erase, this, std::placeholders::_1));
+         versionPtr->deleteObject =
+             std::make_unique<phosphor::software::manager::Delete>(bus, path,
+@@ -247,7 +247,7 @@ void ItemUpdater::processBMCImage()
+ 
+             // Create Version instance for this version.
+             auto versionPtr = std::make_unique<VersionClass>(
+-                bus, path, version, purpose, "",
++                bus, path, id, version, purpose, "",
+                 std::bind(&ItemUpdater::erase, this, std::placeholders::_1));
+             auto isVersionFunctional = versionPtr->isFunctional();
+             if (!isVersionFunctional)
+@@ -322,11 +322,11 @@ void ItemUpdater::erase(std::string entryId)
+     auto it = versions.find(entryId);
+     if (it != versions.end())
+     {
+-        if (it->second->isFunctional() && ACTIVE_BMC_MAX_ALLOWED > 1)
++        if (it->second->isFunctional())
+         {
+-            log<level::ERR>("Error: Version is currently running on the BMC. "
+-                            "Unable to remove.",
+-                            entry("VERSIONID=%s", entryId.c_str()));
++            log<level::INFO>("Error: Version is currently running on the BMC. "
++                             "Unable to remove.",
++                             entry("VERSIONID=%s", entryId.c_str()));
+             return;
+         }
+     }
+@@ -669,6 +669,11 @@ void ItemUpdater::freeSpace(Activation& caller)
+     std::size_t count = 0;
+     for (const auto& iter : activations)
+     {
++        if (versions.find(iter.second->versionId)->second->isFunctional())
++        {
++            // don't bother with function versions
++            continue;
++        }
+         if ((iter.second.get()->activation() ==
+              server::Activation::Activations::Active) ||
+             (iter.second.get()->activation() ==
+diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
+index 145237e..0c6c3d8 100644
+--- a/pfr_image_manager.cpp
++++ b/pfr_image_manager.cpp
+@@ -308,7 +308,7 @@ int Manager::processImage(const std::string& imgFilePath)
+     std::string objPath = std::string{SOFTWARE_OBJPATH} + '/' + id;
+ 
+     auto versionPtr = std::make_unique<Version>(
+-        bus, objPath, ver, purpose, imageDirPath.string(),
++        bus, objPath, id, ver, purpose, imageDirPath.string(),
+         std::bind(&Manager::erase, this, std::placeholders::_1));
+     versionPtr->deleteObject =
+         std::make_unique<phosphor::software::manager::Delete>(bus, objPath,
+diff --git a/version.cpp b/version.cpp
+index 18f3f4f..e6fd481 100644
+--- a/version.cpp
++++ b/version.cpp
+@@ -182,7 +182,7 @@ void Delete::delete_()
+ {
+     if (parent.eraseCallback)
+     {
+-        parent.eraseCallback(parent.getId(parent.version()));
++        parent.eraseCallback(parent.getExtId());
+     }
+ }
+ 
+diff --git a/version.hpp b/version.hpp
+index 9cf76da..ae70ea8 100644
+--- a/version.hpp
++++ b/version.hpp
+@@ -74,14 +74,15 @@ class Version : public VersionInherit
+      * @param[in] callback       - The eraseFunc callback
+      */
+     Version(sdbusplus::bus::bus& bus, const std::string& objPath,
+-            const std::string& versionString, VersionPurpose versionPurpose,
+-            const std::string& filePath, eraseFunc callback) :
++            const std::string& extId, const std::string& versionString,
++            VersionPurpose versionPurpose, const std::string& filePath,
++            eraseFunc callback) :
+         VersionInherit(bus, (objPath).c_str(), true),
+-        eraseCallback(callback), versionStr(versionString)
++        eraseCallback(callback), extId(extId), versionStr(versionString)
+     {
+         // Set properties.
+         purpose(versionPurpose);
+-        version(versionString);
++        version(extId);
+         path(filePath);
+         // Emit deferred signal.
+         emit_object_added();
+@@ -134,6 +135,15 @@ class Version : public VersionInherit
+      */
+     bool isFunctional();
+ 
++    /* @brief Return the extended ID of this version object
++     *
++     * @ return - returns the extended ID string
++     */
++    std::string getExtId()
++    {
++        return extId;
++    }
++
+     /** @brief Persistent Delete D-Bus object */
+     std::unique_ptr<Delete> deleteObject;
+ 
+@@ -143,6 +153,7 @@ class Version : public VersionInherit
+   private:
+     /** @brief This Version's version string */
+     const std::string versionStr;
++    const std::string extId;
+ };
+ 
+ } // namespace manager
+-- 
+2.17.1
+
