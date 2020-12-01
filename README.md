@@ -9,7 +9,7 @@ the capabilities here will be brought to the OpenBMC project.
 
 For questions or support please email OpenBMC.Support@intel.com.
 
-Some answers to the main questions that tend to get asked: 
+Some answers to questions that tend to get asked: 
 
 ### Does this mean that Intel is no longer contributing to the Linux foundation project?
 
