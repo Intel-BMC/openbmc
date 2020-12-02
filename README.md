@@ -7,14 +7,14 @@ early access to features and capabilities which have not yet been accepted or
 merged in the OpenBMC main project (github.com/openbmc). In due course, all of
 the capabilities here will be brought to the OpenBMC project.
 
-For questions or support please email OpenBMC.Support@intel.com.
+For questions or support, please email OpenBMC.Support@intel.com.
 
 Some answers to questions that tend to get asked: 
 
 ### Does this mean that Intel is no longer contributing to the Linux Foundation (LF) project?
 
-No. This repo is for components that are intended for the eventual
-release to the LF OpenBMC project. There are a number of reasons where things
+No. This repo is for components that are intended for eventual release to
+the LF OpenBMC project. There are a number of reasons where things
 might be checked in here.  For example: functionality that is still under
 discussion or in the LF OpenBMC project, features that have not gone through
 the level of testing or integration needed to be included in the OpenBMC
