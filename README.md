@@ -86,7 +86,7 @@ The standard IPMI commands to set usernames and passwords are supported.
 These users allow access to IPMI, Redfish, and the web console, but cannot be
 used to access the BMC serial console.
 
-#### debug-tweaks
+#### debug-tweakers
 
 Debug features, including the default user credentials, can be enabled by
 adding the `"debug-tweaks"` feature to the build by including the following
