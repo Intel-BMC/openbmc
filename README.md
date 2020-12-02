@@ -25,7 +25,7 @@ project
 Upstreaming changes to the linux kernel, uboot, systemd, yocto, and the various
 projects that OpenBMC pulls in requires a significant effort.  While we aspire
 to that process being fast, painless, and with minimal rework, the reality is
-far from that, and features or functions that require changes across a number
+far from that. Features or functions that require changes across a number
 of repos require a coordinated effort, and a single source of function. As a
 general rule, this repository loosens the requirements of "form over function"
 and prefers to make some simplifying assumptions of BMC capabilities, chipsets,
