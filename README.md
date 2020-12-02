@@ -11,7 +11,7 @@ For questions or support please email OpenBMC.Support@intel.com.
 
 Some answers to questions that tend to get asked: 
 
-### Does this mean that Intel is no longer contributing to the Linux foundation project?
+### Does this mean that Intel is no longer contributing to the Linux Foundation (LF) project?
 
 No. This repo is for components that are intended for the eventual
 release to the LF OpenBMC project. There are a number of reasons where things
