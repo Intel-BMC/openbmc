@@ -13,7 +13,7 @@ Some answers to questions that tend to get asked:
 
 ### Does this mean that Intel is no longer contributing to the Linux Foundation (LF) project?
 
-No. This repo is for components that are intended for eventual release to
+Nope. This repo is for components that are intended for eventual release to
 the LF OpenBMC project. There are a number of reasons where things
 might be checked in here.  For example: functionality that is still under
 discussion or in the LF OpenBMC project, features that have not gone through
