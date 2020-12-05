@@ -55,9 +55,9 @@ bitbake intel-platforms
 ### Default User Credentials
 
 To meet Intel security requirements, this OpenBMC implementation will not have
-default user credentials enabled by default.
+default user creds enabled by default.
 
-IPMI commands are available to enable the root user for serial console access
+IPMI commands are available to enable user root for serial console access
 and to enable users for IPMI, Redfish, and web access.
 
 There is also a `"debug-tweaks"` feature that can be added to a build to
