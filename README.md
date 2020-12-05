@@ -11,7 +11,7 @@ For questions or support, please email OpenBMC.Support@intel.com.
 
 Some answers to questions that tend to get asked: 
 
-### Does this mean that Intel is no longer contributing to the Linux Foundation (LF) project?
+### Does this mean that Intel, Corp, is no longer contributing to the Linux Foundation (LF) project?
 
 Nope. This repo is for components that are intended for eventual release to
 the LF OpenBMC project. There are a number of reasons where things
@@ -33,7 +33,7 @@ and required features.
 
 ### Can I upstream/release code from this repository?
 
-It very much depends on the component. While in general the answer ends up
+It depends on the component. While in general the answer ends up
 being "yes", prior approval should be granted, as this repo contains future
 facing capabilities that may not have been announced yet.  Please email
 OpenBMC.Support@intel.com to discuss. Appropriate licenses will be applied to
