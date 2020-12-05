@@ -31,7 +31,7 @@ general rule, this repository loosens the requirements of "form over function"
 and prefers to make some simplifying assumptions of BMC capabilities, chipsets,
 and required features.
 
-### Can I upstream/release the code from this repository?
+### Can I upstream/release code from this repository?
 
 It very much depends on the component. While in general the answer ends up
 being "yes", prior approval should be granted, as this repo contains future
@@ -39,7 +39,7 @@ facing capabilities that may not have been announced yet.  Please email
 OpenBMC.Support@intel.com to discuss. Appropriate licenses will be applied to
 the portions of this codebase that are approved for upstreaming.
 
-### How to build for Wolf Pass
+### How to build Wolf Pass
 ```bash
 export TEMPLATECONF=meta-openbmc-mods/meta-wolfpass/conf
 source oe-init-build-env
