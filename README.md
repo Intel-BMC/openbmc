@@ -67,14 +67,14 @@ re-enable the default user credentials.
 
 Without `"debug-tweaks"`, the root user is disabled by default.
 
-The following IPMI command can be used to enable the root user.  This root
+The following IPMI command can be used to enable the user root.  This root
 user allows access to the BMC serial console, but cannot be used to access
 IPMI, Redfish, or the web console.
 
 IPMI OEM net function 0x30, command 0x5f.  For root user, the first byte is
 0 followed by the password.
 
-For example, to enable the root user with password `0penBmc1`:
+For example, enable the root user with password `0penBmc1`:
 
 ```ipmitool raw 0x30 0x5f 0x00 0x30 0x70 0x65 0x6e 0x42 0x6d 0x63 0x31```
 
