@@ -60,7 +60,7 @@ default user creds enabled by default.
 IPMI commands are available to enable user root for serial console access
 and to enable users for IPMI, Redfish, and web access.
 
-There is also a `"debug-tweaks"` feature that can be added to a build to
+There is also a feature, `"debug-tweaks"`, that can be added to a build to
 re-enable the default user credentials.
 
 #### Enable root user
