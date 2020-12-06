@@ -11,6 +11,10 @@ For questions or support, please email OpenBMC.Support@intel.com.
 
 Some answers to questions that tend to get asked: 
 
+### Intel Validation Results, 'validation' branch
+
+https://github.com/Intel-BMC/validation_results/blob/master/README.md
+
 ### Does this mean that Intel, Corp, is no longer contributing to the Linux Foundation (LF) project?
 
 Nope. This repo is for components that are intended for eventual release to
