@@ -88,7 +88,7 @@ used to access the BMC serial console.
 
 #### debug-tweakers
 
-Debug features, including the default user-credentials, are enabled by
+The default user-credentials, and other debug features, are enabled by
 adding `"debug-tweaks"` feature to the build, by including the following
 in your `local.conf` file:
 
