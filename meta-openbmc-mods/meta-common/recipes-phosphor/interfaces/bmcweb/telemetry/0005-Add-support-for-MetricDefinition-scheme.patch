@@ -1,7 +1,7 @@
-From b1da8901b5985d6a77b63ca9eb0570b46528f0bd Mon Sep 17 00:00:00 2001
+From b369c09460b46902878da10a106e3b3400fd776e Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 8 Jun 2020 17:15:54 +0200
-Subject: [PATCH 5/5] Add support for MetricDefinition scheme
+Subject: [PATCH 09/10] Add support for MetricDefinition scheme
 
 Added MetricDefinition node to redfish core. Now user is able to
 get all possible metrics that are present in system and are
@@ -14,6 +14,10 @@ Tested:
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Change-Id: I3086e1302e1ba2e5442d1367939fd5507a0cbc00
+
+%% original patch: 0005-Add-support-for-MetricDefinition-scheme.patch
+
+Change-Id: Ibcb7a858c9118c8af5ff1167a055b044f0d8db77
 ---
  redfish-core/include/redfish.hpp               |   3 +
  redfish-core/include/utils/telemetry_utils.hpp |   2 +
@@ -25,18 +29,18 @@ Change-Id: I3086e1302e1ba2e5442d1367939fd5507a0cbc00
  create mode 100644 redfish-core/lib/metric_definition.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index 3d4c117..2a12bf9 100644
+index 2587b37..705f490 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -25,6 +25,7 @@
- #include "../lib/log_services.hpp"
  #include "../lib/managers.hpp"
+ #include "../lib/memory.hpp"
  #include "../lib/message_registries.hpp"
 +#include "../lib/metric_definition.hpp"
  #include "../lib/metric_report.hpp"
  #include "../lib/metric_report_definition.hpp"
  #include "../lib/network_protocol.hpp"
-@@ -206,6 +207,8 @@ class RedfishService
+@@ -211,6 +212,8 @@ class RedfishService
          nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
  
          nodes.emplace_back(std::make_unique<TelemetryService>(app));
@@ -60,7 +64,7 @@ index 6c4e810..bb747c4 100644
  static constexpr const char* metricReportUri =
 diff --git a/redfish-core/lib/metric_definition.hpp b/redfish-core/lib/metric_definition.hpp
 new file mode 100644
-index 0000000..837a068
+index 0000000..1417efa
 --- /dev/null
 +++ b/redfish-core/lib/metric_definition.hpp
 @@ -0,0 +1,300 @@
@@ -127,7 +131,7 @@ index 0000000..837a068
 +class MetricDefinitionCollection : public Node
 +{
 +  public:
-+    MetricDefinitionCollection(CrowApp& app) :
++    MetricDefinitionCollection(App& app) :
 +        Node(app, "/redfish/v1/TelemetryService/MetricDefinitions")
 +    {
 +        entityPrivileges = {
@@ -140,8 +144,8 @@ index 0000000..837a068
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request& req,
-+               const std::vector<std::string>& params) override
++    void doGet(crow::Response& res, const crow::Request&,
++               const std::vector<std::string>&) override
 +    {
 +        res.jsonValue["@odata.type"] = "#MetricDefinitionCollection."
 +                                       "MetricDefinitionCollection";
@@ -165,7 +169,7 @@ index 0000000..837a068
 +                        retrieveUriToDbusMap(
 +                            chassisName, sensorNode.data(),
 +                            [asyncResp, collectionReduce](
-+                                const boost::beast::http::status status,
++                                const boost::beast::http::status,
 +                                const boost::container::flat_map<
 +                                    std::string, std::string>& uriToDbus) {
 +                                *collectionReduce += uriToDbus;
@@ -219,7 +223,7 @@ index 0000000..837a068
 +class MetricDefinition : public Node
 +{
 +  public:
-+    MetricDefinition(CrowApp& app) :
++    MetricDefinition(App& app) :
 +        Node(app, std::string(telemetry::metricDefinitionUri) + "<str>/",
 +             std::string())
 +    {
@@ -233,7 +237,7 @@ index 0000000..837a068
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request& req,
++    void doGet(crow::Response& res, const crow::Request&,
 +               const std::vector<std::string>& params) override
 +    {
 +        auto asyncResp = std::make_shared<AsyncResp>(res);
@@ -280,7 +284,7 @@ index 0000000..837a068
 +                        retrieveUriToDbusMap(
 +                            chassisName, sensorNode.data(),
 +                            [asyncResp, definitionGather](
-+                                const boost::beast::http::status status,
++                                const boost::beast::http::status,
 +                                const boost::container::flat_map<
 +                                    std::string, std::string>& uriToDbus) {
 +                                *definitionGather += uriToDbus;
@@ -365,7 +369,7 @@ index 0000000..837a068
 +
 +} // namespace redfish
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
-index 877e7f1..be72b18 100644
+index 768cce9..bcb0d3e 100644
 --- a/redfish-core/lib/metric_report.hpp
 +++ b/redfish-core/lib/metric_report.hpp
 @@ -91,6 +91,9 @@ class MetricReport : public Node
@@ -462,10 +466,10 @@ index 877e7f1..be72b18 100644
              "xyz.openbmc_project.MonitoringService", reportPath,
              "xyz.openbmc_project.MonitoringService.Report");
 diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
-index f12bbe0..1fa1009 100644
+index 567cb0c..2f7f70b 100644
 --- a/redfish-core/lib/sensors.hpp
 +++ b/redfish-core/lib/sensors.hpp
-@@ -53,20 +53,39 @@ static constexpr std::string_view thermal = "Thermal";
+@@ -54,20 +54,39 @@ static constexpr std::string_view thermal = "Thermal";
  
  namespace dbus
  {
@@ -518,7 +522,7 @@ index f12bbe0..1fa1009 100644
  
  /**
 diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
-index a410700..79e4154 100644
+index b849781..efbef6e 100644
 --- a/redfish-core/lib/telemetry_service.hpp
 +++ b/redfish-core/lib/telemetry_service.hpp
 @@ -52,6 +52,8 @@ class TelemetryService : public Node

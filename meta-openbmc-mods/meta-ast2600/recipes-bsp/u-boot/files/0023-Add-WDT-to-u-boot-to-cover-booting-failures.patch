@@ -1,0 +1,88 @@
+From c4aebdd00365539dc155e88ee4f6b88cccdccd8f Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 16 Sep 2020 13:25:36 -0700
+Subject: [PATCH] Add WDT to u-boot to cover booting failures
+
+This commit enables WDT2 before loading kernel image to make BMC
+reset to cover booting failures. If BMC meet any failure or if
+systemd can't initiate watchdog timer service properly, BMC will
+be reset by this watchdog. In case if u-boot meets a kernel image
+decoding issue, this watchdog will be immediately disabled and BMC
+will stay in u-boot console.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/intel.c | 23 ++++++++++++++++++++++-
+ common/bootm_os.c                  | 11 +++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index 807202295757..af2af9786926 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -474,12 +474,33 @@ void board_init(void)
+ */
+ 
+ #ifdef CONFIG_WATCHDOG
+-/* watchdog stuff */
++#define WDT2_BASE			0x1e785040
++#define WDT_COUNTER_STATUS		0x00
++#define WDT_COUNTER_RELOAD_VALUE	0x04
++#define WDT_COUNTER_RESTART_CTRL	0x08
++#define  WDT_RESTART_VALUE		0x4755
++#define WDT_CTRL			0x0c
++#define  WDT_RST_BY_SOC_RST		BIT(4)
++#define  WDT_SYS_RESET			BIT(1)
++#define  WDT_ENABLE			BIT(0)
++#define WDT_TIMEOUT_DEFAULT		0x6000000 /* ~100 seconds */
++
+ void watchdog_init(void)
+ {
++	writel(0, WDT2_BASE + WDT_CTRL);
++	writel(WDT_TIMEOUT_DEFAULT, WDT2_BASE + WDT_COUNTER_RELOAD_VALUE);
++	writel(WDT_RESTART_VALUE, WDT2_BASE + WDT_COUNTER_RESTART_CTRL);
++	writel(WDT_RST_BY_SOC_RST | WDT_SYS_RESET | WDT_ENABLE,
++	       WDT2_BASE + WDT_CTRL);
+ }
+ 
+ void watchdog_reset(void)
+ {
++	writel(WDT_RESTART_VALUE, WDT2_BASE + WDT_COUNTER_RESTART_CTRL);
++}
++
++void watchdog_disable(void)
++{
++	writel(0, WDT2_BASE + WDT_CTRL);
+ }
+ #endif
+diff --git a/common/bootm_os.c b/common/bootm_os.c
+index 855c471c28e6..05836e76c8e8 100644
+--- a/common/bootm_os.c
++++ b/common/bootm_os.c
+@@ -511,12 +511,23 @@ __weak void board_preboot_os(void)
+ 	/* please define board specific board_preboot_os() */
+ }
+ 
++#ifdef CONFIG_WATCHDOG
++extern void watchdog_init(void);
++extern void watchdog_disable(void);
++#endif
++
+ int boot_selected_os(int argc, char * const argv[], int state,
+ 		     bootm_headers_t *images, boot_os_fn *boot_fn)
+ {
+ 	arch_preboot_os();
+ 	board_preboot_os();
++#ifdef CONFIG_WATCHDOG
++	watchdog_init();
++#endif
+ 	boot_fn(state, argc, argv, images);
++#ifdef CONFIG_WATCHDOG
++	watchdog_disable();
++#endif
+ 
+ 	/* Stand-alone may return when 'autostart' is 'no' */
+ 	if (images->os.type == IH_TYPE_STANDALONE ||
+-- 
+2.17.1
+

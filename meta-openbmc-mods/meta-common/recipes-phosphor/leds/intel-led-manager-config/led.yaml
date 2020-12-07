@@ -46,3 +46,35 @@ cpu1_fault:
     cpu1fault:
         Action: 'On'
 
+fan1_fault:
+    fan1_fault:
+        Action: 'On'
+
+fan2_fault:
+    fan2_fault:
+        Action: 'On'
+
+fan3_fault:
+    fan3_fault:
+        Action: 'On'
+
+fan4_fault:
+    fan4_fault:
+        Action: 'On'
+
+fan5_fault:
+    fan5_fault:
+        Action: 'On'
+
+fan6_fault:
+    fan6_fault:
+        Action: 'On'
+
+fan7_fault:
+    fan7_fault:
+        Action: 'On'
+
+fan8_fault:
+    fan8_fault:
+        Action: 'On'
+

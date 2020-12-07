@@ -2,7 +2,7 @@ SUMMARY = "libmctp"
 DESCRIPTION = "Implementation of MCTP (DTMF DSP0236)"
 
 SRC_URI = "git://github.com/openbmc/libmctp.git"
-SRCREV = "96d5449211228c141b65dbe60a121c23f6c79cfb"
+SRCREV = "c2b833e40ddb858a94734f77a0bd761b76733c65"
 
 PV = "0.1+git${SRCPV}"
 

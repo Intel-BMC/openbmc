@@ -1,7 +1,7 @@
-From b68d62ddf0a9d77a287a7e9a99762915e31d02b9 Mon Sep 17 00:00:00 2001
+From c61ac0a5cf825193f46c734f1db2f92a72d1f3c9 Mon Sep 17 00:00:00 2001
 From: Wiktor Golgowski <wiktor.golgowski@linux.intel.com>
 Date: Thu, 30 Apr 2020 11:09:35 +0200
-Subject: [PATCH] Use chip id-based UUID for Service Root.
+Subject: [PATCH 02/10] Use chip id-based UUID for Service Root.
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -15,16 +15,15 @@ If the sysfs node is not available, code falls back to randomly
 generated UUID.
 
 Signed-off-by: Wiktor Gołgowski <wiktor.golgowski@linux.intel.com>
-
 ---
- include/persistent_data_middleware.hpp | 32 +++++++++++++++++++++++++++++---
+ include/persistent_data.hpp | 32 +++++++++++++++++++++++++++++---
  1 file changed, 29 insertions(+), 3 deletions(-)
 
-diff --git a/include/persistent_data_middleware.hpp b/include/persistent_data_middleware.hpp
-index de3a6ba..a20b213 100644
---- a/include/persistent_data_middleware.hpp
-+++ b/include/persistent_data_middleware.hpp
-@@ -31,6 +31,10 @@ class Middleware
+diff --git a/include/persistent_data.hpp b/include/persistent_data.hpp
+index 24f7afd..8826b06 100644
+--- a/include/persistent_data.hpp
++++ b/include/persistent_data.hpp
+@@ -25,6 +25,10 @@ class ConfigFile
    public:
      // todo(ed) should read this from a fixed location somewhere, not CWD
      static constexpr const char* filename = "bmcweb_persistent_data.json";
@@ -33,9 +32,9 @@ index de3a6ba..a20b213 100644
 +    static constexpr const char* UuidNs = "{b7b0553a-54cc-4162-982d-"
 +    "944847ed76f5}";
  
-     struct Context
-     {};
-@@ -141,9 +145,31 @@ class Middleware
+     ConfigFile()
+     {
+@@ -144,9 +148,31 @@ class ConfigFile
  
          if (systemUuid.empty())
          {
@@ -70,3 +69,6 @@ index de3a6ba..a20b213 100644
          }
          if (fileRevision < jsonRevision)
          {
+-- 
+2.16.6
+

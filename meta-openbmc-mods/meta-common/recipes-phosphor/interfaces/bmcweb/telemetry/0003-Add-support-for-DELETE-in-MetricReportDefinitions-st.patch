@@ -1,7 +1,7 @@
-From 8b2f4a6fe57bf2410cdb22f8c3c695e98d583040 Mon Sep 17 00:00:00 2001
+From 5a1eef4a6c74c29d9b9026676e59e6cdf0a7e8bd Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 18 May 2020 12:40:15 +0200
-Subject: [PATCH 3/5] Add support for DELETE in MetricReportDefinitions/<str>
+Subject: [PATCH 07/10] Add support for DELETE in MetricReportDefinitions/<str>
 
 Added support for DELETE action in MetricReportDefinitions/<str>
 node. It allows user to remove MetricReportDefinition together
@@ -16,19 +16,23 @@ Tested:
 
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 Change-Id: Iffde9f7bbf2955376e9714ac8d833967bd25eaa3
+
+%% original patch: 0003-Add-support-for-DELETE-in-MetricReportDefinitions-st.patch
+
+Change-Id: I2930b9354fd4cf1f8d9a97af33b81c7b689fe0ef
 ---
  redfish-core/lib/metric_report_definition.hpp | 32 +++++++++++++++++++++++++++
  1 file changed, 32 insertions(+)
 
 diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
-index ecbab0c..8e04ac8 100644
+index c6b09f8..3191a8f 100644
 --- a/redfish-core/lib/metric_report_definition.hpp
 +++ b/redfish-core/lib/metric_report_definition.hpp
-@@ -533,6 +533,38 @@ class MetricReportDefinition : public Node
+@@ -531,6 +531,38 @@ class MetricReportDefinition : public Node
              "xyz.openbmc_project.MonitoringService.Report");
      }
  
-+    void doDelete(crow::Response& res, const crow::Request& req,
++    void doDelete(crow::Response& res, const crow::Request&,
 +                  const std::vector<std::string>& params) override
 +    {
 +        auto asyncResp = std::make_shared<AsyncResp>(res);
@@ -43,7 +47,7 @@ index ecbab0c..8e04ac8 100644
 +    }
 +
 +    static void deleteReport(const std::shared_ptr<AsyncResp>& asyncResp,
-+                             const std::string& path, const std::string& id)
++                             const std::string& path, const std::string&)
 +    {
 +        crow::connections::systemBus->async_method_call(
 +            [asyncResp](const boost::system::error_code ec) {

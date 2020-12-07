@@ -1,24 +1,24 @@
-From 538ebb0466d1063963e0d3a489b98c5fb8b62fb2 Mon Sep 17 00:00:00 2001
+From 122fa6153479d026a06c27512f3c7024a1515c63 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 3 Jan 2020 15:14:09 -0800
 Subject: [PATCH] AST2600: Adjust default GPIO settings
 
 - Disabled GPIOC3 to prevent unexpected host failures.
-- Fixed GPIOC5, GPIOG6, GPIOI0~7 and GPIOL6~7 directions and
+- Fixed GPIOC5, GPIOD4, GPIOG6, GPIOI0~7 and GPIOL6~7 directions and
   default values.
 - Disabled internal pull-down of GPIOB6.
 - Disabled HBLED.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- board/aspeed/ast2600_intel/intel.c | 55 ++++++++++++++++++++++++++++++
- 1 file changed, 55 insertions(+)
+ board/aspeed/ast2600_intel/intel.c | 65 ++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index d1ac8651ac6c..fc4745a11585 100644
+index d1ac8651ac6c..7c9e78f8c005 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -162,6 +162,59 @@ static void sgpio_init(void)
+@@ -162,6 +162,69 @@ static void sgpio_init(void)
  	       SCU_BASE | SCU_414);
  }
  
@@ -69,6 +69,16 @@ index d1ac8651ac6c..fc4745a11585 100644
 +	writel(readl(AST_GPIO_BASE | GPIO_004) & ~GPIO_C5,
 +	       AST_GPIO_BASE | GPIO_004);
 +
++	/*
++	 * Set GPIOD4 as an output with value low explicitly to set the
++	 * default SPD mux path to CPU and DIMMs.
++	 */
++#define GPIO_D4			BIT(28)
++	writel(readl(AST_GPIO_BASE | GPIO_004) | GPIO_D4,
++	       AST_GPIO_BASE | GPIO_004);
++	writel(readl(AST_GPIO_BASE | GPIO_000) & ~GPIO_D4,
++	       AST_GPIO_BASE | GPIO_000);
++
 +	/* GPIO G6 is also an open-drain output so set it as an input. */
 +#define GPIO_G6			BIT(22)
 +	writel(readl(AST_GPIO_BASE | GPIO_024) & ~GPIO_G6,
@@ -78,7 +88,7 @@ index d1ac8651ac6c..fc4745a11585 100644
  static void timer_handler(void *regs)
  {
  	printf("+");
-@@ -175,6 +228,8 @@ int board_early_init_f(void)
+@@ -175,6 +238,8 @@ int board_early_init_f(void)
  	 * I am not sure if it actually does anything... */
  	arch_interrupt_init_early();
  

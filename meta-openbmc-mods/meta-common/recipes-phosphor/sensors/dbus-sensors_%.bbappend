@@ -1,11 +1,39 @@
-SRCREV = "623723b9e827f52a05cfe2dac8b4ef5d285fb6af"
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+PROJECT_SRC_DIR := "${THISDIR}/${PN}"
+
+SRCREV = "3bcd823e3783bc49c1e75dec2d43a3ef54333c88"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
+
+SRC_URI += "\
+    file://intrusionsensor-depend-on-networkd.conf \
+    "
 
 DEPENDS_append = " libgpiod libmctp"
 
-FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
+PACKAGECONFIG += " \
+    adcsensor \
+    cpusensor \
+    exitairtempsensor \
+    fansensor \
+    hwmontempsensor \
+    intrusionsensor \
+    ipmbsensor \
+    mcutempsensor \
+    psusensor \
+"
 
-PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'disable-nvme-sensors', d)}"
-PACKAGECONFIG[disable-nvme-sensors] = "-DDISABLE_NVME=ON, -DDISABLE_NVME=OFF"
+PACKAGECONFIG[nvmesensor] = "-DDISABLE_NVME=OFF, -DDISABLE_NVME=ON"
 
-SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('DISTRO_FEATURES', 'disable-nvme-sensors', '', 'xyz.openbmc_project.nvmesensor.service', d)}"
+SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'nvmesensor', \
+                                               'xyz.openbmc_project.nvmesensor.service', \
+                                               '', d)}"
+
+PACKAGECONFIG_remove = "nvmesensor"
+
+do_install_append() {
+    svc="xyz.openbmc_project.intrusionsensor.service"
+    srcf="${WORKDIR}/intrusionsensor-depend-on-networkd.conf"
+    dstf="${D}/etc/systemd/system/${svc}.d/10-depend-on-networkd.conf"
+    mkdir -p "${D}/etc/systemd/system/${svc}.d"
+    install "${srcf}" "${dstf}"
+}

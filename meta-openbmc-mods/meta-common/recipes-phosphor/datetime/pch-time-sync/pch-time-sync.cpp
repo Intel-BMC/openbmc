@@ -15,6 +15,8 @@
 
 #include <time.h>
 
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <chrono>
 #include <iostream>
@@ -32,7 +34,9 @@ static uint32_t syncIntervalMS = syncIntervalNormalMS;
 
 // will update bmc time if the time difference beyond this value
 static constexpr uint8_t timeDiffAllowedSecond = 1;
-
+static uint8_t pchDevI2cBusNo = 0;
+static uint8_t pchDevI2cSlaveAddr = 0;
+static bool getPCHI2cAddrFlag = false;
 static inline uint8_t bcd2Decimal(uint8_t hex)
 {
     uint8_t dec = ((hex & 0xF0) >> 4) * 10 + (hex & 0x0F);
@@ -83,6 +87,88 @@ class I2CFile
     }
 };
 
+static void getPCHI2cAddr(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                          const std::string& service, const std::string& object,
+                          const std::string& interface)
+{
+    conn->async_method_call(
+        [](boost::system::error_code ec,
+           const std::vector<
+               std::pair<std::string, std::variant<std::string, uint64_t>>>&
+               propertiesList) {
+            if (ec)
+            {
+                phosphor::logging::log<phosphor::logging::level::ERR>(
+                    "DBUS response error: cannot get I2c address of PCH timer",
+                    phosphor::logging::entry("ECVALUE=%x", ec.value()),
+                    phosphor::logging::entry("ECMESSAGE=%s",
+                                             ec.message().c_str()));
+                return;
+            }
+            const uint64_t* i2cBusNoValue = nullptr;
+            const uint64_t* i2cSlaveAddrValue = nullptr;
+            for (const auto& property : propertiesList)
+            {
+
+                if (property.first == "PchSmbusSlaveI2cBus")
+                {
+                    i2cBusNoValue = std::get_if<uint64_t>(&property.second);
+                }
+                if (property.first == "PchSmbusSlaveI2cAddress")
+                {
+                    i2cSlaveAddrValue = std::get_if<uint64_t>(&property.second);
+                }
+            }
+            if ((i2cBusNoValue != nullptr) && (i2cSlaveAddrValue != nullptr))
+            {
+                pchDevI2cBusNo = static_cast<uint8_t>(*i2cBusNoValue);
+                pchDevI2cSlaveAddr = static_cast<uint8_t>(*i2cSlaveAddrValue);
+                getPCHI2cAddrFlag = true;
+            }
+        },
+        service, object, "org.freedesktop.DBus.Properties", "GetAll",
+        interface);
+}
+
+static void
+    getPCHTimerConfiguration(std::shared_ptr<sdbusplus::asio::connection>& conn)
+{
+    conn->async_method_call(
+        [&conn](
+            boost::system::error_code ec,
+            const std::vector<std::pair<
+                std::string,
+                std::vector<std::pair<std::string, std::vector<std::string>>>>>&
+                subtree) {
+            if (ec)
+            {
+                phosphor::logging::log<phosphor::logging::level::ERR>(
+                    "DBUS response error:cannot get PCH configuration",
+                    phosphor::logging::entry("ECVALUE=%x", ec.value()),
+                    phosphor::logging::entry("ECMESSAGE=%s",
+                                             ec.message().c_str()));
+                return;
+            }
+            if (subtree.empty())
+            {
+                phosphor::logging::log<phosphor::logging::level::ERR>(
+                    "subtree empty");
+                return;
+            }
+            getPCHI2cAddr(conn, subtree[0].second[0].first, subtree[0].first,
+                          "xyz.openbmc_project.Configuration.PchSmbusSlave");
+            return;
+        },
+        "xyz.openbmc_project.ObjectMapper",
+        "/xyz/openbmc_project/object_mapper",
+        "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+        "/xyz/openbmc_project/", 0,
+        std::array<const char*, 1>{
+            "xyz.openbmc_project.Configuration.PchSmbusSlave"});
+
+    return;
+}
+
 class PCHSync
 {
   private:
@@ -91,15 +177,13 @@ class PCHSync
     {
         try
         {
-            constexpr uint8_t pchDevI2CBusNumber = 0x03;
-            constexpr uint8_t pchDevI2CSlaveAddress = 0x44;
             constexpr uint8_t pchDevRegRTCYear = 0x0f;
             constexpr uint8_t pchDevRegRTCMonth = 0x0e;
             constexpr uint8_t pchDevRegRTCDay = 0x0d;
             constexpr uint8_t pchDevRegRTCHour = 0x0b;
             constexpr uint8_t pchDevRegRTCMinute = 0x0a;
             constexpr uint8_t pchDevRegRTCSecond = 0x09;
-            I2CFile pchDev(pchDevI2CBusNumber, pchDevI2CSlaveAddress,
+            I2CFile pchDev(pchDevI2cBusNo, pchDevI2cSlaveAddr,
                            O_RDWR | O_CLOEXEC);
             year = pchDev.i2cReadByteData(pchDevRegRTCYear);
             year = bcd2Decimal(year);
@@ -187,18 +271,18 @@ class PCHSync
         struct tm tm = {0};
 
         // get PCH and system time
+
         if (!getPCHDate(year, month, day, hour, minute, second))
         {
             return false;
         };
-
         if (!getSystemTime(BMCTimeSeconds))
         {
             return false;
         }
-
+        // fix error when year is set to 2000-2009.
         std::string dateString =
-            "20" + std::to_string(year) + "-" + std::to_string(month) + "-" +
+            std::to_string(2000 + year) + "-" + std::to_string(month) + "-" +
             std::to_string(day) + " " + std::to_string(hour) + ":" +
             std::to_string(minute) + ":" + std::to_string(second);
 
@@ -216,37 +300,70 @@ class PCHSync
             {
                 return false;
             }
-            std::cout << "Update BMC time to " << dateString << std::endl;
+            phosphor::logging::log<phosphor::logging::level::INFO>(
+                "Update BMC time to: ",
+                phosphor::logging::entry("TIME=%s", dateString.c_str()));
         }
 
         return true;
     }
 
-    void startSyncTimer()
+    void startSyncTimer(std::shared_ptr<sdbusplus::asio::connection>& conn)
     {
-        if (updateBMCTime())
+        // retry 10 times (10 * 30 sec = 5min ) to get the pch timer
+        // configuration.
+        static uint8_t retrytimes = 10;
+        if (!getPCHI2cAddrFlag)
         {
-            syncIntervalMS = syncIntervalNormalMS;
+            if (retrytimes == 0)
+            {
+                phosphor::logging::log<phosphor::logging::level::ERR>(
+                    "Get pch timer configuration fail");
+                return;
+            }
+            syncIntervalMS = syncIntervalFastMS;
+            getPCHTimerConfiguration(conn);
+            retrytimes--;
         }
         else
         {
-            std::cout << "Update BMC time Fail" << std::endl;
-            syncIntervalMS = syncIntervalFastMS;
+            if (updateBMCTime())
+            {
+                syncIntervalMS = syncIntervalNormalMS;
+            }
+            else
+            {
+                phosphor::logging::log<phosphor::logging::level::ERR>(
+                    "Update BMC time Fail");
+                syncIntervalMS = syncIntervalFastMS;
+            }
         }
 
         syncTimer->expires_after(std::chrono::milliseconds(syncIntervalMS));
         syncTimer->async_wait(
-            [this](const boost::system::error_code& ec) { startSyncTimer(); });
+            [this, &conn](const boost::system::error_code& ec) {
+                if (ec)
+                {
+                    phosphor::logging::log<phosphor::logging::level::ERR>(
+                        "Timer cancelled",
+                        phosphor::logging::entry("ECVALUE=%x", ec.value()),
+                        phosphor::logging::entry("ECMESSAGE=%s",
+                                                 ec.message().c_str()));
+                    return;
+                }
+                startSyncTimer(conn);
+            });
     }
 
     std::unique_ptr<boost::asio::steady_timer> syncTimer;
     uint8_t year, month, day, hour, minute, second;
 
   public:
-    PCHSync(boost::asio::io_service& io)
+    PCHSync(boost::asio::io_service& io,
+            std::shared_ptr<sdbusplus::asio::connection>& conn)
     {
         syncTimer = std::make_unique<boost::asio::steady_timer>(io);
-        startSyncTimer();
+        startSyncTimer(conn);
     }
 
     ~PCHSync() = default;
@@ -255,7 +372,11 @@ class PCHSync
 int main(int argc, char** argv)
 {
     boost::asio::io_service io;
-    PCHSync pchSyncer(io);
+    std::shared_ptr<sdbusplus::asio::connection> conn =
+        std::make_shared<sdbusplus::asio::connection>(io);
+    sdbusplus::asio::object_server server =
+        sdbusplus::asio::object_server(conn);
+    PCHSync pchSyncer(io, conn);
 
     phosphor::logging::log<phosphor::logging::level::INFO>(
         "Starting PCH time sync service");

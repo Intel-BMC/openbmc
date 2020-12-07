@@ -133,7 +133,7 @@ index 1a41cbe..fe1e6f9 100644
  
  static constexpr const uint32_t pfmPos = 2054;
  static constexpr const uint32_t block0Magic = 0xB6EAFD19;
-@@ -74,6 +78,8 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
+@@ -76,6 +80,8 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
                  phosphor::logging::log<phosphor::logging::level::ERR>(
                      "Image magic number match failed",
                      phosphor::logging::entry("IMAGEMAGIC=0x%x", imgMagic));
@@ -142,34 +142,37 @@ index 1a41cbe..fe1e6f9 100644
                  return -1;
              }
  
-@@ -108,6 +114,8 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
+@@ -110,6 +116,9 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
  
                  phosphor::logging::log<phosphor::logging::level::ERR>(
                      "Unknown image type");
 +                phosphor::logging::report<ImageFailure>(
++                    ImageFail::FAIL("Unknown image type"),
 +                    ImageFail::PATH(imgPath.c_str()));
                  return -1;
              }
  
-@@ -151,6 +159,8 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
+@@ -153,6 +162,9 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
                                  "PRIORITY=%i", LOG_ERR, "REDFISH_MESSAGE_ID=%s",
                                  redfishMsgID.c_str(), "REDFISH_MESSAGE_ARGS=%s",
                                  "Image HASH check fail", NULL);
 +                phosphor::logging::report<ImageFailure>(
++                    ImageFail::FAIL("Security violation: hash mismatch"),
 +                    ImageFail::PATH(imgPath.c_str()));
                  return -1;
              }
  
-@@ -165,6 +175,8 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
+@@ -167,6 +179,9 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
          catch (std::exception& e)
          {
              phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
 +            phosphor::logging::report<ImageFailure>(
++                ImageFail::FAIL("Unhandled exception"),
 +                ImageFail::PATH(imgPath.c_str()));
              return -1;
          }
      }
-@@ -180,6 +192,12 @@ int Manager::processImage(const std::string& imgFilePath)
+@@ -182,6 +197,12 @@ int Manager::processImage(const std::string& imgFilePath)
      if (!std::filesystem::exists(imgPath))
          return -1;
  

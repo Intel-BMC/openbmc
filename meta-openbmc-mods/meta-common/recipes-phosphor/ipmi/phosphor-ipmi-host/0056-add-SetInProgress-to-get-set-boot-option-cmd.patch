@@ -1,79 +1,76 @@
-From f9f260391f099b4e67999f9d4ca05cbf9b422baf Mon Sep 17 00:00:00 2001
-From: "Jia, chunhui" <chunhui.jia@linux.intel.com>
-Date: Tue, 19 Mar 2019 16:09:06 +0800
-Subject: [PATCH] add SetInProgress to get/set boot option cmd
+From d5cfc5a0aaa50cc94054886e5cb7be25ef167c71 Mon Sep 17 00:00:00 2001
+From: huanghe <he.huang@intel.com>
+Date: Sat, 10 Oct 2020 14:40:00 +0800
+Subject: [PATCH 7/7] Add set in progress paramter to set/get boot option
+ command
 
-It is required by BIOS. BIOS will check setinprogress first.
-If this flag is not supported, BIOS will bypass all boot
-option flow.
-
-Change-Id: Ibb0501ea5bc36c4f1f72339efef03724dd4e613f
-Signed-off-by: Jia, chunhui <chunhui.jia@linux.intel.com>
-Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+Signed-off-by: huanghe <he.huang@intel.com>
 ---
- chassishandler.cpp | 28 +++++++++++++++++++++++++++-
+ chassishandler.cpp | 34 ++++++++++++++++++++++++++++++++++
  chassishandler.hpp |  3 +++
- 2 files changed, 30 insertions(+), 1 deletion(-)
+ 2 files changed, 37 insertions(+)
 
 diff --git a/chassishandler.cpp b/chassishandler.cpp
-index 305897b..ee23845 100644
+index f043340..322aa9e 100644
 --- a/chassishandler.cpp
 +++ b/chassishandler.cpp
-@@ -1399,6 +1399,10 @@ static ipmi_ret_t setBootMode(const Mode::Modes& mode)
-     return IPMI_CC_OK;
+@@ -1564,6 +1564,10 @@ static ipmi::Cc setBootMode(const Mode::Modes& mode)
+     return ipmi::ccSuccess;
  }
  
 +static constexpr uint8_t setComplete = 0x0;
 +static constexpr uint8_t setInProgress = 0x1;
 +static uint8_t transferStatus = setComplete;
 +
- ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-                                              ipmi_request_t request,
-                                              ipmi_response_t response,
-@@ -1413,11 +1417,21 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-     get_sys_boot_options_t* reqptr = (get_sys_boot_options_t*)request;
+ /** @brief implements the Get Chassis system boot option
+  *  @param bootOptionParameter   - boot option parameter selector
+  *  @param reserved1    - reserved bit
+@@ -1598,6 +1602,14 @@ ipmi::RspType<ipmi::message::Payload>
+ 
      IpmiValue bootOption = ipmiDefault;
  
-+    if (reqptr->parameter ==
-+        static_cast<uint8_t>(BootOptionParameter::SET_IN_PROGRESS))
++
++    if (static_cast<uint8_t>(bootOptionParameter) ==
++        static_cast<uint8_t>(BootOptionParameter::setInProgress))
 +    {
-+        *data_len =
-+            static_cast<uint8_t>(BootOptionResponseSize::SET_IN_PROGRESS);
-+        resp->version = SET_PARM_VERSION;
-+        resp->parm = static_cast<uint8_t>(BootOptionParameter::SET_IN_PROGRESS);
-+        resp->data[0] = transferStatus;
-+        return IPMI_CC_OK;
++        response.pack(bootOptionParameter,reserved1,transferStatus);
++        return ipmi::responseSuccess(std::move(response));
 +    }
 +
-     std::memset(resp, 0, sizeof(*resp));
-     resp->version = SET_PARM_VERSION;
-     resp->parm = 5;
-     resp->data[0] = SET_PARM_BOOT_FLAGS_VALID_ONE_TIME;
--
      /*
       * Parameter #5 means boot flags. Please refer to 28.13 of ipmi doc.
       * This is the only parameter used by petitboot.
-@@ -1553,6 +1567,18 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
-     // This IPMI command does not have any resposne data
-     *data_len = 0;
+@@ -1719,6 +1731,28 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
+     using namespace boot_options;
+     ipmi::Cc rc;
  
-+    if (reqptr->parameter ==
-+        static_cast<uint8_t>(BootOptionParameter::SET_IN_PROGRESS))
++    if (parameterSelector ==
++        static_cast<uint7_t>(BootOptionParameter::setInProgress))
 +    {
-+        if ((transferStatus == setInProgress) &&
-+            (reqptr->data[0] != setComplete))
++        uint2_t setInProgressFlag;
++        uint6_t rsvd;
++        if (data.unpack(setInProgressFlag,rsvd) != 0 ||
++            !data.fullyUnpacked())
 +        {
-+            return IPMI_CC_FAIL_SET_IN_PROGRESS;
++            return ipmi::responseReqDataLenInvalid();
 +        }
-+        transferStatus = reqptr->data[0];
-+        return IPMI_CC_OK;
++        if (rsvd)
++        {
++            return ipmi::responseInvalidFieldRequest();
++        }
++        if ((transferStatus == setInProgress) &&
++            ((uint8_t)setInProgressFlag != setComplete))
++        {
++            return ipmi::response(IPMI_CC_FAIL_SET_IN_PROGRESS);
++        }
++        transferStatus = (uint8_t)setInProgressFlag;
 +    }
 +
      /*  000101
       * Parameter #5 means boot flags. Please refer to 28.13 of ipmi doc.
       * This is the only parameter used by petitboot.
 diff --git a/chassishandler.hpp b/chassishandler.hpp
-index dcaf06c..353a929 100644
+index 93de2c0..5976abc 100644
 --- a/chassishandler.hpp
 +++ b/chassishandler.hpp
 @@ -25,6 +25,7 @@ enum ipmi_chassis_return_codes
@@ -88,18 +85,18 @@ index dcaf06c..353a929 100644
  };
  enum class BootOptionParameter : size_t
  {
-+    SET_IN_PROGRESS = 0x0,
-     BOOT_INFO = 0x4,
-     BOOT_FLAGS = 0x5,
-     OPAL_NETWORK_SETTINGS = 0x61
++    setInProgress= 0x0,
+     bootInfo = 0x4,
+     bootFlags = 0x5,
+     opalNetworkSettings = 0x61
 @@ -53,6 +55,7 @@ enum class BootOptionParameter : size_t
  
  enum class BootOptionResponseSize : size_t
  {
-+    SET_IN_PROGRESS = 3,
-     BOOT_FLAGS = 5,
-     OPAL_NETWORK_SETTINGS = 50
++    setInProgress = 3,
+     bootFlags = 5,
+     opalNetworkSettings = 50
  };
 -- 
-2.7.4
+2.17.1
 

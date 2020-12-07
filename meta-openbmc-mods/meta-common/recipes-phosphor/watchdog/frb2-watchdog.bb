@@ -20,10 +20,8 @@ inherit pkgconfig
 DEPENDS += " \
             systemd \
             sdbusplus \
-            sdbusplus-native \
             phosphor-logging \
             phosphor-dbus-interfaces \
-            phosphor-dbus-interfaces-native \
             boost \
            "
 

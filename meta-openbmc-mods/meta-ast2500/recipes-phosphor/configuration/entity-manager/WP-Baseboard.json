@@ -2414,6 +2414,12 @@
                 }
             ],
             "Type": "XeonCPU"
+        },
+        {
+            "Name": "PCH SMBUS Slave",
+            "PchSmbusSlaveI2cBus": 3,
+            "PchSmbusSlaveI2cAddress": "0x44",
+            "Type": "PchSmbusSlave"
         }
     ],
     "Name": "WP Baseboard",

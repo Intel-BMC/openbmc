@@ -59,18 +59,15 @@ index 242a6ca..1a41cbe 100644
  #include <stdio.h>
  #include <stdlib.h>
  #include <sys/stat.h>
-@@ -15,9 +17,9 @@
- #include <algorithm>
- #include <cstring>
- #include <elog-errors.hpp>
--#include <filesystem>
+@@ -20,6 +22,7 @@
+ #include <filesystem>
  #include <fstream>
  #include <iomanip>
 +#include <set>
  #include <sstream>
  #include <string>
- #include <xyz/openbmc_project/Software/Image/error.hpp>
-@@ -33,12 +35,21 @@ using namespace sdbusplus::xyz::openbmc_project::Software::Image::Error;
+ 
+@@ -34,12 +37,21 @@ using namespace sdbusplus::xyz::openbmc_project::Software::Image::Error;
  namespace Software = phosphor::logging::xyz::openbmc_project::Software;
  
  static constexpr const uint32_t pfmPos = 2054;
@@ -96,7 +93,7 @@ index 242a6ca..1a41cbe 100644
  
      if (std::filesystem::exists(imgPath))
      {
-@@ -55,17 +66,101 @@ static int getPFRImgInfo(const std::filesystem::path imgPath, uint8_t& imgType,
+@@ -56,17 +68,101 @@ static int getPFRImgInfo(const std::filesystem::path imgPath, uint8_t& imgType,
  
              imgFile.read(reinterpret_cast<char*>(&block0Data),
                           sizeof(block0Data));
@@ -200,7 +197,7 @@ index 242a6ca..1a41cbe 100644
          }
          catch (std::exception& e)
          {
-@@ -79,20 +174,21 @@ static int getPFRImgInfo(const std::filesystem::path imgPath, uint8_t& imgType,
+@@ -80,20 +176,21 @@ static int getPFRImgInfo(const std::filesystem::path imgPath, uint8_t& imgType,
  
  int Manager::processImage(const std::string& imgFilePath)
  {
@@ -225,7 +222,7 @@ index 242a6ca..1a41cbe 100644
          return -1;
      }
  
-@@ -103,31 +198,6 @@ int Manager::processImage(const std::string& imgFilePath)
+@@ -104,31 +201,6 @@ int Manager::processImage(const std::string& imgFilePath)
          return -1;
      }
  
@@ -257,7 +254,7 @@ index 242a6ca..1a41cbe 100644
      sdbusplus::xyz::openbmc_project::Software::server::Version::VersionPurpose
          purpose = Version::VersionPurpose::Unknown;
      try
-@@ -169,6 +239,7 @@ int Manager::processImage(const std::string& imgFilePath)
+@@ -170,6 +242,7 @@ int Manager::processImage(const std::string& imgFilePath)
      std::filesystem::create_directory(imageDirPath);
  
      std::filesystem::path newFileName = imageDirPath / "image-runtime";
@@ -265,7 +262,7 @@ index 242a6ca..1a41cbe 100644
      std::filesystem::rename(imgFilePath, newFileName);
  
      // Create Version object
-@@ -212,6 +283,14 @@ void Manager::erase(std::string entryId)
+@@ -213,6 +286,14 @@ void Manager::erase(std::string entryId)
      this->versions.erase(entryId);
  }
  
@@ -284,7 +281,7 @@ diff --git a/pfr_image_manager.hpp b/pfr_image_manager.hpp
 index c6ee6a4..5b7b2c3 100644
 --- a/pfr_image_manager.hpp
 +++ b/pfr_image_manager.hpp
-@@ -1,6 +1,13 @@
+@@ -1,8 +1,16 @@
  #pragma once
  #include "version.hpp"
  
@@ -294,38 +291,26 @@ index c6ee6a4..5b7b2c3 100644
 +#include <sys/mman.h>
 +#include <unistd.h>
 +
-+#include <filesystem>
  #include <sdbusplus/server.hpp>
  
++#include <filesystem>
++
  namespace phosphor
-@@ -10,7 +17,8 @@ namespace software
- namespace manager
  {
- 
--enum pfrImgPCType {
-+enum pfrImgPCType
-+{
-     pfrCPLDUpdateCap = 0x00,
-     pfrPCHPFM = 0x01,
-     pfrPCHUpdateCap = 0x02,
-@@ -19,15 +27,94 @@ enum pfrImgPCType {
- };
- 
+ namespace software
+@@ -22,7 +30,7 @@ enum pfrImgPCType
  /* PFR image block 0 - As defined in HAS */
--struct pfrImgBlock0 {
+ struct pfrImgBlock0
+ {
 -    uint8_t tag[4];
-+struct pfrImgBlock0
-+{
 +    uint32_t tag;
      uint8_t pcLength[4];
      uint8_t pcType[4];
      uint8_t reserved1[4];
-     uint8_t hash256[32];
-     uint8_t hash384[48];
+@@ -31,6 +39,82 @@ struct pfrImgBlock0
      uint8_t reserved2[32];
--}__attribute__((packed));
-+} __attribute__((packed));
-+
+ } __attribute__((packed));
+ 
 +/** @struct CustomFd
 + *
 + *  RAII wrapper for file descriptor.
@@ -343,8 +328,7 @@ index c6ee6a4..5b7b2c3 100644
 +     *  @param[in] fd - File descriptor
 +     */
 +    CustomFd(int fd) : fd(fd)
-+    {
-+    }
++    {}
 +
 +    ~CustomFd()
 +    {
@@ -390,8 +374,7 @@ index c6ee6a4..5b7b2c3 100644
 +     *  @param[in]  length - length of the map
 +     */
 +    CustomMap(void* addr, size_t length) : addr(addr), length(length)
-+    {
-+    }
++    {}
 +
 +    ~CustomMap()
 +    {
@@ -403,10 +386,11 @@ index c6ee6a4..5b7b2c3 100644
 +        return addr;
 +    }
 +};
- 
++
  /** @class Manager
   *  @brief Contains a map of Version dbus objects.
-@@ -61,13 +148,28 @@ class Manager
+  *  @details The software image manager class that contains the Version dbus
+@@ -63,6 +147,22 @@ class Manager
      void erase(std::string entryId);
  
    private:
@@ -429,13 +413,3 @@ index c6ee6a4..5b7b2c3 100644
      /** @brief Persistent map of Version dbus objects and their
       * version id */
      std::map<std::string, std::unique_ptr<Version>> versions;
- 
-     /** @brief Persistent sdbusplus DBus bus connection. */
-     sdbusplus::bus::bus& bus;
--
- };
- 
- } // namespace manager
--- 
-2.17.1
-

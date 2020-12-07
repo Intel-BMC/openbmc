@@ -1,4 +1,4 @@
-From c438edace30a3408c827faaae2d5004fe5ae010d Mon Sep 17 00:00:00 2001
+From fd0768e6a63a25fdc87596036a5cbf82a88a1eb6 Mon Sep 17 00:00:00 2001
 From: arun-pm <arun.p.m@linux.intel.com>
 Date: Fri, 29 Nov 2019 00:19:09 +0530
 Subject: [PATCH] SPI Quad IO Mode
@@ -12,13 +12,12 @@ Note:- Removed n25q00 Quad I/O support for the time being due to clock issue
  drivers/mtd/spi/spi-nor-ids.c  |  7 ++++++-
  drivers/spi/aspeed_spi.c       | 18 +++++++++++++++++-
  3 files changed, 25 insertions(+), 6 deletions(-)
- mode change 100755 => 100644 drivers/spi/aspeed_spi.c
 
 diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
-index d16581c5811d..ab78b516b6a3 100644
+index 9a15e204f83b..1f14753056ee 100644
 --- a/arch/arm/dts/ast2600-intel.dts
 +++ b/arch/arm/dts/ast2600-intel.dts
-@@ -101,16 +101,14 @@
+@@ -120,16 +120,14 @@
  
  &fmc {
  	status = "okay";
@@ -38,7 +37,7 @@ index d16581c5811d..ab78b516b6a3 100644
  };
  
 diff --git a/drivers/mtd/spi/spi-nor-ids.c b/drivers/mtd/spi/spi-nor-ids.c
-index ad733e71988b..257ab472305c 100644
+index 3b0a910d3fca..d6b949170570 100644
 --- a/drivers/mtd/spi/spi-nor-ids.c
 +++ b/drivers/mtd/spi/spi-nor-ids.c
 @@ -164,7 +164,12 @@ const struct flash_info spi_nor_ids[] = {
@@ -56,22 +55,20 @@ index ad733e71988b..257ab472305c 100644
  	{ INFO("mt25qu02g",   0x20bb22, 0, 64 * 1024, 4096, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
  #endif
 diff --git a/drivers/spi/aspeed_spi.c b/drivers/spi/aspeed_spi.c
-old mode 100755
-new mode 100644
-index c7b998fadfde..930b18443a48
+index 18d4c2fa098e..6efb8c4e3c65 100644
 --- a/drivers/spi/aspeed_spi.c
 +++ b/drivers/spi/aspeed_spi.c
-@@ -16,6 +16,9 @@
- #include <linux/ioport.h>
+@@ -17,6 +17,9 @@
  
  #define ASPEED_SPI_MAX_CS		3
+ #define FLASH_CALIBRATION_LEN   0x400
 +#define AST2600A0		0x05000303
 +#define AST2600A0_MAX_FREQ	40000000
 +#define AST_MAX_FREQ		100000000
  
  struct aspeed_spi_regs {
  	u32 conf;			/* 0x00 CE Type Setting */
-@@ -1011,6 +1014,19 @@ static int aspeed_spi_bind(struct udevice *bus)
+@@ -1037,6 +1040,19 @@ static int aspeed_spi_bind(struct udevice *bus)
  	return 0;
  }
  
@@ -91,7 +88,7 @@ index c7b998fadfde..930b18443a48
  static int aspeed_spi_probe(struct udevice *bus)
  {
  	struct resource res_regs, res_ahb;
-@@ -1041,7 +1057,7 @@ static int aspeed_spi_probe(struct udevice *bus)
+@@ -1067,7 +1083,7 @@ static int aspeed_spi_probe(struct udevice *bus)
  	clk_free(&hclk);
  
  	priv->max_hz = dev_read_u32_default(bus, "spi-max-frequency",
@@ -101,5 +98,5 @@ index c7b998fadfde..930b18443a48
  	priv->num_cs = dev_read_u32_default(bus, "num-cs", ASPEED_SPI_MAX_CS);
  
 -- 
-2.7.4
+2.17.1
 

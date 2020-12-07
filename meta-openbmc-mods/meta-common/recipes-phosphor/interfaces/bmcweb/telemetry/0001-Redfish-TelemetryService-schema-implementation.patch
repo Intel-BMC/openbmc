@@ -1,7 +1,7 @@
-From 7820421433349df28bd393e8d610d1848af0f1c8 Mon Sep 17 00:00:00 2001
+From d8b7e2f4eae85cd76d480970e888a50548523fc2 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 27 Apr 2020 17:24:15 +0200
-Subject: [PATCH 1/5] Redfish TelemetryService schema implementation
+Subject: [PATCH 05/10] Redfish TelemetryService schema implementation
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -24,6 +24,10 @@ Tested:
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 Signed-off-by: Adrian Ambrożewicz <adrian.ambrozewicz@linux.intel.com>
 Change-Id: Ie6b0b49f4ef5eeaef07d1209b6c349270c04d570
+
+%% original patch: 0001-Redfish-TelemetryService-schema-implementation.patch
+
+Change-Id: I547073faef9228e8dc5350ea28d06cdd3c5341f6
 ---
  include/dbus_utility.hpp                       |  21 +++
  redfish-core/include/redfish.hpp               |  10 ++
@@ -31,10 +35,10 @@ Change-Id: Ie6b0b49f4ef5eeaef07d1209b6c349270c04d570
  redfish-core/include/utils/telemetry_utils.hpp | 100 +++++++++++++
  redfish-core/include/utils/time_utils.hpp      |  97 +++++++++++++
  redfish-core/lib/metric_report.hpp             | 149 +++++++++++++++++++
- redfish-core/lib/metric_report_definition.hpp  | 193 +++++++++++++++++++++++++
+ redfish-core/lib/metric_report_definition.hpp  | 191 +++++++++++++++++++++++++
  redfish-core/lib/service_root.hpp              |   2 +
  redfish-core/lib/telemetry_service.hpp         |  92 ++++++++++++
- 9 files changed, 765 insertions(+)
+ 9 files changed, 763 insertions(+)
  create mode 100644 redfish-core/include/utils/telemetry_utils.hpp
  create mode 100644 redfish-core/include/utils/time_utils.hpp
  create mode 100644 redfish-core/lib/metric_report.hpp
@@ -42,10 +46,10 @@ Change-Id: Ie6b0b49f4ef5eeaef07d1209b6c349270c04d570
  create mode 100644 redfish-core/lib/telemetry_service.hpp
 
 diff --git a/include/dbus_utility.hpp b/include/dbus_utility.hpp
-index e1360f7..3df88d8 100644
+index 8ba9a57..ef3438b 100644
 --- a/include/dbus_utility.hpp
 +++ b/include/dbus_utility.hpp
-@@ -109,5 +109,26 @@ inline void checkDbusPathExists(const std::string& path, Callback&& callback)
+@@ -99,5 +99,26 @@ inline void checkDbusPathExists(const std::string& path, Callback&& callback)
          std::array<std::string, 0>());
  }
  
@@ -73,19 +77,19 @@ index e1360f7..3df88d8 100644
  } // namespace utility
  } // namespace dbus
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index cc98e1a..3d4c117 100644
+index 54d5d0e..2587b37 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -25,6 +25,8 @@
- #include "../lib/log_services.hpp"
  #include "../lib/managers.hpp"
+ #include "../lib/memory.hpp"
  #include "../lib/message_registries.hpp"
 +#include "../lib/metric_report.hpp"
 +#include "../lib/metric_report_definition.hpp"
  #include "../lib/network_protocol.hpp"
  #include "../lib/pcie.hpp"
  #include "../lib/power.hpp"
-@@ -35,6 +37,7 @@
+@@ -36,6 +38,7 @@
  #include "../lib/storage.hpp"
  #include "../lib/systems.hpp"
  #include "../lib/task.hpp"
@@ -93,7 +97,7 @@ index cc98e1a..3d4c117 100644
  #include "../lib/thermal.hpp"
  #include "../lib/update_service.hpp"
  #ifdef BMCWEB_ENABLE_VM_NBDPROXY
-@@ -202,6 +205,13 @@ class RedfishService
+@@ -207,6 +210,13 @@ class RedfishService
          nodes.emplace_back(std::make_unique<HypervisorInterface>(app));
          nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
  
@@ -108,21 +112,20 @@ index cc98e1a..3d4c117 100644
          {
              node->initPrivileges();
 diff --git a/redfish-core/include/utils/json_utils.hpp b/redfish-core/include/utils/json_utils.hpp
-index d578de4..fbb259d 100644
+index c355000..c866a2f 100644
 --- a/redfish-core/include/utils/json_utils.hpp
 +++ b/redfish-core/include/utils/json_utils.hpp
-@@ -13,15 +13,19 @@
+@@ -13,14 +13,18 @@
  // See the License for the specific language governing permissions and
  // limitations under the License.
  */
 +
  #pragma once
  
- #include <http_request.h>
- #include <http_response.h>
- 
 +#include <boost/container/flat_map.hpp>
  #include <error_messages.hpp>
+ #include <http_request.hpp>
+ #include <http_response.hpp>
  #include <nlohmann/json.hpp>
  
  #include <bitset>
@@ -131,7 +134,7 @@ index d578de4..fbb259d 100644
  
  namespace redfish
  {
-@@ -436,5 +440,102 @@ bool getValueFromJsonObject(nlohmann::json& jsonData, const std::string& key,
+@@ -425,5 +429,102 @@ bool getValueFromJsonObject(nlohmann::json& jsonData, const std::string& key,
      return details::unpackValue(jsonValue, key, value);
  }
  
@@ -445,7 +448,7 @@ index 0000000..0256b3f
 +} // namespace redfish
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
 new file mode 100644
-index 0000000..a52d680
+index 0000000..4d1c4e5
 --- /dev/null
 +++ b/redfish-core/lib/metric_report.hpp
 @@ -0,0 +1,149 @@
@@ -481,7 +484,7 @@ index 0000000..a52d680
 +class MetricReportCollection : public Node
 +{
 +  public:
-+    MetricReportCollection(CrowApp& app) : Node(app, telemetry::metricReportUri)
++    MetricReportCollection(App& app) : Node(app, telemetry::metricReportUri)
 +    {
 +        entityPrivileges = {
 +            {boost::beast::http::verb::get, {{"Login"}}},
@@ -493,8 +496,8 @@ index 0000000..a52d680
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request& req,
-+               const std::vector<std::string>& params) override
++    void doGet(crow::Response& res, const crow::Request&,
++               const std::vector<std::string>&) override
 +    {
 +        res.jsonValue["@odata.type"] =
 +            "#MetricReportCollection.MetricReportCollection";
@@ -510,7 +513,7 @@ index 0000000..a52d680
 +class MetricReport : public Node
 +{
 +  public:
-+    MetricReport(CrowApp& app) :
++    MetricReport(App& app) :
 +        Node(app, std::string(telemetry::metricReportUri) + "<str>/",
 +             std::string())
 +    {
@@ -524,7 +527,7 @@ index 0000000..a52d680
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request& req,
++    void doGet(crow::Response& res, const crow::Request&,
 +               const std::vector<std::string>& params) override
 +    {
 +        auto asyncResp = std::make_shared<AsyncResp>(res);
@@ -600,10 +603,10 @@ index 0000000..a52d680
 +} // namespace redfish
 diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
 new file mode 100644
-index 0000000..d82ae59
+index 0000000..72e62e9
 --- /dev/null
 +++ b/redfish-core/lib/metric_report_definition.hpp
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,191 @@
 +/*
 +// Copyright (c) 2018-2020 Intel Corporation
 +//
@@ -637,7 +640,7 @@ index 0000000..d82ae59
 +class MetricReportDefinitionCollection : public Node
 +{
 +  public:
-+    MetricReportDefinitionCollection(CrowApp& app) :
++    MetricReportDefinitionCollection(App& app) :
 +        Node(app, telemetry::metricReportDefinitionUri)
 +    {
 +        entityPrivileges = {
@@ -650,8 +653,8 @@ index 0000000..d82ae59
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request& req,
-+               const std::vector<std::string>& params) override
++    void doGet(crow::Response& res, const crow::Request&,
++               const std::vector<std::string>&) override
 +    {
 +        res.jsonValue["@odata.type"] = "#MetricReportDefinitionCollection."
 +                                       "MetricReportDefinitionCollection";
@@ -668,7 +671,7 @@ index 0000000..d82ae59
 +class MetricReportDefinition : public Node
 +{
 +  public:
-+    MetricReportDefinition(CrowApp& app) :
++    MetricReportDefinition(App& app) :
 +        Node(app, std::string(telemetry::metricReportDefinitionUri) + "<str>/",
 +             std::string())
 +    {
@@ -682,7 +685,7 @@ index 0000000..d82ae59
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request& req,
++    void doGet(crow::Response& res, const crow::Request&,
 +               const std::vector<std::string>& params) override
 +    {
 +        auto asyncResp = std::make_shared<AsyncResp>(res);
@@ -723,12 +726,10 @@ index 0000000..d82ae59
 +    using ReadingParameters =
 +        std::vector<std::tuple<std::vector<sdbusplus::message::object_path>,
 +                               std::string, std::string, std::string>>;
-+    using Metrics = std::vector<std::map<
-+        std::string, std::variant<std::string, std::vector<std::string>>>>;
 +
-+    static Metrics toMetrics(const ReadingParameters& params)
++    static nlohmann::json toMetrics(const ReadingParameters& params)
 +    {
-+        Metrics metrics;
++        nlohmann::json metrics = nlohmann::json::array();
 +
 +        for (auto& [sensorPaths, operationType, id, metadata] : params)
 +        {
@@ -798,10 +799,10 @@ index 0000000..d82ae59
 +};
 +} // namespace redfish
 diff --git a/redfish-core/lib/service_root.hpp b/redfish-core/lib/service_root.hpp
-index b6bd6e0..3302390 100644
+index 629280c..3df5ec5 100644
 --- a/redfish-core/lib/service_root.hpp
 +++ b/redfish-core/lib/service_root.hpp
-@@ -69,6 +69,8 @@ class ServiceRoot : public Node
+@@ -68,6 +68,8 @@ class ServiceRoot : public Node
          res.jsonValue["Tasks"] = {{"@odata.id", "/redfish/v1/TaskService"}};
          res.jsonValue["EventService"] = {
              {"@odata.id", "/redfish/v1/EventService"}};
@@ -812,7 +813,7 @@ index b6bd6e0..3302390 100644
  
 diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
 new file mode 100644
-index 0000000..a410700
+index 0000000..b849781
 --- /dev/null
 +++ b/redfish-core/lib/telemetry_service.hpp
 @@ -0,0 +1,92 @@
@@ -847,7 +848,7 @@ index 0000000..a410700
 +class TelemetryService : public Node
 +{
 +  public:
-+    TelemetryService(CrowApp& app) : Node(app, "/redfish/v1/TelemetryService/")
++    TelemetryService(App& app) : Node(app, "/redfish/v1/TelemetryService/")
 +    {
 +        entityPrivileges = {
 +            {boost::beast::http::verb::get, {{"Login"}}},
@@ -859,8 +860,8 @@ index 0000000..a410700
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request& req,
-+               const std::vector<std::string>& params) override
++    void doGet(crow::Response& res, const crow::Request&,
++               const std::vector<std::string>&) override
 +    {
 +        res.jsonValue["@odata.type"] =
 +            "#TelemetryService.v1_2_0.TelemetryService";

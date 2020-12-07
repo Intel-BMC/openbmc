@@ -1,0 +1,32 @@
+#!/bin/bash
+
+NVMP=/tmp/.rwfs
+SOMP=/var/sofs
+
+do_sync() {
+    rsync -a --delete /tmp/.overlay/ $NVMP/.overlay
+    sync $NVMP/.overlay
+}
+
+stop_nv() {
+    history -a
+    do_sync
+    mount -o remount,ro $NVMP
+    mount -o remount,ro $SOMP
+    exit 0
+}
+
+# register cleanup function
+trap stop_nv SIGINT
+trap stop_nv SIGTERM
+trap stop_nv EXIT
+
+# make sure the mount points are RW
+mount -o remount,rw $NVMP
+mount -o remount,rw $SOMP
+
+# Run rsync periodically to sync the overlay to NV storage
+while true; do
+    do_sync
+    sleep 10
+done

@@ -1,8 +1,8 @@
 SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
-SRC_URI = "git://github.com/Intel-BMC/mdrv2.git;protocol=ssh"
-SRCREV = "095102dfb5e2374834e33d1ec1a5e61388208a9e"
+SRC_URI = "git://github.com/openbmc/smbios-mdr.git"
+SRCREV = "49609c2484c4b90d7e2de979d440868a34843818"
 
 S = "${WORKDIR}/git"
 
@@ -22,12 +22,13 @@ DEPENDS += " \
     boost \
     systemd \
     sdbusplus \
-    sdbusplus-native \
     phosphor-dbus-interfaces \
-    phosphor-dbus-interfaces-native \
     phosphor-logging \
     libpeci \
     i2c-tools \
     "
+
+EXTRA_OECMAKE="-DYOCTO=1"
+
 PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'smbios-no-dimm', d)}"
 PACKAGECONFIG[smbios-no-dimm] = "-DDIMM_DBUS=OFF, -DDIMM_DBUS=ON"

@@ -1,0 +1,156 @@
+From cd3c2ff290e6ff205c32b386c7c8a73d4a8980e5 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 8 Dec 2020 15:08:21 -0800
+Subject: [PATCH 1/4] update meson build files for control and bios
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ .../Control/Power/RestoreDelay/meson.build        | 14 ++++++++++++++
+ gen/xyz/openbmc_project/Control/Power/meson.build | 15 +++++++++++++++
+ .../Control/Processor/ErrConfig/meson.build       | 14 ++++++++++++++
+ .../openbmc_project/Control/Processor/meson.build | 15 +++++++++++++++
+ .../Inventory/Item/Bios/meson.build               | 14 ++++++++++++++
+ .../openbmc_project/Inventory/Item/meson.build    | 15 +++++++++++++++
+ 6 files changed, 87 insertions(+)
+ create mode 100644 gen/xyz/openbmc_project/Control/Power/RestoreDelay/meson.build
+ create mode 100644 gen/xyz/openbmc_project/Control/Processor/ErrConfig/meson.build
+ create mode 100644 gen/xyz/openbmc_project/Inventory/Item/Bios/meson.build
+
+diff --git a/gen/xyz/openbmc_project/Control/Power/RestoreDelay/meson.build b/gen/xyz/openbmc_project/Control/Power/RestoreDelay/meson.build
+new file mode 100644
+index 0000000..91581fd
+--- /dev/null
++++ b/gen/xyz/openbmc_project/Control/Power/RestoreDelay/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/Control/Power/RestoreDelay__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/Control/Power/RestoreDelay.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/Control/Power/RestoreDelay',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/Control/Power/meson.build b/gen/xyz/openbmc_project/Control/Power/meson.build
+index 05628ec..ad04479 100644
+--- a/gen/xyz/openbmc_project/Control/Power/meson.build
++++ b/gen/xyz/openbmc_project/Control/Power/meson.build
+@@ -29,6 +29,21 @@ generated_others += custom_target(
+     build_by_default: true,
+ )
+ 
++subdir('RestoreDelay')
++generated_others += custom_target(
++    'xyz/openbmc_project/Control/Power/RestoreDelay__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/Control/Power/RestoreDelay.interface.yaml',  ],
++    output: [ 'RestoreDelay.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/Control/Power/RestoreDelay',
++    ],
++    build_by_default: true,
++)
++
+ subdir('RestorePolicy')
+ generated_others += custom_target(
+     'xyz/openbmc_project/Control/Power/RestorePolicy__markdown'.underscorify(),
+diff --git a/gen/xyz/openbmc_project/Control/Processor/ErrConfig/meson.build b/gen/xyz/openbmc_project/Control/Processor/ErrConfig/meson.build
+new file mode 100644
+index 0000000..12961c2
+--- /dev/null
++++ b/gen/xyz/openbmc_project/Control/Processor/ErrConfig/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/Control/Processor/ErrConfig__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/Control/Processor/ErrConfig',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/Control/Processor/meson.build b/gen/xyz/openbmc_project/Control/Processor/meson.build
+index adbff0a..816c30d 100644
+--- a/gen/xyz/openbmc_project/Control/Processor/meson.build
++++ b/gen/xyz/openbmc_project/Control/Processor/meson.build
+@@ -14,3 +14,18 @@ generated_others += custom_target(
+     build_by_default: true,
+ )
+ 
++subdir('ErrConfig')
++generated_others += custom_target(
++    'xyz/openbmc_project/Control/Processor/ErrConfig__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml',  ],
++    output: [ 'ErrConfig.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/Control/Processor/ErrConfig',
++    ],
++    build_by_default: true,
++)
++
+diff --git a/gen/xyz/openbmc_project/Inventory/Item/Bios/meson.build b/gen/xyz/openbmc_project/Inventory/Item/Bios/meson.build
+new file mode 100644
+index 0000000..5c6fce0
+--- /dev/null
++++ b/gen/xyz/openbmc_project/Inventory/Item/Bios/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/Inventory/Item/Bios__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/Inventory/Item/Bios.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/Inventory/Item/Bios',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/Inventory/Item/meson.build b/gen/xyz/openbmc_project/Inventory/Item/meson.build
+index 145bba2..3e036bd 100644
+--- a/gen/xyz/openbmc_project/Inventory/Item/meson.build
++++ b/gen/xyz/openbmc_project/Inventory/Item/meson.build
+@@ -27,6 +27,21 @@ generated_others += custom_target(
+     build_by_default: true,
+ )
+ 
++subdir('Bios')
++generated_others += custom_target(
++    'xyz/openbmc_project/Inventory/Item/Bios__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/Inventory/Item/Bios.interface.yaml',  ],
++    output: [ 'Bios.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/Inventory/Item/Bios',
++    ],
++    build_by_default: true,
++)
++
+ subdir('Bmc')
+ generated_others += custom_target(
+     'xyz/openbmc_project/Inventory/Item/Bmc__markdown'.underscorify(),
+-- 
+2.17.1
+

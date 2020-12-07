@@ -1,0 +1,295 @@
+From 68885eb4d056b8343c567c48ece7e875feb28fc0 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Thu, 30 Jul 2020 00:29:19 -0700
+Subject: [PATCH] Refine HID report writing logic
+
+Blocking write on the keyboard HID device causes screen freezing
+during turning off the host power. To fix this issue, this commit
+refines the logic using non-blocking write. As a side effect,
+non-blocking write introduces event dropping when kernel HID driver
+returns -EAGAIN when the driver is in busy state so this commit also
+adds retry logic to cover the case.
+
+Tested: Didn't see the screen freezing issue.
+
+Change-Id: Ibd95f567c49f448cd053948c14c006de17c52420
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ ikvm_input.cpp  | 106 ++++++++++++++++++++++++++++++++----------------
+ ikvm_input.hpp  |  13 +++---
+ ikvm_server.cpp |   2 -
+ 3 files changed, 79 insertions(+), 42 deletions(-)
+
+diff --git a/ikvm_input.cpp b/ikvm_input.cpp
+index c4cce5088461..480db3c094bc 100644
+--- a/ikvm_input.cpp
++++ b/ikvm_input.cpp
+@@ -25,9 +25,8 @@ using namespace phosphor::logging;
+ using namespace sdbusplus::xyz::openbmc_project::Common::File::Error;
+ 
+ Input::Input(const std::string& kbdPath, const std::string& ptrPath) :
+-    sendKeyboard(false), sendPointer(false), keyboardFd(-1), pointerFd(-1),
+-    keyboardReport{0}, pointerReport{0}, keyboardPath(kbdPath),
+-    pointerPath(ptrPath)
++    keyboardFd(-1), pointerFd(-1), keyboardReport{0}, pointerReport{0},
++    keyboardPath(kbdPath), pointerPath(ptrPath)
+ {
+     hidUdcStream.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+     hidUdcStream.open(hidUdcPath, std::ios::out | std::ios::app);
+@@ -79,7 +78,8 @@ void Input::connect()
+ 
+     if (!keyboardPath.empty())
+     {
+-        keyboardFd = open(keyboardPath.c_str(), O_RDWR | O_CLOEXEC);
++        keyboardFd = open(keyboardPath.c_str(),
++                          O_RDWR | O_CLOEXEC | O_NONBLOCK);
+         if (keyboardFd < 0)
+         {
+             log<level::ERR>("Failed to open input device",
+@@ -135,6 +135,12 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+ {
+     Server::ClientData* cd = (Server::ClientData*)cl->clientData;
+     Input* input = cd->input;
++    bool sendKeyboard = false;
++
++    if (input->keyboardFd < 0)
++    {
++        return;
++    }
+ 
+     if (down)
+     {
+@@ -150,7 +156,7 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+                     {
+                         input->keyboardReport[i] = sc;
+                         input->keysDown.insert(std::make_pair(key, i));
+-                        input->sendKeyboard = true;
++                        sendKeyboard = true;
+                         break;
+                     }
+                 }
+@@ -163,7 +169,7 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+             if (mod)
+             {
+                 input->keyboardReport[0] |= mod;
+-                input->sendKeyboard = true;
++                sendKeyboard = true;
+             }
+         }
+     }
+@@ -175,7 +181,7 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+         {
+             input->keyboardReport[it->second] = 0;
+             input->keysDown.erase(it);
+-            input->sendKeyboard = true;
++            sendKeyboard = true;
+         }
+         else
+         {
+@@ -184,10 +190,15 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+             if (mod)
+             {
+                 input->keyboardReport[0] &= ~mod;
+-                input->sendKeyboard = true;
++                sendKeyboard = true;
+             }
+         }
+     }
++
++    if (sendKeyboard)
++    {
++        input->writeKeyboard(input->keyboardReport);
++    }
+ }
+ 
+ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
+@@ -197,6 +208,11 @@ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
+     Server* server = (Server*)cl->screen->screenData;
+     const Video& video = server->getVideo();
+ 
++    if (input->pointerFd < 0)
++    {
++        return;
++    }
++
+     input->pointerReport[0] = ((buttonMask & 0x4) >> 1) |
+                               ((buttonMask & 0x2) << 1) | (buttonMask & 0x1);
+ 
+@@ -214,8 +230,8 @@ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
+         memcpy(&input->pointerReport[3], &yy, 2);
+     }
+ 
+-    input->sendPointer = true;
+     rfbDefaultPtrAddEvent(buttonMask, x, y, cl);
++    input->writePointer(input->pointerReport);
+ }
+ 
+ void Input::sendWakeupPacket()
+@@ -249,23 +265,6 @@ void Input::sendWakeupPacket()
+     }
+ }
+ 
+-void Input::sendReport()
+-{
+-    if (sendKeyboard && keyboardFd >= 0)
+-    {
+-        writeKeyboard(keyboardReport);
+-
+-        sendKeyboard = false;
+-    }
+-
+-    if (sendPointer && pointerFd >= 0)
+-    {
+-        writePointer(pointerReport);
+-
+-        sendPointer = false;
+-    }
+-}
+-
+ uint8_t Input::keyToMod(rfbKeySym key)
+ {
+     uint8_t mod = 0;
+@@ -489,14 +488,35 @@ uint8_t Input::keyToScancode(rfbKeySym key)
+ 
+ bool Input::writeKeyboard(const uint8_t *report)
+ {
+-    if (write(keyboardFd, report, KEY_REPORT_LENGTH) != KEY_REPORT_LENGTH)
++    std::unique_lock<std::mutex> lk(keyMutex);
++    uint retryCount = HID_REPORT_RETRY_MAX;
++
++    while (retryCount > 0)
+     {
+-        if (errno != ESHUTDOWN && errno != EAGAIN)
++        if (write(keyboardFd, report, KEY_REPORT_LENGTH) == KEY_REPORT_LENGTH)
+         {
+-            log<level::ERR>("Failed to write keyboard report",
+-                            entry("ERROR=%s", strerror(errno)));
++            break;
++        }
++
++        if (errno != EAGAIN)
++        {
++            if (errno != ESHUTDOWN)
++            {
++                log<level::ERR>("Failed to write keyboard report",
++                                entry("ERROR=%s", strerror(errno)));
++            }
++
++            break;
+         }
+ 
++        lk.unlock();
++        std::this_thread::sleep_for(std::chrono::milliseconds(10));
++        lk.lock();
++        retryCount--;
++    }
++
++    if (!retryCount || errno)
++    {
+         return false;
+     }
+ 
+@@ -505,13 +525,31 @@ bool Input::writeKeyboard(const uint8_t *report)
+ 
+ void Input::writePointer(const uint8_t *report)
+ {
+-    if (write(pointerFd, report, PTR_REPORT_LENGTH) != PTR_REPORT_LENGTH)
++    std::unique_lock<std::mutex> lk(ptrMutex);
++    uint retryCount = HID_REPORT_RETRY_MAX;
++
++    while (retryCount > 0)
+     {
+-        if (errno != ESHUTDOWN && errno != EAGAIN)
++        if (write(pointerFd, report, PTR_REPORT_LENGTH) == PTR_REPORT_LENGTH)
+         {
+-            log<level::ERR>("Failed to write pointer report",
+-                            entry("ERROR=%s", strerror(errno)));
++            break;
++        }
++
++        if (errno != EAGAIN)
++        {
++            if (errno != ESHUTDOWN)
++            {
++                log<level::ERR>("Failed to write pointer report",
++                                entry("ERROR=%s", strerror(errno)));
++            }
++
++            break;
+         }
++
++        lk.unlock();
++        std::this_thread::sleep_for(std::chrono::milliseconds(10));
++        lk.lock();
++        retryCount--;
+     }
+ }
+ 
+diff --git a/ikvm_input.hpp b/ikvm_input.hpp
+index aae7cefbef6e..558251d673cc 100644
+--- a/ikvm_input.hpp
++++ b/ikvm_input.hpp
+@@ -5,6 +5,7 @@
+ #include <filesystem>
+ #include <fstream>
+ #include <map>
++#include <mutex>
+ #include <string>
+ 
+ namespace ikvm
+@@ -56,8 +57,6 @@ class Input
+ 
+     /* @brief Sends a wakeup data packet to the USB input device */
+     void sendWakeupPacket();
+-    /* @brief Sends an HID report to the USB input device */
+-    void sendReport();
+ 
+   private:
+     static constexpr int NUM_MODIFIER_BITS = 4;
+@@ -84,6 +83,8 @@ class Input
+     /* @brief Path to the USB virtual hub */
+     static constexpr const char* usbVirtualHubPath =
+         "/sys/bus/platform/devices/1e6a0000.usb-vhub";
++    /* @brief Retry limit for writing an HID report */
++    static constexpr int HID_REPORT_RETRY_MAX = 5;
+     /*
+      * @brief Translates a RFB-specific key code to HID modifier bit
+      *
+@@ -100,10 +101,6 @@ class Input
+     bool writeKeyboard(const uint8_t *report);
+     void writePointer(const uint8_t *report);
+ 
+-    /* @brief Indicates whether or not to send a keyboard report */
+-    bool sendKeyboard;
+-    /* @brief Indicates whether or not to send a pointer report */
+-    bool sendPointer;
+     /* @brief File descriptor for the USB keyboard device */
+     int keyboardFd;
+     /* @brief File descriptor for the USB mouse device */
+@@ -123,6 +120,10 @@ class Input
+     std::map<int, int> keysDown;
+     /* @brief Handle of the HID gadget UDC */
+     std::ofstream hidUdcStream;
++    /* @brief Mutex for sending keyboard reports */
++    std::mutex keyMutex;
++    /* @brief Mutex for sending pointer reports */
++    std::mutex ptrMutex;
+ };
+ 
+ } // namespace ikvm
+diff --git a/ikvm_server.cpp b/ikvm_server.cpp
+index 0736d1f55f73..7be99e4379d1 100644
+--- a/ikvm_server.cpp
++++ b/ikvm_server.cpp
+@@ -79,8 +79,6 @@ void Server::run()
+ 
+     if (server->clientHead)
+     {
+-        input.sendReport();
+-
+         frameCounter++;
+         if (pendingResize && frameCounter > video.getFrameRate())
+         {
+-- 
+2.17.1
+

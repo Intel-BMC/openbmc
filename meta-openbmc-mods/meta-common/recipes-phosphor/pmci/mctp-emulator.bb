@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=bcd9ada3a943f58551867d72893cc9ab"
 
 SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "1bc2bddcff7104cc9040e9b2688761b2d9b32099"
+SRCREV = "108ce1250a9836a8751394ee3a4443ae821de3ec"
 
 S = "${WORKDIR}/git/mctp_emulator/"
 

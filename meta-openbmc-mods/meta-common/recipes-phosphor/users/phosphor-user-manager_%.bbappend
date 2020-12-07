@@ -1,6 +1,7 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-SRCREV = "73ce773e2f94fcfdeeeb9db83a3e92429ab4a663"
+SRC_URI = "git://github.com/openbmc/phosphor-user-manager"
+SRCREV = "703131fa01422bc28675f5d629edb98d285a1bc4"
 
 EXTRA_OECONF += "${@bb.utils.contains_any("IMAGE_FEATURES", [ 'debug-tweaks', 'allow-root-login' ], '', '--disable-root_user_mgmt', d)}"
 

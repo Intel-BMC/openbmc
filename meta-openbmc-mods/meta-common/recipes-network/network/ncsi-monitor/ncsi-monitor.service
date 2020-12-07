@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for host in reset
+After=multi-user.target
+
+[Service]
+Type=oneshot
+Restart=no
+ExecStart=/usr/bin/check-for-host-in-reset
+
+[Install]
+WantedBy=multi-user.target

@@ -1914,6 +1914,12 @@
             "Bus": 4,
             "Name": "PFR",
             "Type": "PFR"
+        },
+        {
+            "Name": "PCH SMBUS Slave",
+            "PchSmbusSlaveI2cBus": 3,
+            "PchSmbusSlaveI2cAddress": "0x44",
+            "Type": "PchSmbusSlave"
         }
     ],
     "Name": "CPC Baseboard",

@@ -1,6 +1,5 @@
-# todo(james) remove nobranch
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "6964c9820ad101d6fc30badd1ae353efea3dd094"
+SRCREV = "a8fe54f09be1deefc119d8dcf100da922496d46d"
 
 DEPENDS += "boost-url"
 
@@ -12,14 +11,10 @@ USERADD_PARAM_${PN} = "-r -s /usr/sbin/nologin -d /home/bmcweb -m -G shadow bmcw
 
 GROUPADD_PARAM_${PN} = "web; redfish "
 
-SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
+SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0002-Use-chip-id-based-UUID-for-Service-Root.patch \
-            file://0003-bmcweb-changes-for-setting-ApplyOptions-ClearCfg.patch \
-            file://0004-Remove-QueryString.patch \
             file://0004-bmcweb-handle-device-or-resource-busy-exception.patch \
             file://0005-EventService-https-client-support.patch \
-            file://0005-VirtualMedia-fixes-for-Redfish-Service-Validator.patch \
-            file://0006-Fix-Image-and-ImageName-values-in-schema.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
@@ -28,24 +23,24 @@ SRC_URI += "file://telemetry/0001-Redfish-TelemetryService-schema-implementation
             file://telemetry/0003-Add-support-for-DELETE-in-MetricReportDefinitions-st.patch \
             file://telemetry/0004-Add-support-for-OnRequest-in-MetricReportDefinition.patch \
             file://telemetry/0005-Add-support-for-MetricDefinition-scheme.patch \
-            file://telemetry/0006-Fix-MetricReport-timestamp-for-EventService.patch \
 "
 
 # Temporary fix: Move it to service file
 do_install_append() {
         install -d ${D}/var/lib/bmcweb
+        install -d ${D}/etc/ssl/certs/authority
 }
 
 # Enable PFR support
-EXTRA_OECMAKE += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-DBMCWEB_ENABLE_REDFISH_PROVISIONING_FEATURE=ON', '', d)}"
+EXTRA_OEMESON += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-Dredfish-provisioning-feature=enabled', '', d)}"
 
 # Enable NBD proxy embedded in bmcweb
-EXTRA_OECMAKE += " -DBMCWEB_ENABLE_VM_NBDPROXY=ON"
+EXTRA_OEMESON += " -Dvm-nbdproxy=enabled"
 
 # Disable dependency on external nbd-proxy application
-EXTRA_OECMAKE += " -DBMCWEB_ENABLE_VM_WEBSOCKET=OFF"
+EXTRA_OEMESON += " -Dvm-websocket=disabled"
 RDEPENDS_${PN}_remove += "jsnbd"
 
 # Enable Validation unsecure based on IMAGE_FEATURES
-EXTRA_OECMAKE += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-DBMCWEB_ENABLE_VALIDATION_UNSECURE_FEATURE=ON', '', d)}"
+EXTRA_OEMESON += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-Dvalidate-unsecure-feature=enabled', '', d)}"
 

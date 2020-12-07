@@ -26,8 +26,8 @@ index 5b2ff49..e3d26e3 100644
 +#include <time.h>
  #include <unistd.h>
  
- #include <algorithm>
-@@ -129,6 +130,11 @@ int Manager::processImage(const std::string& tarFilePath)
+ #include <elog-errors.hpp>
+@@ -174,6 +175,11 @@ int Manager::processImage(const std::string& tarFilePath)
      // Compute id
      auto id = Version::getId(version);
  

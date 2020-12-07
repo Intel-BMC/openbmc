@@ -16,6 +16,8 @@
 #include <fcntl.h>
 #include <linux/input.h>
 
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <chrono>
 #include <iostream>
@@ -291,12 +293,6 @@ static void beep(const uint8_t& beepPriority)
                   << static_cast<unsigned int>(beepPriority) << std::endl;
         return;
     }
-
-    // Log into redfish event log
-    sd_journal_send("MESSAGE=BeepCode: Priority=%d", beepPriority,
-                    "PRIORITY=%i", LOG_INFO, "REDFISH_MESSAGE_ID=%s",
-                    "OpenBMC.0.1.BeepCode", "REDFISH_MESSAGE_ARGS=%d",
-                    beepPriority, NULL);
 
     beeper.beep(beepPriority);
 

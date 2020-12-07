@@ -1,13 +1,13 @@
 SUMMARY = "Callback Manager"
 DESCRIPTION = "D-Bus daemon that registers matches that trigger method calls"
 
-SRC_URI = "git://github.com/Intel-BMC/provingground;protocol=ssh"
+SRC_URI = "git://github.com/openbmc/s2600wf-misc.git;protocol=ssh;nobranch=1"
 
 inherit cmake systemd
 DEPENDS = "boost sdbusplus"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "bee56d62b209088454d166d1efae4825a2b175df"
+SRCREV = "291d6388e0b770e89091935bc4edc7f371874666"
 
 S = "${WORKDIR}/git/callback-manager"
 

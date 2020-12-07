@@ -1,0 +1,128 @@
+From e9a8a79453e23c86e7b086b1e752876c99bcf0b3 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Tue, 20 Oct 2020 15:49:26 -0700
+Subject: [PATCH] fix SUS_WARN handling logic
+
+This commit fixes SUS_WARN handling as dual-edge detection mode
+to support deepsx entry event properly.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+---
+ board/aspeed/ast2600_intel/ast-espi.c | 62 ++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 30 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/ast-espi.c b/board/aspeed/ast2600_intel/ast-espi.c
+index a8b389f159ef..51fcc836cc6a 100644
+--- a/board/aspeed/ast2600_intel/ast-espi.c
++++ b/board/aspeed/ast2600_intel/ast-espi.c
+@@ -148,9 +148,9 @@ static void espi_irq_handler(void *cookie)
+ {
+ 	uint32_t irq_status = readl(AST_ESPI_BASE + ESPI008);
+ 
+-	DBG_ESPI("espi_irq_handler, ESPI008=0X%x, ESPI00c=0X%x,\
+-		ESPI100=0X%x, ESPI11c=0X%x, ESPI094=0X%x,\
+-		ESPI12c=0X%x, irq_status=0x%x\n",
++	DBG_ESPI("espi_irq_handler, ESPI008=0X%x, ESPI00c=0X%x, "
++		 "ESPI100=0X%x, ESPI11c=0X%x, ESPI094=0X%x, "
++		 "ESPI12c=0X%x, irq_status=0x%x\n",
+ 		readl(AST_ESPI_BASE + ESPI008),
+ 		readl(AST_ESPI_BASE + ESPI00C),
+ 		readl(AST_ESPI_BASE + ESPI100),
+@@ -165,21 +165,23 @@ static void espi_irq_handler(void *cookie)
+ 		DBG_ESPI("sys_status : 0x%08X\n", sys_status);
+ 		if (sys_status & AST_ESPI_HOST_RST_WARN) {
+ 			DBG_ESPI("HOST_RST_WARN evt: 0x%08X\n", sys_event);
+-			if (sys_event & AST_ESPI_HOST_RST_WARN) {
+-				uint32_t v = readl(AST_ESPI_BASE + ESPI098) |
+-					     AST_ESPI_HOST_RST_ACK;
+-				writel(v, AST_ESPI_BASE + ESPI098);
+-				DBG_ESPI("HOST_RST_WARN sent ack\n");
+-			}
++			uint32_t v = readl(AST_ESPI_BASE + ESPI098);
++			if (sys_event & AST_ESPI_HOST_RST_WARN)
++				v |= AST_ESPI_HOST_RST_ACK;
++			else
++				v &= ~AST_ESPI_HOST_RST_ACK;
++			writel(v, AST_ESPI_BASE + ESPI098);
++			DBG_ESPI("HOST_RST_WARN sent ack\n");
+ 		}
+ 		if (sys_status & AST_ESPI_OOB_RST_WARN) {
+ 			DBG_ESPI("OOB_RST_WARN evt: 0x%08X\n", sys_event);
+-			if (sys_event & AST_ESPI_OOB_RST_WARN) {
+-				uint32_t v = readl(AST_ESPI_BASE + ESPI098) |
+-					     AST_ESPI_OOB_RST_ACK;
+-				writel(v, AST_ESPI_BASE + ESPI098);
+-				DBG_ESPI("OOB_RST_WARN sent ack\n");
+-			}
++			uint32_t v = readl(AST_ESPI_BASE + ESPI098);
++			if (sys_event & AST_ESPI_OOB_RST_WARN)
++				v |= AST_ESPI_OOB_RST_ACK;
++			else
++				v &= ~AST_ESPI_OOB_RST_ACK;
++			writel(v, AST_ESPI_BASE + ESPI098);
++			DBG_ESPI("OOB_RST_WARN sent ack\n");
+ 		}
+ 		if (sys_status & AST_ESPI_PLTRSTN) {
+ 			DBG_ESPI("PLTRSTN: %c, evt: 0x%08X\n",
+@@ -196,12 +198,13 @@ static void espi_irq_handler(void *cookie)
+ 		DBG_ESPI("sys1_status : 0x%08X\n", sys1_status);
+ 		if (sys1_status & AST_ESPI_SUS_WARN) {
+ 			DBG_ESPI("SUS WARN evt: 0x%08X\n", sys1_event);
+-			if (sys1_event & AST_ESPI_SUS_WARN) {
+-				uint32_t v = readl(AST_ESPI_BASE + ESPI104) |
+-					     AST_ESPI_SUS_ACK;
+-				writel(v, AST_ESPI_BASE + ESPI104);
+-				DBG_ESPI("SUS_WARN sent ack\n");
+-			}
++			uint32_t v = readl(AST_ESPI_BASE + ESPI104);
++			if (sys1_event & AST_ESPI_SUS_WARN)
++				v |= AST_ESPI_SUS_ACK;
++			else
++				v &= ~AST_ESPI_SUS_ACK;
++			writel(v, AST_ESPI_BASE + ESPI104);
++			DBG_ESPI("SUS_WARN sent ack\n");
+ 		}
+ 		writel(sys1_status, AST_ESPI_BASE + ESPI12C); /* clear status */
+ 	}
+@@ -219,9 +222,9 @@ static void espi_irq_handler(void *cookie)
+ 
+ 	writel(irq_status, AST_ESPI_BASE + ESPI008); /* clear irq_status */
+ 
+-	DBG_ESPI("end espi_irq_handler, ESPI008=0X%x, ESPI00c=0X%x,\
+-		ESPI100=0X%x, ESPI11c=0X%x, ESPI094=0X%x,\
+-		ESPI12c=0X%x, irq_status=0X%x\n",
++	DBG_ESPI("end espi_irq_handler, ESPI008=0X%x, ESPI00c=0X%x, "
++		 "ESPI100=0X%x, ESPI11c=0X%x, ESPI094=0X%x, "
++		 "ESPI12c=0X%x, irq_status=0X%x\n",
+ 		readl(AST_ESPI_BASE + ESPI008),
+ 		readl(AST_ESPI_BASE + ESPI00C),
+ 		readl(AST_ESPI_BASE + ESPI100),
+@@ -232,6 +235,7 @@ static void espi_irq_handler(void *cookie)
+ 
+ static void espi_configure_irq(void)
+ {
++	/* Dual-edge setting for HOST_RST_WARN and OOB_RST_WARN */
+ 	writel(0, AST_ESPI_BASE + ESPI110);
+ 	writel(0, AST_ESPI_BASE + ESPI114);
+ 	writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN |
+@@ -239,13 +243,11 @@ static void espi_configure_irq(void)
+ 	writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN |
+ 	       AST_ESPI_PLTRSTN, AST_ESPI_BASE + ESPI094);
+ 
+-	writel(AST_ESPI_SUS_WARN,
+-	       AST_ESPI_BASE + ESPI120); /* int type 0 susp warn */
++	/* Dual-edge setting for SUS_WARN */
++	writel(0, AST_ESPI_BASE + ESPI120);
+ 	writel(0, AST_ESPI_BASE + ESPI124);
+-	writel(0, AST_ESPI_BASE + ESPI128);
+-	writel(AST_ESPI_SUS_WARN,
+-	       AST_ESPI_BASE +
+-			ESPI100); /* Enable sysev1 ints for susp warn */
++	writel(AST_ESPI_SUS_WARN, AST_ESPI_BASE + ESPI128);
++	writel(AST_ESPI_SUS_WARN, AST_ESPI_BASE + ESPI100);
+ 
+ 	writel(AST_ESPI_IEN_HW_RST | AST_ESPI_IEN_SYS1_EV |
+ 	       AST_ESPI_IEN_SYS_EV, AST_ESPI_BASE + ESPI00C);
+-- 
+2.17.1
+
