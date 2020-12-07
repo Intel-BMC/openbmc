@@ -1,6 +1,7 @@
 <!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
 "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 [<!ENTITY % poky SYSTEM "../poky.ent"> %poky; ] >
+<!--SPDX-License-Identifier: CC-BY-2.0-UK-->
 
 <chapter id='extendpoky'>
 
@@ -3189,7 +3190,7 @@
                         building an image.
                         </para></listitem>
                     <listitem><para>
-                        <filename>virtual/mesa</filename>:
+                        <filename>virtual/libgbm</filename>:
                         Provides <filename>gbm.pc</filename>.
                         </para></listitem>
                     <listitem><para>
@@ -8383,7 +8384,7 @@
                                 If you see the following error, you need to
                                 update or create a
                                 <filename>~/.mtoolsrc</filename> file and
-                                be sure to have the line “mtools_skip_check=1“
+                                be sure to have the line "mtools_skip_check=1"
                                 in the file.
                                 Then, run the Wic command again:
                                 <literallayout class='monospaced'>
@@ -9836,7 +9837,7 @@
                         <listitem><para>
                             Select the desired package format as follows:
                             <literallayout class='monospaced'>
-     PACKAGE_CLASSES ?= “package_<replaceable>packageformat</replaceable>”
+     PACKAGE_CLASSES ?= "package_<replaceable>packageformat</replaceable>"
                             </literallayout>
                             where <replaceable>packageformat</replaceable>
                             can be "ipk", "rpm", "deb", or "tar" which are the
@@ -14192,7 +14193,7 @@
                         <filename>local.conf</filename> file or in an image
                         recipe:
                         <literallayout class='monospaced'>
-     IMAGE_INSTALL_append = “ gdbserver"
+     IMAGE_INSTALL_append = " gdbserver"
                         </literallayout>
                         The change makes sure the <filename>gdbserver</filename>
                         package is included.

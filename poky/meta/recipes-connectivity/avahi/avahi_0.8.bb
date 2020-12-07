@@ -108,7 +108,7 @@ LICENSE_libavahi-gobject = "LGPLv2.1+"
 LICENSE_avahi-daemon = "LGPLv2.1+"
 LICENSE_libavahi-common = "LGPLv2.1+"
 LICENSE_libavahi-core = "LGPLv2.1+"
-LICENSE_avahi-client = "LGPLv2.1+"
+LICENSE_libavahi-client = "LGPLv2.1+"
 LICENSE_avahi-dnsconfd = "LGPLv2.1+"
 LICENSE_libavahi-glib = "LGPLv2.1+"
 LICENSE_avahi-autoipd = "LGPLv2.1+"
@@ -144,6 +144,7 @@ FILES_avahi-utils = "${bindir}/avahi-* ${bindir}/b* ${datadir}/applications/b*"
 
 RDEPENDS_${PN}-dev = "avahi-daemon (= ${EXTENDPKGV}) libavahi-core (= ${EXTENDPKGV})"
 RDEPENDS_${PN}-dev += "${@["", " libavahi-client (= ${EXTENDPKGV})"][bb.utils.contains('PACKAGECONFIG', 'dbus', 1, 0, d)]}"
+RDEPENDS_${PN}-dnsconfd = "${PN}-daemon"
 
 RRECOMMENDS_avahi-daemon_append_libc-glibc = " libnss-mdns"
 

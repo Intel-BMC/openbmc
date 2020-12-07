@@ -1195,8 +1195,6 @@ def get_checksum_file_list(d):
             paths = ud.method.localpaths(ud, d)
             for f in paths:
                 pth = ud.decodedurl
-                if '*' in pth:
-                    f = os.path.join(os.path.abspath(f), pth)
                 if f.startswith(dl_dir):
                     # The local fetcher's behaviour is to return a path under DL_DIR if it couldn't find the file anywhere else
                     if os.path.exists(f):
@@ -1365,9 +1363,6 @@ class FetchMethod(object):
         # We cannot compute checksums for directories
         if os.path.isdir(urldata.localpath):
             return False
-        if urldata.localpath.find("*") != -1:
-            return False
-
         return True
 
     def recommends_checksum(self, urldata):
@@ -1429,11 +1424,6 @@ class FetchMethod(object):
     def unpack(self, urldata, rootdir, data):
         iterate = False
         file = urldata.localpath
-
-        # Localpath can't deal with 'dir/*' entries, so it converts them to '.',
-        # but it must be corrected back for local files copying
-        if urldata.basename == '*' and file.endswith('/.'):
-            file = '%s/%s' % (file.rstrip('/.'), urldata.path)
 
         try:
             unpack = bb.utils.to_boolean(urldata.parm.get('unpack'), True)
@@ -1530,7 +1520,7 @@ class FetchMethod(object):
                     if urlpath.find("/") != -1:
                         destdir = urlpath.rsplit("/", 1)[0] + '/'
                         bb.utils.mkdirhier("%s/%s" % (unpackdir, destdir))
-                cmd = 'cp -fpPRH %s %s' % (file, destdir)
+                cmd = 'cp -fpPRH "%s" "%s"' % (file, destdir)
 
         if not cmd:
             return
@@ -1613,9 +1603,14 @@ class FetchMethod(object):
         """
         if os.path.exists(ud.localpath):
             return True
-        if ud.localpath.find("*") != -1:
-            return True
         return False
+
+    def implicit_urldata(self, ud, d):
+        """
+        Get a list of FetchData objects for any implicit URLs that will also
+        be downloaded when we fetch the given URL.
+        """
+        return []
 
 class Fetch(object):
     def __init__(self, urls, d, cache = True, localonly = False, connection_cache = None):
@@ -1841,6 +1836,24 @@ class Fetch(object):
 
             if ud.lockfile:
                 bb.utils.unlockfile(lf)
+
+    def expanded_urldata(self, urls=None):
+        """
+        Get an expanded list of FetchData objects covering both the given
+        URLS and any additional implicit URLs that are added automatically by
+        the appropriate FetchMethod.
+        """
+
+        if not urls:
+            urls = self.urls
+
+        urldata = []
+        for url in urls:
+            ud = self.ud[url]
+            urldata.append(ud)
+            urldata += ud.method.implicit_urldata(ud, self.d)
+
+        return urldata
 
 class FetchConnectionCache(object):
     """

@@ -13,11 +13,11 @@ COMPATIBLE_MACHINE = "^rpi$"
 
 SRCBRANCH = "master"
 SRCFORK = "raspberrypi"
-SRCREV = "6fb59736b1ae80fc62cddfe3309c800f72e1c07e"
+SRCREV = "188d3bfe4a0ac36b119a2cee35a6be8d0c68e09e"
 
 # Use the date of the above commit as the package version. Update this when
 # SRCREV is changed.
-PV = "20200316"
+PV = "20200624"
 
 SRC_URI = "\
     git://github.com/${SRCFORK}/userland.git;protocol=git;branch=${SRCBRANCH} \
@@ -43,6 +43,9 @@ SRC_URI = "\
     file://0020-openmaxil-add-pkg-config-file.patch \
     file://0021-cmake-Disable-format-overflow-warning-as-error.patch \
 "
+
+SRC_URI_remove_toolchain-clang = "file://0021-cmake-Disable-format-overflow-warning-as-error.patch"
+
 S = "${WORKDIR}/git"
 
 inherit cmake pkgconfig

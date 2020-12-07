@@ -15,6 +15,8 @@ SRC_URI[sha256sum] = "eab28fd29d19d4e61ef09704e5871940e6f35fd35a3bb1285e41f20450
 
 SECTION = "base"
 
+RDEPENDS_${PN} = "${@["", "toybox-inittab"][(d.getVar('VIRTUAL-RUNTIME_init_manager') == 'toybox')]}"
+
 TOYBOX_BIN = "generated/unstripped/toybox"
 
 # Toybox is strict on what CC, CFLAGS and CROSS_COMPILE variables should contain.
@@ -26,6 +28,11 @@ CFLAGS += "${TOOLCHAIN_OPTIONS} ${TUNE_CCARGS}"
 
 COMPILER_toolchain-clang = "clang"
 COMPILER  ?= "gcc"
+
+PACKAGECONFIG ??= "no-iconv no-getconf"
+
+PACKAGECONFIG[no-iconv] = ",,"
+PACKAGECONFIG[no-getconf] = ",,"
 
 EXTRA_OEMAKE = 'CROSS_COMPILE="${HOST_PREFIX}" \
                 CC="${COMPILER}" \
@@ -52,6 +59,11 @@ do_configure() {
 
     # Disable swapon as it doesn't handle the '-a' argument used during boot
     sed -e 's/CONFIG_SWAPON=y/# CONFIG_SWAPON is not set/' -i .config
+
+    # Enable init if toybox was set as init manager
+    if ${@bb.utils.contains('VIRTUAL-RUNTIME_init_manager','toybox','true','false',d)}; then
+        sed -e 's/# CONFIG_INIT is not set/CONFIG_INIT=y/' -i .config
+    fi
 }
 
 do_compile() {
@@ -60,6 +72,12 @@ do_compile() {
     # Create a list of links needed
     ${BUILD_CC} -I . scripts/install.c -o generated/instlist
     ./generated/instlist long | sed -e 's#^#/#' > toybox.links
+    if ${@bb.utils.contains('PACKAGECONFIG','no-iconv','true','false',d)}; then
+        sed -i -e '/iconv$/d' toybox.links
+    fi
+    if ${@bb.utils.contains('PACKAGECONFIG','no-getconf','true','false',d)}; then
+        sed -i -e '/getconf$/d' toybox.links
+    fi
 }
 
 do_install() {

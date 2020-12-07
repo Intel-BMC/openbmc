@@ -95,7 +95,9 @@ class Command(object):
         # reason, the main process will still exit, which will then
         # kill the write thread.
         if self.data:
-            threading.Thread(target=writeThread, daemon=True).start()
+            thread = threading.Thread(target=writeThread, daemon=True)
+            thread.start()
+            self.threads.append(thread)
         if self.process.stderr:
             thread = threading.Thread(target=readStderrThread)
             thread.start()
@@ -351,10 +353,7 @@ def runqemu(pn, ssh=True, runqemuparams='', image_fstype=None, launch_cmd=None, 
 
     finally:
         targetlogger.removeHandler(handler)
-        try:
-            qemu.stop()
-        except:
-            pass
+        qemu.stop()
 
 def updateEnv(env_file):
     """
