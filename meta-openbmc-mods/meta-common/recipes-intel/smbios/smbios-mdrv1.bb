@@ -20,9 +20,7 @@ DEPENDS += " \
     autoconf-archive-native \
     systemd \
     sdbusplus \
-    sdbusplus-native \
     phosphor-dbus-interfaces \
-    phosphor-dbus-interfaces-native \
     phosphor-logging \
     "
 RDEPENDS_${PN} += " \

@@ -28,6 +28,8 @@ SRC_URI_append_intel-ast2600 = " \
     file://0019-Apply-WDT1-2-reset-mask-to-reset-needed-controller.patch \
     file://0020-Add-BMC-running-indicator-LED-control.patch \
     file://0022-Reboot-into-UBOOT-on-Watchdog-Failures.patch \
+    file://0023-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
+    file://0024-fix-SUS_WARN-handling-logic.patch \
     "
 
 # CVE-2020-10648 vulnerability fix

@@ -1,7 +1,7 @@
-From f388587781c3d874b13b50ad39e8674f0bc08049 Mon Sep 17 00:00:00 2001
+From f3ae6e96596eadf2a2df4bc723537a47cff13054 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
-Date: Mon, 25 May 2020 16:14:39 +0530
-Subject: [PATCH] EventService: https client support
+Date: Mon, 19 Oct 2020 13:21:42 +0530
+Subject: [PATCH 04/10] EventService: https client support
 
 Add https client support for push style
 eventing. Using this BMC can push the event
@@ -17,35 +17,54 @@ Tested:
 Change-Id: I44c3918b39baa2eb5fddda9d635f99aa280a422a
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- http/http_client.hpp                           | 270 +++++++++++++++++--------
+ http/http_client.hpp                           | 367 ++++++++++++++++++-------
  redfish-core/include/event_service_manager.hpp |   2 +-
- 2 files changed, 186 insertions(+), 86 deletions(-)
+ 2 files changed, 264 insertions(+), 105 deletions(-)
 
 diff --git a/http/http_client.hpp b/http/http_client.hpp
-index e6a7db1..27d2af3 100644
+index 5c7b13f..bd1e7b6 100644
 --- a/http/http_client.hpp
 +++ b/http/http_client.hpp
-@@ -17,6 +17,7 @@
- #include <boost/asio/strand.hpp>
- #include <boost/beast/core.hpp>
- #include <boost/beast/http.hpp>
-+#include <boost/beast/ssl.hpp>
- #include <boost/beast/version.hpp>
+@@ -31,12 +31,17 @@ namespace crow
+ {
  
- #include <cstdlib>
-@@ -49,7 +50,10 @@ enum class ConnState
+ static constexpr uint8_t maxRequestQueueSize = 50;
++static constexpr unsigned int httpReadBodyLimit = 1024;
+ 
+ enum class ConnState
+ {
+     initialized,
++    resolveInProgress,
++    resolveFailed,
++    resolved,
+     connectInProgress,
+     connectFailed,
++    sslHandshakeInProgress,
+     connected,
+     sendInProgress,
+     sendFailed,
+@@ -50,53 +55,124 @@ enum class ConnState
  class HttpClient : public std::enable_shared_from_this<HttpClient>
  {
    private:
--    boost::beast::tcp_stream conn;
-+    boost::asio::io_context& ioc;
++    boost::asio::ip::tcp::resolver resolver;
 +    boost::asio::ssl::context ctx{boost::asio::ssl::context::tlsv12_client};
-+    std::shared_ptr<boost::beast::ssl_stream<boost::beast::tcp_stream>> sslConn;
-+    std::shared_ptr<boost::beast::tcp_stream> conn;
+     boost::beast::tcp_stream conn;
++    std::optional<boost::beast::ssl_stream<boost::beast::tcp_stream&>> sslConn;
      boost::asio::steady_timer timer;
-     boost::beast::flat_buffer buffer;
+-    boost::beast::flat_buffer buffer;
++    boost::beast::flat_static_buffer<httpReadBodyLimit> buffer;
++    std::optional<
++        boost::beast::http::response_parser<boost::beast::http::string_body>>
++        parser;
      boost::beast::http::request<boost::beast::http::string_body> req;
-@@ -62,14 +66,37 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+-    boost::beast::http::response<boost::beast::http::string_body> res;
+     boost::asio::ip::tcp::resolver::results_type endpoint;
+-    std::vector<std::pair<std::string, std::string>> headers;
++    boost::beast::http::fields fields;
+     std::queue<std::string> requestDataQueue;
+-    ConnState state;
+     std::string subId;
      std::string host;
      std::string port;
      std::string uri;
@@ -55,40 +74,77 @@ index e6a7db1..27d2af3 100644
      uint32_t retryIntervalSecs;
      std::string retryPolicyAction;
      bool runningTimer;
- 
-+    inline boost::beast::tcp_stream& getConn()
-+    {
-+        if (useSsl)
-+        {
-+            return (boost::beast::get_lowest_layer(*sslConn));
-+        }
-+        else
-+        {
-+            return (*conn);
-+        }
-+    }
++    ConnState state;
 +
++    void doResolve()
++    {
++        BMCWEB_LOG_DEBUG << "Trying to resolve: " << host << ":" << port;
++        if (state == ConnState::resolveInProgress)
++        {
++            return;
++        }
++        state = ConnState::resolveInProgress;
++        // TODO: Use async_resolver. boost asio example
++        // code as is crashing with async_resolve().
++        try
++        {
++            endpoint = resolver.resolve(host, port);
++        }
++        catch (const std::exception& e)
++        {
++            BMCWEB_LOG_ERROR << "Failed to resolve hostname: " << host << " - "
++                             << e.what();
++            state = ConnState::resolveFailed;
++            checkQueue();
++            return;
++        }
++        state = ConnState::resolved;
++        checkQueue();
++    }
+ 
      void doConnect()
      {
+-        if (state == ConnState::connectInProgress)
 +        if (useSsl)
 +        {
-+            sslConn = std::make_shared<
-+                boost::beast::ssl_stream<boost::beast::tcp_stream>>(ioc, ctx);
-+        }
-+        else
-+        {
-+            conn = std::make_shared<boost::beast::tcp_stream>(ioc);
++            sslConn.emplace(conn, ctx);
 +        }
 +
-         if (state == ConnState::connectInProgress)
++        if ((state == ConnState::connectInProgress) ||
++            (state == ConnState::sslHandshakeInProgress))
          {
              return;
-@@ -77,25 +104,53 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+         }
          state = ConnState::connectInProgress;
  
          BMCWEB_LOG_DEBUG << "Trying to connect to: " << host << ":" << port;
 -        // Set a timeout on the operation
--        conn.expires_after(std::chrono::seconds(30));
++
++        auto respHandler =
++            [self(shared_from_this())](const boost::beast::error_code ec,
++                                       const boost::asio::ip::tcp::resolver::
++                                           results_type::endpoint_type& ep) {
++                if (ec)
++                {
++                    BMCWEB_LOG_ERROR << "Connect " << ep
++                                     << " failed: " << ec.message();
++                    self->state = ConnState::connectFailed;
++                    self->checkQueue();
++                    return;
++                }
++                BMCWEB_LOG_DEBUG << "Connected to: " << ep;
++                if (self->sslConn)
++                {
++                    self->performHandshake();
++                }
++                else
++                {
++                    self->state = ConnState::connected;
++                    self->checkQueue();
++                }
++            };
++
+         conn.expires_after(std::chrono::seconds(30));
 -        conn.async_connect(endpoint, [self(shared_from_this())](
 -                                         const boost::beast::error_code& ec,
 -                                         const boost::asio::ip::tcp::resolver::
@@ -103,84 +159,76 @@ index e6a7db1..27d2af3 100644
 -            }
 -            self->state = ConnState::connected;
 -            BMCWEB_LOG_DEBUG << "Connected to: " << ep;
- 
--            self->checkQueue();
--        });
-+        auto respHandler =
-+            [self(shared_from_this())](const boost::beast::error_code& ec,
-+                                       const boost::asio::ip::tcp::resolver::
-+                                           results_type::endpoint_type& ep) {
-+                if (ec)
-+                {
-+                    BMCWEB_LOG_ERROR << "Connect " << ep
-+                                     << " failed: " << ec.message();
-+                    self->state = ConnState::connectFailed;
-+                    self->checkQueue();
-+                    return;
-+                }
-+                BMCWEB_LOG_DEBUG << "Connected to: " << ep;
-+                if (self->useSsl)
-+                {
-+                    self->performHandshake();
-+                }
-+                else
-+                {
-+                    self->state = ConnState::connected;
-+                    self->checkQueue();
-+                }
-+            };
-+
-+        getConn().expires_after(std::chrono::seconds(30));
-+        getConn().async_connect(endpoint, std::move(respHandler));
++        conn.async_connect(endpoint, std::move(respHandler));
 +    }
 +
 +    void performHandshake()
 +    {
++        if (state == ConnState::sslHandshakeInProgress)
++        {
++            return;
++        }
++        state = ConnState::sslHandshakeInProgress;
++
 +        sslConn->async_handshake(
 +            boost::asio::ssl::stream_base::client,
-+            [self(shared_from_this())](const boost::beast::error_code& ec) {
++            [self(shared_from_this())](const boost::beast::error_code ec) {
 +                if (ec)
 +                {
 +                    BMCWEB_LOG_ERROR << "SSL handshake failed: "
 +                                     << ec.message();
-+                    self->state = ConnState::connectFailed;
-+                    self->doCloseAndCheckQueue();
++                    self->doCloseAndCheckQueue(ConnState::connectFailed);
 +                    return;
 +                }
 +                self->state = ConnState::connected;
-+                BMCWEB_LOG_DEBUG << "SSL Handshake successfull \n";
-+
++                BMCWEB_LOG_DEBUG << "SSL Handshake successfull";
+ 
+-            self->checkQueue();
+-        });
 +                self->checkQueue();
 +            });
      }
  
      void sendMessage(const std::string& data)
-@@ -108,7 +163,10 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -107,100 +183,167 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+         }
+         state = ConnState::sendInProgress;
  
-         BMCWEB_LOG_DEBUG << __FUNCTION__ << "(): " << host << ":" << port;
+-        BMCWEB_LOG_DEBUG << __FUNCTION__ << "(): " << host << ":" << port;
++        BMCWEB_LOG_DEBUG << host << ":" << port;
  
 -        req.version(static_cast<int>(11)); // HTTP 1.1
+-        req.target(uri);
+-        req.method(boost::beast::http::verb::post);
+-
+-        // Set headers
+-        for (const auto& [key, value] : headers)
 +        req = {};
-+        res = {};
++        for (const auto& field : fields)
+         {
+-            req.set(key, value);
++            req.set(field.name_string(), field.value());
+         }
+         req.set(boost::beast::http::field::host, host);
++        req.set(boost::beast::http::field::content_type, "text/plain");
 +
-+        req.version(11); // HTTP 1.1
-         req.target(uri);
-         req.method(boost::beast::http::verb::post);
++        req.version(static_cast<int>(11)); // HTTP 1.1
++        req.target(uri);
++        req.method(boost::beast::http::verb::post);
+         req.keep_alive(true);
  
-@@ -123,83 +181,121 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
          req.body() = data;
          req.prepare_payload();
  
 -        // Set a timeout on the operation
 -        conn.expires_after(std::chrono::seconds(30));
 +        auto respHandler = [self(shared_from_this())](
-+                               const boost::beast::error_code& ec,
++                               const boost::beast::error_code ec,
 +                               const std::size_t& bytesTransferred) {
 +            if (ec)
 +            {
 +                BMCWEB_LOG_ERROR << "sendMessage() failed: " << ec.message();
-+                self->state = ConnState::sendFailed;
-+                self->doCloseAndCheckQueue();
++                self->doCloseAndCheckQueue(ConnState::sendFailed);
 +                return;
 +            }
 +            BMCWEB_LOG_DEBUG << "sendMessage() bytes transferred: "
@@ -208,15 +256,15 @@ index e6a7db1..27d2af3 100644
  
 -                self->recvMessage();
 -            });
-+        getConn().expires_after(std::chrono::seconds(30));
-+        if (useSsl)
++        conn.expires_after(std::chrono::seconds(30));
++        if (sslConn)
 +        {
 +            boost::beast::http::async_write(*sslConn, req,
 +                                            std::move(respHandler));
 +        }
 +        else
 +        {
-+            boost::beast::http::async_write(*conn, req, std::move(respHandler));
++            boost::beast::http::async_write(conn, req, std::move(respHandler));
 +        }
      }
  
@@ -227,109 +275,141 @@ index e6a7db1..27d2af3 100644
 -            conn, buffer, res,
 -            [self(shared_from_this())](const boost::beast::error_code& ec,
 -                                       const std::size_t& bytesTransferred) {
--                if (ec)
--                {
--                    BMCWEB_LOG_ERROR << "recvMessage() failed: "
--                                     << ec.message();
--                    self->state = ConnState::recvFailed;
--                    self->checkQueue();
--                    return;
--                }
--                BMCWEB_LOG_DEBUG << "recvMessage() bytes transferred: "
--                                 << bytesTransferred;
--                boost::ignore_unused(bytesTransferred);
 +        auto respHandler = [self(shared_from_this())](
-+                               const boost::beast::error_code& ec,
++                               const boost::beast::error_code ec,
 +                               const std::size_t& bytesTransferred) {
 +            if (ec && ec != boost::beast::http::error::partial_message)
 +            {
 +                BMCWEB_LOG_ERROR << "recvMessage() failed: " << ec.message();
-+                self->state = ConnState::recvFailed;
-+                self->doCloseAndCheckQueue();
++                self->doCloseAndCheckQueue(ConnState::recvFailed);
 +                return;
 +            }
 +            BMCWEB_LOG_DEBUG << "recvMessage() bytes transferred: "
 +                             << bytesTransferred;
 +            boost::ignore_unused(bytesTransferred);
- 
--                // Discard received data. We are not interested.
--                BMCWEB_LOG_DEBUG << "recvMessage() data: " << self->res;
-+            // Discard received data. We are not interested.
-+            BMCWEB_LOG_DEBUG << "recvMessage() data: " << self->res;
- 
--                // Send is successful, Lets remove data from queue
--                // check for next request data in queue.
--                self->requestDataQueue.pop();
--                self->state = ConnState::idle;
--                self->checkQueue();
--            });
++
++            // TODO: check for return status code and perform
++            // retry if fails(Ex: 40x). Take action depending on
++            // retry policy.
++            BMCWEB_LOG_DEBUG << "recvMessage() data: "
++                             << self->parser->get().body();
++
 +            // Send is successful, Lets remove data from queue
 +            // check for next request data in queue.
 +            self->requestDataQueue.pop();
-+            self->state = ConnState::idle;
 +
-+            if (ec == boost::beast::http::error::partial_message)
-+            {
-+                // Least bothered about recv message. Partial
-+                // message means, already data is sent. Lets close
-+                // connection and let next request open connection
-+                // to avoid truncated stream.
-+                self->state = ConnState::closed;
-+                self->doCloseAndCheckQueue();
-+                return;
-+            }
++            // Transfer ownership of the response
++            self->parser->release();
 +
-+            self->checkQueue();
++            // TODO: Implement the keep-alive connections.
++            // Most of the web servers close connection abruptly
++            // and might be reason due to which its observed that
++            // stream_truncated(Next read) or  partial_message
++            // errors. So for now, closing connection and re-open
++            // for all cases.
++            self->doCloseAndCheckQueue(ConnState::closed);
 +        };
 +
-+        getConn().expires_after(std::chrono::seconds(30));
-+        if (useSsl)
++        parser.emplace(std::piecewise_construct, std::make_tuple());
++        parser->body_limit(httpReadBodyLimit);
++        buffer.consume(buffer.size());
++
++        conn.expires_after(std::chrono::seconds(30));
++        if (sslConn)
 +        {
-+            boost::beast::http::async_read(*sslConn, buffer, res,
++            boost::beast::http::async_read(*sslConn, buffer, *parser,
 +                                           std::move(respHandler));
 +        }
 +        else
 +        {
-+            boost::beast::http::async_read(*conn, buffer, res,
++            boost::beast::http::async_read(conn, buffer, *parser,
 +                                           std::move(respHandler));
 +        }
-     }
- 
++    }
++
++    void doCloseAndCheckQueue(const ConnState setState = ConnState::closed)
++    {
++        if (sslConn)
++        {
++            conn.expires_after(std::chrono::seconds(30));
++            sslConn->async_shutdown([self = shared_from_this(),
++                                     setState{std::move(setState)}](
++                                        const boost::system::error_code ec) {
+                 if (ec)
+                 {
+-                    BMCWEB_LOG_ERROR << "recvMessage() failed: "
+-                                     << ec.message();
+-                    self->state = ConnState::recvFailed;
+-                    self->checkQueue();
+-                    return;
++                    // Many https server closes connection abruptly
++                    // i.e witnout close_notify. More details are at
++                    // https://github.com/boostorg/beast/issues/824
++                    if (ec == boost::asio::ssl::error::stream_truncated)
++                    {
++                        BMCWEB_LOG_ERROR
++                            << "doCloseAndCheckQueue(): Connection "
++                               "closed by server. ";
++                    }
++                    else
++                    {
++                        BMCWEB_LOG_ERROR << "doCloseAndCheckQueue() failed: "
++                                         << ec.message();
++                    }
+                 }
+-                BMCWEB_LOG_DEBUG << "recvMessage() bytes transferred: "
+-                                 << bytesTransferred;
+-                boost::ignore_unused(bytesTransferred);
+-
+-                // Discard received data. We are not interested.
+-                BMCWEB_LOG_DEBUG << "recvMessage() data: " << self->res;
+-
+-                // Send is successful, Lets remove data from queue
+-                // check for next request data in queue.
+-                self->requestDataQueue.pop();
+-                self->state = ConnState::idle;
++                else
++                {
++                    BMCWEB_LOG_DEBUG << "Connection closed gracefully...";
++                }
++                self->conn.cancel();
++                self->state = setState;
+                 self->checkQueue();
+             });
+-    }
+-
 -    void doClose()
-+    void doCloseAndCheckQueue()
-     {
-         boost::beast::error_code ec;
+-    {
+-        boost::beast::error_code ec;
 -        conn.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-+        getConn().cancel();
-+        getConn().expires_after(std::chrono::seconds(30));
-+        getConn().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_both,
-+                                    ec);
- 
+-
 -        state = ConnState::closed;
 -        // not_connected happens sometimes so don't bother reporting it.
 -        if (ec && ec != boost::beast::errc::not_connected)
-+        if (ec && ec != boost::asio::error::eof)
++        }
++        else
          {
 -            BMCWEB_LOG_ERROR << "shutdown failed: " << ec.message();
 -            return;
-+            // Many https server closes connection abruptly
-+            // i.e witnout close_notify. More details are at
-+            // https://github.com/boostorg/beast/issues/824
-+            if (ec == boost::asio::ssl::error::stream_truncated)
-+            {
-+                BMCWEB_LOG_DEBUG
-+                    << "doCloseAndCheckQueue(): Connection closed by server.";
-+            }
-+            else
++            boost::beast::error_code ec;
++            conn.expires_after(std::chrono::seconds(30));
++            conn.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_both,
++                                   ec);
++            if (ec)
 +            {
 +                BMCWEB_LOG_ERROR << "doCloseAndCheckQueue() failed: "
 +                                 << ec.message();
 +            }
-         }
++            else
++            {
++                BMCWEB_LOG_DEBUG << "Connection closed gracefully...";
++            }
 +
-+        getConn().close();
-         BMCWEB_LOG_DEBUG << "Connection closed gracefully";
-+        checkQueue();
++            conn.close();
++            state = setState;
++            checkQueue();
+         }
+-        BMCWEB_LOG_DEBUG << "Connection closed gracefully";
 +        return;
      }
  
@@ -344,54 +424,112 @@ index e6a7db1..27d2af3 100644
              BMCWEB_LOG_DEBUG << "requestDataQueue is empty\n";
              return;
          }
-@@ -257,17 +353,20 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
-             BMCWEB_LOG_DEBUG << "Attempt retry after " << retryIntervalSecs
+@@ -232,6 +375,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+         }
+ 
+         if ((state == ConnState::connectFailed) ||
++            (state == ConnState::resolveFailed) ||
+             (state == ConnState::sendFailed) ||
+             (state == ConnState::recvFailed))
+         {
+@@ -256,14 +400,18 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                               << " seconds. RetryCount = " << retryCount;
              timer.expires_after(std::chrono::seconds(retryIntervalSecs));
--            timer.async_wait([self = shared_from_this()](
--                                 const boost::system::error_code& ec) {
--                self->runningTimer = false;
--                self->connStateCheck();
--            });
-+            timer.async_wait(
+             timer.async_wait(
+-                [self = shared_from_this()](const boost::system::error_code&) {
 +                [self = shared_from_this()](boost::system::error_code) {
-+                    self->runningTimer = false;
-+                    self->connStateCheck();
-+                });
+                     self->runningTimer = false;
+                     self->connStateCheck();
+                 });
              return;
          }
-         else
-         {
--            // reset retry count.
--            retryCount = 0;
-+            if (state == ConnState::idle)
-+            {
-+                // State idle means, previous attempt is successful.
-+                retryCount = 0;
-+            }
-         }
+-        // reset retry count.
+-        retryCount = 0;
++
++        if (state == ConnState::idle)
++        {
++            // State idle means, previous attempt is successful.
++            retryCount = 0;
++        }
          connStateCheck();
  
-@@ -310,10 +409,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+         return;
+@@ -273,15 +421,21 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+     {
+         switch (state)
+         {
++            case ConnState::initialized:
++            case ConnState::resolveFailed:
++            case ConnState::connectFailed:
++                doResolve();
++                break;
+             case ConnState::connectInProgress:
++            case ConnState::resolveInProgress:
++            case ConnState::sslHandshakeInProgress:
+             case ConnState::sendInProgress:
+             case ConnState::suspended:
+             case ConnState::terminated:
+                 // do nothing
+                 break;
+-            case ConnState::initialized:
+             case ConnState::closed:
+-            case ConnState::connectFailed:
++            case ConnState::resolved:
+             case ConnState::sendFailed:
+             case ConnState::recvFailed:
+             {
+@@ -297,22 +451,22 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+                 sendMessage(data);
+                 break;
+             }
++            default:
++                break;
+         }
+     }
+ 
    public:
      explicit HttpClient(boost::asio::io_context& ioc, const std::string& id,
                          const std::string& destIP, const std::string& destPort,
 -                        const std::string& destUri) :
 -        conn(ioc),
+-        timer(ioc), subId(id), host(destIP), port(destPort), uri(destUri),
+-        retryCount(0), maxRetryAttempts(5), retryIntervalSecs(0),
+-        retryPolicyAction("TerminateAfterRetries"), runningTimer(false)
+-    {
+-        boost::asio::ip::tcp::resolver resolver(ioc);
+-        endpoint = resolver.resolve(host, port);
+-        state = ConnState::initialized;
+-    }
 +                        const std::string& destUri,
 +                        const bool inUseSsl = true) :
-+        ioc(ioc),
-         timer(ioc), subId(id), host(destIP), port(destPort), uri(destUri),
--        retryCount(0), maxRetryAttempts(5),
-+        useSsl(inUseSsl), retryCount(0), maxRetryAttempts(5),
-         retryPolicyAction("TerminateAfterRetries"), runningTimer(false)
++        resolver(ioc),
++        conn(ioc), timer(ioc), subId(id), host(destIP), port(destPort),
++        uri(destUri), useSsl(inUseSsl), retryCount(0), maxRetryAttempts(5),
++        retryPolicyAction("TerminateAfterRetries"), runningTimer(false),
++        state(ConnState::initialized)
++    {}
+ 
+     void sendData(const std::string& data)
      {
-         boost::asio::ip::tcp::resolver resolver(ioc);
+@@ -337,7 +491,12 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+     void setHeaders(
+         const std::vector<std::pair<std::string, std::string>>& httpHeaders)
+     {
+-        headers = httpHeaders;
++        // Set headers
++        for (const auto& [key, value] : httpHeaders)
++        {
++            // TODO: Validate the header fileds before assign.
++            fields.set(key, value);
++        }
+     }
+ 
+     void setRetryConfig(const uint32_t retryAttempts,
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 6362112..3ab2605 100644
+index 54dafb4..f68ae1d 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -383,7 +383,7 @@ class Subscription
+@@ -387,7 +387,7 @@ class Subscription
      {
          conn = std::make_shared<crow::HttpClient>(
              crow::connections::systemBus->get_io_context(), id, host, port,
@@ -399,7 +537,7 @@ index 6362112..3ab2605 100644
 +            path, (uriProto == "https" ? true : false));
      }
  
-     Subscription(const std::shared_ptr<crow::Request::Adaptor>& adaptor) :
+     Subscription(const std::shared_ptr<boost::beast::tcp_stream>& adaptor) :
 -- 
-2.7.4
+2.16.6
 

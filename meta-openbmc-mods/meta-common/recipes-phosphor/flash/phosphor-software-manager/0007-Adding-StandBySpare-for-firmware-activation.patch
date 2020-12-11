@@ -31,9 +31,9 @@ diff --git a/activation.cpp b/activation.cpp
 index 2966b2f..a098784 100644
 --- a/activation.cpp
 +++ b/activation.cpp
-@@ -80,12 +80,16 @@ auto Activation::activation(Activations value) -> Activations
+@@ -81,12 +81,16 @@ void Activation::unsubscribeFromSystemdSignals()
+ auto Activation::activation(Activations value) -> Activations
  {
- 
      if ((value != softwareServer::Activation::Activations::Active) &&
 -        (value != softwareServer::Activation::Activations::Activating))
 +        (value != softwareServer::Activation::Activations::Activating) &&
@@ -48,9 +48,9 @@ index 2966b2f..a098784 100644
 +        value ==
 +            softwareServer::Activation::Activations::ActivatingAsStandbySpare)
      {
- #ifdef UBIFS_LAYOUT
-         if (rwVolumeCreated == false && roVolumeCreated == false)
-@@ -256,6 +260,20 @@ auto Activation::requestedActivation(RequestedActivations value)
+ #ifdef FWUPD_SCRIPT
+         if (!activationProgress)
+@@ -309,6 +313,20 @@ auto Activation::requestedActivation(RequestedActivations value)
                  softwareServer::Activation::Activations::Activating);
          }
      }

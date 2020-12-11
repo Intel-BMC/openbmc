@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# PFR Boot Time Detection
+#
+# The Platform Firmware Recovery system is designed to confirm the server is
+# running valid images. The server boot process is controlled with a
+# programmable device. The programmable device prevents the system, and the
+# BMC from booting until after it has confirmed the firmware images match a
+# known checksum. Two reset controls are asserted while the checksum
+# calculation is being performed. One prevents the BMC from booting, the other
+# (RSMRST_N) prevents the main processors from leaving reset.
+#
+# If the BMC FW checksum is correct the BMC is allowed to boot.
+# If the BIOS checksum fails the BIOS is not allowed to boot.
+# In this condition the BMC will boot believing the NCSI NIC is functional.
+# This will not be the case when RMSRST_N is asserted. The BIOS will not
+# configure the shared NIC. The BMC will not be able to send or receive
+# network traffic via the shared NIC. This becomes a problem depending on how
+# the NCSI channel is configured.
+#
+# When the NCSI channel is configured using DHCP the BMC is unable to
+# communicate to a DHCP server. Unable to acquire a valid IP state, the NCSI
+# NIC is left DOWN.
+# The problem that occurs is when the NIC is configured with a static
+# address. The BMC is unable to determine the configuration state of the NCSI
+# NIC, and behaves as if everything is working. The problem is the network
+# routing table will, in most cases, be left in a state that prevents traffic
+# from being sent/received from the dedicated NIC. This prevents network
+# access to the BMC, which in turn leaves the system unrecoverable.
+#
+# The purpose of this script is to check for the assertion of the RSMRST_N
+# control at BMC boot time. It will perform this test once. In the event the
+# RSMRST_N is found to be asserted, the BMC will take the NCSI NIC down. No
+# logic for detecting the deassertion will be performed. Once the new image
+# for the BIOS has been transferred, and the checksum confirmed, the BMC will
+# be reset by the programmable device. The programmable device will confirm
+# the checksums, and release both the BMC and the BIOS to boot normally.
+#
+# Flow:
+# The service will be a one-shot that waits for the network.target, as is done
+# by BMCWeb.
+# During a normal boot the RSMRST_N will not be asserted, and this script will
+# not perform an action.
+# When RSMRST_N is asserted the NCSI channel will be given a link down
+# command. This regardless of static or DHCP configuration mode.
+
+GPIOFIND=/usr/bin/gpiofind
+GPIOGET=/usr/bin/gpioget
+RSMRST="RSMRST_N"
+
+# Read the assertion state from the RSMRST_N input
+function get_rsmrst_state {
+    local __resultVal=$1
+    local gpio_state=$($GPIOGET $($GPIOFIND "$RSMRST"))
+    eval $__resultVal="'$gpio_state'"
+    return 0
+}
+
+get_rsmrst_state rsmrst_val
+
+if [ "$rsmrst_val" -eq 0 ]
+then
+    echo "RSMRST_N is asserted, take eth1 down"
+    ip link set down dev eth1
+fi

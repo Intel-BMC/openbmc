@@ -1,0 +1,116 @@
+From 9d82d53b50769506926dd99273f197a268d68fa3 Mon Sep 17 00:00:00 2001
+From: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
+Date: Thu, 30 Jul 2020 09:50:40 +0000
+Subject: [PATCH] PFR-image-verification
+
+Add support verify the complete fw image by using mtd-util repo's
+pfr_authenticate function.
+
+Tested.
+1. Upload the corrupted image.
+POST: https://<BMC_IP>/redfish/v1/UpdateService/
+      with <Corrupted BMC_signed_cap> binary file
+Response:
+{
+  "error": {
+    "@Message.ExtendedInfo": [
+      {
+        "@odata.type": "/redfish/v1/$metadata#Message.v1_0_0.Message",
+        "Message": "Invalid file uploaded to /redfish/v1/UpdateService:
+        Invalid image format.",
+        "MessageArgs": [
+          "/redfish/v1/UpdateService",
+          "Invalid image format"
+        ],
+        "MessageId": "OpenBMC.0.1.0.InvalidUpload",
+        "Resolution": "None.",
+        "Severity": "Warning"
+      }
+    ],
+    "code": "OpenBMC.0.1.0.InvalidUpload",
+    "message": "Invalid file uploaded to /redfish/v1/UpdateService:
+     Invalid image format."
+  }
+}
+
+2. Upload the correct image.
+POST: https://<BMC_IP>/redfish/v1/UpdateService/
+      with <BMC_signed_cap> binary file
+
+Image verified and firmware updated.
+{
+  "@odata.id": "/redfish/v1/TaskService/Tasks/0",
+  "@odata.type": "#Task.v1_4_3.Task",
+  "Id": "0",
+  "TaskState": "Running",
+  "TaskStatus": "OK"
+}
+
+Command:
+GET: https://<BMC_IP>/redfish/v1/Systems/system/LogServices/EventLog/
+     Entries
+
+Response:
+{
+      "@odata.id": "/redfish/v1/Systems/system/LogServices/EventLog/
+       Entries/1596082187",
+      "@odata.type": "#LogEntry.v1_4_0.LogEntry",
+      "Created": "2020-07-30T04:09:47+00:00",
+      "EntryType": "Event",
+      "Id": "1596082187",
+      "Message": "BMC firmware update to version 00.72 completed
+                  successfully.",
+      "MessageArgs": [
+        "BMC",
+        "00.72"
+      ],
+      "MessageId": "OpenBMC.0.1.FirmwareUpdateCompleted",
+      "Name": "System Event Log Entry",
+      "Severity": "OK"
+    },
+
+Signed-off-by: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
+---
+ pfr_image_manager.cpp | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
+index eeed4fe..16231fa 100644
+--- a/pfr_image_manager.cpp
++++ b/pfr_image_manager.cpp
+@@ -15,6 +15,7 @@
+ #include <time.h>
+ #include <unistd.h>
+ 
++#include <boost/process/child.hpp>
+ #include <elog-errors.hpp>
+ #include <xyz/openbmc_project/Software/Image/error.hpp>
+ 
+@@ -122,6 +123,24 @@ int Manager::verifyPFRImage(const std::filesystem::path imgPath,
+                 return -1;
+             }
+ 
++            // Verify the complete image
++            std::string mtdUtilfile = "/usr/bin/mtd-util";
++            std::vector<std::string> mtdUtilCmd = {"p", "a"};
++            mtdUtilCmd.push_back(imgPath);
++
++            boost::process::child execProg(mtdUtilfile, mtdUtilCmd);
++            execProg.wait();
++            if (execProg.exit_code())
++            {
++                phosphor::logging::log<phosphor::logging::level::ERR>(
++                    "Image authentication failed");
++                phosphor::logging::report<ImageFailure>(
++                    ImageFail::FAIL(
++                        "Security violation: image authentication failure"),
++                    ImageFail::PATH(imgPath.c_str()));
++                return -1;
++            }
++
+             imgFile.seekg(pfmPos,
+                           std::ios::beg); // Version is at 0x806 in the PFM
+             imgFile.read(reinterpret_cast<char*>(&verData), sizeof(verData));
+-- 
+2.17.1
+

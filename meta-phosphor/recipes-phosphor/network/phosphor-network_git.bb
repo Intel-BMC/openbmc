@@ -16,9 +16,16 @@ DEPENDS += "systemd"
 DEPENDS += "autoconf-archive-native"
 DEPENDS += "sdbusplus ${PYTHON_PN}-sdbus++-native"
 DEPENDS += "sdeventplus"
-DEPENDS += "phosphor-dbus-interfaces phosphor-dbus-interfaces-native"
+DEPENDS += "phosphor-dbus-interfaces"
 DEPENDS += "phosphor-logging"
 DEPENDS += "libnl"
+DEPENDS += "stdplus"
+DEPENDS += "nlohmann-json"
+
+PACKAGECONFIG ??= "uboot-env"
+
+UBOOT_ENV_RDEPENDS = "${@d.getVar('PREFERRED_PROVIDER_u-boot-fw-utils', True) or 'u-boot-fw-utils'}"
+PACKAGECONFIG[uboot-env] = "--with-uboot-env,--without-uboot-env,,${UBOOT_ENV_RDEPENDS}"
 
 S = "${WORKDIR}/git"
 

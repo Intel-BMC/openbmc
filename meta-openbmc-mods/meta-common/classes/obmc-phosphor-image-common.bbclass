@@ -1,16 +1,45 @@
 inherit obmc-phosphor-image
-inherit systemd-watchdog
+
+IMAGE_FEATURES += " \
+        obmc-bmc-state-mgmt \
+        obmc-chassis-mgmt \
+        obmc-chassis-state-mgmt \
+        obmc-devtools \
+        obmc-fan-control \
+        obmc-fan-mgmt \
+        obmc-flash-mgmt \
+        obmc-host-ctl \
+        obmc-host-ipmi \
+        obmc-host-state-mgmt \
+        obmc-inventory \
+        obmc-leds \
+        obmc-logging-mgmt \
+        obmc-remote-logging-mgmt \
+        obmc-net-ipmi \
+        obmc-sensors \
+        obmc-software \
+        obmc-system-mgmt \
+        obmc-user-mgmt \
+        ${@bb.utils.contains('DISTRO_FEATURES', 'obmc-ubi-fs', 'read-only-rootfs', '', d)} \
+        ${@bb.utils.contains('DISTRO_FEATURES', 'phosphor-mmc', 'read-only-rootfs', '', d)} \
+        ssh-server-dropbear \
+        obmc-debug-collector \
+        obmc-network-mgmt \
+        obmc-settings-mgmt \
+        obmc-console \
+        "
 
 IMAGE_INSTALL_append = " \
         bmcweb \
         dbus-broker \
         entity-manager \
+        fru-device \
         ipmitool \
         intel-ipmi-oem \
         phosphor-ipmi-ipmb \
         phosphor-node-manager-proxy \
         dbus-sensors \
-        phosphor-webui \
+        webui-vue \
         at-scale-debug \
         phosphor-pid-control \
         phosphor-host-postd \
@@ -18,9 +47,8 @@ IMAGE_INSTALL_append = " \
         phosphor-sel-logger \
         smbios-mdrv2 \
         obmc-ikvm \
-        system-watchdog \
         frb2-watchdog \
-        service-config-manager \
+        srvcfg-manager \
         callback-manager \
         phosphor-post-code-manager \
         preinit-mounts \
@@ -47,7 +75,9 @@ IMAGE_INSTALL_append = " \
         host-misc-comm-manager \
         "
 
-IMAGE_INSTALL_append = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
+IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
+
+IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'ncsi-monitor', '', d)}"
 
 # this package was flagged as a security risk
 IMAGE_INSTALL_remove += " lrzsz"

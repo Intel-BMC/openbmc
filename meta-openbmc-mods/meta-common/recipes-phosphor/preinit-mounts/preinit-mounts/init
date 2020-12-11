@@ -123,7 +123,7 @@ reformat_jffs2_partition() {
     umount -f "$mnt"
     flash_eraseall "$(mtd_by_name ${mtd_name})"
     # remount the JFFS2
-    mount -t jffs2 -o sync mtd:"$mtd_name" "$mnt"
+    mount -t jffs2 -o sync,ro mtd:"$mtd_name" "$mnt"
     if [ $? -ne 0 ]; then
         log "Failed to mount reformatted NV volume; system unstable"
     fi
@@ -136,7 +136,7 @@ clear_ubenv() {
 
 # mount NV filesystem
 mkdir -p "$RWFS_MNT"
-mount -t jffs2 -o sync mtd:"$NV_MTD" "$RWFS_MNT"
+mount -t jffs2 -o sync,ro mtd:"$NV_MTD" "$RWFS_MNT"
 if [ $? -ne 0 ]; then
     log "Failed to mount NV volume; attempting recovery"
     reformat_jffs2_partition $NV_MTD $RWFS_MNT
@@ -203,7 +203,7 @@ if ! grep -q sofs /proc/mounts; then
     SOFS_MTD_NUM="$(mtdnum_by_name ${SOFS_MTD})"
 
     # mount a JFFS2 on the partition
-    mount -t jffs2 -o sync mtd:"$SOFS_MTD" "$SOFS_MNT"
+    mount -t jffs2 -o sync,ro mtd:"$SOFS_MTD" "$SOFS_MNT"
     if [ $? -ne 0 ]; then
         log "Failed to mount SOFS volume; attempting recovery"
         reformat_jffs2_partition $SOFS_MTD $SOFS_MNT

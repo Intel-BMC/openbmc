@@ -7,9 +7,10 @@ SRC_URI = "git://github.com/openbmc/host-error-monitor"
 DEPENDS = "boost sdbusplus libgpiod libpeci"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "53099c49b89c22cfe09c7217679ae1fb20e019eb"
+SRCREV = "c90570ab1ad57ac824edf7b5d0f8a89afbcf0c09"
 
 S = "${WORKDIR}/git"
 
 SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.HostErrorMonitor.service"
-SECURITY_CFLAGS_pn-host-error-monitor  = "${SECURITY_NOPIE_CFLAGS}"
+
+EXTRA_OECMAKE = "-DYOCTO=1"

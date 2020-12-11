@@ -43,7 +43,10 @@ SRC_URI = "git://git.opensvc.com/multipath-tools/.git;protocol=http \
            file://0029-multipath-tools-modify-Makefile.inc-for-cross-compil.patch \
            file://0030-Always-use-devmapper.patch \
            file://0031-Always-use-devmapper-for-kpartx.patch \
+           file://0032-libdmmp-Makefile-replace-perl-with-sed-in-install-ta.patch \
            file://0001-fix-bug-of-do_compile-and-do_install.patch \
+           file://0001-add-explicit-dependency-on-libraries.patch \
+           file://0001-fix-boolean-value-with-json-c-0.14.patch \
            "
 
 LIC_FILES_CHKSUM = "file://COPYING;md5=5f30f0716dfdd0d91eb439ebec522ec2"
@@ -115,3 +118,4 @@ FILES_kpartx = "${base_sbindir}/kpartx \
                "
 
 RDEPENDS_${PN} += "kpartx"
+PARALLEL_MAKE = ""

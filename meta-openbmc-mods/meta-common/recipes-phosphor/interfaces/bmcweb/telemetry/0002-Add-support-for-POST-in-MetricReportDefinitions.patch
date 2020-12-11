@@ -1,7 +1,7 @@
-From 941be2c7d819b4a55d5a8b67948e53658d907789 Mon Sep 17 00:00:00 2001
+From 00806052b1e9440809ce727523ffcc66083f6417 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 18 May 2020 11:56:57 +0200
-Subject: [PATCH 2/5] Add support for POST in MetricReportDefinitions
+Subject: [PATCH 06/10] Add support for POST in MetricReportDefinitions
 
 Added POST action in MetricReportDefinitions node to allow user
 to add new MetricReportDefinition. Using minimal set of
@@ -19,6 +19,10 @@ Tested:
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Change-Id: I2fed96848594451e22fde686f8c066d7770cc65a
+
+%% original patch: 0002-Add-support-for-POST-in-MetricReportDefinitions.patch
+
+Change-Id: I55032bc1086b60800d19bd1c0fa14fdb891f5a5b
 ---
  redfish-core/include/utils/time_utils.hpp          |  49 +++
  .../include/utils/validate_params_length.hpp       | 109 +++++++
@@ -208,7 +212,7 @@ index 0000000..c4e0569
 +
 +} // namespace redfish
 diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
-index d82ae59..ecbab0c 100644
+index 72e62e9..c6b09f8 100644
 --- a/redfish-core/lib/metric_report_definition.hpp
 +++ b/redfish-core/lib/metric_report_definition.hpp
 @@ -17,16 +17,29 @@
@@ -261,7 +265,7 @@ index d82ae59..ecbab0c 100644
 +                   MetricParams>;
 +
 +    void doPost(crow::Response& res, const crow::Request& req,
-+                const std::vector<std::string>& params) override
++                const std::vector<std::string>&) override
 +    {
 +        auto asyncResp = std::make_shared<AsyncResp>(res);
 +        AddReportArgs addReportArgs;
@@ -287,7 +291,7 @@ index d82ae59..ecbab0c 100644
 +            retrieveUriToDbusMap(
 +                chassis, sensorType,
 +                [asyncResp, addReportReq](
-+                    const boost::beast::http::status status,
++                    const boost::beast::http::status,
 +                    const boost::container::flat_map<std::string, std::string>&
 +                        uriToDbus) { *addReportReq += uriToDbus; });
 +        }
@@ -518,7 +522,7 @@ index d82ae59..ecbab0c 100644
 +
 +        crow::connections::systemBus->async_method_call(
 +            [asyncResp, name](const boost::system::error_code ec,
-+                              const std::string ret) {
++                              const std::string) {
 +                if (ec == boost::system::errc::file_exists)
 +                {
 +                    messages::resourceAlreadyExists(
@@ -581,7 +585,7 @@ index d82ae59..ecbab0c 100644
  };
  
  class MetricReportDefinition : public Node
-@@ -148,6 +494,7 @@ class MetricReportDefinition : public Node
+@@ -146,6 +492,7 @@ class MetricReportDefinition : public Node
          asyncResp->res.jsonValue["MetricReport"]["@odata.id"] =
              telemetry::metricReportUri + id;
          asyncResp->res.jsonValue["Status"]["State"] = "Enabled";

@@ -12,6 +12,7 @@ SOFTWARE_MGR_PACKAGES = " \
     ${PN}-download-mgr \
     ${PN}-updater \
     ${PN}-updater-ubi \
+    ${PN}-updater-mmc \
     ${PN}-sync \
 "
 PACKAGE_BEFORE_PN += "${SOFTWARE_MGR_PACKAGES}"
@@ -23,18 +24,19 @@ DBUS_PACKAGES = "${SOFTWARE_MGR_PACKAGES}"
 # handles the rest.
 SYSTEMD_PACKAGES = ""
 
-PACKAGECONFIG[verify_signature] = "--enable-verify_signature,--disable-verify_signature"
-PACKAGECONFIG[sync_bmc_files] = "--enable-sync_bmc_files,--disable-sync_bmc_files"
-PACKAGECONFIG[ubifs_layout] = "--enable-ubifs_layout"
-PACKAGECONFIG[flash_bios] = "--enable-host_bios_upgrade"
+PACKAGECONFIG[verify_signature] = "-Dverify-signature=enabled, -Dverify-signature=disabled"
+PACKAGECONFIG[sync_bmc_files] = "-Dsync-bmc-files=enabled, -Dsync-bmc-files=disabled"
+PACKAGECONFIG[ubifs_layout] = "-Dbmc-layout=ubi"
+PACKAGECONFIG[mmc_layout] = "-Dbmc-layout=mmc"
+PACKAGECONFIG[flash_bios] = "-Dhost-bios-upgrade=enabled, -Dhost-bios-upgrade=disabled"
 
-inherit autotools pkgconfig
+inherit meson pkgconfig
 inherit obmc-phosphor-dbus-service
 inherit python3native
 inherit ${@bb.utils.contains('DISTRO_FEATURES', 'obmc-ubi-fs', 'phosphor-software-manager-ubi-fs', '', d)}
+inherit ${@bb.utils.contains('DISTRO_FEATURES', 'phosphor-mmc', 'phosphor-software-manager-mmc', '', d)}
 
 DEPENDS += " \
-    autoconf-archive-native \
     openssl \
     phosphor-dbus-interfaces \
     phosphor-logging \
@@ -45,10 +47,7 @@ DEPENDS += " \
 RDEPENDS_${PN}-updater += " \
     bash \
     virtual-obmc-image-manager \
-"
-EXTRA_OECONF += " \
-    ACTIVE_BMC_MAX_ALLOWED=1 \
-    MEDIA_DIR=/run/media \
+    ${@bb.utils.contains('PACKAGECONFIG', 'verify_signature', 'phosphor-image-signing', '', d)} \
 "
 
 RPROVIDES_${PN}-version += " \

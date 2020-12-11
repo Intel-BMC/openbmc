@@ -1,4 +1,4 @@
-From fa401cd64965d506ddeb94fd47eb694a8f2a3862 Mon Sep 17 00:00:00 2001
+From a56e138569ce7b37285d4c2f2b4ef4082ab2a283 Mon Sep 17 00:00:00 2001
 From: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
 Date: Thu, 18 Jun 2020 05:32:48 +0530
 Subject: [PATCH] Apply WDT1-2 reset mask to reset needed controller
@@ -20,8 +20,12 @@ De-coupling LPC controller will make sure BIOS serial port access
 is not disturbed.
 And also Reset mask is updated not to reset the following
 additionally on the default mask setting.
+eSPI controller reset causes system console lost connection, when
+BMC reset.
+
 1. LPC controller
 2. PWM controller
+3. eSPI controller
 
 Quick Step to reproduce:
  Stop the BMC in uboot and add below bootcmd command
@@ -51,15 +55,16 @@ Tested:
 
 Signed-off-by: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
- arch/arm/mach-aspeed/ast2600/platform.S | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ arch/arm/mach-aspeed/ast2600/platform.S | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index d881ba8565f2..c77640138653 100644
+index 55b867ff1b17..cd8a57edd76b 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
-@@ -66,6 +66,14 @@
+@@ -63,6 +63,14 @@
  #define AST_MAC2_BASE		(0x1E680000)
  #define AST_MAC2_CTRL2		(AST_MAC2_BASE + 0x058)
  
@@ -74,25 +79,27 @@ index d881ba8565f2..c77640138653 100644
  #define AST_GPIO_BASE		(0x1E780000)
  #define AST_GPIOYZ_DATA_VALUE	(AST_GPIO_BASE + 0x1E0)
  
-@@ -264,6 +272,18 @@ wait_lock:
+@@ -277,6 +285,20 @@ wait_lock:
  	str	r1, [r0]
  
  1:
-+	/* disable LPC and PWM resets on WDT1 reset */
++	/* disable eSPI, LPC and PWM resets on WDT1 reset */
 +	ldr	r0, =AST_WDT1_RESET_MASK2
 +	ldr	r1, [r0]
-+	bic	r1, #0x2800
++	ldr	r2, =0x04002800
++	bic	r1, r2
 +	str	r1, [r0]
 +
-+	/* disable LPC and PWM resets on WDT2 reset */
++	/* disable eSPI, LPC and PWM resets on WDT2 reset */
 +	ldr	r0, =AST_WDT2_RESET_MASK2
 +	ldr	r1, [r0]
-+	bic	r1, #0x2800
++	ldr	r2, =0x04002800
++	bic	r1, r2
 +	str	r1, [r0]
 +
- 	/* release display port reset */
- 	ldr	r0, =AST_SCU_SYSRST_CTRL_CLR
- 	movw	r1, #0x0000
+ 	/* MMIO decode setting */
+ 	ldr	r0, =AST_SCU_MMIO_DEC_SET
+ 	mov	r1, #0x2000
 -- 
 2.17.1
 

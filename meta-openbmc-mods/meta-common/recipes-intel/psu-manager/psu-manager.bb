@@ -1,10 +1,10 @@
 SUMMARY = "Power supply manager for Intel based platform"
 DESCRIPTION = "Power supply manager which include PSU Cold Redundancy service"
 
-SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
-SRCREV = "bee56d62b209088454d166d1efae4825a2b175df"
+SRC_URI = "git://github.com/Intel-BMC/psu-manager.git;protocol=ssh"
+SRCREV = "a6dcc49f7513789931099be7948ba5b6a39e9c20"
 
-S = "${WORKDIR}/git/psu-manager/"
+S = "${WORKDIR}/git"
 
 PV = "1.0+git${SRCPV}"
 

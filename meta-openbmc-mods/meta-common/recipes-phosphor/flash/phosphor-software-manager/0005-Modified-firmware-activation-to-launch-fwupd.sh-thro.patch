@@ -10,22 +10,24 @@ Subject: [PATCH 1/1] Modified firmware activation to launch fwupd.sh through
 
 Signed-off-by: Jennifer Lee <jennifer1.lee@intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
- activation.cpp   | 43 +++++++++++++++++++++++++++++++++++++++++++
- configure.ac     |  7 +++++++
- static/flash.cpp | 41 +++++++++++++++++++++++++++++++++++++++--
- ubi/flash.cpp    |  9 +++------
- 4 files changed, 92 insertions(+), 8 deletions(-)
+ activation.cpp    | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ meson.build       |  1 +
+ meson_options.txt |  3 +++
+ static/flash.cpp  | 41 +++++++++++++++++++++++++++++++++++++++--
+ ubi/flash.cpp     |  9 +++------
+ 5 files changed, 91 insertions(+), 8 deletions(-)
 
 diff --git a/activation.cpp b/activation.cpp
-index ab76420..91e3a10 100644
+index 291ce7c..f76018d 100644
 --- a/activation.cpp
 +++ b/activation.cpp
-@@ -200,6 +200,49 @@ auto Activation::activation(Activations value) -> Activations
-                     softwareServer::Activation::Activations::Active);
-             }
-         }
-+#elif defined(FWUPD_SCRIPT)
+@@ -88,7 +88,50 @@ auto Activation::activation(Activations value) -> Activations
+ 
+     if (value == softwareServer::Activation::Activations::Activating)
+     {
++#ifdef FWUPD_SCRIPT
 +        if (!activationProgress)
 +        {
 +            // Enable systemd signals
@@ -58,7 +60,7 @@ index ab76420..91e3a10 100644
 +                redundancyPriority =
 +                    std::make_unique<RedundancyPriority>(bus, path, *this, 0);
 +            }
-+
+ 
 +            // Remove version object from image manager
 +            Activation::deleteImageManagerObject();
 +
@@ -68,35 +70,60 @@ index ab76420..91e3a10 100644
 +            return softwareServer::Activation::activation(
 +                softwareServer::Activation::Activations::Active);
 +        }
- #else // !UBIFS_LAYOUT
++#else // !FWUPD_SCRIPT
+ #ifdef HOST_BIOS_UPGRADE
+         auto purpose = parent.versions.find(versionId)->second->purpose();
+         if (purpose == VersionPurpose::Host)
+@@ -111,7 +154,6 @@ auto Activation::activation(Activations value) -> Activations
+             return softwareServer::Activation::activation(value);
+         }
+ #endif
+-
+         auto versionStr = parent.versions.find(versionId)->second->version();
  
- #ifdef WANT_SIGNATURE_VERIFY
-diff --git a/configure.ac b/configure.ac
-index 5fba420..3b5fdab 100755
---- a/configure.ac
-+++ b/configure.ac
-@@ -194,6 +194,13 @@ AS_IF([test "x$enable_host_bios_upgrade" == "xyes"], \
-     [AC_DEFINE([HOST_BIOS_UPGRADE],[],[Enable host bios upgrade support.])])
- AM_CONDITIONAL([HOST_BIOS_UPGRADE], [test "x$enable_host_bios_upgrade" == "xyes"])
+         if (!minimum_ship_level::verify(versionStr))
+@@ -175,6 +217,7 @@ auto Activation::activation(Activations value) -> Activations
+         return softwareServer::Activation::activation(
+             softwareServer::Activation::Activations::Active);
+ #endif
++#endif // FWUPD_SCRIPT
+     }
+     else
+     {
+diff --git a/meson.build b/meson.build
+index 62b9aeb..08d6f71 100644
+--- a/meson.build
++++ b/meson.build
+@@ -54,6 +54,7 @@ conf.set('MMC_LAYOUT', get_option('bmc-layout').contains('mmc'))
+ # Configurable features
+ conf.set('HOST_BIOS_UPGRADE', get_option('host-bios-upgrade').enabled())
+ conf.set('WANT_SIGNATURE_VERIFY', get_option('verify-signature').enabled())
++conf.set('FWUPD_SCRIPT', get_option('fwupd-script').enabled())
  
-+# setup fwupd script support
-+AC_ARG_ENABLE([fwupd_script],
-+    AS_HELP_STRING([--enable-fwupd_script], [Enable fwupd script support.]))
-+AS_IF([test "x$enable_fwupd_script" == "xyes"], \
-+    [AC_DEFINE([FWUPD_SCRIPT],[],[Enable fwupd script support.])])
-+AM_CONDITIONAL([FWUPD_SCRIPT], [test "x$enable_fwupd_script" == "xyes"])
+ # Configurable variables
+ conf.set('ACTIVE_BMC_MAX_ALLOWED', get_option('active-bmc-max-allowed'))
+diff --git a/meson_options.txt b/meson_options.txt
+index c9b7b33..4f7e62a 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -22,6 +22,9 @@ option('oe-sdk', type: 'feature', description: 'Enable OE SDK')
+ option('verify-signature', type: 'feature',
+     description: 'Enable image signature validation.')
+ 
++option('fwupd-script', type: 'feature',
++    description: 'Enable fwupd script support.')
 +
- # Check for header files.
- AC_CHECK_HEADER(systemd/sd-bus.h, ,[AC_MSG_ERROR([Could not find systemd/sd-bus.h...systemd development package required])])
- AC_CHECK_HEADER(sdbusplus/server.hpp, ,[AC_MSG_ERROR([Could not find sdbusplus/server.hpp...openbmc/sdbusplus package required])])
+ # Variables
+ option(
+     'active-bmc-max-allowed', type: 'integer',
 diff --git a/static/flash.cpp b/static/flash.cpp
-index 82c2393..1bf29d5 100644
+index 9bb2bba..c4ff002 100644
 --- a/static/flash.cpp
 +++ b/static/flash.cpp
-@@ -20,9 +20,11 @@ namespace updater
- {
+@@ -22,9 +22,11 @@ namespace updater
  
- namespace fs = std::experimental::filesystem;
+ namespace fs = std::filesystem;
+ using namespace phosphor::software::image;
 +namespace softwareServer = sdbusplus::xyz::openbmc_project::Software::server;
  
  void Activation::flashWrite()
@@ -105,7 +132,7 @@ index 82c2393..1bf29d5 100644
      // For static layout code update, just put images in /run/initramfs.
      // It expects user to trigger a reboot and an updater script will program
      // the image to flash during reboot.
-@@ -33,11 +35,46 @@ void Activation::flashWrite()
+@@ -36,11 +38,46 @@ void Activation::flashWrite()
          fs::copy_file(uploadDir / versionId / bmcImage, toPath / bmcImage,
                        fs::copy_options::overwrite_existing);
      }

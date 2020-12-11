@@ -17,7 +17,7 @@ diff --git a/watch.cpp b/watch.cpp
 index e46b8aa..eee1bc3 100644
 --- a/watch.cpp
 +++ b/watch.cpp
-@@ -45,7 +45,7 @@ Watch::Watch(sd_event* loop, std::function<int(std::string&)> imageCallback) :
+@@ -46,7 +46,7 @@ Watch::Watch(sd_event* loop, std::function<int(std::string&)> imageCallback) :
                                   std::strerror(error));
      }
  
@@ -26,7 +26,7 @@ index e46b8aa..eee1bc3 100644
      if (-1 == wd)
      {
          auto error = errno;
-@@ -96,7 +96,8 @@ int Watch::callback(sd_event_source* s, int fd, uint32_t revents,
+@@ -97,7 +97,8 @@ int Watch::callback(sd_event_source* /* s */, int fd, uint32_t revents,
      while (offset < bytes)
      {
          auto event = reinterpret_cast<inotify_event*>(&buffer[offset]);

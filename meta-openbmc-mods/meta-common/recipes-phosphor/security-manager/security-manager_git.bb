@@ -18,7 +18,6 @@ DEPENDS += " \
     systemd \
     sdbusplus \
     libgpiod \
-    sdbusplus-native \
     phosphor-logging \
     boost \
     "

@@ -1,4 +1,4 @@
-From 97c21a556702a0d65096b30c07ef23f15cb6a7d9 Mon Sep 17 00:00:00 2001
+From e5ab844259f569656e95f5324f7428229dd811a7 Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Wed, 3 Jul 2019 07:39:47 +0800
 Subject: [PATCH] Add dbus interface for sol commands
@@ -25,18 +25,18 @@ to 0 and other properties will not reset to default value.
 
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
 ---
- command/payload_cmds.cpp |   3 ++
- command/sol_cmds.cpp     |  84 -------------------------------
- sol/sol_manager.cpp      | 125 +++++++++++++++++++++++++++++++++++++++++++++++
+ command/payload_cmds.cpp |   3 +
+ command/sol_cmds.cpp     |  84 --------------------------
+ sol/sol_manager.cpp      | 124 +++++++++++++++++++++++++++++++++++++++
  sol/sol_manager.hpp      |   1 +
- sol_module.cpp           |   6 ---
- 5 files changed, 129 insertions(+), 90 deletions(-)
+ sol_module.cpp           |   6 --
+ 5 files changed, 128 insertions(+), 90 deletions(-)
 
 diff --git a/command/payload_cmds.cpp b/command/payload_cmds.cpp
-index c32a510..17167a7 100644
+index c8e682e..bc987c5 100644
 --- a/command/payload_cmds.cpp
 +++ b/command/payload_cmds.cpp
-@@ -34,6 +34,9 @@ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
+@@ -41,6 +41,9 @@ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
          return outPayload;
      }
  
@@ -47,10 +47,10 @@ index c32a510..17167a7 100644
      {
          response->completionCode = IPMI_CC_PAYLOAD_TYPE_DISABLED;
 diff --git a/command/sol_cmds.cpp b/command/sol_cmds.cpp
-index a8fa410..804b5ea 100644
+index fda3e91..a1e820f 100644
 --- a/command/sol_cmds.cpp
 +++ b/command/sol_cmds.cpp
-@@ -65,90 +65,6 @@ void activating(uint8_t payloadInstance, uint32_t sessionID)
+@@ -71,90 +71,6 @@ void activating(uint8_t payloadInstance, uint32_t sessionID)
                                            outPayload);
  }
  
@@ -142,14 +142,12 @@ index a8fa410..804b5ea 100644
                                     const message::Handler& handler)
  {
 diff --git a/sol/sol_manager.cpp b/sol/sol_manager.cpp
-index 2046fe4..eedd28a 100644
+index a118457..55d269a 100644
 --- a/sol/sol_manager.cpp
 +++ b/sol/sol_manager.cpp
-@@ -12,7 +12,13 @@
- #include <boost/asio/write.hpp>
- #include <chrono>
+@@ -14,6 +14,11 @@
  #include <cmath>
-+#include <ipmid/utils.hpp>
+ #include <ipmid/utils.hpp>
  #include <phosphor-logging/log.hpp>
 +#include <sdbusplus/message/types.hpp>
 +
@@ -159,7 +157,7 @@ index 2046fe4..eedd28a 100644
  
  namespace sol
  {
-@@ -93,6 +99,125 @@ void Manager::stopHostConsole()
+@@ -103,6 +108,125 @@ void Manager::stopHostConsole()
      }
  }
  
@@ -286,10 +284,10 @@ index 2046fe4..eedd28a 100644
                                     session::SessionID sessionID)
  {
 diff --git a/sol/sol_manager.hpp b/sol/sol_manager.hpp
-index 5d96890..00da9fb 100644
+index 5b48add..4e797d4 100644
 --- a/sol/sol_manager.hpp
 +++ b/sol/sol_manager.hpp
-@@ -248,6 +248,7 @@ class Manager
+@@ -252,6 +252,7 @@ class Manager
       *  @return 0 on success and errno on failure.
       */
      int writeConsoleSocket(const std::vector<uint8_t>& input) const;
@@ -315,5 +313,5 @@ index 8200e74..2b1fb46 100644
          {{(static_cast<uint32_t>(message::PayloadType::IPMI) << 16) |
            static_cast<uint16_t>(::command::NetFns::TRANSPORT) | 0x22},
 -- 
-2.7.4
+2.17.1
 

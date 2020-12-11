@@ -27,9 +27,9 @@ index 3f0530f..5c1a779 100644
  #include <xyz/openbmc_project/Control/FieldMode/server.hpp>
 +#include <xyz/openbmc_project/Software/ApplyOptions/server.hpp>
  
- namespace phosphor
- {
-@@ -21,7 +22,8 @@ using ItemUpdaterInherit = sdbusplus::server::object::object<
+ #include <string>
+ #include <vector>
+@@ -24,7 +25,8 @@ using ItemUpdaterInherit = sdbusplus::server::object::object<
      sdbusplus::xyz::openbmc_project::Common::server::FactoryReset,
      sdbusplus::xyz::openbmc_project::Control::server::FieldMode,
      sdbusplus::xyz::openbmc_project::Association::server::Definitions,

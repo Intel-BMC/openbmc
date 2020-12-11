@@ -9,11 +9,13 @@ SRC_URI_append = " file://0001-Blacklist-DIMM-Bus.patch \
                    file://J85894-HSBP.json \
                    file://CPC-Baseboard.json \
                    file://MIDPLANE-2U2X12SWITCH.json \
-                   file://WC-Chassis.json"
+                   file://WC-Chassis.json \
+                   file://blocklist.json"
 
 RDEPENDS_${PN} += " default-fru"
 
 do_install_append() {
      install -d ${D}/usr/share/entity-manager/configurations
      install -m 0444 ${WORKDIR}/*.json ${D}/usr/share/entity-manager/configurations
+     rm  ${D}/usr/share/entity-manager/configurations/blocklist.json
 }

@@ -1,7 +1,0 @@
-[Unit]
-Description=Reset BMC Using Hardware Watchdog
-
-[Service]
-ExecStart=/usr/bin/watchdog-reset.sh %i
-Type=oneshot
-
