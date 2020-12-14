@@ -24,7 +24,7 @@ discussion or in the LF OpenBMC project, features that have not gone through
 the level of testing or integration needed to be included in the OpenBMC
 project
 
-### Why does this repo exist ??
+### Why does this repo exist ?
 
 Upstreaming changes to the linux kernel, uboot, systemd, yocto, and the
 various projects that OpenBMC pulls in requires a significant effort.
