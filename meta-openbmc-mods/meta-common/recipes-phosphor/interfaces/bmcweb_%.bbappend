@@ -46,8 +46,13 @@ SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
             file://0029-Added-Validation-on-MessageId-and-RegistryPrefix.patch \
             file://0030-Initialize-Event-Service-Config-on-bmcweb-restart.patch \
             file://0031-get-on-crashdump-can-follow-redfish-privileges.patch \
+            file://0032-fix-for-duplicate-redfish-event-log-ID-s.patch \
+            file://0033-Redfish-validator-conformance-fix.patch \
             file://0034-Avoid-using-deleted-Connection-in-Response.patch \
             file://0035-EventService-Fix-hostname-resolve-issue.patch \
+            file://0036-fix-bmcweb-crash-during-sol-communication.patch \
+            file://0037-Use-non-throw-version-of-remote_endpoint.patch \
+            file://0038-Change-Severity-for-ServiceFailure-redfish-event.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details

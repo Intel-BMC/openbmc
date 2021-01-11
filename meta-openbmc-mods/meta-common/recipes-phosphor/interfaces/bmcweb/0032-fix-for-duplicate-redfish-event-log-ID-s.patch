@@ -1,0 +1,68 @@
+From 013530bbf14bf14f7772a24675abba15bfba6be8 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Mon, 12 Oct 2020 20:10:31 +0530
+Subject: [PATCH] fix for duplicate redfish event log ID's
+
+Corrected the logic of reading redfish event
+logs distributed across backup's files with
+same time stamp.
+When event logs with same timestamp is distributed
+across redfish event log backup files, redfish event
+log ID's calculation causes duplicate ID's. Corrected
+the logic for avoiding duplicate ID's.
+
+Tested:
+ - Simulated duplicate ID's across backup files and
+   confirmed no duplicate ID's
+
+Change-Id: I94266a4396380f50c0df556f4a61426967d8e24a
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/lib/log_services.hpp | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index e6090e5..e6a9022 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -1265,6 +1265,9 @@ class JournalEventLogEntryCollection : public Node
+         uint64_t entryCount = 0;
+         std::string logEntry;
+ 
++        // Reset the unique ID on the first entry
++        bool firstEntry = true;
++
+         // Oldest logs are in the last file, so start there and loop backwards
+         for (auto it = redfishLogFiles.rbegin(); it < redfishLogFiles.rend();
+              it++)
+@@ -1275,8 +1278,6 @@ class JournalEventLogEntryCollection : public Node
+                 continue;
+             }
+ 
+-            // Reset the unique ID on the first entry
+-            bool firstEntry = true;
+             while (std::getline(logStream, logEntry))
+             {
+                 entryCount++;
+@@ -1353,6 +1354,9 @@ class JournalEventLogEntry : public Node
+         getRedfishLogFiles(redfishLogFiles);
+         std::string logEntry;
+ 
++        // Reset the unique ID on the first entry
++        bool firstEntry = true;
++
+         // Oldest logs are in the last file, so start there and loop backwards
+         for (auto it = redfishLogFiles.rbegin(); it < redfishLogFiles.rend();
+              it++)
+@@ -1363,8 +1367,6 @@ class JournalEventLogEntry : public Node
+                 continue;
+             }
+ 
+-            // Reset the unique ID on the first entry
+-            bool firstEntry = true;
+             while (std::getline(logStream, logEntry))
+             {
+                 std::string idStr;
+-- 
+2.7.4
+

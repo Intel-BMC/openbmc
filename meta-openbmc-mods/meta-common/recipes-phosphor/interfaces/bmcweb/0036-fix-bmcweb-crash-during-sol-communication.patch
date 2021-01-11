@@ -1,0 +1,75 @@
+From 8f990dfe45e41c8733f52b1a35575fe7bf749054 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 13 Nov 2020 19:28:22 +0530
+Subject: [PATCH] fix bmcweb crash during sol communication
+
+After establishing the obmc_console socket
+communication, If client closes the connection
+abruptly, async read/write operation fails with
+asio.ssl.stream error. To handle the error, it calls
+closeHandler call back function and cleans the session
+and socket. Any ongoing async read operation should
+be discarded by checking socket handle. Read/Write message
+from stream via async_read_some()/async_write_some()
+without checking socket handle, causes the crash.
+Added socket handle validation before performing any
+read/write operation to avoid crash.
+
+Tested:
+ - Without fix, when sol connection closes abruptly, at times
+   saw the crash with below logs.
+Nov 13 11:32:51 intel-obmc bmcweb[20169]: doRead error asio.ssl.stream:1
+Nov 13 11:32:51 intel-obmc systemd[1]: bmcweb.service: Main process exited, code=dumped, status=11/SEGV
+Nov 13 11:32:51 intel-obmc systemd[1]: bmcweb.service: Failed with result 'core-dump'.
+
+ - With fix, verified the case and no crashes seen.
+Nov 13 12:55:04 intel-obmc bmcweb[24426]: (2020-11-13 12:55:04) [ERROR "websocket.h":207] doRead error asio.ssl.stream:1
+Nov 13 12:55:04 intel-obmc bmcweb[24426]: (2020-11-13 12:55:04) [ERROR "obmc_console.hpp":67] doread() - Socket closed
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Change-Id: I2afda509ca77a561651a8682e042c45ca7366642
+---
+ include/obmc_console.hpp | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/include/obmc_console.hpp b/include/obmc_console.hpp
+index 9e5e058..8608f5f 100644
+--- a/include/obmc_console.hpp
++++ b/include/obmc_console.hpp
+@@ -36,6 +36,12 @@ void doWrite()
+         return;
+     }
+ 
++    if (!host_socket)
++    {
++        BMCWEB_LOG_ERROR << "doWrite(): Socket closed.";
++        return;
++    }
++
+     doingWrite = true;
+     host_socket->async_write_some(
+         boost::asio::buffer(inputBuffer.data(), inputBuffer.size()),
+@@ -62,6 +68,12 @@ void doWrite()
+ 
+ void doRead()
+ {
++    if (!host_socket)
++    {
++        BMCWEB_LOG_ERROR << "doRead(): Socket closed.";
++        return;
++    }
++
+     BMCWEB_LOG_DEBUG << "Reading from socket";
+     host_socket->async_read_some(
+         boost::asio::buffer(outputBuffer.data(), outputBuffer.size()),
+@@ -125,6 +137,7 @@ void requestRoutes(CrowApp& app)
+         })
+         .onclose(
+             [](crow::websocket::Connection& conn, const std::string& reason) {
++                BMCWEB_LOG_INFO << "Closing websocket. Reason: " << reason;
+                 sessions.erase(&conn);
+                 if (sessions.empty())
+                 {
+-- 
+2.7.4
+

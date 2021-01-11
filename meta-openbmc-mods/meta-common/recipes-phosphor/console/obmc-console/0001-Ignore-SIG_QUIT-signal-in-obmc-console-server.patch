@@ -1,0 +1,37 @@
+From 9560be9acd6baaf816c2f3cba37185a8c1d83131 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 28 Oct 2020 14:02:07 +0800
+Subject: [PATCH] Ignore SIG_QUIT signal in obmc-console-server.
+
+During long time AC cycle testing, there are 2 unexpected QUIT
+signals in 1500 cycles.
+Which cause obmc-console service restart as below:
+""""""""
+intel-obmc systemd[1]:obmc-console@ttyS2.service: Main process exited, code=dumped, status=3/QUIT
+intel-obmc systemd[1]:obmc-console@ttyS2.service: Failed with result 'core-dump'.
+intel-obmc systemd[1]:obmc-console@ttyS2.service: Scheduled restart job, restart counter is at 1.
+""""""""
+
+Tested:
+obmc-console service will not restart even send QUIT signal by kill command
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ console-server.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/console-server.c b/console-server.c
+index 11d017b..f6ac09a 100644
+--- a/console-server.c
++++ b/console-server.c
+@@ -703,6 +703,7 @@ int run_console(struct console *console)
+ 	int rc, timeout;
+ 
+ 	sighandler_save = signal(SIGINT, sighandler);
++	signal(SIGQUIT,SIG_IGN);
+ 
+ 	rc = 0;
+ 
+-- 
+2.17.1
+

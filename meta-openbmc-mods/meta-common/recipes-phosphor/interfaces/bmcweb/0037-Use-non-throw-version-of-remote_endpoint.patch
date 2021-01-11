@@ -1,0 +1,55 @@
+From 666b78c7599960a8ac8d1a90d389dd02e605a170 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Tue, 24 Nov 2020 13:55:12 +0530
+Subject: [PATCH] Use non-throw version of remote_endpoint
+
+Using boost call to get the remote endpoint of
+socket is not handled properly in code, causes
+the bmcweb crash in some corner cases.
+
+Nov 23 18:48:07 intel-obmc bmcweb[19300]: terminate called after throwing an instance of 'boost::wrapexcept<boost::system::system_error>'
+Nov 23 18:48:07 intel-obmc bmcweb[19300]:   what():  remote_endpoint: Bad file descriptor
+
+Added non-throw version of remote_endpoint()
+and handled the error code appropriately to avoid
+the bmcweb crash.
+
+Tested:
+ - Sesisons URI show properly remote IP address
+   and no bmcweb crashes seen.
+
+Change-Id: Iafa9011dbc09235785cbb7d853e22d5fd752db89
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/lib/redfish_sessions.hpp | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/redfish-core/lib/redfish_sessions.hpp b/redfish-core/lib/redfish_sessions.hpp
+index 267f98a..1a015f3 100644
+--- a/redfish-core/lib/redfish_sessions.hpp
++++ b/redfish-core/lib/redfish_sessions.hpp
+@@ -230,12 +230,18 @@ class SessionCollection : public Node
+         auto socket = req.socket();
+         if (socket)
+         {
++            boost::system::error_code ec;
+ #ifdef BMCWEB_ENABLE_SSL
+-            clientIp =
+-                (*socket).next_layer().remote_endpoint().address().to_string();
++            boost::asio::ip::tcp::endpoint endpoint =
++                (*socket).next_layer().remote_endpoint(ec);
+ #else
+-            clientIp = (*socket).remote_endpoint().address().to_string();
++            boost::asio::ip::tcp::endpoint endpoint =
++                (*socket).remote_endpoint(ec);
+ #endif
++            if (!ec)
++            {
++                clientIp = endpoint.address().to_string();
++            }
+         }
+         // User is authenticated - create session
+         std::shared_ptr<crow::persistent_data::UserSession> session =
+-- 
+2.7.4
+

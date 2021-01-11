@@ -1,4 +1,4 @@
-# add some configuration overrides for systemd default /usr/lib/tmpfiles.d/
+# add some configuration overrides for systemd defaults
 
 LICENSE = "GPL-2.0"
 

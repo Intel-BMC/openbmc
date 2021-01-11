@@ -22,11 +22,11 @@ that the memory thermtrip event is logged.
 Change-Id: I9c38b41db30046499297ee24cc3a2790920b19d3
 Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
 ---
- src/host_error_monitor.cpp | 77 +++++++++++++++++++++++++++++++++++++-
- 1 file changed, 75 insertions(+), 2 deletions(-)
+ src/host_error_monitor.cpp | 81 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 77 insertions(+), 4 deletions(-)
 
 diff --git a/src/host_error_monitor.cpp b/src/host_error_monitor.cpp
-index 313ef29e0..ca089f70d 100644
+index 313ef29e0..16297bb47 100644
 --- a/src/host_error_monitor.cpp
 +++ b/src/host_error_monitor.cpp
 @@ -17,6 +17,7 @@
@@ -134,6 +134,22 @@ index 313ef29e0..ca089f70d 100644
 +
 +    // Only log a memory thermtrip if a DIMM is critical
 +    if (cpu2Memtrip && !cpu2CriticalDIMMs.empty())
+     {
+         memThermTripLog(2);
+     }
+@@ -1503,13 +1572,13 @@ static void initializeErrorState()
+     }
+ 
+     // Handle CPU1_MEM_THERM_EVENT (CPU1 DIMM Thermal trip) if it's asserted now
+-    if (cpu1MemtripLine.get_value() == 0)
++    if ((cpu1MemtripLine.get_value() == 0) && !cpu1CriticalDIMMs.empty())
+     {
+         memThermTripLog(1);
+     }
+ 
+     // Handle CPU2_MEM_THERM_EVENT (CPU2 DIMM Thermal trip) if it's asserted now
+-    if (cpu2MemtripLine.get_value() == 0)
++    if ((cpu2MemtripLine.get_value() == 0) && !cpu2CriticalDIMMs.empty())
      {
          memThermTripLog(2);
      }

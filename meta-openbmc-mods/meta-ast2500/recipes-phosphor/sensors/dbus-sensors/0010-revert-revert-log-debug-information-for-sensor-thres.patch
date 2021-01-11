@@ -1,0 +1,283 @@
+From b52dd2b668fda6cd2e4afb7662a4d2721efe9855 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Fri, 11 Sep 2020 17:02:01 -0700
+Subject: [PATCH 10/12] revert "revert log debug information for sensor
+ threshold assert events"
+
+Add back the orignial submit 9bf6804c2d76b92005ad9851cb052d407ea3117f
+and includes the fix the bug that crashed ipmbsensor.
+
+log debug information for sensor threshold assert events
+
+There are sightings that TCPUx_P12_PVCCIO_VS_Temp Sensor
+reports reading of zero and trips the low critical threshold.
+Add debug prints to gather data.
+
+Also add logs for raw value in sensor base class to help
+debug threshold assert events for other sensor type.
+
+Tested:
+Verified that log messages show up as expected for threshold
+assert events. There is no unwanted log messages on systems that
+do not have bad sensor readings.
+Verified system stayed up for 30 minutes without crashing.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Change-Id: I73e00e24bbae463dbe0f34e2308ee934588028d1
+---
+ include/sensor.hpp      |  1 +
+ src/ADCSensor.cpp       | 20 ++++++++++++++++----
+ src/CPUSensor.cpp       |  4 ++--
+ src/HwmonTempSensor.cpp | 21 +++++++++++++++++----
+ src/IpmbSensor.cpp      | 12 ++++++++++++
+ src/PSUSensor.cpp       |  4 ++--
+ src/TachSensor.cpp      |  4 ++--
+ src/Thresholds.cpp      | 16 ++++++++++++++--
+ 8 files changed, 66 insertions(+), 16 deletions(-)
+
+diff --git a/include/sensor.hpp b/include/sensor.hpp
+index a8321fd..7fa9300 100644
+--- a/include/sensor.hpp
++++ b/include/sensor.hpp
+@@ -48,6 +48,7 @@ struct Sensor
+     std::shared_ptr<sdbusplus::asio::dbus_interface> availableInterface;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> operationalInterface;
+     double value = std::numeric_limits<double>::quiet_NaN();
++    double rawValue = std::numeric_limits<double>::quiet_NaN();
+     bool overriddenState = false;
+     bool internalSet = false;
+     double hysteresisTrigger;
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index a446030..0cdb0ac 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -79,6 +79,7 @@ ADCSensor::ADCSensor(const std::string& path,
+     }
+     association = objectServer.add_interface(
+         "/xyz/openbmc_project/sensors/voltage/" + name, association::interface);
++
+     setInitialProperties(conn);
+ }
+ 
+@@ -179,11 +180,9 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+         // todo read scaling factors from configuration
+         try
+         {
+-            double nvalue = std::stod(response);
+-
+-            nvalue = (nvalue / sensorScaleFactor) / scaleFactor;
++            rawValue = std::stod(response);
++            double nvalue = (rawValue / sensorScaleFactor) / scaleFactor;
+             nvalue = std::round(nvalue * roundFactor) / roundFactor;
+-
+             updateValue(nvalue);
+         }
+         catch (std::invalid_argument&)
+@@ -205,6 +204,7 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+     int fd = open(path.c_str(), O_RDONLY);
+     if (fd < 0)
+     {
++        std::cerr << "adcsensor " << name << " failed to open " << path << "\n";
+         return; // we're no longer valid
+     }
+     inputDev.assign(fd);
+@@ -213,6 +213,14 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+         std::shared_ptr<ADCSensor> self = weakRef.lock();
+         if (ec == boost::asio::error::operation_aborted)
+         {
++            if (self)
++            {
++                std::cerr << "adcsensor " << self->name << " read cancelled\n";
++            }
++            else
++            {
++                std::cerr << "adcsensor read cancelled no self\n";
++            }
+             return; // we're being canceled
+         }
+ 
+@@ -220,6 +228,10 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+         {
+             self->setupRead();
+         }
++        else
++        {
++            std::cerr << "adcsensor weakref no self\n";
++        }
+     });
+ }
+ 
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 401412f..f368150 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -223,9 +223,9 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+         try
+         {
+             std::getline(responseStream, response);
+-            double nvalue = std::stod(response);
++            rawValue = std::stod(response);
+             responseStream.clear();
+-            nvalue /= CPUSensor::sensorScaleFactor;
++            double nvalue = rawValue / CPUSensor::sensorScaleFactor;
+ 
+             if (show)
+             {
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index 5514504..8b91804 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -106,6 +106,8 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+     if ((err == boost::system::errc::bad_file_descriptor) ||
+         (err == boost::asio::error::misc_errors::not_found))
+     {
++        std::cerr << "Hwmon temp sensor " << name << " removed " << path
++                  << "\n";
+         return; // we're being destroyed
+     }
+     std::istream responseStream(&readBuf);
+@@ -115,16 +117,16 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+         std::getline(responseStream, response);
+         try
+         {
+-            double nvalue = std::stod(response);
+-            if (nvalue < 0)
++            rawValue = std::stod(response);
++            if (rawValue < 0)
+             {
+                 std::cerr << "Hwmon temp sensor " << name
+-                          << ": ignore negative rawValue " << nvalue << "\n";
++                          << ": ignore negative rawValue " << rawValue << "\n";
+                 incrementError();
+             }
+             else
+             {
+-                nvalue /= sensorScaleFactor;
++                double nvalue = rawValue / sensorScaleFactor;
+                 updateValue(nvalue);
+             }
+         }
+@@ -143,6 +145,8 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+     int fd = open(path.c_str(), O_RDONLY);
+     if (fd < 0)
+     {
++        std::cerr << "Hwmon temp sensor " << name << " not valid " << path
++                  << "\n";
+         return; // we're no longer valid
+     }
+     inputDev.assign(fd);
+@@ -152,6 +156,15 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+         std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
+         if (ec == boost::asio::error::operation_aborted)
+         {
++            if (self)
++            {
++                std::cerr << "Hwmon temp sensor " << self->name
++                          << " read cancelled " << self->path << "\n";
++            }
++            else
++            {
++                std::cerr << "Hwmon sensor read cancelled, no self\n";
++            }
+             return; // we're being canceled
+         }
+         if (self)
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 1855519..983e6d4 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -349,6 +349,18 @@ void IpmbSensor::read(void)
+                     read();
+                     return;
+                 }
++                else
++                {
++                    // rawValue only used in debug logging
++                    // up to 5th byte in data are used to derive value
++                    size_t end = std::min(sizeof(uint64_t), data.size());
++                    uint64_t rawData = 0;
++                    for (size_t i = 0; i < end; i++)
++                    {
++                        reinterpret_cast<uint8_t*>(&rawData)[i] = data[i];
++                    }
++                    rawValue = static_cast<double>(rawData);
++                }
+ 
+                 /* Adjust value as per scale and offset */
+                 value = (value * scaleVal) + offsetVal;
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 6b27207..f93846d 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -143,9 +143,9 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+         try
+         {
+             std::getline(responseStream, response);
+-            double nvalue = std::stod(response);
++            rawValue = std::stod(response);
+             responseStream.clear();
+-            nvalue /= sensorFactor;
++            double nvalue = rawValue / sensorFactor;
+ 
+             updateValue(nvalue);
+         }
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index ba3b0a1..acfe659 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -149,9 +149,9 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
+             try
+             {
+                 std::getline(responseStream, response);
+-                double nvalue = std::stod(response);
++                rawValue = std::stod(response);
+                 responseStream.clear();
+-                updateValue(nvalue);
++                updateValue(rawValue);
+             }
+             catch (const std::invalid_argument&)
+             {
+diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
+index ce1c759..30f8021 100644
+--- a/src/Thresholds.cpp
++++ b/src/Thresholds.cpp
+@@ -244,6 +244,7 @@ static int cLoTrue = 0;
+ static int cLoFalse = 0;
+ static int cLoMidstate = 0;
+ static int cDebugThrottle = 0;
++static constexpr int assertLogCount = 10;
+ 
+ struct ChangeParam
+ {
+@@ -276,7 +277,12 @@ static std::vector<ChangeParam> checkThresholds(Sensor* sensor, double value)
+             if (value >= threshold.value)
+             {
+                 thresholdChanges.emplace_back(threshold, true, value);
+-                ++cHiTrue;
++                if (++cHiTrue < assertLogCount)
++                {
++                    std::cerr << "Sensor " << sensor->name << " high threshold "
++                              << threshold.value << " assert: value " << value
++                              << " raw data " << sensor->rawValue << "\n";
++                }
+             }
+             else if (value < (threshold.value - sensor->hysteresisTrigger))
+             {
+@@ -293,7 +299,13 @@ static std::vector<ChangeParam> checkThresholds(Sensor* sensor, double value)
+             if (value <= threshold.value)
+             {
+                 thresholdChanges.emplace_back(threshold, true, value);
+-                ++cLoTrue;
++                if (++cLoTrue < assertLogCount)
++                {
++                    std::cerr << "Sensor " << sensor->name << " low threshold "
++                              << threshold.value << " assert: value "
++                              << sensor->value << " raw data "
++                              << sensor->rawValue << "\n";
++                }
+             }
+             else if (value > (threshold.value + sensor->hysteresisTrigger))
+             {
+-- 
+2.17.1
+

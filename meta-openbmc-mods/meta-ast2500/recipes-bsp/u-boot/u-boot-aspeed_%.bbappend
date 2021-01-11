@@ -49,6 +49,7 @@ SRC_URI_append_intel-ast2500 = " \
     file://0049-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
     file://0051-Add-Aspeed-DRAM-stress-test-command.patch \
     file://0052-Fix-issue-on-host-console-is-broken-due-to-BMC-reset.patch \
+    file://0053-Disable-SoC-debug-feature.patch \
     "
 # CVE-2020-10648 vulnerability fix
 SRC_URI_append_intel-ast2500 = " \

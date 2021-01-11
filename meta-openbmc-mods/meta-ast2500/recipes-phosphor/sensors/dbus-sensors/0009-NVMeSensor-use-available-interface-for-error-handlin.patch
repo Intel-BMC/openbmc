@@ -1,0 +1,52 @@
+From f9c37dfab29007ce988ddb32293d9c31de0eb042 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Wed, 11 Nov 2020 07:41:03 -0800
+Subject: [PATCH 09/12] NVMeSensor: use available interface for error handling
+
+Sensor available and functional interfaces are used to
+handle sensor not readable and read errors.
+Update NVMeSensor to use them.
+
+Tested
+No regression detected in NVMeSensor read value
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Change-Id: Iabaf2508d14b3562cfe04992c9558a0114a9665e
+---
+ src/NVMeSensor.cpp | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index cbc88ec..8d6d4b3 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -265,7 +265,7 @@ static double getTemperatureReading(int8_t reading)
+     {
+         // 0x80 = No temperature data or temperature data is more the 5 s
+         // old 0x81 = Temperature sensor failure
+-        return maxReading;
++        return std::numeric_limits<double>::quiet_NaN();
+     }
+ 
+     return reading;
+@@ -365,7 +365,16 @@ void rxMessage(uint8_t eid, void*, void* msg, size_t len)
+                   << " Celsius for device " << sensorInfo->name << "\n";
+     }
+ 
+-    sensorInfo->updateValue(getTemperatureReading(messageData[5]));
++    double value = getTemperatureReading(messageData[5]);
++    if (!std::isfinite(value))
++    {
++        sensorInfo->markAvailable(false);
++        sensorInfo->incrementError();
++    }
++    else
++    {
++        sensorInfo->updateValue(value);
++    }
+ 
+     if (DEBUG)
+     {
+-- 
+2.17.1
+

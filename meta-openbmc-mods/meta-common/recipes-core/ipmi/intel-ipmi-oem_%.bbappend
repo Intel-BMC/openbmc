@@ -13,4 +13,6 @@ SRC_URI += "file://0001-Fix-cold-redundancy-is-not-runing-as-user-configurat.pat
             file://0004-firmware-update-Add-Support-to-get-fwSecurityVer.patch \
             file://0005-oemcommands-Fix-for-set-security-mode-to-mfg-mode.patch \
             file://0006-Update-Product-ID-for-EEPROM-FRU-platforms.patch \
+            file://0007-ipmi-whitelist-Allow-set-securitymode-cmd-from-KCS.patch \
+            file://0008-Add-sufficient-delay-to-create-smbios2-file.patch \
            "
