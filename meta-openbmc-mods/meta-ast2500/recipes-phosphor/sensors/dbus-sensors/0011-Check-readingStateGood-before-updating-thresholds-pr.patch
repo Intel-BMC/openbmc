@@ -1,0 +1,137 @@
+From 42edd5d855e2b405700fa5e25564d2df3bd171d9 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Thu, 1 Oct 2020 08:54:32 -0700
+Subject: [PATCH 11/12] Check readingStateGood before updating thresholds
+ property
+
+Sensor read function checks for readingStateGood before
+start. But if host resets while reading is in progress,
+incorrect sensor value maybe returned.
+Check readingStateGood before changing threshold.
+
+Update checkThresholdsPowerDelay to start timer for both
+high and low thresholds.
+Update CPUSensor to use checkThresholdsPowerDelay to filter
+out the high events that can happen during host reset.
+
+Tested:
+Run host reset test for 500 cycles, no erronous sensor
+events were reported. Before the change, same tests
+never run more than 200 cycles.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Change-Id: I6a6645c2842651e07bbcefa295ae331ee036de45
+---
+ include/CPUSensor.hpp |  1 +
+ src/CPUSensor.cpp     | 22 ++++++++--------------
+ src/Thresholds.cpp    | 41 ++++++++++++++++++++---------------------
+ 3 files changed, 29 insertions(+), 35 deletions(-)
+
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 4a56b21..4f8f52c 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -50,6 +50,7 @@ class CPUSensor : public Sensor
+     bool loggedInterfaceDown = false;
+     void setupRead(void);
+     void handleResponse(const boost::system::error_code& err);
++    thresholds::ThresholdTimer thresholdTimer;
+     void checkThresholds(void) override;
+     void updateMinMaxValues(void);
+ };
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index f368150..52d2a32 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -47,7 +47,8 @@ CPUSensor::CPUSensor(const std::string& path, const std::string& objectType,
+            minReading, PowerState::on),
+     objServer(objectServer), busConn(conn), inputDev(io), waitTimer(io),
+     path(path), privTcontrol(std::numeric_limits<double>::quiet_NaN()),
+-    dtsOffset(dtsOffset), show(show), pollTime(CPUSensor::sensorPollMs)
++    dtsOffset(dtsOffset), show(show), pollTime(CPUSensor::sensorPollMs),
++    thresholdTimer(io, this)
+ {
+     nameTcontrol = labelTcontrol;
+     nameTcontrol += " CPU" + std::to_string(cpuId);
+@@ -288,18 +289,11 @@ void CPUSensor::checkThresholds(void)
+ {
+     if (show)
+     {
+-        // give the power match callback to have a chance to run
+-        // checkThresholds checks for host power state
+-        auto timer = std::make_shared<boost::asio::steady_timer>(
+-            busConn->get_io_context());
+-        timer->expires_after(std::chrono::milliseconds(100));
+-        timer->async_wait([this, timer](boost::system::error_code ec) {
+-            if (ec)
+-            {
+-                // log the error but still check the thresholds
+-                std::cerr << "Cpu sensor threshold timer error!\n";
+-            }
+-            thresholds::checkThresholds(this);
+-        });
++        if (!readingStateGood())
++        {
++            return;
++        }
++
++        thresholds::checkThresholdsPowerDelay(this, thresholdTimer);
+     }
+ }
+diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
+index 30f8021..3150faf 100644
+--- a/src/Thresholds.cpp
++++ b/src/Thresholds.cpp
+@@ -365,29 +365,28 @@ void checkThresholdsPowerDelay(Sensor* sensor, ThresholdTimer& thresholdTimer)
+     std::vector<ChangeParam> changes = checkThresholds(sensor, sensor->value);
+     for (const auto& change : changes)
+     {
+-        // When CPU is powered off, some volatges are expected to
+-        // go below low thresholds. Filter these events with thresholdTimer.
+-        // 1. always delay the assertion of low events to see if they are
+-        //   caused by power off event.
+-        // 2. conditional delay the de-assertion of low events if there is
+-        //   an existing timer for assertion.
+-        // 3. no delays for de-assert of low events if there is an existing
+-        //   de-assert for low event. This means 2nd de-assert would happen
+-        //   first and when timer expires for the previous one, no additional
+-        //   signal will be logged.
+-        // 4. no delays for all high events.
+-        if (change.threshold.direction == thresholds::Direction::LOW)
++        // When CPU is powered off, some voltages are expected to
++        // go below low thresholds.
++        // Some CPU sensors may appear to be high during the CPU reset.
++        // Delay the threshold check to let CPU power status gets updated first.
++        // 1. If there is already a timer for the same event,
++        //    but not the opposite event, do nothing.
++        // 2. Add a delay timer for this event when
++        //    a) There is already a timer for the same event and a timer for
++        //    opposite event
++        //    b) There is a timer for the opposite event only
++        //    c) There is no timer for this threshold
++        // This would ensure that any "pulse" event is logged and
++        // last log represents the latest reading
++
++        if (thresholdTimer.hasActiveTimer(change.threshold, change.asserted) &&
++            !thresholdTimer.hasActiveTimer(change.threshold, !change.asserted))
+         {
+-            if (change.asserted || thresholdTimer.hasActiveTimer(
+-                                       change.threshold, !change.asserted))
+-            {
+-                thresholdTimer.startTimer(change.threshold, change.asserted,
+-                                          change.assertValue);
+-                continue;
+-            }
++            continue; // case 1
+         }
+-        assertThresholds(sensor, change.assertValue, change.threshold.level,
+-                         change.threshold.direction, change.asserted);
++
++        thresholdTimer.startTimer(change.threshold, change.asserted,
++                                  change.assertValue);
+     }
+ }
+ 
+-- 
+2.17.1
+

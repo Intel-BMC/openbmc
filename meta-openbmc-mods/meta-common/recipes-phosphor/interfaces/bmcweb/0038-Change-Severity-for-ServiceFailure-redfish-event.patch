@@ -1,0 +1,56 @@
+From 8c1be7323641010df618e8d6fc60829b1afa75c6 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Thu, 3 Dec 2020 18:33:43 +0000
+Subject: [PATCH] Change Severity for ServiceFailure redfish event
+
+During Ac cycle stress, at times some services may exit unsuccessfully.
+This will not have any functionality impact. So updated Severity of
+"ServiceFailure" redfish event to "Ok".
+
+Tested:
+1. Redfish validator - passed for this with change
+2. Killed couple of process and observed Redfish EventLog shows updated
+   Severity.
+Redfish URI:
+GET: https://<BMC IP>/redfish/v1/Systems/system/LogServices/EventLog
+            /Entries
+        {
+            "@odata.id": "/redfish/v1/Systems/system/LogServices/
+                          EventLog/Entries/1606938922",
+            "@odata.type": "#LogEntry.v1_4_0.LogEntry",
+            "Created": "2020-12-02T19:55:22+00:00",
+            "EntryType": "Event",
+            "Id": "1606938922",
+            "Message": "Service phosphor-ipmi-host.service has exited
+                        unsuccessfully.",
+            "MessageArgs": [
+                "phosphor-ipmi-host.service"
+            ],
+            "MessageId": "OpenBMC.0.1.ServiceFailure",
+            "Name": "System Event Log Entry",
+            "Severity": "OK"
+        }
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ redfish-core/include/registries/openbmc_message_registry.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 6f1fec3..522d783 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -2281,8 +2281,8 @@ constexpr std::array<MessageEntry, 188> registry = {
+                  {
+                      "Indicates that a service has exited unsuccessfully.",
+                      "Service %1 has exited unsuccessfully.",
+-                     "Warning",
+-                     "Warning",
++                     "OK",
++                     "OK",
+                      1,
+                      {"string"},
+                      "None.",
+-- 
+2.17.1
+

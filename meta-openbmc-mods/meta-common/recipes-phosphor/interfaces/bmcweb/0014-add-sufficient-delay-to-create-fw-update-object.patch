@@ -3,13 +3,13 @@ From: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
 Date: Tue, 25 Aug 2020 15:44:35 +0000
 Subject: [PATCH] add sufficient delay to create fw update object
 
-Add support to increase timeoutTimeSeconds to 10 secs to allow firmware
+Add support to increase timeoutTimeSeconds to 20 secs to allow firmware
 object to create successfully to proceed for firmware update.
 
 Tested:
 Redfish validator passed.
 
-Updated the firmware using redfish for 16 times continuously.
+Successfully updated the firmware using redfish for more than 10 times continuously.
 POST: https://<BMC_IP>/redfish/v1/UpdateService/
       with <BMC_signed_cap> binary file
 firmware updated.
@@ -22,6 +22,7 @@ firmware updated.
 }
 
 Signed-off-by: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 ---
  redfish-core/lib/update_service.hpp | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
@@ -35,7 +36,7 @@ index 9407d75..ec5ab8c 100644
      std::shared_ptr<AsyncResp> asyncResp, const crow::Request& req,
      const std::string& url, const std::vector<std::string>& imgUriTargets,
 -    int timeoutTimeSeconds = 5)
-+    int timeoutTimeSeconds = 10)
++    int timeoutTimeSeconds = 20)
  {
      // Only allow one FW update at a time
      if (fwUpdateInProgress != false)

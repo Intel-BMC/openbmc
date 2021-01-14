@@ -1,0 +1,58 @@
+From 845e79aefc258780815c07cf0bcf4bb850b8a387 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Thu, 8 Oct 2020 14:40:45 -0700
+Subject: [PATCH] Fix ADC reading max value
+
+Correct the constant for adc's maxReading. Threshold hysteresis
+is calculated as one percent of the ADC range. This fixes the
+issue that lower voltage thresholds do not get de-asserted.
+
+Tested:
+Overwrite the sensor to high value and then back to normal reading.
+Verified that threshold is asserted and then de-asserted.
+
+Console output:
+busctl set-property xyz.openbmc_project.ADCSensor /xyz/openbmc_project/sensors/voltage/PVDQ_ABC_CPU1 xyz.openbmc_project.Sensor.Value Value d 1.348
+intel-obmc adcsensor[412]: Sensor PVDQ_ABC_CPU1 high threshold 1.301 assert: value 1.348 raw data 1244
+intel-obmc adcsensor[412]: Sensor PVDQ_ABC_CPU1 high threshold 1.263 assert: value 1.348 raw data 1244
+intel-obmc ipmid[242]: thresholdChanged: Assert
+intel-obmc ipmid[242]: thresholdChanged: Assert
+intel-obmc sel-logger[288]: PVDQ_ABC_CPU1 sensor crossed a critical high threshold going high. Reading=1.348000 Threshold=1.301000.
+intel-obmc sel-logger[288]: PVDQ_ABC_CPU1 sensor crossed a warning high threshold going high. Reading=1.348000 Threshold=1.263000.
+intel-obmc ipmid[242]: thresholdChanged: deassert
+intel-obmc ipmid[242]: thresholdChanged: deassert
+intel-obmc sel-logger[288]: PVDQ_ABC_CPU1 sensor crossed a critical high threshold going low. Reading=1.244000 Threshold=1.301000.
+intel-obmc sel-logger[288]: PVDQ_ABC_CPU1 sensor crossed a warning high threshold going low. Reading=1.244000 Threshold=1.263000.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/ADCSensor.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index ede4dfd..a446030 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -42,7 +42,7 @@ static constexpr unsigned int gpioBridgeEnableMs = 20;
+ static constexpr unsigned int sensorScaleFactor = 1000;
+ 
+ static constexpr double roundFactor = 10000; // 3 decimal places
+-static constexpr double maxReading = 20;
++static constexpr double maxReading = 1.8;    // adc reference is 1.8Volt
+ static constexpr double minReading = 0;
+ 
+ ADCSensor::ADCSensor(const std::string& path,
+@@ -55,8 +55,8 @@ ADCSensor::ADCSensor(const std::string& path,
+                      std::optional<BridgeGpio>&& bridgeGpio) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(_thresholds), sensorConfiguration,
+-           "xyz.openbmc_project.Configuration.ADC", maxReading, minReading,
+-           readState),
++           "xyz.openbmc_project.Configuration.ADC", maxReading / scaleFactor,
++           minReading / scaleFactor, readState),
+     std::enable_shared_from_this<ADCSensor>(), objServer(objectServer),
+     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path),
+     scaleFactor(scaleFactor), bridgeGpio(std::move(bridgeGpio)),
+-- 
+2.17.1
+

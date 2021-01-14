@@ -1,0 +1,59 @@
+From 8188c4d5deda1d747801bfafb750fd61d0292ba5 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 13 Oct 2020 12:23:29 -0700
+Subject: [PATCH] Filter erroneous adc readings
+
+There has been cases that ast2500 ADC appears to return an incorrect
+reading. Re-read the ADC data once if the ADC valuse jumped more than
+80 counts comparing the previous value.
+
+This is a workaround to filter out these erroneous readings recorded
+from user space application polling every second:
+PVNN_PCH_AUX history dump:
+ 0.9,0.9,0.9,0.9,1.351,0.9,0.9,0.9,0.901,0.898
+PVDQ_DEF_CPU1 history dump:
+ 1.235,1.237,1.237,1.235,1.348,1.237,1.237,1.235,1.237,1.235
+ADC raw reading is 1000 times above numbers.
+
+This approach works if there is a silicon bug in adc register read
+with minimal risk. It will not work if the bad readings come from noise
+in the sensing circuitry. This patch may be removed if that is proven
+to be the case.
+
+Tested:
+Build and verified no regression in voltage reading on my WC.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ drivers/iio/adc/aspeed_adc.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/iio/adc/aspeed_adc.c b/drivers/iio/adc/aspeed_adc.c
+index c115797c4cc5..c1e775e764ca 100644
+--- a/drivers/iio/adc/aspeed_adc.c
++++ b/drivers/iio/adc/aspeed_adc.c
+@@ -55,6 +55,7 @@
+ 
+ #define ASPEED_ADC_CHANNELS_MAX	16
+ #define ASPEED_ADC_RAW_VALUE_MAX	0x3ff
++#define ASPEED_ADC_RAW_VALUE_DELTA_THRESHOLD	80
+ 
+ struct aspeed_adc_model_data {
+ 	const char *model_name;
+@@ -133,6 +134,13 @@ static int aspeed_adc_read_raw(struct iio_dev *indio_dev,
+ 			pr_err("aspeed_adc: channel %d drop invalid raw reading 0x3FF %d\n",
+ 				chan->channel, ASPEED_ADC_RAW_VALUE_MAX);
+ 		} else {
++			if (*val > (data->channel_raw_value[chan->channel] +
++					    ASPEED_ADC_RAW_VALUE_DELTA_THRESHOLD)) {
++				pr_err("aspeed_adc: Warning-channel %d prev=%d, curr=%d, retry.\n",
++						chan->channel,
++						data->channel_raw_value[chan->channel], *val);
++				*val = readw(data->base + chan->address);
++			}
+ 			data->channel_raw_value[chan->channel] = *val;
+ 		}
+ 		return IIO_VAL_INT;
+-- 
+2.17.1
+

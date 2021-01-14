@@ -1,11 +1,11 @@
-From 8990f3d3d3d74c0bed2c0920073e1ecfd4ff422d Mon Sep 17 00:00:00 2001
+From ea4181e323a222909250f641e9153a37c238efdc Mon Sep 17 00:00:00 2001
 From: Zhikui Ren <zhikui.ren@intel.com>
 Date: Thu, 24 Sep 2020 14:27:32 -0700
 Subject: [PATCH] Fix missing threshold de-assert event when threshold changes.
 
 Destructor can be called when sensor interface changes
-like a new threshold value. Ensure adc sensor hresholds are de-asserted
-on destruction. These events can be missed if the new threshold
+like a new threshold value. Ensure adc sensor thresholds are de-asserted
+dueing re-construction. These events can be missed if the new threshold
 value fixed the alarm because default state for new threshold
 interface is de-asserted.
 
@@ -47,33 +47,40 @@ index ca2b0a0..1d1b1b5 100644
  {
      bool used;
 diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
-index 7afb2ab..701c58e 100644
+index c3980e0..440073e 100644
 --- a/src/ADCSensor.cpp
 +++ b/src/ADCSensor.cpp
-@@ -88,6 +88,18 @@ ADCSensor::~ADCSensor()
-     // close the input dev to cancel async operations
-     inputDev.close();
-     waitTimer.cancel();
+@@ -80,6 +80,17 @@ ADCSensor::ADCSensor(const std::string& path,
+     association = objectServer.add_interface(
+         "/xyz/openbmc_project/sensors/voltage/" + name, association::interface);
+     setInitialProperties(conn);
 +
 +    // Destructor can be called when sensor interface changes
-+    // like a new threshold value. Ensure LOW thresholds are de-asserted
-+    // on destruction. These events can be missed if the new threshold
-+    // value fixed the alarm because default state for new threshold
++    // like a new threshold value. Ensure thresholds are de-asserted
++    // on construction. These events can be missed if the new threshold
++    // value fixes the alarm because default state for new threshold
 +    // interface is de-asserted.
 +    for (auto& threshold : thresholds)
 +    {
 +        thresholds::forceDeassertThresholds(this, threshold.level,
 +                                            threshold.direction);
 +    }
+ }
+ 
+ ADCSensor::~ADCSensor()
+@@ -87,6 +98,7 @@ ADCSensor::~ADCSensor()
+     // close the input dev to cancel async operations
+     inputDev.close();
+     waitTimer.cancel();
 +
      objServer.remove_interface(thresholdInterfaceWarning);
      objServer.remove_interface(thresholdInterfaceCritical);
      objServer.remove_interface(sensorInterface);
 diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
-index 6aa077c..e480554 100644
+index caab22c..850a295 100644
 --- a/src/Thresholds.cpp
 +++ b/src/Thresholds.cpp
-@@ -344,6 +344,7 @@ bool checkThresholds(Sensor* sensor)
+@@ -332,6 +332,7 @@ bool checkThresholds(Sensor* sensor)
  {
      bool status = true;
      std::vector<ChangeParam> changes = checkThresholds(sensor, sensor->value);
@@ -81,7 +88,7 @@ index 6aa077c..e480554 100644
      for (const auto& change : changes)
      {
          assertThresholds(sensor, change.assertValue, change.threshold.level,
-@@ -452,6 +453,67 @@ void assertThresholds(Sensor* sensor, double assertValue,
+@@ -450,6 +451,67 @@ void assertThresholds(Sensor* sensor, double assertValue,
      }
  }
  
@@ -126,7 +133,7 @@ index 6aa077c..e480554 100644
 +        return;
 +    }
 +
-+    if (interface->set_property<bool, true>(property, false))
++    if (interface->set_property<bool, false>(property, false))
 +    {
 +        try
 +        {

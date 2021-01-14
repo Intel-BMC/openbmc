@@ -2,7 +2,7 @@ SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
 SRC_URI = "git://github.com/Intel-BMC/mdrv2.git;protocol=ssh"
-SRCREV = "095102dfb5e2374834e33d1ec1a5e61388208a9e"
+SRCREV = "1573995f8949bbd76a17fb34bb6de056e81f391c"
 
 S = "${WORKDIR}/git"
 
@@ -16,10 +16,6 @@ inherit obmc-phosphor-systemd
 
 SYSTEMD_SERVICE_${PN} += "smbios-mdrv2.service"
 SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.cpuinfo.service"
-
-
-SRC_URI += "file://0001-Replace-throw-with-log-error-message.patch \
-"
 
 DEPENDS += " \
     autoconf-archive-native \

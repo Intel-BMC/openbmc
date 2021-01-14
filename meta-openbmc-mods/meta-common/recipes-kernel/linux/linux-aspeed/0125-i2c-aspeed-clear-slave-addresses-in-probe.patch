@@ -1,0 +1,33 @@
+From 40af0a280cad30194c5ced83f6462c304d2f8c92 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Date: Wed, 16 Dec 2020 12:49:16 -0800
+Subject: [PATCH] i2c: aspeed: clear slave addresses in probe
+
+Initial value of I2CD18 is undefined according to the datasheet
+so this commit adds the I2CD18 register clearing code into bus
+initialization function to prevent any unexpected slave match
+events.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>
+Change-Id: I6c6cadeaf6fefcf74eba0d96c49986a810ccbb51
+---
+ drivers/i2c/busses/i2c-aspeed.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
+index d622ca14eb2a..d48489c803a8 100644
+--- a/drivers/i2c/busses/i2c-aspeed.c
++++ b/drivers/i2c/busses/i2c-aspeed.c
+@@ -1610,6 +1610,9 @@ static int aspeed_i2c_probe_bus(struct platform_device *pdev)
+ 	writel(0, bus->base + ASPEED_I2C_INTR_CTRL_REG);
+ 	writel(0xffffffff, bus->base + ASPEED_I2C_INTR_STS_REG);
+ 
++	/* Clear slave addresses. */
++	writel(0, bus->base + ASPEED_I2C_DEV_ADDR_REG);
++
+ 	parent_clk = devm_clk_get(&pdev->dev, NULL);
+ 	if (IS_ERR(parent_clk))
+ 		return PTR_ERR(parent_clk);
+-- 
+2.17.1
+

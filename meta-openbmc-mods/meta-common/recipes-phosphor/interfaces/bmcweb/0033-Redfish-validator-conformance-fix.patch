@@ -1,0 +1,121 @@
+From 7959553c906887b5dc9b3fdf020bbd1049007cb6 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Mon, 12 Oct 2020 17:52:31 +0530
+Subject: [PATCH] Redfish validator conformance fix
+
+This commit fixes the issues reported in
+redfish service validator conformance test.
+ - PCIeFunctions: Add empty checks for
+   not mandatory properties and skip them.
+   Also assign default if DeviceId exist and
+   DeviceClass is empty.
+ - Memory schema: Corrected the MemoryDeviceType
+   Value.
+
+Tested:
+ - Redfish validator passed.
+
+Change-Id: Ic32e0f3688a3c0d211b6da995ee86b225c256a92
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/lib/cpudimm.hpp | 12 +++++++++---
+ redfish-core/lib/pcie.hpp    | 21 ++++++++++++++-------
+ 2 files changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/redfish-core/lib/cpudimm.hpp b/redfish-core/lib/cpudimm.hpp
+index e332a11..d15ae6b 100644
+--- a/redfish-core/lib/cpudimm.hpp
++++ b/redfish-core/lib/cpudimm.hpp
+@@ -513,10 +513,16 @@ void getDimmDataByService(std::shared_ptr<AsyncResp> aResp,
+                         std::get_if<std::string>(&property.second);
+                     if (value != nullptr)
+                     {
+-                        aResp->res.jsonValue["MemoryDeviceType"] = *value;
+-                        if (boost::starts_with(*value, "DDR"))
++                        std::size_t found = value->find_last_of(".");
++                        if (found != std::string::npos)
+                         {
+-                            aResp->res.jsonValue["MemoryType"] = "DRAM";
++                            std::string memDevType = value->substr(found + 1);
++                            aResp->res.jsonValue["MemoryDeviceType"] =
++                                memDevType;
++                            if (boost::starts_with(memDevType, "DDR"))
++                            {
++                                aResp->res.jsonValue["MemoryType"] = "DRAM";
++                            }
+                         }
+                     }
+                 }
+diff --git a/redfish-core/lib/pcie.hpp b/redfish-core/lib/pcie.hpp
+index ac2a2f9..ee92429 100644
+--- a/redfish-core/lib/pcie.hpp
++++ b/redfish-core/lib/pcie.hpp
+@@ -364,14 +364,14 @@ class SystemPCIeFunction : public Node
+ 
+             if (std::string* property = std::get_if<std::string>(
+                     &pcieDevProperties["Function" + function + "DeviceId"]);
+-                property)
++                property && !property->empty())
+             {
+                 asyncResp->res.jsonValue["DeviceId"] = *property;
+             }
+ 
+             if (std::string* property = std::get_if<std::string>(
+                     &pcieDevProperties["Function" + function + "VendorId"]);
+-                property)
++                property && !property->empty())
+             {
+                 asyncResp->res.jsonValue["VendorId"] = *property;
+             }
+@@ -385,28 +385,35 @@ class SystemPCIeFunction : public Node
+ 
+             if (std::string* property = std::get_if<std::string>(
+                     &pcieDevProperties["Function" + function + "DeviceClass"]);
+-                property)
++                property && !property->empty())
+             {
+                 asyncResp->res.jsonValue["DeviceClass"] = *property;
+             }
++            else
++            {
++                // DeviceClass is mandatory property. If DeviceId exist and
++                // DeviceClass is empty, Lets mark it 'UnassignedClass' so
++                // that user can lookup the DeviceId for actual class.
++                asyncResp->res.jsonValue["DeviceClass"] = "UnassignedClass";
++            }
+ 
+             if (std::string* property = std::get_if<std::string>(
+                     &pcieDevProperties["Function" + function + "ClassCode"]);
+-                property)
++                property && !property->empty())
+             {
+                 asyncResp->res.jsonValue["ClassCode"] = *property;
+             }
+ 
+             if (std::string* property = std::get_if<std::string>(
+                     &pcieDevProperties["Function" + function + "RevisionId"]);
+-                property)
++                property && !property->empty())
+             {
+                 asyncResp->res.jsonValue["RevisionId"] = *property;
+             }
+ 
+             if (std::string* property = std::get_if<std::string>(
+                     &pcieDevProperties["Function" + function + "SubsystemId"]);
+-                property)
++                property && !property->empty())
+             {
+                 asyncResp->res.jsonValue["SubsystemId"] = *property;
+             }
+@@ -414,7 +421,7 @@ class SystemPCIeFunction : public Node
+             if (std::string* property = std::get_if<std::string>(
+                     &pcieDevProperties["Function" + function +
+                                        "SubsystemVendorId"]);
+-                property)
++                property && !property->empty())
+             {
+                 asyncResp->res.jsonValue["SubsystemVendorId"] = *property;
+             }
+-- 
+2.7.4
+

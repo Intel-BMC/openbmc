@@ -1,0 +1,35 @@
+From 39d80e444fb704e48d0163735ae181117e2e1adf Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 20 Nov 2020 10:59:10 -0800
+Subject: [PATCH] Disable SoC debug feature
+
+This commit disables Aspeed SoC debug feature due to security
+concerns.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/platform_g5.S | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
+index ef43d5d400c1..2c8bf03b0eff 100644
+--- a/arch/arm/mach-aspeed/platform_g5.S
++++ b/arch/arm/mach-aspeed/platform_g5.S
+@@ -582,6 +582,14 @@ espi_early_init_done:
+     mov   r1, #0xAE
+     str   r1, [r0]
+ 
++#if !defined(CONFIG_ASPEED_SOC_DEBUG)
++    /* Disable SoC debug */
++    ldr   r0, =0x1e6e202c
++    ldr   r1, [r0]
++    orr   r1, r1, #0x400
++    str   r1, [r0]
++#endif
++
+ #ifdef CONFIG_HW_WATCHDOG
+     /* Enable WDT2 to recover u-boot hang */
+     ldr   r0, =0x1e785024
+-- 
+2.17.1
+

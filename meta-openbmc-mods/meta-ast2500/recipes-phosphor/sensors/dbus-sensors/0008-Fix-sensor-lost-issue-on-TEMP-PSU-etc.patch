@@ -1,0 +1,35 @@
+From dd4ac2200b111ac0215d7a2695137b9b0c382fc7 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Thu, 15 Oct 2020 15:46:48 +0800
+Subject: [PATCH] Fix sensor lost issue on TEMP/PSU/etc.
+
+When AC cycle or FW update, some sensors like TEMP and PSU
+related are lost due to entity manager is not ready before
+sensor service creating sensors.
+Enable retry by default to make sure entity manager is ready.
+
+Tested:
+All sensors like TEMP and PSU related are working well,
+even at AC cycle and FW update.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ include/Utils.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/Utils.hpp b/include/Utils.hpp
+index 2c6ce9e..7b38bc1 100644
+--- a/include/Utils.hpp
++++ b/include/Utils.hpp
+@@ -211,7 +211,7 @@ struct GetSensorConfiguration :
+     }
+ 
+     void getConfiguration(const std::vector<std::string>& interfaces,
+-                          size_t retries = 0)
++                          size_t retries = 3)
+     {
+         if (retries > 5)
+         {
+-- 
+2.17.1
+

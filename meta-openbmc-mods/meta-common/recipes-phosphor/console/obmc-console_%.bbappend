@@ -2,6 +2,7 @@ FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
 OBMC_CONSOLE_HOST_TTY = "ttyS2"
 SRC_URI += "file://sol-option-check.sh \
             file://obmc-console@.service \
+            file://0001-Ignore-SIG_QUIT-signal-in-obmc-console-server.patch \
            "
 inherit obmc-phosphor-systemd
 

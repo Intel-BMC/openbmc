@@ -1,0 +1,39 @@
+From d935f43696149aeb047ff5adf15e22707903c215 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Wed, 2 Dec 2020 19:42:14 +0000
+Subject: [PATCH] Add sufficient delay to create smbios2 file
+
+Issue: Sometimes with existing defaultTimeout & sysClock delay, BIOS is
+not responding with required information to create smbios2 file which
+contains DIMM info.
+
+Fixed: Increase defaultTimeout & sysClock time to provide required delay
+to get response from SMBIOS in order to populate DIMM information.
+
+Tested:
+1. Verified for 100 DC cycles.
+2. smbios2 file is generated for each cycle with proper DIMM information
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ include/smbiosmdrv2handler.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/smbiosmdrv2handler.hpp b/include/smbiosmdrv2handler.hpp
+index 8356d26..6a1f850 100644
+--- a/include/smbiosmdrv2handler.hpp
++++ b/include/smbiosmdrv2handler.hpp
+@@ -57,8 +57,8 @@ static constexpr const size_t smbiosSMMemorySize =
+     1024 * 1024; // Total size of VGA share memory
+ static constexpr const size_t smbiosTableStorageSize =
+     64 * 1024; // Total size of smbios table
+-static constexpr const uint32_t defaultTimeout = 200;
+-static constexpr const uint8_t sysClock = 100;
++static constexpr const uint32_t defaultTimeout = 4000;
++static constexpr const uint16_t sysClock = 1000;
+ static constexpr const int lastAgentIndex = -1;
+ static constexpr const uint16_t lastAgentId = 0xFFFF;
+ constexpr const uint32_t invalidChecksum = 0xffffffff;
+-- 
+2.17.1
+

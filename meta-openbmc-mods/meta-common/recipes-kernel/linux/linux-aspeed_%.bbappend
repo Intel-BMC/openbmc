@@ -1,5 +1,8 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
+LINUX_VERSION="5.4.48"
+SRCREV="2b4829edfc1c225c717652153097470529d171db"
+
 do_compile_prepend(){
    # device tree compiler flags
    export DTC_FLAGS=-@
@@ -93,7 +96,9 @@ SRC_URI += " \
         file://0123-peci-fix-error-handling-in-peci_dev_ioctl.patch \
         file://1001-Igore-0x3FF-in-aspeed_adc-driver.patch \
         file://0120-media-aspeed-adjust-irq-enabling-timing-and-resource.patch \
+        file://1002-Filter-erroneous-adc-readings.patch \
         file://0121-Add-a-WA-to-defer-flash-writes-on-PS_ALERT_N-asserti.patch \
+        file://0125-i2c-aspeed-clear-slave-addresses-in-probe.patch \
         "
 
 # CVE-2020-16166 vulnerability fix
@@ -119,6 +124,60 @@ SRC_URI += " \
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-14386:"
 SRC_URI += " \
     file://0001-net-packet-fix-overflow-in-tpacket_rcv.patch \
+    "
+
+# CVE-2020-25705 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-25705:"
+SRC_URI += " \
+    file://0001-icmp-randomize-the-global-rate-limiter.patch \
+    "
+
+# CVE-2020-15436 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-15436:"
+SRC_URI += " \
+    file://0001-block-Fix-use-after-free-in-blkdev_get.patch \
+    "
+
+# CVE-2020-29369 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-29369:"
+SRC_URI += " \
+    file://0001-mm-mmap.c-close-race-between-munmap-and-expand_upwar.patch \
+    "
+
+# CVE-2020-15437 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-15437:"
+SRC_URI += " \
+    file://0001-serial-8250-fix-null-ptr-deref-in-serial8250_start_t.patch \
+    "
+
+# CVE-2020-25704 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-25704:"
+SRC_URI += " \
+    file://0001-perf-core-Fix-a-memory-leak-in-perf_event_parse_addr.patch \
+    "
+
+# CVE-2020-29372 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-29372:"
+SRC_URI += " \
+    file://0001-mm-check-that-mm-is-still-valid-in-madvise.patch \
+    "
+
+# CVE-2020-14351 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-14351:"
+SRC_URI += " \
+    file://0001-perf-core-Fix-race-in-the-perf_mmap_close-function.patch \
+    "
+
+# CVE-2020-29661 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-29661:"
+SRC_URI += " \
+    file://0001-tty-Fix-pgrp-locking-in-tiocspgrp.patch \
+    "
+
+# CVE-2020-29660 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-29660:"
+SRC_URI += " \
+    file://0001-tty-Fix-session-locking.patch \
     "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

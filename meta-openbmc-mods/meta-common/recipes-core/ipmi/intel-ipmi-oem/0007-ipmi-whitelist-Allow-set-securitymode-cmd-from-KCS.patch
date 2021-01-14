@@ -1,0 +1,49 @@
+From 5bdf25daa1c1857e5e24f8c7e593c303eff4285a Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 23 Nov 2020 01:01:24 +0000
+Subject: [PATCH] ipmi-whitelist:Allow set securitymode cmd from KCS
+
+Issue: Issuing set security mode for Provisioned Host Disabled command
+       is restricted from KCS channel.
+
+Fix: Allow set security mode command execution from KCS interface by
+     adding channel mask in ipmi-whitelist.conf
+
+Tested:
+Verified using ipmitool raw command from Linux OS
+1. Set restriction mode as ProvisionedHostWhitelist
+Command: busctl set-property xyz.openbmc_project.RestrictionMode.Manager
+         /xyz/openbmc_project/control/security/restriction_mode
+         xyz.openbmc_project.Control.Security.RestrictionMode
+                    RestrictionMode s
+         "xyz.openbmc_project.Control.Security.RestrictionMode.Modes.
+           ProvisionedHostWhitelist"
+Response:               //Success
+2. Check the restriction mode
+Command:  ipmitool raw 0x30 0xb3
+Response: 04 00
+3. Execute set security mode for Provisioned Host Disabled command from Linux OS terminal
+Command:  ipmitool raw 0x30 0xb4 0x5
+Response:                  //Success
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ ipmi-whitelist.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ipmi-whitelist.conf b/ipmi-whitelist.conf
+index 6557b27..b7a3a8e 100644
+--- a/ipmi-whitelist.conf
++++ b/ipmi-whitelist.conf
+@@ -273,7 +273,7 @@
+ 0x30:0xb1:0x7f7f   //<Intel General Application>:<Control BMC Services>
+ 0x30:0xb2:0xff7f   //<Intel General Application>:<Get BMC Service Status>
+ 0x30:0xb3:0xff7f   //<Intel General Application>:<Get BMC Security Control Mode>
+-0x30:0xb4:0x7f7f   //<Intel General Application>:<Set BMC Security Control Mode>
++0x30:0xb4:0xff7f   //<Intel General Application>:<Set BMC Security Control Mode>
+ 0x30:0xb5:0x7f7f   //<Intel General Application>:<Manufacturing mode Keep Alive>
+ 0x30:0xbb:0xff7f   //<Intel General Application>:<Get CPLD Revision ID>
+ 0x30:0xc2:0xff7f   //<Intel General Application>:<Get OEM Extended Sys Info>
+-- 
+2.17.1
+
