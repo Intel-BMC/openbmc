@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 
 ********
 Features
@@ -229,11 +229,8 @@ The following image features are available for all images:
 
    .. note::
 
-      To make the
-      /var/log
-      directory on the target persistent, use the
-      VOLATILE_LOG_DIR
-      variable by setting it to "no".
+      To make the ``/var/log`` directory on the target persistent, use the
+      :term:`VOLATILE_LOG_DIR` variable by setting it to "no".
 
 -  *ptest-pkgs:* Installs ptest packages for all ptest-enabled recipes.
 

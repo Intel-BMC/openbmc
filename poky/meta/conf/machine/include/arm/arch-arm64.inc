@@ -3,13 +3,14 @@ DEFAULTTUNE ?= "aarch64"
 require conf/machine/include/arm/arch-armv7ve.inc
 
 TUNEVALID[aarch64] = "Enable instructions for aarch64"
+TUNECONFLICTS[aarch64] = "armv4 armv5 armv6 armv7 armv7a"
 
 MACHINEOVERRIDES =. "${@bb.utils.contains('TUNE_FEATURES', 'aarch64', 'aarch64:', '', d)}"
 
 # Little Endian base configs
 AVAILTUNES += "aarch64 aarch64_be"
 ARMPKGARCH_tune-aarch64 ?= "aarch64"
-ARMPKGARCH_tune-aarch64_be ?= "aarch64_be"
+ARMPKGARCH_tune-aarch64_be ?= "aarch64"
 TUNE_FEATURES_tune-aarch64 = "aarch64"
 TUNE_FEATURES_tune-aarch64_be = "${TUNE_FEATURES_tune-aarch64} bigendian"
 TUNE_PKGARCH_64_tune-aarch64 = "aarch64"

@@ -1,10 +1,8 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 
 ***********************************
 Project Testing and Release Process
 ***********************************
-
-.. _test-daily-devel:
 
 Day to Day Development
 ======================

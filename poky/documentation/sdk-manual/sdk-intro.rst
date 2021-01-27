@@ -1,10 +1,8 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 
 ************
 Introduction
 ************
-
-.. _sdk-manual-intro:
 
 eSDK Introduction
 =================
@@ -84,9 +82,9 @@ when considering which to build:
 +-----------------------+-----------------------+-----------------------+
 | *Feature*             | *Standard SDK*        | *Extensible SDK*      |
 +=======================+=======================+=======================+
-| Toolchain             | Yes                   | Yes\*                 |
+| Toolchain             | Yes                   | Yes [1]_              |
 +-----------------------+-----------------------+-----------------------+
-| Debugger              | Yes                   | Yes\*                 |
+| Debugger              | Yes                   | Yes [1]_              |
 +-----------------------+-----------------------+-----------------------+
 | Size                  | 100+ MBytes           | 1+ GBytes (or 300+    |
 |                       |                       | MBytes for minimal    |
@@ -98,29 +96,22 @@ when considering which to build:
 +-----------------------+-----------------------+-----------------------+
 | Updateable            | No                    | Yes                   |
 +-----------------------+-----------------------+-----------------------+
-| Managed Sysroot*\*    | No                    | Yes                   |
+| Managed Sysroot [2]_  | No                    | Yes                   |
 +-----------------------+-----------------------+-----------------------+
-| Installed Packages    | No**\*                | Yes***\*              |
+| Installed Packages    | No  [3]_              | Yes  [4]_             |
 +-----------------------+-----------------------+-----------------------+
 | Construction          | Packages              | Shared State          |
 +-----------------------+-----------------------+-----------------------+
 
-\* Extensible SDK contains the toolchain and debugger if
-:term:`SDK_EXT_TYPE` is "full"
-or
-:term:`SDK_INCLUDE_TOOLCHAIN`
-is "1", which is the default.
-
-\*\* Sysroot is managed through the use of
-``devtool``. Thus, it is less likely that you will corrupt your SDK
-sysroot when you try to add additional libraries.
-
-\*\*\* You can add
-runtime package management to the standard SDK but it is not supported
-by default.
-
-\*\*\*\* You must build and make the shared state available to
-extensible SDK users for "packages" you want to enable users to install.
+.. [1] Extensible SDK contains the toolchain and debugger if :term:`SDK_EXT_TYPE`
+       is "full" or :term:`SDK_INCLUDE_TOOLCHAIN` is "1", which is the default.
+.. [2] Sysroot is managed through the use of ``devtool``. Thus, it is less
+       likely that you will corrupt your SDK sysroot when you try to add
+       additional libraries.
+.. [3] You can add runtime package management to the standard SDK but it is not
+       supported by default.
+.. [4] You must build and make the shared state available to extensible SDK
+       users for "packages" you want to enable users to install.
 
 The Cross-Development Toolchain
 -------------------------------
@@ -133,8 +124,6 @@ functionality. This toolchain is created by running a SDK installer
 script or through a :term:`Build Directory` that is based on
 your metadata configuration or extension for your targeted device. The
 cross-toolchain works with a matching target sysroot.
-
-.. _sysroot:
 
 Sysroots
 --------
