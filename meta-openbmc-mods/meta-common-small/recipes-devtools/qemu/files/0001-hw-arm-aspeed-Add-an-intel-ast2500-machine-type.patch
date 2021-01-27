@@ -1,6 +1,6 @@
-From 2ad1d60c39a2a9a08bcd29188362efba4e92e546 Mon Sep 17 00:00:00 2001
-From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
-Date: Tue, 9 Apr 2019 16:18:07 -0700
+From 48aa1135cffd72d2c2f4067f3e96ae25d6dbfc30 Mon Sep 17 00:00:00 2001
+From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
+Date: Mon, 16 Nov 2020 15:48:04 +0100
 Subject: [PATCH] hw/arm/aspeed: Add an intel-ast2500 machine type
 
 Include the HW strap setting and some I2C temperature sensors.
@@ -8,17 +8,17 @@ Include the HW strap setting and some I2C temperature sensors.
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- hw/arm/aspeed.c | 42 ++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ hw/arm/aspeed.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)
 
 diff --git a/hw/arm/aspeed.c b/hw/arm/aspeed.c
-index 6f4d707..5a9d58b 100644
+index fcb1a7cd..514dca85 100644
 --- a/hw/arm/aspeed.c
 +++ b/hw/arm/aspeed.c
-@@ -64,6 +64,21 @@ struct AspeedBoardState {
+@@ -68,6 +68,21 @@ struct AspeedMachineState {
          SCU_HW_STRAP_MAC0_RGMII) &                                      \
          ~SCU_HW_STRAP_2ND_BOOT_WDT)
-
+ 
 +/* intel ast2500 hardware value: 0xF3CCC286 */
 +#define INTEL_AST2500_BMC_HW_STRAP1 ((                                  \
 +        AST2500_HW_STRAP1_DEFAULTS |                                    \
@@ -37,35 +37,35 @@ index 6f4d707..5a9d58b 100644
  /* Romulus hardware value: 0xF10AD206 */
  #define ROMULUS_BMC_HW_STRAP1 (                                         \
          AST2500_HW_STRAP1_DEFAULTS |                                    \
-@@ -396,6 +411,24 @@ static void ast2600_evb_i2c_init(AspeedBoardState *bmc)
-     ast2500_evb_i2c_init(bmc);
+@@ -417,6 +432,24 @@ static void ast2500_evb_i2c_init(AspeedMachineState *bmc)
+     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 11), "ds1338", 0x32);
  }
-
-+static void intel_ast2500_i2c_init(AspeedBoardState *bmc)
+ 
++static void intel_ast2500_i2c_init(AspeedMachineState *bmc)
 +{
 +    AspeedSoCState *soc = &bmc->soc;
 +    DeviceState *dev;
 +
-+    dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 6), "tmp421", 0x4d);
-+    object_property_set_int(OBJECT(dev), 50000, "temperature0", &error_abort);
++    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), "tmp421", 0x4d));
++    object_property_set_int(OBJECT(dev), "temperature0", 50000, &error_abort);
 +    /* The s2600wf expects a TMP75 but a TMP105 is compatible */
-+    dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 6), "tmp105", 0x48);
-+    object_property_set_int(OBJECT(dev), 50000, "temperature", &error_abort);
-+    dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 6), "tmp105", 0x49);
-+    object_property_set_int(OBJECT(dev), 50000, "temperature", &error_abort);
-+    dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 6), "tmp105", 0x4a);
-+    object_property_set_int(OBJECT(dev), 50000, "temperature", &error_abort);
-+    dev = i2c_create_slave(aspeed_i2c_get_bus(DEVICE(&soc->i2c), 6), "tmp105", 0x4b);
-+    object_property_set_int(OBJECT(dev), 50000, "temperature", &error_abort);
++    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), "tmp105", 0x48));
++    object_property_set_int(OBJECT(dev), "temperature", 50000, &error_abort);
++    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), "tmp105", 0x49));
++    object_property_set_int(OBJECT(dev), "temperature", 50000, &error_abort);
++    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), "tmp105", 0x4a));
++    object_property_set_int(OBJECT(dev), "temperature", 50000, &error_abort);
++    dev = DEVICE(i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), "tmp105", 0x4b));
++    object_property_set_int(OBJECT(dev), "temperature", 50000, &error_abort);
 +}
 +
- static void romulus_bmc_i2c_init(AspeedBoardState *bmc)
+ static void ast2600_evb_i2c_init(AspeedMachineState *bmc)
  {
-     AspeedSoCState *soc = &bmc->soc;
-@@ -537,6 +570,21 @@ static void aspeed_machine_ast2500_evb_class_init(ObjectClass *oc, void *data)
-     mc->default_ram_size       = 512 * MiB;
+     /* Start with some devices on our I2C busses */
+@@ -620,6 +653,23 @@ static void aspeed_machine_ast2500_evb_class_init(ObjectClass *oc, void *data)
+         aspeed_soc_num_cpus(amc->soc_name);
  };
-
+ 
 +static void aspeed_machine_intel_ast2500_class_init(ObjectClass *oc, void *data)
 +{
 +    MachineClass *mc = MACHINE_CLASS(oc);
@@ -79,22 +79,21 @@ index 6f4d707..5a9d58b 100644
 +    amc->num_cs    = 1;
 +    amc->i2c_init  = intel_ast2500_i2c_init;
 +    mc->default_ram_size       = 512 * MiB;
++    mc->default_cpus = mc->min_cpus = mc->max_cpus =
++        aspeed_soc_num_cpus(amc->soc_name);
 +};
 +
  static void aspeed_machine_romulus_class_init(ObjectClass *oc, void *data)
  {
      MachineClass *mc = MACHINE_CLASS(oc);
-@@ -624,6 +672,10 @@ static const TypeInfo aspeed_machine_types[] = {
+@@ -735,6 +785,10 @@ static const TypeInfo aspeed_machine_types[] = {
+         .name          = MACHINE_TYPE_NAME("ast2500-evb"),
          .parent        = TYPE_ASPEED_MACHINE,
          .class_init    = aspeed_machine_ast2500_evb_class_init,
-     }, {
++    }, {
 +        .name          = MACHINE_TYPE_NAME("intel-ast2500"),
 +        .parent        = TYPE_ASPEED_MACHINE,
 +        .class_init    = aspeed_machine_intel_ast2500_class_init,
-+    }, {
+     }, {
          .name          = MACHINE_TYPE_NAME("romulus-bmc"),
          .parent        = TYPE_ASPEED_MACHINE,
-         .class_init    = aspeed_machine_romulus_class_init,
---
-2.17.1
-

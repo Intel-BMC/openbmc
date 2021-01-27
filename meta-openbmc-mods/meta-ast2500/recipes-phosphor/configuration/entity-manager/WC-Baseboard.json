@@ -813,7 +813,7 @@
             "Type": "IpmbSensor"
         },
         {
-            "Address": "0xDC",
+            "Address": "0xE0",
             "Class": "PxeBridgeTemp",
             "Name": "CPU1 VR Mem ABCD Temp",
             "Thresholds": [

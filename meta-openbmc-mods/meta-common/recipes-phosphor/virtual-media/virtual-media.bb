@@ -4,7 +4,7 @@ DESCRIPTION = "Virtual Media Service"
 SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
 SRCREV = "bee56d62b209088454d166d1efae4825a2b175df"
 
-S = "${WORKDIR}/git/virtual-media/"
+S = "${WORKDIR}/git/virtual-media"
 PV = "1.0+git${SRCPV}"
 
 LICENSE = "Apache-2.0"

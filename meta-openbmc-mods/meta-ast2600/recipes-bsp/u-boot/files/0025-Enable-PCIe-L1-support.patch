@@ -1,0 +1,40 @@
+From 1f95d121b4a11444bffd0494bcfff1986e0905b6 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Tue, 8 Jan 2019 13:33:15 -0800
+Subject: [PATCH] Enable PCIe L1 support
+
+This commit enables PCIe L1 support using magic registers.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/ast2600/platform.S | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index cd8a57edd76b..ecc9fd33d125 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -299,6 +299,20 @@ wait_lock:
+ 	bic	r1, r2
+ 	str	r1, [r0]
+ 
++	/* enable PCIe L1 support */
++	ldr	r0, =0x1e6ed07c
++	ldr	r1, =0xa8
++	str	r1, [r0]
++	ldr	r0, =0x1e6ed010
++	ldr	r1, =0x27040fe1
++	str	r1, [r0]
++	ldr	r0, =0x1e6ed068
++	ldr	r1, =0xc81f0a
++	str	r1, [r0]
++	ldr	r0, =0x1e6ed07c
++	mov	r1, #0
++	str	r1, [r0]
++
+ 	/* MMIO decode setting */
+ 	ldr	r0, =AST_SCU_MMIO_DEC_SET
+ 	mov	r1, #0x2000
+-- 
+2.17.1
+

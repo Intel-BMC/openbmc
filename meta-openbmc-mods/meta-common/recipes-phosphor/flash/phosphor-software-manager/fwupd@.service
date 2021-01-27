@@ -4,5 +4,5 @@ Description=Flash BMC with fwupd script : %I
 [Service]
 Type=oneshot
 RemainAfterExit=no
-ExecStart=/usr/bin/fwupd.sh %i
+ExecStart=/bin/systemd-inhibit --what=shutdown:sleep --who=fwupd --why "Firmware Update %i" --mode=block /usr/bin/fwupd.sh %i
 SyslogIdentifier=fwupd

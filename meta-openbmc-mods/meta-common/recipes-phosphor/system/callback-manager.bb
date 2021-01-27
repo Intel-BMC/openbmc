@@ -1,7 +1,7 @@
 SUMMARY = "Callback Manager"
 DESCRIPTION = "D-Bus daemon that registers matches that trigger method calls"
 
-SRC_URI = "git://github.com/openbmc/s2600wf-misc.git;protocol=ssh;nobranch=1"
+SRC_URI = "git://github.com/openbmc/s2600wf-misc.git;protocol=ssh"
 
 inherit cmake systemd
 DEPENDS = "boost sdbusplus"

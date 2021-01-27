@@ -30,6 +30,8 @@ SRC_URI_append_intel-ast2600 = " \
     file://0022-Reboot-into-UBOOT-on-Watchdog-Failures.patch \
     file://0023-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
     file://0024-fix-SUS_WARN-handling-logic.patch \
+    file://0025-ast2600-PFR-platform-EXTRST-reset-mask-selection.patch \
+    file://0025-Enable-PCIe-L1-support.patch \
     "
 
 # CVE-2020-10648 vulnerability fix

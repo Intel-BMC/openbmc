@@ -1,4 +1,4 @@
-From 644165bf32fd6e757c261881987d127a865cbf2b Mon Sep 17 00:00:00 2001
+From 42231615d6a1effbfaa581ca41c0d406174feee8 Mon Sep 17 00:00:00 2001
 From: Rajashekar Gade Reddy <raja.sekhar.reddy.gade@linux.intel.com>
 Date: Mon, 23 Mar 2020 22:19:07 +0530
 Subject: [PATCH] Add dbus method SlotIpmbRequest
@@ -33,24 +33,22 @@ ipmitool raw 0x3e 0x51 0 0x01 0xb0 0x6 1
 Note: Tested for all possible negative test cases and it works fine.
 
 Signed-off-by: Rajashekar Gade Reddy <raja.sekhar.reddy.gade@intel.com>
-
-%% original patch: 0001-Add-dbus-method-SlotIpmbRequest.patch
 ---
  CMakeLists.txt      |   2 +-
- include/linux/i2c.h | 159 ++++++++++++++++++++++++++++++++
+ include/linux/i2c.h | 159 +++++++++++++++++++++++++++++++
  ipmb-channels.json  |   6 ++
- ipmbbridged.cpp     | 220 +++++++++++++++++++++++++++++++++++++++++++-
+ ipmbbridged.cpp     | 221 +++++++++++++++++++++++++++++++++++++++++++-
  ipmbbridged.hpp     |   8 +-
- 5 files changed, 391 insertions(+), 4 deletions(-)
+ 5 files changed, 392 insertions(+), 4 deletions(-)
  create mode 100644 include/linux/i2c.h
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 80377f5..1436d5e 100644
+index 4acdccf..3484a58 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -5,7 +5,7 @@ set (CMAKE_CXX_STANDARD_REQUIRED ON)
- set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
- set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-rtti")
+@@ -8,7 +8,7 @@ set (CMAKE_CXX_STANDARD_REQUIRED ON)
+ #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+ #set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-rtti")
  
 -include_directories (${CMAKE_CURRENT_SOURCE_DIR})
 +include_directories (${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -240,7 +238,7 @@ index 0876db7..ff570c6 100644
    ]
  }
 diff --git a/ipmbbridged.cpp b/ipmbbridged.cpp
-index e0eadfc..72ede8c 100644
+index 3bf8469..6d1be04 100644
 --- a/ipmbbridged.cpp
 +++ b/ipmbbridged.cpp
 @@ -18,6 +18,11 @@
@@ -253,9 +251,9 @@ index e0eadfc..72ede8c 100644
 +#include <sys/ioctl.h>
 +
  #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/write.hpp>
  #include <filesystem>
- #include <fstream>
-@@ -39,7 +44,8 @@ auto conn = std::make_shared<sdbusplus::asio::connection>(io);
+@@ -40,7 +45,8 @@ auto conn = std::make_shared<sdbusplus::asio::connection>(io);
  static std::list<IpmbChannel> ipmbChannels;
  static const std::unordered_map<std::string, ipmbChannelType>
      ipmbChannelTypeMap = {{"me", ipmbChannelType::me},
@@ -265,7 +263,7 @@ index e0eadfc..72ede8c 100644
  
  /**
   * @brief Ipmb request class methods
-@@ -551,7 +557,10 @@ int IpmbChannel::ipmbChannelInit(const char *ipmbI2cSlave)
+@@ -555,7 +561,10 @@ int IpmbChannel::ipmbChannelInit(const char *ipmbI2cSlave)
      {
          std::string deviceFileName =
              "/sys/bus/i2c/devices/i2c-" + busStr + "/new_device";
@@ -277,7 +275,7 @@ index e0eadfc..72ede8c 100644
          std::fstream deviceFile;
          deviceFile.open(deviceFileName, std::ios::out);
          if (!deviceFile.good())
-@@ -697,6 +706,171 @@ void IpmbChannel::addFilter(const uint8_t respNetFn, const uint8_t cmd)
+@@ -711,6 +720,171 @@ void IpmbChannel::addFilter(const uint8_t respNetFn, const uint8_t cmd)
      }
  }
  
@@ -449,7 +447,7 @@ index e0eadfc..72ede8c 100644
  std::tuple<int, uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>
      IpmbChannel::requestAdd(boost::asio::yield_context &yield,
                              std::shared_ptr<IpmbRequest> request)
-@@ -826,6 +1000,46 @@ static int initializeChannels()
+@@ -848,6 +1022,47 @@ static int initializeChannels()
      return 0;
  }
  
@@ -458,7 +456,8 @@ index e0eadfc..72ede8c 100644
 +       uint8_t slotNumber, uint8_t targetSlaveAddr, uint8_t netfn, uint8_t cmd,
 +       std::vector<uint8_t> dataReceived) {
 +        uint8_t lun = 0; // No support for lun in slot IPMB
-+        IpmbChannel *channel = getChannel(ipmbChannelType::slot_ipmb);
++        IpmbChannel *channel =
++            getChannel(static_cast<uint8_t>(ipmbChannelType::slot_ipmb));
 +        if (channel == nullptr)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
@@ -496,7 +495,7 @@ index e0eadfc..72ede8c 100644
  auto ipmbHandleRequest = [](boost::asio::yield_context yield,
                              uint8_t reqChannel, uint8_t netfn, uint8_t lun,
                              uint8_t cmd, std::vector<uint8_t> dataReceived) {
-@@ -971,6 +1185,8 @@ int main(int argc, char *argv[])
+@@ -994,6 +1209,8 @@ int main(int argc, char *argv[])
          server.add_interface(ipmbObj, ipmbDbusIntf);
  
      ipmbIface->register_method("sendRequest", std::move(ipmbHandleRequest));
@@ -506,10 +505,10 @@ index e0eadfc..72ede8c 100644
  
      if (initializeChannels() < 0)
 diff --git a/ipmbbridged.hpp b/ipmbbridged.hpp
-index e264195..167f613 100644
+index 052c193..c79ac63 100644
 --- a/ipmbbridged.hpp
 +++ b/ipmbbridged.hpp
-@@ -153,7 +153,8 @@ enum class ipmbRequestState
+@@ -155,7 +155,8 @@ enum class ipmbRequestState
  enum class ipmbChannelType
  {
      ipmb = 0,
@@ -519,7 +518,7 @@ index e264195..167f613 100644
  };
  
  /**
-@@ -287,6 +288,11 @@ class IpmbChannel
+@@ -293,6 +294,11 @@ class IpmbChannel
      void ipmbSendI2cFrame(std::shared_ptr<std::vector<uint8_t>> buffer,
                            size_t retriesAttempted);
  

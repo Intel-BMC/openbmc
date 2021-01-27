@@ -1,0 +1,441 @@
+From 32d4d17843bcc96a6d17b3d975fc92fac82ef081 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 8 Dec 2020 15:28:42 -0800
+Subject: [PATCH] update meson build for PLDM FWU interfaces
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ .../PLDM/FWU/ACPIDescriptor/meson.build       |  14 ++
+ .../ActiveComponentImageSetInfo/meson.build   |  14 ++
+ .../PLDM/FWU/ActiveComponentInfo/meson.build  |  14 ++
+ .../FWU/CapabilitiesDuringUpdate/meson.build  |  14 ++
+ .../ComponentActivationMethods/meson.build    |  14 ++
+ .../PLDM/FWU/FWUBase/meson.build              |  14 ++
+ .../PLDM/FWU/IANADescriptor/meson.build       |  14 ++
+ .../PLDM/FWU/PCIDescriptor/meson.build        |  14 ++
+ .../PendingComponentImageSetInfo/meson.build  |  14 ++
+ .../PLDM/FWU/PendingComponentInfo/meson.build |  14 ++
+ .../PLDM/FWU/PnPDescriptor/meson.build        |  14 ++
+ gen/xyz/openbmc_project/PLDM/FWU/meson.build  | 166 ++++++++++++++++++
+ gen/xyz/openbmc_project/PLDM/meson.build      |   1 +
+ 13 files changed, 321 insertions(+)
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/FWUBase/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/IANADescriptor/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/PCIDescriptor/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/PnPDescriptor/meson.build
+ create mode 100644 gen/xyz/openbmc_project/PLDM/FWU/meson.build
+
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor/meson.build
+new file mode 100644
+index 0000000..2ec794d
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ACPIDescriptor__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ACPIDescriptor',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo/meson.build
+new file mode 100644
+index 0000000..d415ec9
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo/meson.build
+new file mode 100644
+index 0000000..e2be862
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate/meson.build
+new file mode 100644
+index 0000000..62d9894
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods/meson.build
+new file mode 100644
+index 0000000..2e379b6
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/FWUBase/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/FWUBase/meson.build
+new file mode 100644
+index 0000000..149662b
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/FWUBase/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/FWUBase__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/FWUBase',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/IANADescriptor/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/IANADescriptor/meson.build
+new file mode 100644
+index 0000000..6661829
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/IANADescriptor/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/IANADescriptor__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/IANADescriptor',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/PCIDescriptor/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/PCIDescriptor/meson.build
+new file mode 100644
+index 0000000..00f54e2
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/PCIDescriptor/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PCIDescriptor__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PCIDescriptor',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo/meson.build
+new file mode 100644
+index 0000000..5349f0f
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo/meson.build
+new file mode 100644
+index 0000000..5c44acf
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PendingComponentInfo__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PendingComponentInfo',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/PnPDescriptor/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/PnPDescriptor/meson.build
+new file mode 100644
+index 0000000..d77e841
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/PnPDescriptor/meson.build
+@@ -0,0 +1,14 @@
++# Generated file; do not modify.
++generated_sources += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PnPDescriptor__cpp'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml',  ],
++    output: [ 'server.cpp', 'server.hpp', 'client.hpp',  ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'cpp',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PnPDescriptor',
++    ],
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/FWU/meson.build b/gen/xyz/openbmc_project/PLDM/FWU/meson.build
+new file mode 100644
+index 0000000..27e89fc
+--- /dev/null
++++ b/gen/xyz/openbmc_project/PLDM/FWU/meson.build
+@@ -0,0 +1,166 @@
++# Generated file; do not modify.
++subdir('ACPIDescriptor')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ACPIDescriptor__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml',  ],
++    output: [ 'ACPIDescriptor.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ACPIDescriptor',
++    ],
++    build_by_default: true,
++)
++
++subdir('ActiveComponentImageSetInfo')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml',  ],
++    output: [ 'ActiveComponentImageSetInfo.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo',
++    ],
++    build_by_default: true,
++)
++
++subdir('ActiveComponentInfo')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml',  ],
++    output: [ 'ActiveComponentInfo.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo',
++    ],
++    build_by_default: true,
++)
++
++subdir('CapabilitiesDuringUpdate')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml',  ],
++    output: [ 'CapabilitiesDuringUpdate.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate',
++    ],
++    build_by_default: true,
++)
++
++subdir('ComponentActivationMethods')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml',  ],
++    output: [ 'ComponentActivationMethods.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods',
++    ],
++    build_by_default: true,
++)
++
++subdir('FWUBase')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/FWUBase__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml',  ],
++    output: [ 'FWUBase.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/FWUBase',
++    ],
++    build_by_default: true,
++)
++
++subdir('IANADescriptor')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/IANADescriptor__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml',  ],
++    output: [ 'IANADescriptor.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/IANADescriptor',
++    ],
++    build_by_default: true,
++)
++
++subdir('PCIDescriptor')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PCIDescriptor__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml',  ],
++    output: [ 'PCIDescriptor.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PCIDescriptor',
++    ],
++    build_by_default: true,
++)
++
++subdir('PendingComponentImageSetInfo')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml',  ],
++    output: [ 'PendingComponentImageSetInfo.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo',
++    ],
++    build_by_default: true,
++)
++
++subdir('PendingComponentInfo')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PendingComponentInfo__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml',  ],
++    output: [ 'PendingComponentInfo.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PendingComponentInfo',
++    ],
++    build_by_default: true,
++)
++
++subdir('PnPDescriptor')
++generated_others += custom_target(
++    'xyz/openbmc_project/PLDM/FWU/PnPDescriptor__markdown'.underscorify(),
++    input: [ meson.source_root() / 'xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml',  ],
++    output: [ 'PnPDescriptor.md' ],
++    command: [
++        sdbuspp_gen_meson_prog, '--command', 'markdown',
++        '--output', meson.current_build_dir(),
++        '--tool', sdbusplusplus_prog,
++        '--directory', meson.source_root(),
++        'xyz/openbmc_project/PLDM/FWU/PnPDescriptor',
++    ],
++    build_by_default: true,
++)
++
+diff --git a/gen/xyz/openbmc_project/PLDM/meson.build b/gen/xyz/openbmc_project/PLDM/meson.build
+index 9087286..02e4234 100644
+--- a/gen/xyz/openbmc_project/PLDM/meson.build
++++ b/gen/xyz/openbmc_project/PLDM/meson.build
+@@ -14,6 +14,7 @@ generated_others += custom_target(
+     build_by_default: true,
+ )
+ 
++subdir('FWU')
+ subdir('PDR')
+ generated_others += custom_target(
+     'xyz/openbmc_project/PLDM/PDR__markdown'.underscorify(),
+-- 
+2.17.1
+

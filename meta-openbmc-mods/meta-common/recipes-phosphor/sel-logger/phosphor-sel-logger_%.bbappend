@@ -1,4 +1,4 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/phosphor-sel-logger.git"
-SRCREV = "df7bc1c6951fb7dd2776008aa0b7dc6bea44bed4"
+SRCREV = "e526b86d7f9eef3b7a58f2800263666a04051239"
 

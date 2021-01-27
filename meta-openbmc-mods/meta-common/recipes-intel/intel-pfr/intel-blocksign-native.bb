@@ -12,7 +12,7 @@ SRC_URI = "git://git@github.com/Intel-BMC/blocksign;protocol=ssh"
 
 SRCREV = "966d16f680c1b14c338640d35a12d5e2f9a6937a"
 
-S = "${WORKDIR}/git/"
+S = "${WORKDIR}/git"
 
 do_install_append() {
    install -d ${D}/${bindir}
