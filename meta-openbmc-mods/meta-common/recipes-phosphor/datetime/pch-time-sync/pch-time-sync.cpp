@@ -19,6 +19,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <phosphor-logging/log.hpp>
 #include <sdbusplus/asio/object_server.hpp>
@@ -29,6 +30,7 @@ extern "C" {
 
 static constexpr uint32_t syncIntervalNormalMS = 60000;
 static constexpr uint32_t syncIntervalFastMS = (syncIntervalNormalMS / 2);
+static constexpr uint32_t syncIntervalBootMS = 5000;
 
 static uint32_t syncIntervalMS = syncIntervalNormalMS;
 
@@ -37,6 +39,7 @@ static constexpr uint8_t timeDiffAllowedSecond = 1;
 static uint8_t pchDevI2cBusNo = 0;
 static uint8_t pchDevI2cSlaveAddr = 0;
 static bool getPCHI2cAddrFlag = false;
+static constexpr const char* clockFile = "/var/lib/systemd/timesync/clock";
 static inline uint8_t bcd2Decimal(uint8_t hex)
 {
     uint8_t dec = ((hex & 0xF0) >> 4) * 10 + (hex & 0x0F);
@@ -250,6 +253,26 @@ class PCHSync
         return true;
     }
 
+    bool updateClockFileTimestamp()
+    {
+        if (!std::filesystem::exists(clockFile))
+        {
+            phosphor::logging::log<phosphor::logging::level::WARNING>(
+                "The systemd timestamp synchronization file doesn't exist: ",
+                phosphor::logging::entry("PATHNAME=%s", clockFile));
+            return false;
+        }
+        int rc = utimensat(AT_FDCWD, clockFile, nullptr, 0);
+        if (rc)
+        {
+            phosphor::logging::log<phosphor::logging::level::ERR>(
+                "utimensat systemd timestamp synchronization file fail: ",
+                phosphor::logging::entry("PATHNAME=%s", clockFile),
+                phosphor::logging::entry("ERRCODE=%x", errno));
+            return false;
+        }
+        return true;
+    }
     bool setSystemTime(uint32_t timeSeconds)
     {
         struct timespec sTime = {0};
@@ -305,12 +328,20 @@ class PCHSync
                 phosphor::logging::entry("TIME=%s", dateString.c_str()));
         }
 
+        // During the boot time, systemd-timesyncd.service checks
+        // "/var/lib/systemd/timesync/clock" and updates the system time with
+        // the timestamp of the file
+        if (!updateClockFileTimestamp())
+        {
+            return false;
+        }
+
         return true;
     }
 
     void startSyncTimer(std::shared_ptr<sdbusplus::asio::connection>& conn)
     {
-        // retry 10 times (10 * 30 sec = 5min ) to get the pch timer
+        // retry 10 times (10 * 5s = 50s ) to get the pch timer
         // configuration.
         static uint8_t retrytimes = 10;
         if (!getPCHI2cAddrFlag)
@@ -321,7 +352,7 @@ class PCHSync
                     "Get pch timer configuration fail");
                 return;
             }
-            syncIntervalMS = syncIntervalFastMS;
+            syncIntervalMS = syncIntervalBootMS;
             getPCHTimerConfiguration(conn);
             retrytimes--;
         }

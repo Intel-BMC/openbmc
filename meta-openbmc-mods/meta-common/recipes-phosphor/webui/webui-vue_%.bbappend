@@ -1,6 +1,6 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/webui-vue.git"
-SRCREV = "978807de2d5a11860b74f1f97dc0d915ee5c9a5e"
+SRCREV = "5fe1c3fed73164d4fe82ebb142cefbca72c2e706"
 
 do_compile_prepend() {
   cp -vf ${S}/.env.intel ${S}/.env

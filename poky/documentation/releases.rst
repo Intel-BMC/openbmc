@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 
 =========================
  Current Release Manuals
@@ -11,6 +11,7 @@
 - :yocto_docs:`3.1 Documentation </3.1>`
 - :yocto_docs:`3.1.1 Documentation </3.1.1>`
 - :yocto_docs:`3.1.2 Documentation </3.1.2>`
+- :yocto_docs:`3.1.3 Documentation </3.1.3>`
 
 ==========================
  Previous Release Manuals

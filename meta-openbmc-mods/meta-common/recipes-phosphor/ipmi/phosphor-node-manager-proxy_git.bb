@@ -15,5 +15,5 @@ DEPENDS = "sdbusplus \
            phosphor-logging \
            boost"
 
-S = "${WORKDIR}/git/"
+S = "${WORKDIR}/git"
 inherit cmake systemd

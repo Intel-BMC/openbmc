@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 
 ******************************************
 Migrating to a Newer Yocto Project Release
@@ -27,4 +27,5 @@ notes for a given release.
    migration-2.7
    migration-3.0
    migration-3.1
+   migration-3.2
 

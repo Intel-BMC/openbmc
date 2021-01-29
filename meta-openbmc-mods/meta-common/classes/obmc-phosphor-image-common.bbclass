@@ -2,6 +2,7 @@ inherit obmc-phosphor-image
 
 IMAGE_FEATURES += " \
         obmc-bmc-state-mgmt \
+        obmc-bmcweb \
         obmc-chassis-mgmt \
         obmc-chassis-state-mgmt \
         obmc-devtools \
@@ -30,7 +31,6 @@ IMAGE_FEATURES += " \
         "
 
 IMAGE_INSTALL_append = " \
-        bmcweb \
         dbus-broker \
         entity-manager \
         fru-device \
@@ -47,6 +47,7 @@ IMAGE_INSTALL_append = " \
         phosphor-sel-logger \
         smbios-mdrv2 \
         obmc-ikvm \
+        system-watchdog \
         frb2-watchdog \
         srvcfg-manager \
         callback-manager \
@@ -73,6 +74,8 @@ IMAGE_INSTALL_append = " \
         virtual-media \
         enable-nics \
         host-misc-comm-manager \
+        telemetry \
+        i3c-tools \
         "
 
 IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"

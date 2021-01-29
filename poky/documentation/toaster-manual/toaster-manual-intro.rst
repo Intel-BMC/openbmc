@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 
 ************
 Introduction
@@ -9,8 +9,6 @@ Toaster is a web interface to the Yocto Project's
 enables you to configure and run your builds. Information about builds
 is collected and stored in a database. You can use Toaster to configure
 and start builds on multiple remote build servers.
-
-.. _intro-features:
 
 Toaster Features
 ================
@@ -81,8 +79,6 @@ extensive information about the build process.
 For an overview of Toaster shipped with the Yocto Project &DISTRO;
 Release, see the "`Toaster - Yocto Project
 2.2 <https://youtu.be/BlXdOYLgPxA>`__" video.
-
-.. _toaster-installation-options:
 
 Installation Options
 ====================

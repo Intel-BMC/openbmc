@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 
 ******************************************
 The Yocto Project Development Tasks Manual
@@ -39,7 +39,7 @@ This manual does not provide the following:
 
 -  Reference or Conceptual Material: This type of material resides in an
    appropriate reference manual. For example, system variables are
-   documented in the :doc`../ref-manual/ref-manual`.
+   documented in the :doc:`../ref-manual/ref-manual`.
 
 -  Detailed Public Information Not Specific to the Yocto Project: For
    example, exhaustive information on how to use the Source Control

@@ -1,7 +1,7 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "3bcd823e3783bc49c1e75dec2d43a3ef54333c88"
+SRCREV = "6736d4b2a77cec00a8919f26035176c8b8025a4d"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 SRC_URI += "\

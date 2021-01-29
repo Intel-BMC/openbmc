@@ -1,7 +1,8 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "a8fe54f09be1deefc119d8dcf100da922496d46d"
+SRCREV = "f16f62633a64f386fd0382703ff0949ea177f457"
 
 DEPENDS += "boost-url"
+RDEPENDS_${PN} += "phosphor-nslcd-authority-cert-config"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -15,14 +16,20 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0002-Use-chip-id-based-UUID-for-Service-Root.patch \
             file://0004-bmcweb-handle-device-or-resource-busy-exception.patch \
             file://0005-EventService-https-client-support.patch \
+            file://0006-Define-Redfish-interface-Registries-Bios.patch \
+            file://0007-BIOS-config-Add-support-for-PATCH-operation.patch \
+            file://0008-Add-support-to-ResetBios-action.patch \
+            file://0009-Add-support-to-ChangePassword-action.patch \
+            file://0010-managers-add-attributes-for-Manager.CommandShell.patch \
+            file://0034-recommended-fixes-by-crypto-review-team.patch \
 "
+
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
 SRC_URI += "file://telemetry/0001-Redfish-TelemetryService-schema-implementation.patch \
-            file://telemetry/0002-Add-support-for-POST-in-MetricReportDefinitions.patch \
-            file://telemetry/0003-Add-support-for-DELETE-in-MetricReportDefinitions-st.patch \
-            file://telemetry/0004-Add-support-for-OnRequest-in-MetricReportDefinition.patch \
-            file://telemetry/0005-Add-support-for-MetricDefinition-scheme.patch \
+            file://telemetry/0002-Add-POST-and-DELETE-in-MetricReportDefinitions.patch \
+            file://telemetry/0003-Add-support-for-MetricDefinition-scheme.patch \
+            file://telemetry/0004-Sync-Telmetry-service-with-EventService.patch \
 "
 
 # Temporary fix: Move it to service file

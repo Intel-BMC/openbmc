@@ -1,0 +1,65 @@
+From 165f4bc884b9f9ed5bf568f5b930dba6835a2edd Mon Sep 17 00:00:00 2001
+From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
+Date: Mon, 16 Nov 2020 15:52:12 +0100
+Subject: [PATCH] hw/arm/aspeed: Add an intel-ast2600 machine type
+
+Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+---
+ hw/arm/aspeed.c | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)
+
+diff --git a/hw/arm/aspeed.c b/hw/arm/aspeed.c
+index 514dca85..be9e1455 100644
+--- a/hw/arm/aspeed.c
++++ b/hw/arm/aspeed.c
+@@ -126,6 +126,10 @@ struct AspeedMachineState {
+ #define AST2600_EVB_HW_STRAP1 0x000000C0
+ #define AST2600_EVB_HW_STRAP2 0x00000003
+ 
++/* Intel AST2600 hardware value */
++#define INTEL_AST2600_HW_STRAP1 0x00000000
++#define INTEL_AST2600_HW_STRAP2 0x00000040
++
+ /* Tacoma hardware value */
+ #define TACOMA_BMC_HW_STRAP1  0x00000000
+ #define TACOMA_BMC_HW_STRAP2  0x00000040
+@@ -670,6 +674,25 @@ static void aspeed_machine_intel_ast2500_class_init(ObjectClass *oc, void *data)
+         aspeed_soc_num_cpus(amc->soc_name);
+ };
+ 
++static void aspeed_machine_intel_ast2600_class_init(ObjectClass *oc, void *data)
++{
++    MachineClass *mc = MACHINE_CLASS(oc);
++    AspeedMachineClass *amc = ASPEED_MACHINE_CLASS(oc);
++
++    mc->desc       = "Intel AST2600 BMC (Cortex A7)";
++    amc->soc_name  = "ast2600-a1";
++    amc->hw_strap1 = INTEL_AST2600_HW_STRAP1;
++    amc->hw_strap2 = INTEL_AST2600_HW_STRAP2;
++    amc->fmc_model = "n25q512a";
++    amc->spi_model = "n25q512a";
++    amc->num_cs    = 1;
++    amc->macs_mask  = ASPEED_MAC1_ON | ASPEED_MAC2_ON | ASPEED_MAC3_ON;
++    amc->i2c_init  = intel_ast2500_i2c_init;
++    mc->default_ram_size = 1 * GiB;
++    mc->default_cpus = mc->min_cpus = mc->max_cpus =
++        aspeed_soc_num_cpus(amc->soc_name);
++};
++
+ static void aspeed_machine_romulus_class_init(ObjectClass *oc, void *data)
+ {
+     MachineClass *mc = MACHINE_CLASS(oc);
+@@ -789,6 +812,10 @@ static const TypeInfo aspeed_machine_types[] = {
+         .name          = MACHINE_TYPE_NAME("intel-ast2500"),
+         .parent        = TYPE_ASPEED_MACHINE,
+         .class_init    = aspeed_machine_intel_ast2500_class_init,
++    }, {
++        .name          = MACHINE_TYPE_NAME("intel-ast2600"),
++        .parent        = TYPE_ASPEED_MACHINE,
++        .class_init    = aspeed_machine_intel_ast2600_class_init,
+     }, {
+         .name          = MACHINE_TYPE_NAME("romulus-bmc"),
+         .parent        = TYPE_ASPEED_MACHINE,
+-- 
+2.16.6
+

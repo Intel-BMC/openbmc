@@ -115,7 +115,9 @@ python buildhistory_emit_pkghistory() {
             self.packages = ""
             self.srcrev = ""
             self.layer = ""
+            self.license = ""
             self.config = ""
+            self.src_uri = ""
 
 
     class PackageInfo:
@@ -217,6 +219,7 @@ python buildhistory_emit_pkghistory() {
     pv = d.getVar('PV')
     pr = d.getVar('PR')
     layer = bb.utils.get_file_layer(d.getVar('FILE'), d)
+    license = d.getVar('LICENSE')
 
     pkgdata_dir = d.getVar('PKGDATA_DIR')
     packages = ""
@@ -257,7 +260,9 @@ python buildhistory_emit_pkghistory() {
     rcpinfo.depends = sortlist(oe.utils.squashspaces(d.getVar('DEPENDS') or ""))
     rcpinfo.packages = packages
     rcpinfo.layer = layer
+    rcpinfo.license = license
     rcpinfo.config = sortlist(oe.utils.squashspaces(d.getVar('PACKAGECONFIG') or ""))
+    rcpinfo.src_uri = oe.utils.squashspaces(d.getVar('SRC_URI') or "")
     write_recipehistory(rcpinfo, d)
 
     bb.build.exec_func("read_subpackage_metadata", d)
@@ -367,7 +372,9 @@ def write_recipehistory(rcpinfo, d):
         f.write(u"DEPENDS = %s\n" %  rcpinfo.depends)
         f.write(u"PACKAGES = %s\n" %  rcpinfo.packages)
         f.write(u"LAYER = %s\n" %  rcpinfo.layer)
+        f.write(u"LICENSE = %s\n" %  rcpinfo.license)
         f.write(u"CONFIG = %s\n" %  rcpinfo.config)
+        f.write(u"SRC_URI = %s\n" %  rcpinfo.src_uri)
 
     write_latest_srcrev(d, pkghistdir)
 

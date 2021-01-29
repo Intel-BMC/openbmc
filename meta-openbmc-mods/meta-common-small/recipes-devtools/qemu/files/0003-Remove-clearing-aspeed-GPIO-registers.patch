@@ -1,0 +1,30 @@
+From c0f3add0f49818992f752d04f33204ee1f27e885 Mon Sep 17 00:00:00 2001
+From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
+Date: Mon, 30 Nov 2020 14:32:52 +0100
+Subject: [PATCH] Remove clearing aspeed GPIO registers
+
+Removed clearing aspeed GPIO registers to omit clearing set GPIO
+lines at machine initialization. It does not affect aspeed
+simulation. intel-ast machines boot with success.
+
+Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+---
+ hw/gpio/aspeed_gpio.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/gpio/aspeed_gpio.c b/hw/gpio/aspeed_gpio.c
+index 985a259e05..9f93a10887 100644
+--- a/hw/gpio/aspeed_gpio.c
++++ b/hw/gpio/aspeed_gpio.c
+@@ -830,7 +830,7 @@ static void aspeed_gpio_reset(DeviceState *dev)
+     AspeedGPIOState *s = ASPEED_GPIO(dev);
+ 
+     /* TODO: respect the reset tolerance registers */
+-    memset(s->sets, 0, sizeof(s->sets));
++    //memset(s->sets, 0, sizeof(s->sets));
+ }
+ 
+ static void aspeed_gpio_realize(DeviceState *dev, Error **errp)
+-- 
+2.16.6
+

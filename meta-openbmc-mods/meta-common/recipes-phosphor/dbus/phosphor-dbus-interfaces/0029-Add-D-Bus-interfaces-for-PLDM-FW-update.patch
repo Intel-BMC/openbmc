@@ -1,0 +1,494 @@
+From e7ba5f63a551099e1b5f934683e163963f28f28e Mon Sep 17 00:00:00 2001
+From: "Gade-RajasekharReddy@" <raja.sekhar.reddy.gade@linux.intel.com>
+Date: Wed, 16 Sep 2020 03:19:41 +0530
+Subject: [PATCH] Add D-Bus interfaces for PLDM FW update
+
+Added PLDM FW update base interface, which exposes a method. Using
+this method PLDM FWU can be initiated.
+
+Added interfaces for exposing PLDM FW update inventory info.
+
+Test
+supporting files are created for the yaml files.
+
+Signed-off-by: Gade-RajasekharReddy@ <raja.sekhar.reddy.gade@linux.intel.com>
+---
+ .../PLDM/FWU/ACPIDescriptor.interface.yaml    |  14 +++
+ ...ActiveComponentImageSetInfo.interface.yaml |   9 ++
+ .../FWU/ActiveComponentInfo.interface.yaml    |  55 ++++++++++
+ .../CapabilitiesDuringUpdate.interface.yaml   |  32 ++++++
+ .../ComponentActivationMethods.interface.yaml |  40 +++++++
+ .../PLDM/FWU/FWUBase.interface.yaml           |  21 ++++
+ .../PLDM/FWU/IANADescriptor.interface.yaml    |  10 ++
+ .../PLDM/FWU/PCIDescriptor.interface.yaml     |  30 +++++
+ ...endingComponentImageSetInfo.interface.yaml |  10 ++
+ .../FWU/PendingComponentInfo.interface.yaml   |  40 +++++++
+ .../PLDM/FWU/PnPDescriptor.interface.yaml     |  14 +++
+ xyz/openbmc_project/PLDM/FWU/README.md        | 103 ++++++++++++++++++
+ 12 files changed, 378 insertions(+)
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
+ create mode 100644 xyz/openbmc_project/PLDM/FWU/README.md
+
+diff --git a/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
+new file mode 100644
+index 0000000..e225bad
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
+@@ -0,0 +1,14 @@
++description : >
++   This interface has ACPI descriptor properties.
++
++properties :
++
++    - name : ACPIVendorID
++      type : string
++      description: >
++        Property containing ACPI Vendor ID.
++
++    - name : ACPIProductIdentifier
++      type : string
++      description: >
++        Property containing ACPI Product Identifier.
+diff --git a/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
+new file mode 100644
+index 0000000..94115a3
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
+@@ -0,0 +1,9 @@
++description : >
++  This interface has the PLDM FWU active component image set properties.
++
++properties :
++
++    - name : ActiveComponentImageSetVersionString
++      type : string
++      description: >
++        String describing the active component image set version.
+diff --git a/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
+new file mode 100644
+index 0000000..77a7566
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
+@@ -0,0 +1,55 @@
++description: >
++  This interface has the component entries for all of the updatable
++  active components that reside on the FD.
++
++properties:
++
++    - name: ComponentClassification
++      type: uint16
++      description: >
++        Vendor specific component classification information.
++        Special values: 0x0000, 0xFFFF are reserved.
++
++    - name: ComponentIdentifier
++      type: uint16
++      description: >
++        FD vendor selected unique value to distinguish between
++        component images.
++
++    - name: ComponentClassificationIndex
++      type: byte
++      description: >
++        Used to distinguish identical components that have the same
++        classification and identifier that can use the same component
++        image but the images are stored in different locations in the FD.
++
++    - name: ActiveComponentComparisonStamp
++      type: uint32
++      description: >
++        Optional Firmware component comparison stamp that is currently
++        active. If the firmware component does not provide a component
++        comparison stamp, this value should be set to 0x00000000.
++
++    - name: ActiveComponentReleaseDate
++      type: string
++      description: >
++        Containing the date corresponding to the component version
++        level being reported – Format YYYYMMDD.
++        If the firmware component does not provide a date, this string
++        shall be empty.
++
++    - name: ComponentAutoApply
++      type: boolean
++      description: >
++        Firmware Device performs an ‘auto-apply’ during transfer
++        phase and apply step will be completed immediately if this
++        property is true.
++        Firmware Device will execute an operation during the APPLY
++        state that will include migrating the new component image to its
++        final non-volatile storage destination if this property is
++        false.
++
++    - name: ActiveComponentVersionString
++      type: string
++      description: >
++        String describing the active component version.
+diff --git a/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml b/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
+new file mode 100644
+index 0000000..36560ff
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
+@@ -0,0 +1,32 @@
++description : >
++  This interface describes the capabilities during update.
++
++properties :
++
++    - name : UpdateModeRestrictions
++      type : boolean
++      description: >
++       This property tells whether update mode restrictions are
++       supported or not.
++
++    - name : PartialUpdates
++      type : boolean
++      description: >
++        This property tells whether partial updates are supported or not.
++
++    - name : HostFunctionalityDuringFirmwareUpdate
++      type : boolean
++      description: >
++        This property tells whether the host device functionality
++        during firmware update is reduced or not.
++
++    - name : ComponentUpdateFailureRetryCapability
++      type : boolean
++      description: >
++        This property shows the component update failure retry capability.
++
++    - name : ComponentUpdateFailureRecoveryCapability
++      type : boolean
++      description: >
++        This property shows the component update failure recovery
++        capability.
+diff --git a/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
+new file mode 100644
+index 0000000..d5ec47c
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
+@@ -0,0 +1,40 @@
++description: >
++  This interface has the component activation methods.
++
++properties:
++
++    - name: ACPowerCycle
++      type: boolean
++      description: >
++        Property that tells whether AC power cycle is an activation
++        method or not.
++
++    - name: DCPowerCycle
++      type: boolean
++      description: >
++        Property that tells whether DC power cycle is an activation
++        method or not.
++
++    - name: SystemReboot
++      type: boolean
++      description: >
++        Property that tells whether System reboot is an activation
++        method or not.
++
++    - name: MediumSpecificReset
++      type: boolean
++      description: >
++        Property that tells whether Medium-specific reset is an
++        activation method or not.
++
++    - name: SelfContained
++      type: boolean
++      description: >
++        Property that tells whether Self-Contained option is activation
++        method or not.
++
++    - name: Automatic
++      type: boolean
++      description: >
++        Property that tells whether the component can be activated
++        automatically once apply completes.
+diff --git a/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml b/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
+new file mode 100644
+index 0000000..2ba15e2
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
+@@ -0,0 +1,21 @@
++description: >
++    This interface provides a method to initiate the PLDM FW update.
++
++methods:
++    - name: StartFWUpdate
++      description: >
++          This method initiates the PLDM FW update.
++      parameters:
++        - name: filePath
++          type: string
++          description: >
++            PLDM FW update package path.
++      returns:
++        - name: status
++          type: byte
++          description: >
++            PLDM FW update status.
++      errors:
++        - xyz.openbmc_project.Common.Error.NotAllowed
++        - xyz.openbmc_project.Common.Error.InvalidArgument
++        - xyz.openbmc_project.Common.Error.ResourceNotFound
+diff --git a/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
+new file mode 100644
+index 0000000..c013955
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
+@@ -0,0 +1,10 @@
++description : >
++   This interface has device identification info, in which IANA
++   Enterprise ID is used as descriptor.
++
++properties :
++
++    - name : IANAEnterpriseID
++      type : string
++      description: >
++        Property containing the IANA Enterprise ID.
+diff --git a/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
+new file mode 100644
+index 0000000..8d758ed
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
+@@ -0,0 +1,30 @@
++description : >
++  This interface has device identification info,in which PCI Vendor ID
++  is used as descriptor.
++
++properties :
++
++    - name : PCIVendorID
++      type : string
++      description: >
++        Property containing the PCI Vendor ID.
++
++    - name : PCIDeviceID
++      type : string
++      description: >
++        Property containing the PCI Device ID.
++
++    - name : PCISubsystemVendorID
++      type : string
++      description: >
++        Property containing the PCI Subsystem Vendor ID.
++
++    - name : PCISubsystemID
++      type : string
++      description: >
++        Property containing the PCI Subsystem ID.
++
++    - name : PCIRevisionID
++      type : string
++      description: >
++        Property containing the PCI Revision ID.
+diff --git a/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
+new file mode 100644
+index 0000000..3861572
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
+@@ -0,0 +1,10 @@
++description : >
++  This interface has the PLDM FWU pending component image set
++  properties.
++
++properties :
++
++    - name : PendingComponentImageSetVersionString
++      type : string
++      description: >
++        String describing the pending component image set version.
+diff --git a/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
+new file mode 100644
+index 0000000..59a2ad8
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
+@@ -0,0 +1,40 @@
++description: >
++  This interface has the component entries for all of the pending
++  components that reside on the FD.
++
++properties:
++
++    - name: PendingComponentComparisonStamp
++      type: uint32
++      description: >
++        Optional firmware component comparison stamp that is pending
++        activation. This field, and all other pending component fields,
++        are valid once the firmware device has received the
++        ActivateFirmware command to prepare the firmware component for
++        activation, but the activation method requires further action
++        to enable the pending image to become the actively running code
++        image.
++        If no pending firmware component exists, this value shall be
++        set to 0x00000000
++
++    - name: PendingComponentReleaseDate
++      type: string
++      description: >
++        Eight byte field containing the date corresponding to the
++        component version level being reported – Format YYYYMMDD.
++        If no pending firmware component exists, this string
++        shall be empty.
++
++
++    - name: PendingComponentVersionString
++      type: string
++      description: >
++        Firmware component version, which is pending activation. The
++        version reported here should be the one that will become active
++        on the next initialization or activation of the component. The
++        pending component version value may be same as the active
++        component version. Contains a variable type string describing
++        the pending component version. Refer to
++        PendingComponentComparisonStamp field for additional details.
++        If no pending firmware component exists, this field is zero
++        bytes in length.
+diff --git a/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
+new file mode 100644
+index 0000000..801db6d
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
+@@ -0,0 +1,14 @@
++description : >
++  This interface has PnP descriptor properties.
++
++properties :
++
++    - name : PnPVendorID
++      type : string
++      description: >
++       Property containing the PnP Vendor ID.
++
++    - name : PnPProductIdentifier
++      type : string
++      description: >
++        Property containing the PnP Product Identifier.
+diff --git a/xyz/openbmc_project/PLDM/FWU/README.md b/xyz/openbmc_project/PLDM/FWU/README.md
+new file mode 100644
+index 0000000..2931739
+--- /dev/null
++++ b/xyz/openbmc_project/PLDM/FWU/README.md
+@@ -0,0 +1,103 @@
++#PLDM FW Update
++
++##Overview
++
++The PLDM FW update package contains two major sections: the FW package
++header, and the FW package payload. The FW package header is required to
++describe the target device that the package is intended to update and
++the component images that the FW update package contains. The FW
++package payload is the actual FW image which can be used by FW device
++for FW update.
++
++Update Agent(BMC) will send the inventory commands to the all the
++devices which are capable of PLDM FW update and exposes the inventory
++info to the D-Bus. How PLDM FW update package reaches BMC is out of
++scope of PLDM FWU spec 1.0.1. Once BMC receives the FW package, it
++matches the package header with the inventory info, if matches proceeds
++for FW update.
++
++###PLDM FW update interfaces overview and hierarchy
++
++/xyz/openbmc_project/pldm/fwu
++|--xyz.openbmc_project.PLDM.FWU.FWUBase
++|
++|__/xyz/openbmc_project/pldm/fwu/<tid>
++   |
++   |__/xyz/openbmc_project/pldm/fwu/<tid>/deviceDescriptors
++   |   |--xyz.openbmc_project.PLDM.FWU.PCIDescriptor
++   |   |--xyz.openbmc_project.PLDM.FWU.IANADescriptor
++   |   |--xyz.openbmc_project.PLDM.FWU.PnPDescriptor
++   |   |--xyz.openbmc_project.PLDM.FWU.ACPIDescriptor
++   |
++   |__/xyz/openbmc_project/pldm/fwu/<tid>/componentImageSetInfo
++   |   |--xyz.openbmc_project.PLDM.FWU.ActiveComponentImageSetInfo
++   |   |--xyz.openbmc_project.PLDM.FWU.PendingComponentImageSetInfo
++   |
++   |__/xyz/openbmc_project/pldm/fwu/<tid>/componentImageSetInfo/component_<component_no>
++       |--xyz.openbmc_project.PLDM.FWU.ActiveComponentInfo
++       |--xyz.openbmc_project.PLDM.FWU.PendingComponentInfo
++       |--xyz.openbmc_project.PLDM.FWU.ComponentActivationMethods
++       |--xyz.openbmc_project.PLDM.FWU.CapabilitiesDuringUpdate
++
++Note:
++Descriptor for a device shall be defined by one of the following
++(PCI Vendor ID, IANA Enterprise ID, UUID, PnP Vendor ID, or ACPI Vendor
++ID) and the corresponding descriptor`s interface is exposed by the.
++Device Descriptors object.
++No new UUID descriptor incterface is defined as the existing UUID
++interface will be used.
++
++####FW Update Base
++It is exposed by the object `/xyz/openbmc_project/pldm/fwu` with the
++following interface
++1. `xyz.openbmc_project.pldm.FWUBase` exposes a method by which PLDM
++FWU can be initiated.
++
++Each FW update capable device info is exposed by the object
++`/xyz/openbmc_project/pldm/fwu/<tid>`.
++It will have the following objects.
++1. Device Descriptors
++2. Component Image Set Info
++3. Component Image Info (Each component is exposed as an object)
++
++####Device Descriptors
++Device Descriptors are exposed under the object path
++`/xyz/openbmc_project/pldm/fwu/deviceDescriptors` with one of the
++following interfaces.
++1. `xyz.openbmc_project.PLDM.FWU.PCIDescriptor` which exposes the PCI
++device descriptors. If the FD is a PCI device then this interface will
++be exposed by the device descriptors object.
++2. `xyz.openbmc_project.PLDM.FWU.IANADescriptor` which exposes IANA
++descriptor properties. If FD have IANA Enterprise ID as the descriptor
++type then this interface will be exposed by the device descriptors
++object.
++3. `xyz.openbmc_project.PLDM.FWU.PnPDescriptor` which exposes the Pnp
++descriptor properties. If FD have PnP vendor ID as the descriptor
++type then this interface will be exposed by the device descriptors
++object.
++4. `xyz.openbmc_project.PLDM.FWU.ACPIDescriptor` which exposes the ACPI
++descriptor properties. If FD have ACPI vendor ID as the descriptor
++type then this interface will be exposed by the device descriptors
++object.
++
++####Component Image Set Info
++Component Image Set Info is exposed under the object path
++`/xyz/openbmc_project/pldm/fwu/componentImageSetInfo` with the
++following interface.
++1. `xyz.openbmc_project.PLDM.FWU.ActiveComponentImageSetInfo` which
++exposes the active component image set properties.
++2. `xyz.openbmc_project.PLDM.FWU.PendingComponentImageSetInfo` which
++exposes the pending component image set properties.
++
++####Component Image Info
++Component Image Info is exposed under the object path
++`/xyz/openbmc_project/pldm/fwu/componentImageSetInfo/componentInfo_<component_no>'
++with the following interface
++1. `xyz.openbmc_project.PLDM.FWU.ActiveComponentInfo` which exposes the
++component Image properties.
++2. `xyz.openbmc_project.PLDM.FWU.PendingComponentInfo` which exposes the
++component Image properties.
++3. `xyz.openbmc_project.PLDM.FWU.CapabilitiesDuringUpdate` which exposes
++the capabilities of the component during update.
++4. `xyz.openbmc_project.PLDM.FWU.ComponentActivationMethods` which
++exposes the component activation methods.
+-- 
+2.17.1
+

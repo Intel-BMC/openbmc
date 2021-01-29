@@ -8,7 +8,7 @@ PV = "0.1+git${SRCPV}"
 
 SRC_URI = "git://github.com/aehs29/baremetal-helloqemu.git;protocol=https;branch=master"
 
-S = "${WORKDIR}/git/"
+S = "${WORKDIR}/git"
 
 # The following variables should be set to accomodate each application
 BAREMETAL_BINNAME ?= "hello_baremetal_${MACHINE}"
@@ -40,8 +40,8 @@ EXTRA_OEMAKE_append = " QEMUARCH=${BAREMETAL_QEMUARCH} V=1"
 # Install binaries on the proper location for baremetal-image to fetch and deploy
 do_install(){
     install -d ${D}/${base_libdir}/firmware
-    install -m 755 ${B}build/hello_baremetal_${BAREMETAL_QEMUARCH}.bin ${D}/${base_libdir}/firmware/${BAREMETAL_BINNAME}.bin
-    install -m 755 ${B}build/hello_baremetal_${BAREMETAL_QEMUARCH}.elf ${D}/${base_libdir}/firmware/${BAREMETAL_BINNAME}.elf
+    install -m 755 ${B}/build/hello_baremetal_${BAREMETAL_QEMUARCH}.bin ${D}/${base_libdir}/firmware/${BAREMETAL_BINNAME}.bin
+    install -m 755 ${B}/build/hello_baremetal_${BAREMETAL_QEMUARCH}.elf ${D}/${base_libdir}/firmware/${BAREMETAL_BINNAME}.elf
 }
 
 FILES_${PN} += " \

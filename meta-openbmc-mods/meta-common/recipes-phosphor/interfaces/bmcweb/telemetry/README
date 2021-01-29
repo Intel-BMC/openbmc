@@ -3,19 +3,14 @@ Until change is integrated they will be manually merged here to enable feature i
 
 Current revisions:
 - Redfish TelemetryService schema implementation
-	https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31692/29
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31692/54
 
-- Add support for POST in MetricReportDefinitions
-	https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/32536/24
-
-- Add support for DELETE in MetricReportDefinitions/<str>
-	https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/32537/23
-
-- Add support for "OnRequest" in MetricReportDefinition
-	https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33358/17
+- Add POST and DELETE in MetricReportDefinitions
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/32536/46
 
 - Add support for MetricDefinition scheme
-	https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/20
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/42
 
-- Temporary patch for EventService because of change in design
-    0006-Fix-MetricReport-timestamp-for-EventService.patch
+- Sync Telmetry service with EventService
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/38798/9
+

@@ -1,0 +1,28 @@
+From 007c07561e03a005e90858f77266f4fba3e8e2c9 Mon Sep 17 00:00:00 2001
+From: Ayushi Smriti <smriti.ayushi@intel.com>
+Date: Wed, 23 Sep 2020 22:01:25 +0530
+Subject: [PATCH] Add PLDM version purpose enumeration
+
+This change is to add PLDM in enumeration of possible purposes
+of the version to support pldm type version purpose
+
+Change-Id: I7b914d4323bfe44a4e3cd60ed4a627aeceb6b56f
+Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
+---
+ xyz/openbmc_project/Software/Version.interface.yaml | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/xyz/openbmc_project/Software/Version.interface.yaml b/xyz/openbmc_project/Software/Version.interface.yaml
+index 345e5b5..f2efbec 100644
+--- a/xyz/openbmc_project/Software/Version.interface.yaml
++++ b/xyz/openbmc_project/Software/Version.interface.yaml
+@@ -38,3 +38,6 @@ enumerations:
+         - name: PSU
+           description: >
+             The version is a version for a PSU.
++        - name: PLDM
++          description: >
++            The version is a version for PLDM.
+-- 
+2.17.1
+

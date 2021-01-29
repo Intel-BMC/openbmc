@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: CC-BY-2.0-UK
+.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
 .. Set default pygments highlighting to shell for this document
 .. highlight:: shell
 
@@ -8,8 +8,6 @@ Preparing to Use Toaster
 
 This chapter describes how you need to prepare your system in order to
 use Toaster.
-
-.. _toaster-setting-up-the-basic-system-requirements:
 
 Setting Up the Basic System Requirements
 ========================================
@@ -22,8 +20,6 @@ also need to do an additional install of pip3. ::
 
    $ sudo apt-get install python3-pip
 
-.. _toaster-establishing-toaster-system-dependencies:
-
 Establishing Toaster System Dependencies
 ========================================
 
@@ -34,8 +30,6 @@ directory, which is located in the root directory of the
 :term:`Source Directory` (e.g.
 ``poky/bitbake/toaster-requirements.txt``). The dependencies appear in a
 ``pip``, install-compatible format.
-
-.. _toaster-load-packages:
 
 Install Toaster Packages
 ------------------------

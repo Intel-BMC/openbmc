@@ -1,8 +1,8 @@
 FILES_${PN} += "/usr/lib/libboost_chrono.so* \
+               /usr/lib/libboost_context.so* \
                /usr/lib/libboost_thread.so*"
 
-#todo this is against standard but iostreams used in mtd-util
-BOOST_LIBS_intel += "iostreams"
+BOOST_LIBS_intel += "iostreams coroutine"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 # this patch is for issue https://github.com/chriskohlhoff/asio/issues/533
