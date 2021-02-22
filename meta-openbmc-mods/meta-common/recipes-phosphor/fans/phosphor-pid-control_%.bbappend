@@ -11,4 +11,5 @@ FILES_${PN} = "${bindir}/swampd ${bindir}/setsensor"
 
 SRC_URI += "file://0001-Eliminate-swampd-core-dump-after-D-Bus-updates-senso.patch \
             file://0002-Prevent-run-away-memory-consumption-from-swamped.patch \
+            file://0003-fix-phosphor-pid-control-crash-when-fail-to-create-p.patch \
            "

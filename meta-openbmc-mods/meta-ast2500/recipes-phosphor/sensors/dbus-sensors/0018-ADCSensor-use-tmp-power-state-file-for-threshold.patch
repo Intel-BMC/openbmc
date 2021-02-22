@@ -1,0 +1,50 @@
+From 4130233bb36c9b289bb837a405ea264ed99d35de Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Wed, 10 Feb 2021 14:05:56 -0800
+Subject: [PATCH] ADCSensor: use tmp power state file for threshold
+
+Current power state is captured in tmp host power state file.
+If current power state is not ON, Skip checkthreshold for
+ADC sensors that requires host power to be on.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/ADCSensor.cpp | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index 865368f..4de2b1f 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -244,9 +244,27 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+     });
+ }
+ 
++const static std::filesystem::path tmpHostStateFileDir = "/tmp";
++const static constexpr std::string_view hostStateFile = "host-state";
++
++static bool isPowerCurrentlyOn()
++{
++    std::ifstream hostStateStream(tmpHostStateFileDir / hostStateFile);
++    if (!hostStateStream.is_open())
++    {
++        std::cerr << "Failed to open tmp host state file\n";
++        return false;
++    }
++
++    std::string state;
++    std::getline(hostStateStream, state);
++    return state == "xyz.openbmc_project.State.Host.HostState.Running";
++}
++
+ void ADCSensor::checkThresholds(void)
+ {
+-    if (!readingStateGood())
++    if (readState != PowerState::always &&
++        (!readingStateGood() || !isPowerCurrentlyOn()))
+     {
+         return;
+     }
+-- 
+2.17.1
+

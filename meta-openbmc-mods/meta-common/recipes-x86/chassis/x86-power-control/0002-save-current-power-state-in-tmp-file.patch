@@ -1,0 +1,86 @@
+From ee182e17b21b99dae7e1a57759558530f9081d78 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Wed, 10 Feb 2021 13:26:57 -0800
+Subject: [PATCH] save current power state in tmp file
+
+host power state is captured in dbus object properties.
+But dbus latency can be many seconds or longer at times.
+which is not meeting the realtime requirement for some
+application like sensors.
+
+Capture current power state in a temp file as a way to share
+the power state in realtime with other applications.
+
+Tested:
+1. ipmitool power on
+	cat /tmp/host-state
+	xyz.openbmc_project.State.Host.HostState.Running
+
+2. ipmitool power off
+	cat /tmp/host-state
+	xyz.openbmc_project.State.Host.HostState.Off
+
+3. AC cycle with DC on and DC off
+	tmp file created correctly
+
+4. Reset BMC with DC on and DC off
+	tmp file created correctly
+
+5. After FW update and BMC restart
+	tmp file created correctly
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ power-control-x86/src/power_control.cpp | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index bddb16e..9dc08ba 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -62,6 +62,8 @@ const static constexpr int powerOffSaveTimeMs = 7000;
+ 
+ const static std::filesystem::path powerControlDir = "/var/lib/power-control";
+ const static constexpr std::string_view powerStateFile = "power-state";
++const static std::filesystem::path tmpHostStateFileDir = "/tmp";
++const static constexpr std::string_view hostStateFile = "host-state";
+ 
+ static bool nmiEnabled = true;
+ static constexpr const char* nmiOutName = "NMI_OUT";
+@@ -453,6 +455,11 @@ static void setPowerState(const PowerState state)
+                                std::string(getChassisState(powerState)));
+     chassisIface->set_property("LastStateChangeTime", getCurrentTimeMs());
+ 
++    // dbus latency can be unpredictable sometime
++    // tmp file is used to share current power state
++    std::ofstream tmpHostStateStream(tmpHostStateFileDir / hostStateFile);
++    tmpHostStateStream << getHostState(state);
++
+     // Save the power state for the restore policy
+     savePowerState(state);
+ }
+@@ -628,6 +635,13 @@ static void nmiDiagIntLog()
+ 
+ static int initializePowerStateStorage()
+ {
++    // Create tmp power state file if it doesn't exist
++    if (!std::filesystem::exists(tmpHostStateFileDir / hostStateFile))
++    {
++        std::ofstream tmpHostStateStream(tmpHostStateFileDir / hostStateFile);
++        tmpHostStateStream << getHostState(powerState);
++    }
++
+     // create the power control directory if it doesn't exist
+     std::error_code ec;
+     if (!(std::filesystem::create_directories(powerControlDir, ec)))
+@@ -639,6 +653,7 @@ static int initializePowerStateStorage()
+             return -1;
+         }
+     }
++
+     // Create the power state file if it doesn't exist
+     if (!std::filesystem::exists(powerControlDir / powerStateFile))
+     {
+-- 
+2.17.1
+

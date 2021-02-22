@@ -1,0 +1,122 @@
+From 15db42de295b0d38fdd4a3b6bdd8bb9dfe75eba9 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Mon, 4 Jan 2021 23:31:37 -0800
+Subject: [PATCH] fix phosphor-pid-control crash when fail to create passive
+ sensor
+
+When creation of a passive dbus sensor that monitors an existing sensor
+object fails, try to create the passive sensor in the failed state,
+and mark it non-functional. The failed sensor state may set the fan to
+boosted state. If this attempt fails also, something is wrong,
+throw the exception.
+
+This change prevents phosphor-pid-control to crash if some dependent
+sensor service is in a bad state. This patch tries to only change the
+behavior for this corner case, which is observed for
+exitairtempsensor during dc-cyle testing.
+Added a logging message to gather information on why it fails.
+
+This is temporary workaround. When rootcause is understood,
+rework maybe needed for a better long term fix..
+
+Tested:
+Faked a failure in passive sensor creation and verified that the failed
+Sensor was created.
+Ran dc cycle 1000 times, phosphor-pid-control did not crash
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ dbus/dbuspassive.cpp | 27 +++++++++++++++++++++++++++
+ dbus/dbuspassive.hpp |  6 ++++++
+ sensors/builder.cpp  | 13 ++++++++++---
+ 3 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/dbus/dbuspassive.cpp b/dbus/dbuspassive.cpp
+index 4c6e405..de64711 100644
+--- a/dbus/dbuspassive.cpp
++++ b/dbus/dbuspassive.cpp
+@@ -58,6 +58,8 @@ std::unique_ptr<ReadInterface> DbusPassive::createDbusPassive(
+     }
+     catch (const std::exception& e)
+     {
++        std::cerr << __func__ << " line:" << __LINE__ << e.what() << "\n";
++        std::cerr << "type: " << type << " id:" << id << "\n";
+         return nullptr;
+     }
+ 
+@@ -72,6 +74,31 @@ std::unique_ptr<ReadInterface> DbusPassive::createDbusPassive(
+                                          failed, path, redundancy);
+ }
+ 
++std::unique_ptr<ReadInterface> DbusPassive::createFailedDbusPassive(
++    sdbusplus::bus::bus& bus, const std::string& type, const std::string& id,
++    DbusHelperInterface* helper, const conf::SensorConfig* info,
++    const std::shared_ptr<DbusPassiveRedundancy>& redundancy)
++{
++    if (helper == nullptr)
++    {
++        return nullptr;
++    }
++    if (!validType(type))
++    {
++        return nullptr;
++    }
++
++    /* service == busname */
++    std::string path = getSensorPath(type, id);
++
++    struct SensorProperties settings;
++    //mark sensor failed
++    auto failedSensor = std::make_unique<DbusPassive>(bus, type, id, helper, settings,
++                                         true, path, redundancy);
++    failedSensor->setFunctional (false);
++    return failedSensor;
++}
++
+ DbusPassive::DbusPassive(
+     sdbusplus::bus::bus& bus, const std::string& type, const std::string& id,
+     DbusHelperInterface* helper, const struct SensorProperties& settings,
+diff --git a/dbus/dbuspassive.hpp b/dbus/dbuspassive.hpp
+index 91733e9..d104e47 100644
+--- a/dbus/dbuspassive.hpp
++++ b/dbus/dbuspassive.hpp
+@@ -41,6 +41,12 @@ class DbusPassive : public ReadInterface
+         const conf::SensorConfig* info,
+         const std::shared_ptr<DbusPassiveRedundancy>& redundancy);
+ 
++    static std::unique_ptr<ReadInterface> createFailedDbusPassive(
++        sdbusplus::bus::bus& bus, const std::string& type,
++        const std::string& id, DbusHelperInterface* helper,
++        const conf::SensorConfig* info,
++        const std::shared_ptr<DbusPassiveRedundancy>& redundancy);
++
+     DbusPassive(sdbusplus::bus::bus& bus, const std::string& type,
+                 const std::string& id, DbusHelperInterface* helper,
+                 const struct SensorProperties& settings, bool failed,
+diff --git a/sensors/builder.cpp b/sensors/builder.cpp
+index 4da1cf2..72fa3cb 100644
+--- a/sensors/builder.cpp
++++ b/sensors/builder.cpp
+@@ -87,9 +87,16 @@ SensorManager
+                 }
+                 if (ri == nullptr)
+                 {
+-                    throw SensorBuildException(
+-                        "Failed to create dbus passive sensor: " + name +
+-                        " of type: " + info->type);
++                    ri = DbusPassive::createFailedDbusPassive(passiveListeningBus,
++                                                        info->type, name,
++                                                        &helper, info, nullptr);
++                    if (ri == nullptr) {
++                        throw SensorBuildException(
++                            "Failed to create dbus passive sensor: " + name +
++                            " of type: " + info->type);
++                    } else {
++                        std::cerr << "set failed dbus passive sensor to non-function\n";
++                    }
+                 }
+                 break;
+             case IOInterfaceType::EXTERNAL:
+-- 
+2.17.1
+

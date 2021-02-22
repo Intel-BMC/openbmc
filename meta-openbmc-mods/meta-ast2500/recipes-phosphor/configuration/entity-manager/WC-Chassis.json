@@ -127,9 +127,9 @@
             "Type": "AspeedFan"
         },
         {
-            "C1": 92.16,
-            "C2": 107.52,
-            "MaxCFM": 17.5,
+            "C1": 60.0,
+            "C2": 66.0,
+            "MaxCFM": 71.3,
             "Name": "System Airflow",
             "TachMaxPercent": 100,
             "TachMinPercent": 20,
@@ -180,8 +180,8 @@
             "Name": "Exit Air Temp",
             "PowerFactorMax": 1.2,
             "PowerFactorMin": 0.9,
-            "QMax": 165,
-            "QMin": 31,
+            "QMax": 280,
+            "QMin": 60,
             "Thresholds": [
                 {
                     "Direction": "greater than",

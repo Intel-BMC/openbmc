@@ -99,6 +99,9 @@ SRC_URI += " \
         file://1002-Filter-erroneous-adc-readings.patch \
         file://0121-Add-a-WA-to-defer-flash-writes-on-PS_ALERT_N-asserti.patch \
         file://0125-i2c-aspeed-clear-slave-addresses-in-probe.patch \
+        file://0126-Adjust-soc-modules-probing-order.patch \
+        file://1003-Die_CPU-filter-first-zero-from-GetTemp.patch \
+        file://1004-DTS_CPU-filter-first-zero-from-RdPkgConfig-10.patch \
         "
 
 # CVE-2020-16166 vulnerability fix
@@ -178,6 +181,30 @@ SRC_URI += " \
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-29660:"
 SRC_URI += " \
     file://0001-tty-Fix-session-locking.patch \
+    "
+
+# CVE-2020-29569 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-29569:"
+SRC_URI += " \
+    file://0001-xen-blkback-set-ring-xenblkd-to-null-after-kthread-stop.patch \
+    "
+
+# CVE-2020-0465 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-0465:"
+SRC_URI += " \
+    file://0001-HID-core-Correctly-handle-ReportSize-being-zero.patch \
+    "
+
+# CVE-2020-0466 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-0466:"
+SRC_URI += " \
+    file://0001-epoll-Keep-a-reference-on-files-added-to-the-check-l.patch \
+    "
+
+# CVE-2020-27825 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-27825:"
+SRC_URI += " \
+    file://0001-tracing-Fix-race-in-trace_open-and-buffer-resize-cal.patch \
     "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

@@ -6,4 +6,5 @@ FILESEXTRAPATHS_append := "${THISDIR}/${PN}:"
 
 SRC_URI += " \
         file://0001-Extend-VR-Watchdog-timeout.patch \
+        file://0002-save-current-power-state-in-tmp-file.patch \
         "

@@ -1,0 +1,41 @@
+From d2aa20ed1a6358ed7db04088256fb8e59cd39669 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Tue, 29 Dec 2020 12:05:08 +0000
+Subject: [PATCH] Fix for intrusionsensor service crash
+
+Issue: Due to issuing of continuous Lan command on 2 ethernet LAN cables
+connected BMC, intrusionsensor service is getting crashed.
+
+Fix: Add configuration unit "StartLimitBurst" to restart
+intrusionsensor service.
+
+Tested:
+Verified by issuing LAN commands continuously, Successfully
+intrusionsensor service restarted.
+Commands:
+ipmitool lan set 1 ipsrc static
+ipmitool lan set 3 ipsrc static
+ipmitool lan set 1 ipsrc dhcp
+ipmitool lan set 3 ipsrc dhcp
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ service_files/xyz.openbmc_project.intrusionsensor.service | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/service_files/xyz.openbmc_project.intrusionsensor.service b/service_files/xyz.openbmc_project.intrusionsensor.service
+index 1730b07..bccb4a1 100644
+--- a/service_files/xyz.openbmc_project.intrusionsensor.service
++++ b/service_files/xyz.openbmc_project.intrusionsensor.service
+@@ -7,6 +7,8 @@ After=xyz.openbmc_project.EntityManager.service
+ [Service]
+ Restart=always
+ RestartSec=5
++StartLimitIntervalSec=5
++StartLimitBurst=5
+ ExecStart=/usr/bin/env intrusionsensor
+ SyslogIdentifier=intrusion-sensor
+ 
+-- 
+2.17.1
+
