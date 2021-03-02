@@ -36,7 +36,7 @@ index c115797c4cc5..c1e775e764ca 100644
  
  #define ASPEED_ADC_CHANNELS_MAX	16
  #define ASPEED_ADC_RAW_VALUE_MAX	0x3ff
-+#define ASPEED_ADC_RAW_VALUE_DELTA_THRESHOLD	80
++#define ASPEED_ADC_RAW_VALUE_DELTA_THRESHOLD	40
  
  struct aspeed_adc_model_data {
  	const char *model_name;

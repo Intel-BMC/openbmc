@@ -1,0 +1,152 @@
+From f932b8213b30fd5c4b4ee080b3829b1262698286 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 29 Dec 2020 14:58:35 -0800
+Subject: [PATCH] Cancel threshold timer in adcsensor destructor
+
+Before this change, threshold timer gets cancelled when adcsensor member
+variables are destructed. Cancel the timers earlier by clear the timers
+explicitly in the destructor function.
+This may not be a full proof fix, but it would reduce the time window for the
+race condition between timer call back and sensor destruction.
+Also use weak pointer for Sensor may be a more robust fix, but it is a bigger change.
+
+Tested:
+Ran more than 1000 dc cycles without adcsensor crash.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ include/CPUSensor.hpp  |  2 +-
+ include/Thresholds.hpp | 51 ++++++++++++++++++++++++++++--------------
+ src/ADCSensor.cpp      |  4 +++-
+ src/CPUSensor.cpp      |  2 +-
+ 4 files changed, 39 insertions(+), 20 deletions(-)
+
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 4f8f52c..cc16337 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -17,7 +17,7 @@
+ #include <variant>
+ #include <vector>
+ 
+-class CPUSensor : public Sensor
++class CPUSensor : public Sensor, public std::enable_shared_from_this<CPUSensor>
+ {
+   public:
+     CPUSensor(const std::string& path, const std::string& objectType,
+diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
+index 1d1b1b5..94c9c01 100644
+--- a/include/Thresholds.hpp
++++ b/include/Thresholds.hpp
+@@ -63,10 +63,21 @@ using TimerPair = std::pair<struct TimerUsed, boost::asio::deadline_timer>;
+ struct ThresholdTimer
+ {
+ 
+-    ThresholdTimer(boost::asio::io_service& ioService, Sensor* sensor) :
+-        io(ioService), sensor(sensor)
++    ThresholdTimer(boost::asio::io_service& ioService,
++                   std::weak_ptr<Sensor> sensor) :
++        io(ioService),
++        sensor(sensor)
+     {}
+ 
++    void stopAll()
++    {
++        for (TimerPair& timer : timers)
++        {
++            if (timer.first.used)
++                timer.second.cancel();
++        }
++    }
++
+     bool hasActiveTimer(const Threshold& threshold, bool assert)
+     {
+         for (TimerPair& timer : timers)
+@@ -129,28 +140,34 @@ struct ThresholdTimer
+         pair->second.expires_from_now(boost::posix_time::seconds(waitTime));
+         pair->second.async_wait([this, pair, threshold, assert,
+                                  assertValue](boost::system::error_code ec) {
+-            pair->first.used = false;
+-
+-            if (ec == boost::asio::error::operation_aborted)
+-            {
+-                return; // we're being canceled
+-            }
+-            else if (ec)
++            auto sptrSensor = sensor.lock();
++            if (sptrSensor)
+             {
+-                std::cerr << "timer error: " << ec.message() << "\n";
+-                return;
+-            }
+-            if (isPowerOn())
+-            {
+-                assertThresholds(sensor, assertValue, threshold.level,
+-                                 threshold.direction, assert);
++
++                pair->first.used = false;
++
++                if (ec == boost::asio::error::operation_aborted)
++                {
++                    return; // we're being canceled
++                }
++                else if (ec)
++                {
++                    std::cerr << "timer error: " << ec.message() << "\n";
++                    return;
++                }
++                if (isPowerOn())
++                {
++                    assertThresholds(sptrSensor.get(), assertValue,
++                                     threshold.level, threshold.direction,
++                                     assert);
++                }
+             }
+         });
+     }
+ 
+     boost::asio::io_service& io;
+     std::list<TimerPair> timers;
+-    Sensor* sensor;
++    std::weak_ptr<Sensor> sensor;
+ };
+ 
+ bool parseThresholdsFromConfig(
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index 5592672..ba97ffa 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -60,7 +60,7 @@ ADCSensor::ADCSensor(const std::string& path,
+     std::enable_shared_from_this<ADCSensor>(), objServer(objectServer),
+     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path),
+     scaleFactor(scaleFactor), bridgeGpio(std::move(bridgeGpio)),
+-    thresholdTimer(io, this)
++    thresholdTimer(io, weak_from_this())
+ {
+     sensorInterface = objectServer.add_interface(
+         "/xyz/openbmc_project/sensors/voltage/" + name,
+@@ -99,6 +99,8 @@ ADCSensor::~ADCSensor()
+     // close the input dev to cancel async operations
+     inputDev.close();
+     waitTimer.cancel();
++    // cancel all threshold timers
++    thresholdTimer.stopAll();
+ 
+     objServer.remove_interface(thresholdInterfaceWarning);
+     objServer.remove_interface(thresholdInterfaceCritical);
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 52d2a32..ad08dcf 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -48,7 +48,7 @@ CPUSensor::CPUSensor(const std::string& path, const std::string& objectType,
+     objServer(objectServer), busConn(conn), inputDev(io), waitTimer(io),
+     path(path), privTcontrol(std::numeric_limits<double>::quiet_NaN()),
+     dtsOffset(dtsOffset), show(show), pollTime(CPUSensor::sensorPollMs),
+-    thresholdTimer(io, this)
++    thresholdTimer(io, weak_from_this())
+ {
+     nameTcontrol = labelTcontrol;
+     nameTcontrol += " CPU" + std::to_string(cpuId);
+-- 
+2.17.1
+

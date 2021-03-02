@@ -8,4 +8,7 @@ SRC_URI += " \
             file://0005-Added-suport-for-multiple-user-manager-services.patch \
             file://0006-Use-groupmems-instead-of-getgrnam_r-due-to-overlay.patch \
             file://0007-Treat-pwd-is-not-set-if-no-entry-in-shadow-for-usr.patch \
+            file://0008-Remove-ldap-dependencies.patch \
            "
+
+DEPENDS_remove = "nss-pam-ldapd"

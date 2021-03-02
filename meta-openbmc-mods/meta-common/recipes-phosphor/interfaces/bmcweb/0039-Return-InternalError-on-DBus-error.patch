@@ -1,0 +1,41 @@
+From 1a78cc35251621eec99f092fb39c8bb303681395 Mon Sep 17 00:00:00 2001
+From: Przemyslaw Czarnowski <przemyslaw.hawrylewicz.czarnowski@intel.com>
+Date: Thu, 21 Jan 2021 14:41:15 +0100
+Subject: [PATCH] Return InternalError on DBus error
+
+Fixes returning empty response with 200 return code on GET request on
+Virtual Media resource.
+This happens when eg. dbus is highly occupied. Dbus call return timeout
+error and response is silently dropped.
+This update makes the response for such request more verbose, making
+user aware that something went wrong.
+
+Tested:
+Tested using Multiple_simultaneous_sessions.py. The one used to
+reproduce this problem.
+
+Change-Id: I2c72684a2f4379ef32432895bdf0f412880790f2
+Signed-off-by: Przemyslaw Czarnowski <przemyslaw.hawrylewicz.czarnowski@intel.com>
+---
+ redfish-core/lib/virtual_media.hpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index 5739204..70368eb 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -223,7 +223,10 @@ static void getVmData(std::shared_ptr<AsyncResp> aResp,
+                                ManagedObjectType& subtree) {
+             if (ec)
+             {
+-                BMCWEB_LOG_DEBUG << "DBUS response error";
++                BMCWEB_LOG_ERROR
++                    << "VirtualMedia::GetManagedObjects() D-Bus call error: "
++                    << ec;
++                messages::internalError(aResp->res);
+ 
+                 return;
+             }
+-- 
+2.26.2
+

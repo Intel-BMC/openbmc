@@ -1,0 +1,160 @@
+From patchwork Tue Apr 30 02:53:47 2019
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: Eugeniu Rosca <erosca@de.adit-jv.com>
+X-Patchwork-Id: 1092945
+X-Patchwork-Delegate: xypron.glpk@gmx.de
+Return-Path: <u-boot-bounces@lists.denx.de>
+X-Original-To: incoming@patchwork.ozlabs.org
+Delivered-To: patchwork-incoming@bilbo.ozlabs.org
+Authentication-Results: ozlabs.org;
+	spf=none (mailfrom) smtp.mailfrom=lists.denx.de
+	(client-ip=81.169.180.215; helo=lists.denx.de;
+	envelope-from=u-boot-bounces@lists.denx.de;
+	receiver=<UNKNOWN>)
+Authentication-Results: ozlabs.org; dmarc=none (p=none dis=none)
+	header.from=de.adit-jv.com
+Received: from lists.denx.de (dione.denx.de [81.169.180.215])
+	by ozlabs.org (Postfix) with ESMTP id 44tR5425wgz9s9N
+	for <incoming@patchwork.ozlabs.org>;
+	Tue, 30 Apr 2019 12:56:56 +1000 (AEST)
+Received: by lists.denx.de (Postfix, from userid 105)
+	id 0D1ECC21E13; Tue, 30 Apr 2019 02:55:52 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on lists.denx.de
+X-Spam-Level: 
+X-Spam-Status: No, score=0.0 required=5.0 tests=none autolearn=unavailable
+	autolearn_force=no version=3.4.0
+Received: from lists.denx.de (localhost [IPv6:::1])
+	by lists.denx.de (Postfix) with ESMTP id C6B77C21DFB;
+	Tue, 30 Apr 2019 02:55:49 +0000 (UTC)
+Received: by lists.denx.de (Postfix, from userid 105)
+	id 8E8ADC21DFA; Tue, 30 Apr 2019 02:55:25 +0000 (UTC)
+Received: from smtp1.de.adit-jv.com (smtp1.de.adit-jv.com [93.241.18.167])
+	by lists.denx.de (Postfix) with ESMTPS id A4EF5C21DA1
+	for <u-boot@lists.denx.de>; Tue, 30 Apr 2019 02:55:24 +0000 (UTC)
+Received: from localhost (smtp1.de.adit-jv.com [127.0.0.1])
+	by smtp1.de.adit-jv.com (Postfix) with ESMTP id 838C73C013A;
+	Tue, 30 Apr 2019 04:55:24 +0200 (CEST)
+Received: from smtp1.de.adit-jv.com ([127.0.0.1])
+	by localhost (smtp1.de.adit-jv.com [127.0.0.1]) (amavisd-new,
+	port 10024)
+	with ESMTP id ek0voy46TSnZ; Tue, 30 Apr 2019 04:55:17 +0200 (CEST)
+Received: from HI2EXCH01.adit-jv.com (hi2exch01.adit-jv.com [10.72.92.24])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by smtp1.de.adit-jv.com (Postfix) with ESMTPS id D04A33C00DD;
+	Tue, 30 Apr 2019 04:55:17 +0200 (CEST)
+Received: from vmlxhi-102.adit-jv.com (10.72.93.184) by HI2EXCH01.adit-jv.com
+	(10.72.92.24) with Microsoft SMTP Server (TLS) id 14.3.439.0;
+	Tue, 30 Apr 2019 04:55:17 +0200
+From: Eugeniu Rosca <erosca@de.adit-jv.com>
+To: Lukasz Majewski <lukma@denx.de>, Heinrich Schuchardt <xypron.glpk@gmx.de>,
+	Simon Glass <sjg@chromium.org>, Marek Vasut <marek.vasut@gmail.com>,
+	Stephen Warren <swarren@nvidia.com>, Roman Stratiienko
+	<roman.stratiienko@globallogic.com>, <u-boot@lists.denx.de>
+Date: Tue, 30 Apr 2019 04:53:47 +0200
+Message-ID: <20190430025347.3097-5-erosca@de.adit-jv.com>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190430025347.3097-1-erosca@de.adit-jv.com>
+References: <20190430025347.3097-1-erosca@de.adit-jv.com>
+MIME-Version: 1.0
+X-Originating-IP: [10.72.93.184]
+Cc: Eugeniu Rosca <erosca@de.adit-jv.com>,
+	Eugeniu Rosca <roscaeugeniu@gmail.com>
+Subject: [U-Boot] [PATCH 4/4] lib: uuid: Improve randomness of uuid values
+	on RANDOM_UUID=y
+X-BeenThere: u-boot@lists.denx.de
+X-Mailman-Version: 2.1.18
+Precedence: list
+List-Id: U-Boot discussion <u-boot.lists.denx.de>
+List-Unsubscribe: <https://lists.denx.de/options/u-boot>,
+	<mailto:u-boot-request@lists.denx.de?subject=unsubscribe>
+List-Archive: <http://lists.denx.de/pipermail/u-boot/>
+List-Post: <mailto:u-boot@lists.denx.de>
+List-Help: <mailto:u-boot-request@lists.denx.de?subject=help>
+List-Subscribe: <https://lists.denx.de/listinfo/u-boot>,
+	<mailto:u-boot-request@lists.denx.de?subject=subscribe>
+Errors-To: u-boot-bounces@lists.denx.de
+Sender: "U-Boot" <u-boot-bounces@lists.denx.de>
+
+The random uuid values (enabled via CONFIG_RANDOM_UUID=y) on our
+platform are always the same. Below is consistent on each cold boot:
+
+ => ### interrupt autoboot
+ => env default -a; gpt write mmc 1 $partitions; print uuid_gpt_misc
+ ...
+ uuid_gpt_misc=d117f98e-6f2c-d04b-a5b2-331a19f91cb2
+ => env default -a; gpt write mmc 1 $partitions; print uuid_gpt_misc
+ ...
+ uuid_gpt_misc=ad5ec4b6-2d9f-8544-9417-fe3bd1c9b1b3
+ => env default -a; gpt write mmc 1 $partitions; print uuid_gpt_misc
+ ...
+ uuid_gpt_misc=cceb0b18-39cb-d547-9db7-03b405fa77d4
+ => env default -a; gpt write mmc 1 $partitions; print uuid_gpt_misc
+ ...
+ uuid_gpt_misc=d4981a2b-0478-544e-9607-7fd3c651068d
+ => env default -a; gpt write mmc 1 $partitions; print uuid_gpt_misc
+ ...
+ uuid_gpt_misc=6d6c9a36-e919-264d-a9ee-bd00379686c7
+
+While the uuids do change on every 'gpt write' command, the values
+appear to be taken from the same pool, in the same order.
+
+As a user, I expect a trully random uuid value in the above example.
+Otherwise, system/RFS designers and OS people might assume they have
+a reliable/consistent uuid passed by the bootloader, while the truth
+is U-Boot simply lacks entropy to generate a random string.
+
+In its first attempt [1] to improve the uuid randomness, this patch
+updated the seed based on the output of get_timer(), similar to [2].
+
+There are two problems with this approach:
+ - get_timer() has a poor _ms_ resolution
+ - when gen_rand_uuid() is called in a loop, get_timer() returns the
+   same result, leading to the same seed being passed to srand(),
+   leading to the same uuid being generated for several partitions
+   with different names
+
+This second patch addresses both drawbacks.
+
+My R-Car3 testing [3] consists of running 'gpt write mmc 1 $partitions'
+in a loop for several minutes collecting 8844 randomly generated UUIDS.
+Two consecutive cold boots are concatenated in the log. As a result,
+all uuid values are unique (scripted check).
+
+Thanks to Roman, who reported the issue and provided support in fixing.
+
+[1] https://patchwork.ozlabs.org/patch/1091802/
+[2] commit da384a9d7628 ("net: rename and refactor eth_rand_ethaddr() function")
+[3] https://gist.github.com/erosca/2820be9d554f76b982edd48474d0e7ca
+ => while true; do \
+    env default -a; \
+    gpt write mmc 1 $partitions; \
+    print; done
+
+Reported-by: Roman Stratiienko <roman.stratiienko@globallogic.com>
+Signed-off-by: Eugeniu Rosca <erosca@de.adit-jv.com>
+---
+v2:
+ - Replaced get_timer(0) with get_ticks() and added rand() to seed value
+ - Performed extensive testing on R-Car3 (ARMv8)
+v1:
+ - https://patchwork.ozlabs.org/patch/1091802/
+---
+ lib/uuid.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/lib/uuid.c b/lib/uuid.c
+index fa20ee39fc32..2d4d6ef7e461 100644
+--- a/lib/uuid.c
++++ b/lib/uuid.c
+@@ -238,6 +238,8 @@ void gen_rand_uuid(unsigned char *uuid_bin)
+ 	unsigned int *ptr = (unsigned int *)&uuid;
+ 	int i;
+ 
++	srand(get_ticks() + rand());
++
+ 	/* Set all fields randomly */
+ 	for (i = 0; i < sizeof(struct uuid) / sizeof(*ptr); i++)
+ 		*(ptr + i) = cpu_to_be32(rand());

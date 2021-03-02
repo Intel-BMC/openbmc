@@ -1,0 +1,39 @@
+From dcdfa13b5a5dd43a6e40c0f6091ac6b70f856450 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 4 Jan 2021 13:29:49 -0800
+Subject: [PATCH] Adjust soc modules probing order
+
+This commit moves object adding order for modules under soc to
+adjust module probing order.
+
+Don't updtream it. It should be a downstream patch.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/Makefile | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 297047d4ed9b..854e82d87727 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -38,9 +38,6 @@ obj-y				+= clk/
+ # really early.
+ obj-$(CONFIG_DMADEVICES)	+= dma/
+ 
+-# SOC specific infrastructure drivers.
+-obj-y				+= soc/
+-
+ obj-$(CONFIG_VIRTIO)		+= virtio/
+ obj-$(CONFIG_XEN)		+= xen/
+ 
+@@ -188,3 +185,6 @@ obj-$(CONFIG_INTERCONNECT)	+= interconnect/
+ obj-$(CONFIG_COUNTER)		+= counter/
+ obj-$(CONFIG_PECI)		+= peci/
+ obj-$(CONFIG_JTAG_ASPEED)	+= jtag/
++
++# SOC specific infrastructure drivers.
++obj-y				+= soc/
+-- 
+2.17.1
+

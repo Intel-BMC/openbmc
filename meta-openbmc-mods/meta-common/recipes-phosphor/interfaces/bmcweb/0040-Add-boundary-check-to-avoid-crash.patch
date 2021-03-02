@@ -1,0 +1,58 @@
+From 87542156191bbfbc4f40a62ca4d8e67dc4f7d173 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 22 Jan 2021 13:31:20 +0530
+Subject: [PATCH] Add boundary check to avoid crash
+
+While stressing the firmware updates, its found
+that bmcweb is crashing with below error.
+Jan 06 21:38:40 intel-obmc bmcweb[388]: malloc(): unsorted double linked list corrupted
+Jan 06 21:38:42 intel-obmc systemd[1]: bmcweb.service: Main process exited, code=dumped, status=6/ABRT
+Jan 06 21:38:42 intel-obmc systemd[1]: bmcweb.service: Failed with result 'core-dump'.
+
+Further reviewing code, Its found that this could
+be due to memory usage out of boundary. So change strcpy
+to safe strncpy call. Also added return value check for
+calloc failure.
+
+Tested:
+ - Performed some redfish stress with basic auth.
+ - Performed firmware updates stressing and no issues
+   found afterwards.
+
+Change-Id: I43767ec294c0de08047f4108adbda950bf84007a
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ include/pam_authenticate.hpp | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/include/pam_authenticate.hpp b/include/pam_authenticate.hpp
+index 912093a..12f19c0 100644
+--- a/include/pam_authenticate.hpp
++++ b/include/pam_authenticate.hpp
+@@ -23,17 +23,18 @@ inline int pamFunctionConversation(int numMsg, const struct pam_message** msg,
+         return PAM_AUTH_ERR;
+     }
+ 
+-    std::strcpy(pass, appPass);
++    std::strncpy(pass, appPass, appPassSize + 1);
+ 
+-    *resp = reinterpret_cast<pam_response*>(
+-        calloc(static_cast<size_t>(numMsg), sizeof(struct pam_response)));
+-
+-    if (resp == nullptr)
++    void* ptr =
++        calloc(static_cast<size_t>(numMsg), sizeof(struct pam_response));
++    if (ptr == nullptr)
+     {
+         free(pass);
+         return PAM_AUTH_ERR;
+     }
+ 
++    *resp = reinterpret_cast<pam_response*>(ptr);
++
+     for (int i = 0; i < numMsg; ++i)
+     {
+         /* Ignore all PAM messages except prompting for hidden input */
+-- 
+2.7.4
+

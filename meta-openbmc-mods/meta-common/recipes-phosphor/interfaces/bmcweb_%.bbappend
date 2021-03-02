@@ -53,6 +53,9 @@ SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
             file://0036-fix-bmcweb-crash-during-sol-communication.patch \
             file://0037-Use-non-throw-version-of-remote_endpoint.patch \
             file://0038-Change-Severity-for-ServiceFailure-redfish-event.patch \
+            file://0039-Return-InternalError-on-DBus-error.patch \
+            file://0040-Add-boundary-check-to-avoid-crash.patch \
+            file://0041-Revamp-Redfish-Event-Log-Unique-ID-Generation.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details

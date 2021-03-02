@@ -27,3 +27,5 @@ PREFERRED_PROVIDER_virtual/phosphor-led-manager-config-native ?= "intel-led-mana
 
 # add all the upstream intel override fixes
 OVERRIDES .= ":intel"
+DISTRO_FEATURES_remove = "ldap"
+DISTRO_FEATURES_DEFAULT_remove = "ldap"

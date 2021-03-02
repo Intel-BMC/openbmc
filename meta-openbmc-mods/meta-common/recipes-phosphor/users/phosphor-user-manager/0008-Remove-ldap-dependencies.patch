@@ -1,0 +1,29 @@
+From d6051890ba56327e1bc56cc7b02ad0ae5a44010c Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Fri, 8 Jan 2021 16:46:38 +0530
+Subject: [PATCH] Remove ldap dependencies
+
+The Makfile of phosphor-user-manager includes
+phosphor-ldap-config and phosphor-ldap-mapper to be built.
+Removing these Makefile path, as we do not use ldap.
+
+Change-Id: I649ece9b3105d28cf98d4e5bb1595b5cf6557f5d
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ Makefile.am | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile.am b/Makefile.am
+index 58916b0..4a0ee31 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -23,5 +23,5 @@ phosphor_user_manager_CXXFLAGS = $(SYSTEMD_CFLAGS) \
+                                  -DBOOST_SYSTEM_NO_DEPRECATED \
+                                  -DBOOST_ERROR_CODE_HEADER_ONLY
+ 
+-SUBDIRS = . phosphor-ldap-mapper phosphor-ldap-config test
++SUBDIRS = . test
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,225 @@
+From 1c557e1d8bee8f66d97037b0dc8ae392c6ec45d3 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Fri, 22 Jan 2021 17:00:21 +0530
+Subject: [PATCH] Revamp Redfish Event Log Unique ID Generation
+
+The unique ID for Redfish log events was generated using
+the Timestamp of the log until seconds. This commit
+allows the use of microseconds as well to create unique
+Redfish Log ID, thereby improving the uniqueness of each
+Log event ID
+
+Tested:
+- GET of /redfish/v1/Systems/system/LogServices/EventLog/Entries
+  produces unique LogEvent Id's
+- Verified Event ID's on Event listener.
+- Redfish validator passed
+
+Change-Id: Ie2046a8ee7f9e7f6f14b05071b18a291c4313370
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ .../include/event_service_manager.hpp         | 40 +++++-------
+ redfish-core/lib/log_services.hpp             | 63 ++++++-------------
+ 2 files changed, 35 insertions(+), 68 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index afbf799..470636f 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -142,38 +142,32 @@ static const Message* formatMessage(const std::string_view& messageID)
+ 
+ namespace event_log
+ {
+-bool getUniqueEntryID(const std::string& logEntry, std::string& entryID,
+-                      const bool firstEntry = true)
++bool getUniqueEntryID(const std::string& logEntry, std::string& entryID)
+ {
+-    static time_t prevTs = 0;
+-    static int index = 0;
+-    if (firstEntry)
+-    {
+-        prevTs = 0;
+-    }
+-
+     // Get the entry timestamp
+-    std::time_t curTs = 0;
+     std::tm timeStruct = {};
+     std::istringstream entryStream(logEntry);
+     if (entryStream >> std::get_time(&timeStruct, "%Y-%m-%dT%H:%M:%S"))
+     {
+-        curTs = std::mktime(&timeStruct);
+-        if (curTs == -1)
++        time_t seconds = std::mktime(&timeStruct);
++        if (seconds == -1)
+         {
+             return false;
+         }
+-    }
+-    // If the timestamp isn't unique, increment the index
+-    index = (curTs == prevTs) ? index + 1 : 0;
+-
+-    // Save the timestamp
+-    prevTs = curTs;
+ 
+-    entryID = std::to_string(curTs);
+-    if (index > 0)
++        size_t dot = logEntry.find_first_of(".");
++        if (dot == std::string::npos)
++        {
++            return false;
++        }
++        // 2015-10-24T06:54:38.383093 => 6 digits for microseconds
++        std::string microSec = logEntry.substr((dot + 1), 6);
++        entryID = std::to_string(seconds) + "_";
++        entryID += microSec;
++    }
++    else
+     {
+-        entryID += "_" + std::to_string(index);
++        return false;
+     }
+     return true;
+ }
+@@ -1131,7 +1125,6 @@ class EventServiceManager
+         std::vector<EventLogObjectsType> eventRecords;
+ 
+         bool startLogCollection = false;
+-        bool firstEntry = true;
+ 
+         std::string logEntry;
+         while (std::getline(logStream, logEntry))
+@@ -1146,11 +1139,10 @@ class EventServiceManager
+             }
+ 
+             std::string idStr;
+-            if (!event_log::getUniqueEntryID(logEntry, idStr, firstEntry))
++            if (!event_log::getUniqueEntryID(logEntry, idStr))
+             {
+                 continue;
+             }
+-            firstEntry = false;
+ 
+             std::string timestamp;
+             std::string messageID;
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index e6a9022..ee064ce 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -306,41 +306,32 @@ static bool getUniqueEntryID(sd_journal* journal, std::string& entryID,
+     return true;
+ }
+ 
+-static bool getUniqueEntryID(const std::string& logEntry, std::string& entryID,
+-                             const bool firstEntry = true)
++static bool getUniqueEntryID(const std::string& logEntry, std::string& entryID)
+ {
+-    static time_t prevTs = 0;
+-    static int index = 0;
+-    if (firstEntry)
+-    {
+-        prevTs = 0;
+-    }
+-
+     // Get the entry timestamp
+-    std::time_t curTs = 0;
+     std::tm timeStruct = {};
+     std::istringstream entryStream(logEntry);
+     if (entryStream >> std::get_time(&timeStruct, "%Y-%m-%dT%H:%M:%S"))
+     {
+-        curTs = std::mktime(&timeStruct);
+-    }
+-    // If the timestamp isn't unique, increment the index
+-    if (curTs == prevTs)
+-    {
+-        index++;
++        time_t seconds = std::mktime(&timeStruct);
++        if (seconds == -1)
++        {
++            return false;
++        }
++
++        size_t dot = logEntry.find_first_of(".");
++        if (dot == std::string::npos)
++        {
++            return false;
++        }
++        // 2015-10-24T06:54:38.383093 => 6 digits for microseconds
++        std::string microSec = logEntry.substr((dot + 1), 6);
++        entryID = std::to_string(seconds) + "_";
++        entryID += microSec;
+     }
+     else
+     {
+-        // Otherwise, reset it
+-        index = 0;
+-    }
+-    // Save the timestamp
+-    prevTs = curTs;
+-
+-    entryID = std::to_string(curTs);
+-    if (index > 0)
+-    {
+-        entryID += "_" + std::to_string(index);
++        return false;
+     }
+     return true;
+ }
+@@ -1265,9 +1256,6 @@ class JournalEventLogEntryCollection : public Node
+         uint64_t entryCount = 0;
+         std::string logEntry;
+ 
+-        // Reset the unique ID on the first entry
+-        bool firstEntry = true;
+-
+         // Oldest logs are in the last file, so start there and loop backwards
+         for (auto it = redfishLogFiles.rbegin(); it < redfishLogFiles.rend();
+              it++)
+@@ -1289,16 +1277,11 @@ class JournalEventLogEntryCollection : public Node
+                 }
+ 
+                 std::string idStr;
+-                if (!getUniqueEntryID(logEntry, idStr, firstEntry))
++                if (!getUniqueEntryID(logEntry, idStr))
+                 {
+                     continue;
+                 }
+ 
+-                if (firstEntry)
+-                {
+-                    firstEntry = false;
+-                }
+-
+                 logEntryArray.push_back({});
+                 nlohmann::json& bmcLogEntry = logEntryArray.back();
+                 if (fillEventLogEntryJson(idStr, logEntry, bmcLogEntry) != 0)
+@@ -1354,9 +1337,6 @@ class JournalEventLogEntry : public Node
+         getRedfishLogFiles(redfishLogFiles);
+         std::string logEntry;
+ 
+-        // Reset the unique ID on the first entry
+-        bool firstEntry = true;
+-
+         // Oldest logs are in the last file, so start there and loop backwards
+         for (auto it = redfishLogFiles.rbegin(); it < redfishLogFiles.rend();
+              it++)
+@@ -1370,16 +1350,11 @@ class JournalEventLogEntry : public Node
+             while (std::getline(logStream, logEntry))
+             {
+                 std::string idStr;
+-                if (!getUniqueEntryID(logEntry, idStr, firstEntry))
++                if (!getUniqueEntryID(logEntry, idStr))
+                 {
+                     continue;
+                 }
+ 
+-                if (firstEntry)
+-                {
+-                    firstEntry = false;
+-                }
+-
+                 if (idStr == targetID)
+                 {
+                     if (fillEventLogEntryJson(idStr, logEntry,
+-- 
+2.17.1
+
