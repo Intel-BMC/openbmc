@@ -1,4 +1,4 @@
-From d9c89943d7b0aa00ee99b7c11278ac272a47a790 Mon Sep 17 00:00:00 2001
+From cfb5e13388531e1317eeb3ccf0f8eef0c6eeca60 Mon Sep 17 00:00:00 2001
 From: Ren Yu <yux.ren@intel.com>
 Date: Tue, 28 May 2019 17:11:17 +0800
 Subject: [PATCH] Save the pre-timeout interrupt in dbus property
@@ -16,24 +16,24 @@ https://BMCIP/redfish/v1/Systems/system/LogServices/EventLog/Entries
 
 Signed-off-by: Ren Yu <yux.ren@intel.com>
 ---
- app/watchdog.cpp         | 47 +++++++++++++++++++++++++++++++++++++++++++++++
- app/watchdog_service.cpp |  6 ++++++
- app/watchdog_service.hpp |  9 +++++++++
+ app/watchdog.cpp         | 47 ++++++++++++++++++++++++++++++++++++++++
+ app/watchdog_service.cpp |  6 +++++
+ app/watchdog_service.hpp |  9 ++++++++
  3 files changed, 62 insertions(+)
 
 diff --git a/app/watchdog.cpp b/app/watchdog.cpp
-index 2ffaae3..e9b7a9c 100644
+index 03c373e..cb0b1fd 100644
 --- a/app/watchdog.cpp
 +++ b/app/watchdog.cpp
-@@ -81,6 +81,7 @@ ipmi::RspType<> ipmiAppResetWatchdogTimer()
+@@ -80,6 +80,7 @@ ipmi::RspType<> ipmiAppResetWatchdogTimer()
  
  static constexpr uint8_t wd_dont_stop = 0x1 << 6;
  static constexpr uint8_t wd_timeout_action_mask = 0x3;
 +static constexpr uint8_t wdPreTimeoutInterruptMask = 0x3;
  
- static constexpr uint8_t wdTimerUseMask = 0x7;
  static constexpr uint8_t wdTimerUseResTimer1 = 0x0;
-@@ -130,6 +131,45 @@ WatchdogService::Action ipmiActionToWdAction(IpmiAction ipmi_action)
+ static constexpr uint8_t wdTimerUseResTimer2 = 0x6;
+@@ -127,6 +128,45 @@ WatchdogService::Action ipmiActionToWdAction(IpmiAction ipmi_action)
      }
  }
  
@@ -79,7 +79,7 @@ index 2ffaae3..e9b7a9c 100644
  enum class IpmiTimerUse : uint8_t
  {
      Reserved = 0x0,
-@@ -257,6 +297,13 @@ ipmi_ret_t ipmi_app_watchdog_set(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+@@ -250,6 +290,13 @@ ipmi::RspType<>
          // Mark as initialized so that future resets behave correctly
          wd_service.setInitialized(true);
  
@@ -91,15 +91,15 @@ index 2ffaae3..e9b7a9c 100644
 +            ipmiPreTimeoutInterruptToWdAction(ipmiPreTimeoutInterrupt));
 +
          lastCallSuccessful = true;
-         return IPMI_CC_OK;
+         return ipmi::responseSuccess();
      }
 diff --git a/app/watchdog_service.cpp b/app/watchdog_service.cpp
-index 77663b4..0c4ea28 100644
+index 3534e89..4df1ab6 100644
 --- a/app/watchdog_service.cpp
 +++ b/app/watchdog_service.cpp
-@@ -203,3 +203,9 @@ void WatchdogService::setTimeRemaining(uint64_t timeRemaining)
+@@ -198,3 +198,9 @@ void WatchdogService::setInterval(uint64_t interval)
  {
-     setProperty("TimeRemaining", timeRemaining);
+     setProperty("Interval", interval);
  }
 +
 +void WatchdogService::setPreTimeoutInterrupt(
@@ -109,7 +109,7 @@ index 77663b4..0c4ea28 100644
 +}
 \ No newline at end of file
 diff --git a/app/watchdog_service.hpp b/app/watchdog_service.hpp
-index ed64a3c..b550f37 100644
+index 141bdb7..32b7461 100644
 --- a/app/watchdog_service.hpp
 +++ b/app/watchdog_service.hpp
 @@ -15,6 +15,8 @@ class WatchdogService
@@ -121,9 +121,9 @@ index ed64a3c..b550f37 100644
      using TimerUse =
          sdbusplus::xyz::openbmc_project::State::server::Watchdog::TimerUse;
  
-@@ -99,6 +101,13 @@ class WatchdogService
+@@ -92,6 +94,13 @@ class WatchdogService
       */
-     void setTimeRemaining(uint64_t timeRemaining);
+     void setInterval(uint64_t interval);
  
 +    /** @brief Sets the value of the PreTimeoutInterrupt property on the host
 +     * watchdog
@@ -136,5 +136,5 @@ index ed64a3c..b550f37 100644
      /** @brief sdbusplus handle */
      sdbusplus::bus::bus bus;
 -- 
-2.7.4
+2.17.1
 

@@ -1,4 +1,4 @@
-From 01a5c12e350c04f8ed94c7e49a6030a4699eac6e Mon Sep 17 00:00:00 2001
+From a76314cd29f5cbcf19142b7120c5bf83358910fd Mon Sep 17 00:00:00 2001
 From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 Date: Mon, 28 Dec 2020 18:55:57 +0000
 Subject: [PATCH] managers: add attributes for Manager.CommandShell

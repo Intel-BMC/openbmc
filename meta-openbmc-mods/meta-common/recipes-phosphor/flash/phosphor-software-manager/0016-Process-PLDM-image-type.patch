@@ -1,4 +1,4 @@
-From aaebe1c3db71b7addbd3f1d1b2b5f83d7cba14e3 Mon Sep 17 00:00:00 2001
+From a78b7a609f58ac82623c357426ef0590d6d76971 Mon Sep 17 00:00:00 2001
 From: Ayushi Smriti <smriti.ayushi@intel.com>
 Date: Mon, 9 Nov 2020 23:04:58 +0530
 Subject: [PATCH] Process PLDM image type
@@ -24,15 +24,15 @@ intf got added.
 
 Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
 ---
- item_updater.cpp      |  1 +
+ item_updater.cpp      |  4 +-
  pfr_image_manager.cpp | 95 +++++++++++++++++++++++++++++++++++++++++--
  pfr_image_manager.hpp |  6 +--
  pldm.hpp              | 21 ++++++++++
- 4 files changed, 117 insertions(+), 6 deletions(-)
+ 4 files changed, 119 insertions(+), 7 deletions(-)
  create mode 100644 pldm.hpp
 
 diff --git a/item_updater.cpp b/item_updater.cpp
-index db255d6..2ed2a3c 100644
+index db255d6..7af80e3 100644
 --- a/item_updater.cpp
 +++ b/item_updater.cpp
 @@ -67,6 +67,7 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
@@ -43,6 +43,16 @@ index db255d6..2ed2a3c 100644
                          value == VersionPurpose::Other)
                      {
                          purpose = value;
+@@ -397,7 +398,8 @@ void ItemUpdater::deleteAll()
+ }
+ 
+ ItemUpdater::ActivationStatus
+-    ItemUpdater::validateSquashFSImage(const std::string& filePath)
++    ItemUpdater::validateSquashFSImage(__attribute__((unused))
++                                       const std::string& filePath)
+ {
+ #ifndef PFR_UPDATE
+     bool valid = true;
 diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
 index 178367f..c923494 100644
 --- a/pfr_image_manager.cpp

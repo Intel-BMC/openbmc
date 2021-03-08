@@ -1,0 +1,108 @@
+From 2516d67f8bb5ecd241b8dcdec3f8c58d0e3c4744 Mon Sep 17 00:00:00 2001
+From: Wojciech Dembinski <wojciech.dembinski@intel.com>
+Date: Mon, 7 Dec 2020 19:23:10 +0100
+Subject: [PATCH] Add check for min/max received from hwmon files
+
+When hwmon reports incorrect min/max values or CPU Sensor cannot access
+readings, it shall keep the last known good readings and not update
+DBus with incorrect values.
+This patch adds min < max verification check for the values received
+from hwmon and removes check for power on/off in the case of a read
+failure.
+
+Tested manually on a physical platform, test cases cover incorrect
+max/min values and failing access to hwmon files.
+SDR over IPMI can be fully received in the case of error.
+
+Signed-off-by: Wojciech Dembinski <wojciech.dembinski@intel.com>
+Change-Id: Ia061f849b0f434812f822ed1902c8964d4c64b45
+---
+ src/CPUSensor.cpp | 50 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 26 insertions(+), 24 deletions(-)
+
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 2356821..01f5eb6 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -1,5 +1,5 @@
+ /*
+-// Copyright (c) 2018 Intel Corporation
++// Copyright (c) 2018-2021 Intel Corporation
+ //
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+@@ -146,19 +146,22 @@ void CPUSensor::setupRead(void)
+ 
+ void CPUSensor::updateMinMaxValues(void)
+ {
++    double newMin = std::numeric_limits<double>::quiet_NaN();
++    double newMax = std::numeric_limits<double>::quiet_NaN();
++
+     const boost::container::flat_map<
+         std::string,
+         std::vector<std::tuple<const char*, std::reference_wrapper<double>,
+-                               const char*>>>
+-        map = {
++                               const char*, std::reference_wrapper<double>>>>
++    map = {
++        {
++            "cap",
+             {
+-                "cap",
+-                {
+-                    std::make_tuple("cap_max", std::ref(maxValue), "MaxValue"),
+-                    std::make_tuple("cap_min", std::ref(minValue), "MinValue"),
+-                },
++                std::make_tuple("cap_max", std::ref(maxValue), "MaxValue", std::ref(newMax)),
++                std::make_tuple("cap_min", std::ref(minValue), "MinValue", std::ref(newMin)),
+             },
+-        };
++        },
++    };
+ 
+     if (auto fileParts = splitFileName(path))
+     {
+@@ -168,26 +171,25 @@ void CPUSensor::updateMinMaxValues(void)
+         {
+             for (const auto& vectorItem : mapIt->second)
+             {
+-                auto& [suffix, oldValue, dbusName] = vectorItem;
++                auto& [suffix, oldValue, dbusName, newValue] = vectorItem;
+                 auto attrPath = boost::replace_all_copy(path, fileItem, suffix);
+-                if (auto newVal =
+-                        readFile(attrPath, CPUSensor::sensorScaleFactor))
++
++                if(auto tmp = readFile(attrPath, CPUSensor::sensorScaleFactor))
+                 {
+-                    updateProperty(sensorInterface, oldValue, *newVal,
+-                                   dbusName);
++                    newValue.get() = *tmp;
+                 }
+                 else
+                 {
+-                    if (isPowerOn())
+-                    {
+-                        updateProperty(sensorInterface, oldValue, 0, dbusName);
+-                    }
+-                    else
+-                    {
+-                        updateProperty(sensorInterface, oldValue,
+-                                       std::numeric_limits<double>::quiet_NaN(),
+-                                       dbusName);
+-                    }
++                    newValue.get() = std::numeric_limits<double>::quiet_NaN();
++                }
++            }
++
++            if(std::isfinite(newMin) && std::isfinite(newMax) && (newMin < newMax))
++            {
++                for (const auto& vectorItem : mapIt->second)
++                {
++                    auto& [suffix, oldValue, dbusName, newValue] = vectorItem;
++                    updateProperty(sensorInterface, oldValue, newValue, dbusName);
+                 }
+             }
+         }
+-- 
+2.17.1
+

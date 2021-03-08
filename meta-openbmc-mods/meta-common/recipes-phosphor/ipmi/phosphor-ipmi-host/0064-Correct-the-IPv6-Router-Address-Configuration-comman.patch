@@ -1,0 +1,120 @@
+From 4d7c0f704df21912fa447caca4dbba246d1b80f6 Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Tue, 26 Jan 2021 14:24:53 -0800
+Subject: [PATCH] Correct the IPv6 Router Address Configuration command
+
+The IPv6 Router Address Configuration Get/Set LAN command was not
+reporting or modifying the correct portion of the networking
+system. This command is intended to configure the Routing
+Advertisement feature of IPv6. It is not a direct reflection of the
+DHCP state.
+
+Systemd-networkd manages the Routing Advertisement via the
+IPv6AcceptRA parameter, which according to the networkd documentaion,
+enables/disables IPv6 DHCP functionality.
+
+Tested:
+Issued "ipmitool raw 12 2 3 64 0 0" and was able to read the current
+state of the IPv6AcceptRA variable.
+Issued "ipmitool raw 12 1 3 64 2" and saw the configuration file for
+the channel change, and the addition of a new IPv6 address to the
+network device.
+Issued "ipmitool raw 12 1 3 64 0" and saw that configuration file for
+the channel change, and the removal of the IPv6 address from the
+network device.
+
+Change-Id: Id01441f88ccc9d56449ab8115f4855de74e80cfc
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ transporthandler.cpp | 61 ++++++++++++++++++++++++--------------------
+ 1 file changed, 34 insertions(+), 27 deletions(-)
+
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index b81e0d5..50343c7 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -1260,6 +1260,35 @@ SetStatus& getSetStatus(uint8_t channel)
+     return setStatus[channel] = SetStatus::Complete;
+ }
+ 
++/** @brief Gets the IPv6 Router Advertisement value
++ *
++ *  @param[in] bus    - The bus object used for lookups
++ *  @param[in] params - The parameters for the channel
++ *  @return networkd IPV6AcceptRA value
++ */
++static bool getIPv6AcceptRA(sdbusplus::bus::bus& bus,
++                            const ChannelParams& params)
++{
++    auto raEnabled =
++        std::get<bool>(getDbusProperty(bus, params.service, params.logicalPath,
++                                       INTF_ETHERNET, "IPv6AcceptRA"));
++    return raEnabled;
++}
++
++/** @brief Sets the IPv6AcceptRA flag
++ *
++ *  @param[in] bus           - The bus object used for lookups
++ *  @param[in] params        - The parameters for the channel
++ *  @param[in] ipv6AcceptRA  - boolean to enable/disable IPv6 Routing
++ *                             Advertisement
++ */
++void setIPv6AcceptRA(sdbusplus::bus::bus& bus, const ChannelParams& params,
++                     const bool ipv6AcceptRA)
++{
++    setDbusProperty(bus, params.service, params.logicalPath, INTF_ETHERNET,
++                    "IPv6AcceptRA", ipv6AcceptRA);
++}
++
+ /**
+  * Define placeholder command handlers for the OEM Extension bytes for the Set
+  * LAN Configuration Parameters and Get LAN Configuration Parameters
+@@ -1629,22 +1658,8 @@ RspType<> setLan(Context::ptr ctx, uint4_t channelBits, uint4_t reserved1,
+             {
+                 return responseReqDataLenInvalid();
+             }
+-            std::bitset<8> expected;
+-            EthernetInterface::DHCPConf dhcp =
+-                channelCall<getDHCPProperty>(channel);
+-            if ((dhcp == EthernetInterface::DHCPConf::both) |
+-                (dhcp == EthernetInterface::DHCPConf::v6))
+-            {
+-                expected[IPv6RouterControlFlag::Dynamic] = 1;
+-            }
+-            else
+-            {
+-                expected[IPv6RouterControlFlag::Static] = 1;
+-            }
+-            if (expected != control)
+-            {
+-                return responseInvalidFieldRequest();
+-            }
++            bool enableRA = control[IPv6RouterControlFlag::Dynamic];
++            channelCall<setIPv6AcceptRA>(channel, enableRA);
+             return responseSuccess();
+         }
+         case LanParam::IPv6StaticRouter1IP:
+@@ -1948,17 +1963,9 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
+         case LanParam::IPv6RouterControl:
+         {
+             std::bitset<8> control;
+-            EthernetInterface::DHCPConf dhcp =
+-                channelCall<getDHCPProperty>(channel);
+-            if ((dhcp == EthernetInterface::DHCPConf::both) ||
+-                (dhcp == EthernetInterface::DHCPConf::v6))
+-            {
+-                control[IPv6RouterControlFlag::Dynamic] = 1;
+-            }
+-            else
+-            {
+-                control[IPv6RouterControlFlag::Static] = 1;
+-            }
++            control[IPv6RouterControlFlag::Dynamic] =
++                channelCall<getIPv6AcceptRA>(channel);
++            control[IPv6RouterControlFlag::Static] = 0;
+             ret.pack(control);
+             return responseSuccess(std::move(ret));
+         }
+-- 
+2.26.2
+

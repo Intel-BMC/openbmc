@@ -1,4 +1,4 @@
-From ad93a6e17310d92ef07b8d367b23c93793562d0f Mon Sep 17 00:00:00 2001
+From 58771a22dfcaa1e67bcf4fc0bd2ce0aa28c67e3f Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@linux.intel.com>
 Date: Wed, 23 Jan 2019 17:02:40 +0800
 Subject: [PATCH] Fix keep looping issue when entering OS
@@ -16,11 +16,11 @@ normally without keep sending READ EVENT MESSAGE BUFFER command.
     After power on system, enter EFI SHELL, check cmdtool.efi can work
 correctly through KCS channel.
 ---
- host-cmd-manager.cpp | 24 ++++++++++++++++++------
- 1 file changed, 18 insertions(+), 6 deletions(-)
+ host-cmd-manager.cpp | 33 ++++++++++++++++++++++++---------
+ 1 file changed, 24 insertions(+), 9 deletions(-)
 
 diff --git a/host-cmd-manager.cpp b/host-cmd-manager.cpp
-index f3aba7f..465eb81 100644
+index e52c9bb..b3a5d71 100644
 --- a/host-cmd-manager.cpp
 +++ b/host-cmd-manager.cpp
 @@ -23,6 +23,8 @@ namespace command
@@ -85,5 +85,5 @@ index f3aba7f..465eb81 100644
              log<level::ERR>("Error in setting SMS attention");
              elog<InternalFailure>();
 -- 
-2.7.4
+2.17.1
 

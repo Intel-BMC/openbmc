@@ -1,12 +1,12 @@
 # LAYER_CONF_VERSION is increased each time build/conf/bblayers.conf
 # changes incompatibly
-LCONF_VERSION = "12"
+LCONF_VERSION = "13"
 
 BBPATH = "${TOPDIR}"
 BBFILES ?= ""
 
-# meta-intel has a config file that needs to be overridden
-BBMASK = "/meta-intel/meta-common/recipes-phosphor/ipmi/phosphor-ipmi-ipmb"
+# meta-intel-openbmc has a config file that needs to be overridden
+BBMASK = "/meta-intel-openbmc/meta-common/recipes-phosphor/ipmi/phosphor-ipmi-ipmb"
 
 BBLAYERS ?= " \
   ##OEROOT##/meta \
@@ -19,7 +19,7 @@ BBLAYERS ?= " \
   ##OEROOT##/meta-aspeed \
   ##OEROOT##/meta-x86 \
   ##OEROOT##/meta-openbmc-mods \
-  ##OEROOT##/meta-intel \
+  ##OEROOT##/meta-intel-openbmc \
   ##OEROOT##/meta-openbmc-mods/meta-common \
   ##OEROOT##/meta-openbmc-mods/meta-common-small \
   ##OEROOT##/meta-openbmc-mods/meta-ast2500 \

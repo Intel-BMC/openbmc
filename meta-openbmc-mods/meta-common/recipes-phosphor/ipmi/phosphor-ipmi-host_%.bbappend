@@ -4,11 +4,11 @@ PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0010-fix-get-system-GUID-ipmi-command.patch \
             file://0053-Fix-keep-looping-issue-when-entering-OS.patch \
-            file://0056-add-SetInProgress-to-get-set-boot-option-cmd.patch \
             file://0059-Move-Set-SOL-config-parameter-to-host-ipmid.patch \
             file://0060-Move-Get-SOL-config-parameter-to-host-ipmid.patch \
             file://0062-Update-IPMI-Chassis-Control-command.patch \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
+            file://0064-Correct-the-IPv6-Router-Address-Configuration-comman.patch \
             "
 
 EXTRA_OECONF_append = " --disable-i2c-whitelist-check"

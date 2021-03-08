@@ -1,11 +1,13 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "6736d4b2a77cec00a8919f26035176c8b8025a4d"
+SRCREV = "a3e8f2a391f389ffb2c379ca0c181e67de43824e"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 SRC_URI += "\
     file://intrusionsensor-depend-on-networkd.conf \
+    file://0001-Add-check-for-min-max-received-from-hwmon-files.patch \
+    file://0002-Fix-PECI-client-creation-flow.patch \
     "
 
 DEPENDS_append = " libgpiod libmctp"

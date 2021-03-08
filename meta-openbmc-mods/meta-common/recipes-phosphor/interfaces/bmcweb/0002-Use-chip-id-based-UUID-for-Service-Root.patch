@@ -1,7 +1,7 @@
-From c61ac0a5cf825193f46c734f1db2f92a72d1f3c9 Mon Sep 17 00:00:00 2001
+From 034920eca21bc25899565484928ee72025e21ff8 Mon Sep 17 00:00:00 2001
 From: Wiktor Golgowski <wiktor.golgowski@linux.intel.com>
 Date: Thu, 30 Apr 2020 11:09:35 +0200
-Subject: [PATCH 02/10] Use chip id-based UUID for Service Root.
+Subject: [PATCH] Use chip id-based UUID for Service Root.
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -70,5 +70,5 @@ index 24f7afd..8826b06 100644
          if (fileRevision < jsonRevision)
          {
 -- 
-2.16.6
+2.17.1
 

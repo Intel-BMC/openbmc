@@ -1,7 +1,7 @@
-From 0784af276b72e5df9c545d83bc989833ac2935c4 Mon Sep 17 00:00:00 2001
+From 433358330c7f7d2fba99f6e488d67b314224317f Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 18 May 2020 11:56:57 +0200
-Subject: [PATCH 2/4] Add POST and DELETE in MetricReportDefinitions
+Subject: [PATCH] Add POST and DELETE in MetricReportDefinitions
 
 Added POST action in MetricReportDefinitions node to allow user
 to add new MetricReportDefinition. Using minimal set of
@@ -24,9 +24,9 @@ Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Change-Id: I2fed96848594451e22fde686f8c066d7770cc65a
 ---
- redfish-core/include/utils/telemetry_utils.hpp |   5 +-
- redfish-core/include/utils/time_utils.hpp      | 145 +++++++++-
- redfish-core/lib/metric_report_definition.hpp  | 382 ++++++++++++++++++++++++-
+ .../include/utils/telemetry_utils.hpp         |   5 +-
+ redfish-core/include/utils/time_utils.hpp     | 145 ++++++-
+ redfish-core/lib/metric_report_definition.hpp | 382 +++++++++++++++++-
  3 files changed, 516 insertions(+), 16 deletions(-)
 
 diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
@@ -679,5 +679,5 @@ index 48c56e6..d5a540d 100644
          "#MetricReportDefinition.v1_3_0.MetricReportDefinition";
  };
 -- 
-2.16.6
+2.17.1
 

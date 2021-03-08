@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "f16f62633a64f386fd0382703ff0949ea177f457"
+SRCREV = "a90daf182891521fcc7c3e99ba266e6a55d4b4dd"
 
 DEPENDS += "boost-url"
 RDEPENDS_${PN} += "phosphor-nslcd-authority-cert-config"
@@ -22,6 +22,7 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0009-Add-support-to-ChangePassword-action.patch \
             file://0010-managers-add-attributes-for-Manager.CommandShell.patch \
             file://0034-recommended-fixes-by-crypto-review-team.patch \
+            file://0036-Fix-wrong-check-in-EventService-events.patch \
 "
 
 

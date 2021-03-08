@@ -1,7 +1,7 @@
-From 5b775e33221638a34c4aad0e2edeffc447d50fab Mon Sep 17 00:00:00 2001
+From b6286fe6800ca402b013e57429025fd9e4d65cab Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Fri, 4 Dec 2020 14:48:41 +0100
-Subject: [PATCH 4/4] Sync Telmetry service with EventService
+Subject: [PATCH] Sync Telmetry service with EventService
 
 Now assembling MetricReport is done properly and is
 covered in one place - MetricReport node.
@@ -16,12 +16,12 @@ Tested:
 Change-Id: I2fc1841a6c9259a8bff30b34bddc0d4aabd41912
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 ---
- redfish-core/include/event_service_manager.hpp | 156 +++++++++----------------
- redfish-core/lib/metric_report.hpp             |  35 +++---
+ .../include/event_service_manager.hpp         | 156 ++++++------------
+ redfish-core/lib/metric_report.hpp            |  35 ++--
  2 files changed, 74 insertions(+), 117 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 54dafb4..1cdb9a6 100644
+index f68ae1d..893a813 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -14,6 +14,7 @@
@@ -326,5 +326,5 @@ index 050304c..c2013cc 100644
  
      static constexpr const char* schemaType =
 -- 
-2.16.6
+2.17.1
 

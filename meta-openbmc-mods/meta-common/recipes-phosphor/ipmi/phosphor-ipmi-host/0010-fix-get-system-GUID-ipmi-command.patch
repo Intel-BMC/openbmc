@@ -1,4 +1,4 @@
-From c1925ab965271875d4e9333be85cdfe8e1516948 Mon Sep 17 00:00:00 2001
+From f18efe239cb4bbfd6996f753ae694f81041d8d43 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Fri, 14 Feb 2020 13:13:06 -0800
 Subject: [PATCH] Fix 'Get System GUID' to use settings UUID
@@ -15,10 +15,10 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
  1 file changed, 1 insertion(+), 3 deletions(-)
 
 diff --git a/apphandler.cpp b/apphandler.cpp
-index dcfda11..780afbc 100644
+index 90818a9..dcf2c86 100644
 --- a/apphandler.cpp
 +++ b/apphandler.cpp
-@@ -784,8 +784,6 @@ auto ipmiAppGetBtCapabilities()
+@@ -788,8 +788,6 @@ auto ipmiAppGetBtCapabilities()
  
  auto ipmiAppGetSystemGuid() -> ipmi::RspType<std::array<uint8_t, 16>>
  {
@@ -27,7 +27,7 @@ index dcfda11..780afbc 100644
      static constexpr auto uuidInterface = "xyz.openbmc_project.Common.UUID";
      static constexpr auto uuidProperty = "UUID";
  
-@@ -794,7 +792,7 @@ auto ipmiAppGetSystemGuid() -> ipmi::RspType<std::array<uint8_t, 16>>
+@@ -798,7 +796,7 @@ auto ipmiAppGetSystemGuid() -> ipmi::RspType<std::array<uint8_t, 16>>
      {
          // Get the Inventory object implementing BMC interface
          auto busPtr = getSdBus();

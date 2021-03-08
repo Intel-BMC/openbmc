@@ -1,7 +1,7 @@
-From d0e4130b2d1e0e44efc8fd6e180487853625edd6 Mon Sep 17 00:00:00 2001
+From d7909c8924cf3619bffd52e5f352f175c1cf5033 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@intel.com>
 Date: Mon, 17 Aug 2020 15:52:22 -0700
-Subject: [PATCH] Add a workaround for spurious CPU errors
+Subject: [PATCH 2/2] Add a workaround for spurious CPU errors
 
 There is a possible issue where GPIO event interrupts are getting
 missed causing false errors to be logged.
@@ -20,10 +20,10 @@ Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
  1 file changed, 77 insertions(+)
 
 diff --git a/src/host_error_monitor.cpp b/src/host_error_monitor.cpp
-index ca089f70d..fd453ccdc 100644
+index 77d065fa3..d026ab90d 100644
 --- a/src/host_error_monitor.cpp
 +++ b/src/host_error_monitor.cpp
-@@ -797,6 +797,18 @@ static void caterrAssertHandler()
+@@ -806,6 +806,18 @@ static void caterrAssertHandler()
              }
              return;
          }
@@ -42,7 +42,7 @@ index ca089f70d..fd453ccdc 100644
          std::cerr << "CATERR asserted for " << std::to_string(caterrTimeoutMs)
                    << " ms\n";
          beep(beepCPUIERR);
-@@ -1270,6 +1282,48 @@ static void errXAssertHandler(const int errPin,
+@@ -1288,6 +1300,48 @@ static void errXAssertHandler(const int errPin,
              }
              return;
          }
@@ -91,7 +91,7 @@ index ca089f70d..fd453ccdc 100644
          std::cerr << "ERR" << std::to_string(errPin) << " asserted for "
                    << std::to_string(errTimeoutMs) << " ms\n";
          if (errPinCPUs.count())
-@@ -1379,6 +1433,18 @@ static void err2AssertHandler()
+@@ -1397,6 +1451,18 @@ static void err2AssertHandler()
              }
              return;
          }
@@ -110,7 +110,7 @@ index ca089f70d..fd453ccdc 100644
          conn->async_method_call(
              [](boost::system::error_code ec,
                 const std::variant<bool>& property) {
-@@ -1447,6 +1513,17 @@ static void smiAssertHandler()
+@@ -1465,6 +1531,17 @@ static void smiAssertHandler()
              }
              return;
          }

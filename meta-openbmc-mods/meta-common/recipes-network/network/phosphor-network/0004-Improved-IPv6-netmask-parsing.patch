@@ -1,0 +1,127 @@
+From 371fb36e7a92b4139022b568a278e7624727bbaf Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Tue, 26 Jan 2021 15:02:54 -0800
+Subject: [PATCH] Improved IPv6 netmask parsing
+
+The subnet mask parsing in toV6CIDR only worked for very well behaved
+subnet strings. This became apparent after the BMC received a DHCP
+assigned IPv6 address with an Address Prefix equal to /128. Any
+netmask values trailing the final ":" character were ignored. In
+addition it assumed all subnet entries would be submitted in shorthand
+form.
+
+The changes here handle mask values supplied following the final ":"
+character. It also does more sanity checking on the incoming subnet
+string.
+
+Tested:
+Supplied the function with the following test patterns, and confirmed
+the function returns accurate address prefix values.
+   ffff:ffff::
+   ffff:fc00::
+   ffff:0:0:0:0:0:0:0
+   ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+   ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc
+   ffff:0:0:6:0:0:0:0
+   :
+   ::
+
+Change-Id: Ib2c73fe07a6a3f1c7a5f0e8f231dfef21badb3af
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+
+%% original patch: 0004-Improved-IPv6-netmask-parsing.patch
+---
+ util.cpp | 67 ++++++++++++++++++++------------------------------------
+ 1 file changed, 24 insertions(+), 43 deletions(-)
+
+diff --git a/util.cpp b/util.cpp
+index 0c5dbff..c230221 100644
+--- a/util.cpp
++++ b/util.cpp
+@@ -37,59 +37,40 @@ namespace fs = std::filesystem;
+ 
+ uint8_t toV6Cidr(const std::string& subnetMask)
+ {
+-    uint8_t pos = 0;
+-    uint8_t prevPos = 0;
+-    uint8_t cidr = 0;
+-    uint16_t buff{};
+-    do
++    struct in6_addr subnet;
++    int ret = inet_pton(AF_INET6, subnetMask.c_str(), &subnet);
++    if (ret != 1)
+     {
+-        // subnet mask look like ffff:ffff::
+-        // or ffff:c000::
+-        pos = subnetMask.find(":", prevPos);
+-        if (pos == std::string::npos)
+-        {
+-            break;
+-        }
+-
+-        auto str = subnetMask.substr(prevPos, (pos - prevPos));
+-        prevPos = pos + 1;
++        log<level::ERR>("Invalid Mask",
++                        entry("SUBNETMASK=%s", subnetMask.c_str()));
++        return 0;
++    }
+ 
+-        // String length is 0
+-        if (!str.length())
+-        {
+-            return cidr;
+-        }
+-        // converts it into number.
+-        if (sscanf(str.c_str(), "%hx", &buff) <= 0)
++    uint8_t cidr = 0;
++    bool zeroesFound = false;
++    int bitsSet, trailingZeroes;
++    for (int lv = 0; lv < 4; lv++)
++    {
++        subnet.s6_addr32[lv] = be32toh(subnet.s6_addr32[lv]);
++        bitsSet = __builtin_popcount(subnet.s6_addr32[lv]);
++        if (zeroesFound && bitsSet)
+         {
+             log<level::ERR>("Invalid Mask",
+                             entry("SUBNETMASK=%s", subnetMask.c_str()));
+-
+             return 0;
+         }
++        trailingZeroes = __builtin_ctz(subnet.s6_addr32[lv]);
++        zeroesFound |= trailingZeroes;
+ 
+-        // convert the number into bitset
+-        // and check for how many ones are there.
+-        // if we don't have all the ones then make
+-        // sure that all the ones should be left justify.
+-
+-        if (__builtin_popcount(buff) != 16)
++        if (bitsSet + trailingZeroes != 32)
+         {
+-            if (((sizeof(buff) * 8) - (__builtin_ctz(buff))) !=
+-                __builtin_popcount(buff))
+-            {
+-                log<level::ERR>("Invalid Mask",
+-                                entry("SUBNETMASK=%s", subnetMask.c_str()));
+-
+-                return 0;
+-            }
+-            cidr += __builtin_popcount(buff);
+-            return cidr;
++            // There are '1' bits interspersed with '0' bits
++            log<level::ERR>("Invalid Mask",
++                            entry("SUBNETMASK=%s", subnetMask.c_str()));
++            return 0;
+         }
+-
+-        cidr += 16;
+-    } while (1);
+-
++        cidr += bitsSet;
++    }
+     return cidr;
+ }
+ } // anonymous namespace
+-- 
+2.26.2
+

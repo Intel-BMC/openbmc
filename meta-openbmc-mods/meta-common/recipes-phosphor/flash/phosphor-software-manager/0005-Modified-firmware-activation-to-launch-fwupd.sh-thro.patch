@@ -1,7 +1,7 @@
-From 32d90301c494c1b43f8e1d74ac9e7c1dc2fe486a Mon Sep 17 00:00:00 2001
+From 05b893222a8586c51e6f66320067f13b2a89dd46 Mon Sep 17 00:00:00 2001
 From: Jennifer Lee <jennifer1.lee@intel.com>
 Date: Mon, 10 Dec 2018 10:36:44 -0800
-Subject: [PATCH 1/1] Modified firmware activation to launch fwupd.sh through
+Subject: [PATCH] Modified firmware activation to launch fwupd.sh through
 
  non-ubi fs code path to match more closely to the upstream design 	-
  Added option FWUPD_SCRIPT to saperate intel customized code 	- Adopted
@@ -12,15 +12,15 @@ Signed-off-by: Jennifer Lee <jennifer1.lee@intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 
 ---
- activation.cpp    | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ activation.cpp    | 45 ++++++++++++++++++++++++++++++++++++++++++++-
  meson.build       |  1 +
  meson_options.txt |  3 +++
- static/flash.cpp  | 41 +++++++++++++++++++++++++++++++++++++++--
+ static/flash.cpp  | 42 ++++++++++++++++++++++++++++++++++++++++--
  ubi/flash.cpp     |  9 +++------
- 5 files changed, 91 insertions(+), 8 deletions(-)
+ 5 files changed, 91 insertions(+), 9 deletions(-)
 
 diff --git a/activation.cpp b/activation.cpp
-index 291ce7c..f76018d 100644
+index c82e297..d690a39 100644
 --- a/activation.cpp
 +++ b/activation.cpp
 @@ -88,7 +88,50 @@ auto Activation::activation(Activations value) -> Activations
@@ -36,7 +36,7 @@ index 291ce7c..f76018d 100644
 +
 +            activationProgress =
 +                std::make_unique<ActivationProgress>(bus, path);
-+
+ 
 +#ifdef WANT_SIGNATURE_VERIFY
 +            fs::path uploadDir(IMG_UPLOAD_DIR);
 +            if (!verifySignature(uploadDir / versionId, SIGNED_IMAGE_CONF_PATH))
@@ -60,7 +60,7 @@ index 291ce7c..f76018d 100644
 +                redundancyPriority =
 +                    std::make_unique<RedundancyPriority>(bus, path, *this, 0);
 +            }
- 
++
 +            // Remove version object from image manager
 +            Activation::deleteImageManagerObject();
 +
@@ -91,7 +91,7 @@ index 291ce7c..f76018d 100644
      else
      {
 diff --git a/meson.build b/meson.build
-index 62b9aeb..08d6f71 100644
+index c74a927..0e5f963 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -54,6 +54,7 @@ conf.set('MMC_LAYOUT', get_option('bmc-layout').contains('mmc'))
@@ -103,7 +103,7 @@ index 62b9aeb..08d6f71 100644
  # Configurable variables
  conf.set('ACTIVE_BMC_MAX_ALLOWED', get_option('active-bmc-max-allowed'))
 diff --git a/meson_options.txt b/meson_options.txt
-index c9b7b33..4f7e62a 100644
+index d37e681..d86371b 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
 @@ -22,6 +22,9 @@ option('oe-sdk', type: 'feature', description: 'Enable OE SDK')
@@ -117,7 +117,7 @@ index c9b7b33..4f7e62a 100644
  option(
      'active-bmc-max-allowed', type: 'integer',
 diff --git a/static/flash.cpp b/static/flash.cpp
-index 9bb2bba..c4ff002 100644
+index 101828b..5506a59 100644
 --- a/static/flash.cpp
 +++ b/static/flash.cpp
 @@ -22,9 +22,11 @@ namespace updater
@@ -132,7 +132,7 @@ index 9bb2bba..c4ff002 100644
      // For static layout code update, just put images in /run/initramfs.
      // It expects user to trigger a reboot and an updater script will program
      // the image to flash during reboot.
-@@ -36,11 +38,46 @@ void Activation::flashWrite()
+@@ -36,11 +38,47 @@ void Activation::flashWrite()
          fs::copy_file(uploadDir / versionId / bmcImage, toPath / bmcImage,
                        fs::copy_options::overwrite_existing);
      }
@@ -146,7 +146,8 @@ index 9bb2bba..c4ff002 100644
  }
  
 -void Activation::onStateChanges(sdbusplus::message::message& /*msg*/)
-+void Activation::onStateChanges(sdbusplus::message::message& msg)
++void Activation::onStateChanges(__attribute__((unused))
++                                sdbusplus::message::message& msg)
  {
 -    // Empty
 +#ifndef FWUPD_SCRIPT
@@ -182,7 +183,7 @@ index 9bb2bba..c4ff002 100644
  
  } // namespace updater
 diff --git a/ubi/flash.cpp b/ubi/flash.cpp
-index 5af2a17..ffa9348 100644
+index a263bfb..c58eefc 100644
 --- a/ubi/flash.cpp
 +++ b/ubi/flash.cpp
 @@ -15,13 +15,10 @@ void Activation::flashWrite()

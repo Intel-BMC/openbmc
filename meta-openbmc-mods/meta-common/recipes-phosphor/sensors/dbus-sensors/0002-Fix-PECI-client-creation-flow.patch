@@ -1,0 +1,159 @@
+From 6d553f9fb6829d7dbbe2f625a09f476b0ef91ca0 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 27 Jan 2021 15:52:16 -0800
+Subject: [PATCH] Fix PECI client creation flow
+
+This commit fixes the PECI client creation flow to make it retry
+the creation when the client is not exposed correctly.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ src/CPUSensorMain.cpp | 66 +++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 54 insertions(+), 12 deletions(-)
+
+diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
+index dfc942fcf7f3..67be7447e74e 100644
+--- a/src/CPUSensorMain.cpp
++++ b/src/CPUSensorMain.cpp
+@@ -84,6 +84,7 @@ struct CPUConfig
+ };
+ 
+ static constexpr const char* peciDev = "/dev/peci-";
++static constexpr const char* peciDevPath = "/sys/bus/peci/devices/";
+ static constexpr const unsigned int rankNumMax = 8;
+ 
+ namespace fs = std::filesystem;
+@@ -169,7 +170,7 @@ bool createSensors(boost::asio::io_service& io,
+     }
+ 
+     std::vector<fs::path> hwmonNamePaths;
+-    if (!findFiles(fs::path(R"(/sys/bus/peci/devices)"),
++    if (!findFiles(fs::path(peciDevPath),
+                    R"(peci-\d+/\d+-.+/peci-.+/hwmon/hwmon\d+/name$)",
+                    hwmonNamePaths, 1))
+     {
+@@ -405,7 +406,7 @@ bool createSensors(boost::asio::io_service& io,
+     return true;
+ }
+ 
+-void exportDevice(const CPUConfig& config)
++int exportDevice(const CPUConfig& config)
+ {
+     std::ostringstream hex;
+     hex << std::hex << config.addr;
+@@ -413,9 +414,12 @@ void exportDevice(const CPUConfig& config)
+     std::string busStr = std::to_string(config.bus);
+ 
+     std::string parameters = "peci-client 0x" + addrHexStr;
+-    std::string device = "/sys/bus/peci/devices/peci-" + busStr + "/new_device";
++    std::string devPath = peciDevPath;
++    std::string delDevice = devPath + "peci-" + busStr + "/delete_device";
++    std::string newDevice = devPath + "peci-" + busStr + "/new_device";
++    std::string newClient = devPath + busStr + "-" + addrHexStr + "/driver";
+ 
+-    std::filesystem::path devicePath(device);
++    std::filesystem::path devicePath(newDevice);
+     const std::string& dir = devicePath.parent_path().string();
+     for (const auto& path : std::filesystem::directory_iterator(dir))
+     {
+@@ -433,20 +437,38 @@ void exportDevice(const CPUConfig& config)
+                 std::cout << parameters << " on bus " << busStr
+                           << " is already exported\n";
+             }
+-            return;
++
++            std::ofstream delDeviceFile(delDevice);
++            if (!delDeviceFile.good())
++            {
++                std::cerr << "Error opening " << delDevice << "\n";
++                return -1;
++            }
++            delDeviceFile << parameters;
++            delDeviceFile.close();
++
++            break;
+         }
+     }
+ 
+-    std::ofstream deviceFile(device);
++    std::ofstream deviceFile(newDevice);
+     if (!deviceFile.good())
+     {
+-        std::cerr << "Error writing " << device << "\n";
+-        return;
++        std::cerr << "Error opening " << newDevice << "\n";
++        return -1;
+     }
+     deviceFile << parameters;
+     deviceFile.close();
+ 
++    if (!std::filesystem::exists(newClient))
++    {
++        std::cerr << "Error creating " << newClient << "\n";
++        return -1;
++    }
++
+     std::cout << parameters << " on bus " << busStr << " is exported\n";
++
++    return 0;
+ }
+ 
+ void detectCpu(boost::asio::deadline_timer& pingTimer,
+@@ -462,6 +484,11 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+ 
+     for (CPUConfig& config : cpuConfigs)
+     {
++        if (config.state == State::READY)
++        {
++            continue;
++        }
++
+         std::string peciDevPath = peciDev + std::to_string(config.bus);
+         auto file = open(peciDevPath.c_str(), O_RDWR | O_CLOEXEC);
+         if (file < 0)
+@@ -512,16 +539,29 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+             newState = State::OFF;
+         }
+ 
+-        close(file);
+-
+         if (config.state != newState)
+         {
+             if (newState != State::OFF)
+             {
+                 if (config.state == State::OFF)
+                 {
+-                    std::cout << config.name << " is detected\n";
+-                    exportDevice(config);
++                    struct peci_rd_pkg_cfg_msg msg;
++                    msg.addr = config.addr;
++                    msg.index = PECI_MBX_INDEX_CPU_ID;
++                    msg.param = 0;
++                    msg.rx_len = 4;
++                    if (!ioctl(file, PECI_IOC_RD_PKG_CFG, &msg))
++                    {
++                        std::cout << config.name << " is detected\n";
++                        if (exportDevice(config))
++                        {
++                            newState = State::OFF;
++                        }
++                    }
++                    else
++                    {
++                        newState = State::OFF;
++                    }
+                 }
+ 
+                 if (newState == State::ON)
+@@ -544,6 +584,8 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+             keepPinging = true;
+         }
+ 
++        close(file);
++
+         if (DEBUG)
+         {
+             std::cout << config.name << ", state: " << config.state << "\n";
+-- 
+2.17.1
+
