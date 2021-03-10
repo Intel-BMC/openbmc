@@ -1,0 +1,42 @@
+From ae96ce5f2a5bd76b234cea6fc3f0bf1df74387f3 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Thu, 4 Feb 2021 00:29:55 -0800
+Subject: [PATCH] soc: aspeed: add AST2600 A0 specific fix into mbox driver
+
+AST2600 A0 has the same LPC mbox register structure with AST2500
+but AST2600 A1 and later revision is different so this commit adds
+AST2600 A0 specific fix into the mbox driver.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/soc/aspeed/aspeed-lpc-mbox.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/drivers/soc/aspeed/aspeed-lpc-mbox.c b/drivers/soc/aspeed/aspeed-lpc-mbox.c
+index 8dd3345682c7..12bb436dda78 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-mbox.c
++++ b/drivers/soc/aspeed/aspeed-lpc-mbox.c
+@@ -363,6 +363,20 @@ static int aspeed_mbox_probe(struct platform_device *pdev)
+ 		return -EINVAL;
+ 
+ 	config = match->data;
++
++	if (of_device_is_compatible(pdev->dev.of_node,
++				    "aspeed,ast2600-mbox")) {
++		#define REV_ID_IO_OFFSET 0x1e6e2014
++		#define REV_ID_AST2600A0 0x05000303
++		void __iomem *chip_id_base = devm_ioremap(&pdev->dev,
++							  REV_ID_IO_OFFSET,
++							  sizeof(u32));
++
++		if (!IS_ERR(chip_id_base) &&
++		    readl(chip_id_base) == REV_ID_AST2600A0)
++			config = &ast2500_config;
++	}
++
+ 	memcpy(&mbox->configs, config, sizeof(mbox->configs));
+ 
+ 	rc = of_property_read_u32(dev->of_node, "reg", &mbox->base);
+-- 
+2.17.1
+

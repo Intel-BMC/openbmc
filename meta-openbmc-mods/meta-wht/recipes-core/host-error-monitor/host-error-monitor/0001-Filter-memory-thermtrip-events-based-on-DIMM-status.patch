@@ -1,7 +1,7 @@
-From 0253fd1d68d6a42c95c425b1a61fa2d53b2b2469 Mon Sep 17 00:00:00 2001
+From c09e608da2f63eed5b73891d5c032b646d8e81eb Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@intel.com>
 Date: Wed, 22 Jul 2020 14:30:04 -0700
-Subject: [PATCH] Filter memory thermtrip events based on DIMM status
+Subject: [PATCH 1/2] Filter memory thermtrip events based on DIMM status
 
 There is a race-condition on shutdown that makes it difficult to
 differentiate between a normal shutdown and a memory thermtrip
@@ -22,22 +22,22 @@ that the memory thermtrip event is logged.
 Change-Id: I9c38b41db30046499297ee24cc3a2790920b19d3
 Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
 ---
- src/host_error_monitor.cpp | 77 +++++++++++++++++++++++++++++++++++++-
- 1 file changed, 75 insertions(+), 2 deletions(-)
+ src/host_error_monitor.cpp | 81 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 77 insertions(+), 4 deletions(-)
 
 diff --git a/src/host_error_monitor.cpp b/src/host_error_monitor.cpp
-index 1c6a2e70d..aa4a9b672 100644
+index d52a5dc6a..77d065fa3 100644
 --- a/src/host_error_monitor.cpp
 +++ b/src/host_error_monitor.cpp
-@@ -17,6 +17,7 @@
- #include <systemd/sd-journal.h>
- 
+@@ -19,6 +19,7 @@
+ #include <boost/asio/io_service.hpp>
  #include <boost/asio/posix/stream_descriptor.hpp>
+ #include <boost/asio/steady_timer.hpp>
 +#include <boost/container/flat_set.hpp>
  #include <gpiod.hpp>
  #include <sdbusplus/asio/object_server.hpp>
  
-@@ -36,6 +37,9 @@ static std::shared_ptr<sdbusplus::asio::dbus_interface> associationCATAssert;
+@@ -38,6 +39,9 @@ static std::shared_ptr<sdbusplus::asio::dbus_interface> associationCATAssert;
  
  static const constexpr char* rootPath = "/xyz/openbmc_project/CallbackManager";
  
@@ -47,7 +47,7 @@ index 1c6a2e70d..aa4a9b672 100644
  static bool hostOff = true;
  
  static size_t caterrTimeoutMs = 2000;
-@@ -258,6 +262,67 @@ static void initializeHostState()
+@@ -274,6 +278,67 @@ static void initializeHostState()
          "xyz.openbmc_project.State.Host", "CurrentHostState");
  }
  
@@ -115,7 +115,7 @@ index 1c6a2e70d..aa4a9b672 100644
  static std::shared_ptr<sdbusplus::bus::match::match> startHostStateMonitor()
  {
      return std::make_shared<sdbusplus::bus::match::match>(
-@@ -826,7 +891,9 @@ static void cpu1MemtripHandler()
+@@ -851,7 +916,9 @@ static void cpu1MemtripHandler()
  
      bool cpu1Memtrip =
          gpioLineEvent.event_type == gpiod::line_event::FALLING_EDGE;
@@ -126,7 +126,7 @@ index 1c6a2e70d..aa4a9b672 100644
      {
          memThermTripLog(1);
      }
-@@ -886,7 +953,9 @@ static void cpu2MemtripHandler()
+@@ -911,7 +978,9 @@ static void cpu2MemtripHandler()
  
      bool cpu2Memtrip =
          gpioLineEvent.event_type == gpiod::line_event::FALLING_EDGE;
@@ -137,7 +137,23 @@ index 1c6a2e70d..aa4a9b672 100644
      {
          memThermTripLog(2);
      }
-@@ -1605,6 +1674,10 @@ int main(int argc, char* argv[])
+@@ -1521,13 +1590,13 @@ static void initializeErrorState()
+     }
+ 
+     // Handle CPU1_MEM_THERM_EVENT (CPU1 DIMM Thermal trip) if it's asserted now
+-    if (cpu1MemtripLine.get_value() == 0)
++    if ((cpu1MemtripLine.get_value() == 0) && !cpu1CriticalDIMMs.empty())
+     {
+         memThermTripLog(1);
+     }
+ 
+     // Handle CPU2_MEM_THERM_EVENT (CPU2 DIMM Thermal trip) if it's asserted now
+-    if (cpu2MemtripLine.get_value() == 0)
++    if ((cpu2MemtripLine.get_value() == 0) && !cpu2CriticalDIMMs.empty())
+     {
+         memThermTripLog(2);
+     }
+@@ -1639,6 +1708,10 @@ int main(int argc, char* argv[])
      std::shared_ptr<sdbusplus::bus::match::match> hostStateMonitor =
          host_error_monitor::startHostStateMonitor();
  

@@ -1,4 +1,4 @@
-From a170675fafc1ee8bfee502672e65be9ad379a3d1 Mon Sep 17 00:00:00 2001
+From aaaa117817687a05284f8bfff07e2404e0d616b7 Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Thu, 10 Dec 2020 13:42:20 -0800
 Subject: [PATCH] recommended fixes by crypto review team
@@ -14,11 +14,11 @@ Signed-off-by: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
  1 file changed, 21 insertions(+), 18 deletions(-)
 
 diff --git a/include/ssl_key_handler.hpp b/include/ssl_key_handler.hpp
-index deb3a76..8063858 100644
+index 39e83d7..8de7349 100644
 --- a/include/ssl_key_handler.hpp
 +++ b/include/ssl_key_handler.hpp
-@@ -326,31 +326,34 @@ inline std::shared_ptr<boost::asio::ssl::context>
-     mSslContext->use_private_key_file(ssl_pem_file,
+@@ -381,31 +381,34 @@ inline std::shared_ptr<boost::asio::ssl::context>
+     mSslContext->use_private_key_file(sslPemFile,
                                        boost::asio::ssl::context::pem);
  
 -    // Set up EC curves to auto (boost asio doesn't have a method for this)

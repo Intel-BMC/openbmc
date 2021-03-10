@@ -1,0 +1,43 @@
+From 63d053b12cc7ca63a668872ce70e6592fe1dd7e5 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 3 Feb 2021 16:18:37 -0800
+Subject: [PATCH] peci: Add debug printing to check caller PID
+
+This commit adds debug printing out to check caller PID for traffic
+profiling.
+
+The printing can be enabled by this command:
+echo -n 'file drivers/peci/peci-core.c line 218 +p' > /sys/kernel/debug/dynamic_debug/control
+echo '8' > /proc/sys/kernel/printk
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/peci/peci-core.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
+index 0fc2f246ada8..0fdb26a15150 100644
+--- a/drivers/peci/peci-core.c
++++ b/drivers/peci/peci-core.c
+@@ -193,6 +193,7 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
+ 		       bool do_retry, bool has_aw_fcs)
+ {
+ 	uint interval_ms = PECI_DEV_RETRY_INTERVAL_MIN_MSEC;
++	char task_name[TASK_COMM_LEN];
+ 	ulong timeout = jiffies;
+ 	u8 aw_fcs;
+ 	int ret;
+@@ -213,6 +214,10 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
+ 		}
+ 	}
+ 
++	get_task_comm(task_name, current);
++	dev_dbg(&adapter->dev, "%s is called by %s(%d) through %s\n",
++		__func__, task_name, current->pid, adapter->name);
++
+ 	/*
+ 	 * For some commands, the PECI originator may need to retry a command if
+ 	 * the processor PECI client responds with a 0x8x completion code. In
+-- 
+2.17.1
+

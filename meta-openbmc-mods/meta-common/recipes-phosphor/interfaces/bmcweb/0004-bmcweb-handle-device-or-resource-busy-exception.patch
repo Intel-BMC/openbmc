@@ -1,7 +1,7 @@
-From 17d24c7ff9a533ef6ff0e86554840bf5e4a11782 Mon Sep 17 00:00:00 2001
+From 76480c6a5b1708113f28aecab32a85984371243c Mon Sep 17 00:00:00 2001
 From: Karol Wachowski <karol.wachowski@intel.com>
 Date: Fri, 10 Jul 2020 09:54:06 +0000
-Subject: [PATCH 03/10] bmcweb handle device or resource busy exception
+Subject: [PATCH] bmcweb handle device or resource busy exception
 
 Use async_method_call_timed() for mount/unmount dbus oprations.
 Long mount/unmount times are supported by VirtualMedia service,
@@ -21,23 +21,23 @@ Tested: Verified that after mounting non-existing HTTPS resource
 Signed-off-by: Karol Wachowski <karol.wachowski@intel.com>
 Change-Id: Ica62c34db0cce24c4c6169fc661edfde49e948d0
 ---
- redfish-core/lib/virtual_media.hpp | 144 ++++++++++++++++++++++++++++---------
+ redfish-core/lib/virtual_media.hpp | 144 ++++++++++++++++++++++-------
  1 file changed, 110 insertions(+), 34 deletions(-)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index 1336190..1a4a81d 100644
+index 95a8881..188248a 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
-@@ -23,6 +23,8 @@
- // for GetObjectType and ManagedObjectType
+@@ -24,6 +24,8 @@
  #include <account_service.hpp>
+ #include <boost/url/url_view.hpp>
  
 +#include <chrono>
 +
  namespace redfish
  
  {
-@@ -121,6 +123,26 @@ static void vmParseInterfaceObject(const DbusInterfaceType& interface,
+@@ -160,6 +162,26 @@ static void vmParseInterfaceObject(const DbusInterfaceType& interface,
      }
  }
  
@@ -64,7 +64,7 @@ index 1336190..1a4a81d 100644
  /**
   * @brief Fill template for Virtual Media Item.
   */
-@@ -811,22 +833,54 @@ class VirtualMediaActionInsertMedia : public Node
+@@ -856,22 +878,54 @@ class VirtualMediaActionInsertMedia : public Node
          }
  
          crow::connections::systemBus->async_method_call(
@@ -126,7 +126,7 @@ index 1336190..1a4a81d 100644
      }
  };
  
-@@ -960,38 +1014,60 @@ class VirtualMediaActionEjectMedia : public Node
+@@ -1003,38 +1057,60 @@ class VirtualMediaActionEjectMedia : public Node
                      const std::string& service, const std::string& name,
                      bool legacy)
      {
@@ -215,5 +215,5 @@ index 1336190..1a4a81d 100644
  };
  
 -- 
-2.16.6
+2.17.1
 

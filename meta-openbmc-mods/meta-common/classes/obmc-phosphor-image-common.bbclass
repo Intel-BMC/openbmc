@@ -74,6 +74,7 @@ IMAGE_INSTALL_append = " \
         virtual-media \
         enable-nics \
         host-misc-comm-manager \
+        biosconfig-manager \
         telemetry \
         i3c-tools \
         "

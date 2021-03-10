@@ -1,7 +1,7 @@
-From 1c8cb6b7c99ad85f470aa87095fcfb4de822ddb1 Mon Sep 17 00:00:00 2001
+From 9f4fb8a6aa076261b19c187aeef840d818158ec7 Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Wed, 16 Oct 2019 14:24:20 +0800
-Subject: [PATCH 1/1] Move Set SOL config parameter to host-ipmid
+Subject: [PATCH] Move Set SOL config parameter to host-ipmid
 
 Move Set SOL config parameter command from net-ipmid to host-ipmid,
 so that BIOS in Intel platform can enable or disable SOL through KCS.
@@ -40,10 +40,10 @@ index 5397115..c93f3b1 100644
  0x2C:0x01    //<Group Extension>:<Get DCMI Capabilities>
  0x2C:0x02    //<Group Extension>:<Get Power Reading>
 diff --git a/transporthandler.cpp b/transporthandler.cpp
-index 61065ad..59e38ea 100644
+index 0012746..0de76c4 100644
 --- a/transporthandler.cpp
 +++ b/transporthandler.cpp
-@@ -1469,8 +1469,298 @@ RspType<message::Payload> getLan(uint4_t channelBits, uint3_t, bool revOnly,
+@@ -2030,8 +2030,298 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
  } // namespace transport
  } // namespace ipmi
  
@@ -342,7 +342,7 @@ index 61065ad..59e38ea 100644
  void register_netfn_transport_functions()
  {
      ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
-@@ -1479,4 +1769,8 @@ void register_netfn_transport_functions()
+@@ -2040,4 +2330,8 @@ void register_netfn_transport_functions()
      ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnTransport,
                            ipmi::transport::cmdGetLanConfigParameters,
                            ipmi::Privilege::Operator, ipmi::transport::getLan);

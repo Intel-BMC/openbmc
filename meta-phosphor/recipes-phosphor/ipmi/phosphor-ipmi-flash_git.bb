@@ -17,6 +17,7 @@ DEPENDS += "sdbusplus"
 DEPENDS += "systemd"
 DEPENDS += "ipmi-blob-tool"
 DEPENDS += "pciutils"
+DEPENDS += "function2"
 
 PACKAGECONFIG ?= "cleanup-delete"
 PACKAGECONFIG[cleanup-delete] = "--enable-cleanup-delete, --disable-cleanup-delete"
@@ -45,7 +46,7 @@ EXTRA_OECONF_append = " MAPPED_ADDRESS=${IPMI_FLASH_BMC_ADDRESS}"
 
 S = "${WORKDIR}/git"
 SRC_URI = "git://github.com/openbmc/phosphor-ipmi-flash"
-SRCREV = "c78bfc823049e96522eaab333d74d16c7efd6917"
+SRCREV = "84904b97d4952a4f48ace53db67d314efcb02be5"
 
 SYSTEMD_PACKAGES = "${PN}"
 SYSTEMD_SERVICE_${PN} += "phosphor-ipmi-flash-bmc-prepare.target \

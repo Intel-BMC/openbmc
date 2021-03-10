@@ -16,6 +16,15 @@ RDEPENDS_${PN} += " default-fru"
 
 do_install_append() {
      install -d ${D}/usr/share/entity-manager/configurations
-     install -m 0444 ${WORKDIR}/*.json ${D}/usr/share/entity-manager/configurations
-     rm  ${D}/usr/share/entity-manager/configurations/blocklist.json
+     install -m 0444 ${WORKDIR}/WC-Baseboard.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/WP-Baseboard.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/TNP-baseboard.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/FCXXPDBASSMBL_PDB.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/OPB2RH-Chassis.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/CYP-baseboard.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/J85894-HSBP.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/CPC-Baseboard.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/MIDPLANE-2U2X12SWITCH.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/WC-Chassis.json ${D}/usr/share/entity-manager/configurations
+     install -m 0444 ${WORKDIR}/blocklist.json ${D}/usr/share/entity-manager
 }

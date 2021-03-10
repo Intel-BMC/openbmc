@@ -4,7 +4,9 @@ DEPENDS += "nlohmann-json boost"
 
 #todo: Appu, fix nobranch
 SRC_URI = "git://github.com/openbmc/phosphor-networkd"
+SRC_URI += " file://0004-Improved-IPv6-netmask-parsing.patch \
+           "
 
-SRCREV = "ffcba341a893318588afe83e8d767d8c20fd9189"
+SRCREV = "1b5ec9c5367947d19bdf6efd08251eeb55dd90f4"
 
 EXTRA_OECONF_append = " --enable-nic-ethtool=yes"

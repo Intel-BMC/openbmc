@@ -1,7 +1,7 @@
-From f3ae6e96596eadf2a2df4bc723537a47cff13054 Mon Sep 17 00:00:00 2001
+From d340953bc925ff8535c5a8fac54db24b243ba8ad Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Mon, 19 Oct 2020 13:21:42 +0530
-Subject: [PATCH 04/10] EventService: https client support
+Subject: [PATCH] EventService: https client support
 
 Add https client support for push style
 eventing. Using this BMC can push the event
@@ -16,13 +16,14 @@ Tested:
 
 Change-Id: I44c3918b39baa2eb5fddda9d635f99aa280a422a
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
- http/http_client.hpp                           | 367 ++++++++++++++++++-------
- redfish-core/include/event_service_manager.hpp |   2 +-
- 2 files changed, 264 insertions(+), 105 deletions(-)
+ http/http_client.hpp                          | 370 +++++++++++++-----
+ .../include/event_service_manager.hpp         |   2 +-
+ 2 files changed, 267 insertions(+), 105 deletions(-)
 
 diff --git a/http/http_client.hpp b/http/http_client.hpp
-index 5c7b13f..bd1e7b6 100644
+index 5c7b13f..d782dee 100644
 --- a/http/http_client.hpp
 +++ b/http/http_client.hpp
 @@ -31,12 +31,17 @@ namespace crow
@@ -190,7 +191,7 @@ index 5c7b13f..bd1e7b6 100644
      }
  
      void sendMessage(const std::string& data)
-@@ -107,100 +183,167 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -107,100 +183,170 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
          }
          state = ConnState::sendInProgress;
  
@@ -312,6 +313,9 @@ index 5c7b13f..bd1e7b6 100644
 +
 +        parser.emplace(std::piecewise_construct, std::make_tuple());
 +        parser->body_limit(httpReadBodyLimit);
++        // Since these are all push style eventing, we are not
++        // bothered about response parsing.
++        parser->skip(true);
 +        buffer.consume(buffer.size());
 +
 +        conn.expires_after(std::chrono::seconds(30));
@@ -424,7 +428,7 @@ index 5c7b13f..bd1e7b6 100644
              BMCWEB_LOG_DEBUG << "requestDataQueue is empty\n";
              return;
          }
-@@ -232,6 +375,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -232,6 +378,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
          }
  
          if ((state == ConnState::connectFailed) ||
@@ -432,7 +436,7 @@ index 5c7b13f..bd1e7b6 100644
              (state == ConnState::sendFailed) ||
              (state == ConnState::recvFailed))
          {
-@@ -256,14 +400,18 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -256,14 +403,18 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                               << " seconds. RetryCount = " << retryCount;
              timer.expires_after(std::chrono::seconds(retryIntervalSecs));
              timer.async_wait(
@@ -454,7 +458,7 @@ index 5c7b13f..bd1e7b6 100644
          connStateCheck();
  
          return;
-@@ -273,15 +421,21 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -273,15 +424,21 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
      {
          switch (state)
          {
@@ -478,7 +482,7 @@ index 5c7b13f..bd1e7b6 100644
              case ConnState::sendFailed:
              case ConnState::recvFailed:
              {
-@@ -297,22 +451,22 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -297,22 +454,22 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                  sendMessage(data);
                  break;
              }
@@ -511,7 +515,7 @@ index 5c7b13f..bd1e7b6 100644
  
      void sendData(const std::string& data)
      {
-@@ -337,7 +491,12 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -337,7 +494,12 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
      void setHeaders(
          const std::vector<std::pair<std::string, std::string>>& httpHeaders)
      {
@@ -539,5 +543,5 @@ index 54dafb4..f68ae1d 100644
  
      Subscription(const std::shared_ptr<boost::beast::tcp_stream>& adaptor) :
 -- 
-2.16.6
+2.17.1
 

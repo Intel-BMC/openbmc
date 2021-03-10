@@ -1,0 +1,475 @@
+From 2048226878a80fefcbcbe999fd826cc7c02ed9e4 Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Tue, 13 Oct 2020 15:00:51 -0700
+Subject: [PATCH] Improve initialization of I2C sensors
+
+After an AC cycle validation has witnessed some systems sensors are
+missing. As Entity Manager begins the process of scanning for
+sesnsors, and creating the hardware monitoring nodes, there are
+occassionally some failures to correctly create the node. This
+manifests itself by the 'dd' kernel driver emitting an -EBUSY error
+message. Unfortunately the 'dd' driver also eats the error code, and
+continues. This is by design.
+
+This commit modifies how the nodes are initialized. The steps taken:
+1. Determine if the node is already present
+2. Create the node if it is not
+3. Set a timer, to give the kernel time to create the node
+4. For those sensors that create a "hwmon" subdir, search for that
+directory after the timer elapses.
+5. If the subdir is not present, delete the device, and try again by
+initiating another timer.
+6. Continue until the subdir exists, or a retry count expires.
+
+Tested:
+Ran AC cycles via a script.
+After each cycle, wait for the SUT to DC on, and arrive at the EFI
+Shell> propmt.
+Issue "ipmitool sensor list", capturing the results
+Search the list for all of the sensors that have been reported as
+missing after AC cycles.
+
+Change-Id: I118df674162677d66e7d211b089430fce384086b
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ include/devices.hpp | 153 +++++++++++++++++++----------------
+ src/Overlay.cpp     | 192 ++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 233 insertions(+), 112 deletions(-)
+
+diff --git a/include/devices.hpp b/include/devices.hpp
+index acbfb95..1f25864 100644
+--- a/include/devices.hpp
++++ b/include/devices.hpp
+@@ -31,99 +31,116 @@ struct CmpStr
+ 
+ struct ExportTemplate
+ {
+-    ExportTemplate(const char* params, const char* dev) :
+-        parameters(params), device(dev){};
++    ExportTemplate(const char* params, const char* dev, const char* constructor,
++                   const char* destructor, bool createsHWMon) :
++        parameters(params),
++        devicePath(dev), add(constructor), remove(destructor),
++        createsHWMon(createsHWMon){};
+     const char* parameters;
+-    const char* device;
++    const char* devicePath;
++    const char* add;
++    const char* remove;
++    bool createsHWMon;
+ };
+ 
+ const boost::container::flat_map<const char*, ExportTemplate, CmpStr>
+     exportTemplates{
+-        {{"24C02", ExportTemplate("24c02 $Address",
+-                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"24C64", ExportTemplate("24c64 $Address",
+-                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++        {{"24C02",
++          ExportTemplate("24c02 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
++         {"24C64",
++          ExportTemplate("24c64 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
+          {"ADM1272",
+-          ExportTemplate("adm1272 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"EEPROM", ExportTemplate("eeprom $Address",
+-                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("adm1272 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
++         {"EEPROM",
++          ExportTemplate("eeprom $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
+          {"EMC1412",
+-          ExportTemplate("emc1412 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("emc1412 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"EMC1413",
+-          ExportTemplate("emc1413 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("emc1413 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"EMC1414",
+-          ExportTemplate("emc1414 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"Gpio", ExportTemplate("$Index", "/sys/class/gpio/export")},
+-         {"INA230", ExportTemplate("ina230 $Address",
+-                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("emc1414 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
++         {"Gpio", ExportTemplate("$Index", "/sys/class/gpio", "export",
++                                 "unexport", false)},
++         {"INA230",
++          ExportTemplate("ina230 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"ISL68137",
+-          ExportTemplate("isl68137 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("isl68137 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"ISL68223",
+-          ExportTemplate("isl68223 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("isl68223 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"ISL69243",
+-          ExportTemplate("isl69243 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("isl69243 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX16601",
+-          ExportTemplate("max16601 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max16601 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX20710",
+-          ExportTemplate("max20710 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max20710 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX20730",
+-          ExportTemplate("max20730 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max20730 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX20734",
+-          ExportTemplate("max20734 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max20734 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX20796",
+-          ExportTemplate("max20796 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max20796 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX31725",
+-          ExportTemplate("max31725 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max31725 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX31730",
+-          ExportTemplate("max31730 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max31730 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX34451",
+-          ExportTemplate("max34451 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max34451 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"MAX6654",
+-          ExportTemplate("max6654 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("max6654 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"PCA9543Mux",
+-          ExportTemplate("pca9543 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("pca9543 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
+          {"PCA9544Mux",
+-          ExportTemplate("pca9544 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("pca9544 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
+          {"PCA9545Mux",
+-          ExportTemplate("pca9545 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("pca9545 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
+          {"PCA9546Mux",
+-          ExportTemplate("pca9546 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("pca9546 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
+          {"PCA9547Mux",
+-          ExportTemplate("pca9547 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"SBTSI", ExportTemplate("sbtsi $Address",
+-                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"pmbus", ExportTemplate("pmbus $Address",
+-                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"TMP112", ExportTemplate("tmp112 $Address",
+-                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"TMP175", ExportTemplate("tmp175 $Address",
+-                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"TMP421", ExportTemplate("tmp421 $Address",
+-                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"TMP441", ExportTemplate("tmp441 $Address",
+-                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++          ExportTemplate("pca9547 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", false)},
++         {"SBTSI",
++          ExportTemplate("sbtsi $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
++         {"pmbus",
++          ExportTemplate("pmbus $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
++         {"TMP112",
++          ExportTemplate("tmp112 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
++         {"TMP175",
++          ExportTemplate("tmp175 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
++         {"TMP421",
++          ExportTemplate("tmp421 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
++         {"TMP441",
++          ExportTemplate("tmp441 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)},
+          {"TMP75",
+-          ExportTemplate("tmp75 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")}}};
++          ExportTemplate("tmp75 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
++                         "new_device", "delete_device", true)}}};
+ } // namespace devices
+diff --git a/src/Overlay.cpp b/src/Overlay.cpp
+index cb6ed10..7a3089e 100644
+--- a/src/Overlay.cpp
++++ b/src/Overlay.cpp
+@@ -21,6 +21,8 @@
+ #include "devices.hpp"
+ 
+ #include <boost/algorithm/string/predicate.hpp>
++#include <boost/asio/io_context.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/container/flat_map.hpp>
+ #include <boost/container/flat_set.hpp>
+ #include <boost/process/child.hpp>
+@@ -32,6 +34,8 @@
+ #include <regex>
+ #include <string>
+ 
++extern boost::asio::io_context io;
++
+ constexpr const char* OUTPUT_DIR = "/tmp/overlays";
+ constexpr const char* TEMPLATE_CHAR = "$";
+ constexpr const char* HEX_FORMAT_STR = "0x";
+@@ -113,16 +117,149 @@ void linkMux(const std::string& muxName, size_t busIndex, size_t address,
+     }
+ }
+ 
++static int deleteDevice(const std::string& devicePath,
++                        std::shared_ptr<uint64_t> address,
++                        const std::string& destructor)
++{
++    if (!address)
++    {
++        return -1;
++    }
++    std::filesystem::path deviceDestructor(devicePath);
++    deviceDestructor /= destructor;
++    std::ofstream deviceFile(deviceDestructor);
++    if (!deviceFile.good())
++    {
++        std::cerr << "Error writing " << deviceDestructor << "\n";
++        return -1;
++    }
++    deviceFile << std::to_string(*address);
++    deviceFile.close();
++    return 0;
++}
++
++static int createDevice(const std::string& devicePath,
++                        const std::string& parameters,
++                        const std::string& constructor)
++{
++    std::filesystem::path deviceConstructor(devicePath);
++    deviceConstructor /= constructor;
++    std::ofstream deviceFile(deviceConstructor);
++    if (!deviceFile.good())
++    {
++        std::cerr << "Error writing " << deviceConstructor << "\n";
++        return -1;
++    }
++    deviceFile << parameters;
++    deviceFile.close();
++
++    return 0;
++}
++
++static bool deviceIsCreated(const std::string& devicePath,
++                            std::shared_ptr<uint64_t> bus,
++                            std::shared_ptr<uint64_t> address,
++                            const bool retrying)
++{
++    // Prevent the device from being created a second time.
++    if (bus && address)
++    {
++        std::ostringstream hex;
++        hex << std::hex << *address;
++        std::string addressHex = hex.str();
++        std::string busStr = std::to_string(*bus);
++
++        if (std::filesystem::is_directory(devicePath))
++        {
++            for (const auto& path :
++                 std::filesystem::directory_iterator(devicePath))
++            {
++                if (!std::filesystem::is_directory(path))
++                {
++                    continue;
++                }
++
++                const std::string& directoryName = path.path().filename();
++                if (boost::starts_with(directoryName, busStr) &&
++                    boost::ends_with(directoryName, addressHex))
++                {
++                    if (retrying)
++                    {
++                        // subsequent attempts should find the hwmon subdir.
++                        std::filesystem::path hwmonDir(devicePath);
++                        hwmonDir /= directoryName;
++                        hwmonDir /= "hwmon";
++                        bool dirFound =
++                            (std::filesystem::is_directory(hwmonDir));
++                        return dirFound;
++                    }
++                    else
++                    {
++                        return true;
++                    }
++                }
++            }
++            return false;
++        }
++    }
++    return false;
++}
++
++constexpr size_t totalBuildDeviceRetries = 5;
++static int buildDevice(const std::string& devicePath,
++                       const std::string& parameters,
++                       std::shared_ptr<uint64_t> bus,
++                       std::shared_ptr<uint64_t> address,
++                       const std::string& constructor,
++                       const std::string& destructor, const bool createsHWMon,
++                       const size_t retries = totalBuildDeviceRetries)
++{
++    bool tryAgain = false;
++    if (!retries)
++    {
++        return -1;
++    }
++
++    if (!deviceIsCreated(devicePath, bus, address, false))
++    {
++        createDevice(devicePath, parameters, constructor);
++        tryAgain = true;
++    }
++    else if (createsHWMon && !deviceIsCreated(devicePath, bus, address, true))
++    {
++        // device is present, hwmon subdir missing
++        deleteDevice(devicePath, address, destructor);
++        tryAgain = true;
++    }
++
++    if (tryAgain)
++    {
++        std::shared_ptr<boost::asio::steady_timer> createTimer =
++            std::make_shared<boost::asio::steady_timer>(io);
++        createTimer->expires_after(std::chrono::milliseconds(500));
++        createTimer->async_wait([createTimer, devicePath, parameters, bus,
++                                 address, constructor, destructor, createsHWMon,
++                                 retries](const boost::system::error_code&) {
++            buildDevice(devicePath, parameters, bus, address, constructor,
++                        destructor, createsHWMon, retries - 1);
++        });
++    }
++    return 0;
++}
++
+ void exportDevice(const std::string& type,
+                   const devices::ExportTemplate& exportTemplate,
+                   const nlohmann::json& configuration)
+ {
+ 
+     std::string parameters = exportTemplate.parameters;
+-    std::string device = exportTemplate.device;
++    std::string devicePath = exportTemplate.devicePath;
++    std::string constructor = exportTemplate.add;
++    std::string destructor = exportTemplate.remove;
++    bool createsHWMon = exportTemplate.createsHWMon;
+     std::string name = "unknown";
+-    const uint64_t* bus = nullptr;
+-    const uint64_t* address = nullptr;
++    std::shared_ptr<uint64_t> bus = nullptr;
++    std::shared_ptr<uint64_t> address = nullptr;
+     const nlohmann::json::array_t* channels = nullptr;
+ 
+     for (auto keyPair = configuration.begin(); keyPair != configuration.end();
+@@ -144,11 +281,13 @@ void exportDevice(const std::string& type,
+ 
+         if (keyPair.key() == "Bus")
+         {
+-            bus = keyPair.value().get_ptr<const uint64_t*>();
++            bus = std::make_shared<uint64_t>(
++                *keyPair.value().get_ptr<const uint64_t*>());
+         }
+         else if (keyPair.key() == "Address")
+         {
+-            address = keyPair.value().get_ptr<const uint64_t*>();
++            address = std::make_shared<uint64_t>(
++                *keyPair.value().get_ptr<const uint64_t*>());
+         }
+         else if (keyPair.key() == "ChannelNames")
+         {
+@@ -157,49 +296,14 @@ void exportDevice(const std::string& type,
+         }
+         boost::replace_all(parameters, TEMPLATE_CHAR + keyPair.key(),
+                            subsituteString);
+-        boost::replace_all(device, TEMPLATE_CHAR + keyPair.key(),
++        boost::replace_all(devicePath, TEMPLATE_CHAR + keyPair.key(),
+                            subsituteString);
+     }
+ 
+-    // if we found bus and address we can attempt to prevent errors
+-    if (bus != nullptr && address != nullptr)
+-    {
+-        std::ostringstream hex;
+-        hex << std::hex << *address;
+-        const std::string& addressHex = hex.str();
+-        std::string busStr = std::to_string(*bus);
++    int err = buildDevice(devicePath, parameters, bus, address, constructor,
++                          destructor, createsHWMon);
+ 
+-        std::filesystem::path devicePath(device);
+-        std::filesystem::path parentPath = devicePath.parent_path();
+-        if (std::filesystem::is_directory(parentPath))
+-        {
+-            for (const auto& path :
+-                 std::filesystem::directory_iterator(parentPath))
+-            {
+-                if (!std::filesystem::is_directory(path))
+-                {
+-                    continue;
+-                }
+-
+-                const std::string& directoryName = path.path().filename();
+-                if (boost::starts_with(directoryName, busStr) &&
+-                    boost::ends_with(directoryName, addressHex))
+-                {
+-                    return; // already exported
+-                }
+-            }
+-        }
+-    }
+-
+-    std::ofstream deviceFile(device);
+-    if (!deviceFile.good())
+-    {
+-        std::cerr << "Error writing " << device << "\n";
+-        return;
+-    }
+-    deviceFile << parameters;
+-    deviceFile.close();
+-    if (boost::ends_with(type, "Mux") && bus && address && channels)
++    if (!err && boost::ends_with(type, "Mux") && bus && address && channels)
+     {
+         linkMux(name, static_cast<size_t>(*bus), static_cast<size_t>(*address),
+                 *channels);
+-- 
+2.26.2
+

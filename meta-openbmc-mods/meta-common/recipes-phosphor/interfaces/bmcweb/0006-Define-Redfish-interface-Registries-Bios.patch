@@ -1,4 +1,4 @@
-From 5e3b0c1f8add50acca911a927ba8a1f4864cb315 Mon Sep 17 00:00:00 2001
+From c645c011bb3ea2a2aaf52560cb9fcc461d048cae Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Fri, 4 Sep 2020 19:24:25 +0800
 Subject: [PATCH] Define Redfish interface "/Registries/Bios" and enable

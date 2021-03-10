@@ -1,7 +1,7 @@
-From b074a84560349fdbd46604ab0b8c75804de09fef Mon Sep 17 00:00:00 2001
+From d9016c8064f5732fb6d24d07a990ddfa294a8a9d Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 8 Jun 2020 17:15:54 +0200
-Subject: [PATCH 3/4] Add support for MetricDefinition scheme
+Subject: [PATCH] Add support for MetricDefinition scheme
 
 Added MetricDefinition node to redfish core. Now user is able to
 get all possible metrics that are present in system and are
@@ -17,19 +17,19 @@ Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Change-Id: I3086e1302e1ba2e5442d1367939fd5507a0cbc00
 ---
- redfish-core/include/redfish.hpp               |   3 +
- redfish-core/include/utils/telemetry_utils.hpp |  56 ++---
- redfish-core/lib/metric_definition.hpp         | 269 +++++++++++++++++++++++++
- redfish-core/lib/metric_report_definition.hpp  |  22 ++
- redfish-core/lib/power.hpp                     |   4 +-
- redfish-core/lib/sensors.hpp                   | 104 +++++++---
- redfish-core/lib/telemetry_service.hpp         |   2 +
- redfish-core/lib/thermal.hpp                   |   4 +-
- 8 files changed, 410 insertions(+), 54 deletions(-)
+ redfish-core/include/redfish.hpp              |   3 +
+ .../include/utils/telemetry_utils.hpp         |  56 ++--
+ redfish-core/lib/metric_definition.hpp        | 269 ++++++++++++++++++
+ redfish-core/lib/metric_report_definition.hpp |  22 ++
+ redfish-core/lib/power.hpp                    |   4 +-
+ redfish-core/lib/sensors.hpp                  |  96 +++++--
+ redfish-core/lib/telemetry_service.hpp        |   2 +
+ redfish-core/lib/thermal.hpp                  |   4 +-
+ 8 files changed, 406 insertions(+), 50 deletions(-)
  create mode 100644 redfish-core/lib/metric_definition.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index 2587b37..705f490 100644
+index b366e24..a938d43 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -25,6 +25,7 @@
@@ -40,7 +40,7 @@ index 2587b37..705f490 100644
  #include "../lib/metric_report.hpp"
  #include "../lib/metric_report_definition.hpp"
  #include "../lib/network_protocol.hpp"
-@@ -211,6 +212,8 @@ class RedfishService
+@@ -216,6 +217,8 @@ class RedfishService
          nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
  
          nodes.emplace_back(std::make_unique<TelemetryService>(app));
@@ -475,7 +475,7 @@ index 1c7a009..99c45ef 100644
  
          std::optional<std::vector<nlohmann::json>> voltageCollections;
 diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
-index 567cb0c..363713d 100644
+index 14c9593..bf97540 100644
 --- a/redfish-core/lib/sensors.hpp
 +++ b/redfish-core/lib/sensors.hpp
 @@ -54,9 +54,10 @@ static constexpr std::string_view thermal = "Thermal";
@@ -589,36 +589,11 @@ index 567cb0c..363713d 100644
      const std::string chassisSubNode;
  
    private:
-@@ -320,20 +380,20 @@ void getConnections(
-  * made, and eliminate Power sensors when a Thermal request is made.
-  */
- inline void reduceSensorList(
--    const std::shared_ptr<SensorsAsyncResp>& SensorsAsyncResp,
-+    const std::shared_ptr<SensorsAsyncResp>& sensorsAsyncResp,
-     const std::vector<std::string>* allSensors,
-     const std::shared_ptr<boost::container::flat_set<std::string>>&
-         activeSensors)
- {
--    if (SensorsAsyncResp == nullptr)
-+    if (sensorsAsyncResp == nullptr)
-     {
-         return;
-     }
-     if ((allSensors == nullptr) || (activeSensors == nullptr))
-     {
-         messages::resourceNotFound(
--            SensorsAsyncResp->res, SensorsAsyncResp->chassisSubNode,
--            SensorsAsyncResp->chassisSubNode == sensors::node::thermal
-+            sensorsAsyncResp->res, sensorsAsyncResp->chassisSubNode,
-+            sensorsAsyncResp->chassisSubNode == sensors::node::thermal
-                 ? "Temperatures"
-                 : "Voltages");
- 
 @@ -345,11 +405,11 @@ inline void reduceSensorList(
          return;
      }
  
--    for (const char* type : SensorsAsyncResp->types)
+-    for (const char* type : sensorsAsyncResp->types)
 +    for (const char* path : sensorsAsyncResp->matchPaths)
      {
          for (const std::string& sensor : *allSensors)
@@ -631,21 +606,21 @@ index 567cb0c..363713d 100644
 @@ -853,18 +913,8 @@ inline void objectInterfacesToJson(
      if (sensorsAsyncResp->chassisSubNode == sensors::node::sensors)
      {
-         sensor_json["@odata.type"] = "#Sensor.v1_0_0.Sensor";
+         sensorJson["@odata.type"] = "#Sensor.v1_0_0.Sensor";
 -        if (sensorType == "power")
 -        {
--            sensor_json["ReadingUnits"] = "Watts";
+-            sensorJson["ReadingUnits"] = "Watts";
 -        }
 -        else if (sensorType == "current")
 -        {
--            sensor_json["ReadingUnits"] = "Amperes";
+-            sensorJson["ReadingUnits"] = "Amperes";
 -        }
 -        else if (sensorType == "utilization")
 -        {
--            sensor_json["ReadingUnits"] = "Percent";
+-            sensorJson["ReadingUnits"] = "Percent";
 -        }
-+        sensor_json["ReadingType"] = sensors::toReadingType(sensorType);
-+        sensor_json["ReadingUnits"] = sensors::toReadingUnits(sensorType);
++        sensorJson["ReadingType"] = sensors::toReadingType(sensorType);
++        sensorJson["ReadingUnits"] = sensors::toReadingUnits(sensorType);
      }
      else if (sensorType == "temperature")
      {
@@ -705,5 +680,5 @@ index 8e01bee..00acdf9 100644
  
          if (!json_util::readJson(req, asyncResp->res, "Temperatures",
 -- 
-2.16.6
+2.17.1
 

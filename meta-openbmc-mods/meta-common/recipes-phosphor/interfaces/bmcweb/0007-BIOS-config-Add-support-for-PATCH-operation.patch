@@ -1,4 +1,4 @@
-From 8f823ad555b67b228413a0fcb46771d86108dcb3 Mon Sep 17 00:00:00 2001
+From ad2b1c83bd9cb1bb6eb86bebd1867b0172e5a7a8 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Wed, 23 Dec 2020 16:50:45 +0800
 Subject: [PATCH] BaseBiosTable: Add support for PATCH operation
@@ -24,14 +24,13 @@ PATCH https://${bmc}/redfish/v1/Systems/system/Bios/Settings -d
 This makes use of the "Set" of "PendingAttributes" in the
 backend and that updates the BaseBiosTable.
 
-
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
  redfish-core/lib/bios.hpp | 94 ++++++++++++++++++++++++++++++++++++++-
  1 file changed, 93 insertions(+), 1 deletion(-)
 
 diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
-index 9fe8c6e..e9c8969 100644
+index 5f8c91b..cf76fe0 100644
 --- a/redfish-core/lib/bios.hpp
 +++ b/redfish-core/lib/bios.hpp
 @@ -96,6 +96,29 @@ static std::string mapAttrTypeToRedfish(const std::string_view typeDbus)
@@ -64,7 +63,7 @@ index 9fe8c6e..e9c8969 100644
  static std::string mapBoundTypeToRedfish(const std::string_view typeDbus)
  {
      std::string ret;
-@@ -263,7 +286,9 @@ class BiosSettings : public Node
+@@ -262,7 +285,9 @@ class BiosSettings : public Node
      BiosSettings(App& app) :
          Node(app, "/redfish/v1/Systems/system/Bios/Settings")
      {
@@ -75,7 +74,7 @@ index 9fe8c6e..e9c8969 100644
      }
  
    private:
-@@ -361,6 +386,73 @@ class BiosSettings : public Node
+@@ -359,6 +384,73 @@ class BiosSettings : public Node
              "/xyz/openbmc_project/bios_config/manager",
              std::array<const char*, 0>());
      }

@@ -4,7 +4,7 @@ KBRANCH = "dev-5.8-intel"
 KSRC = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=${KBRANCH}"
 # Include this as a comment only for downstream auto-bump
 # SRC_URI = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=dev-5.8-intel"
-SRCREV="fc4c626deff9447cd5453b180826ed4f48fc828d"
+SRCREV="0f6cc27c3bed1e633100e9ea8d8e0384ca51e613"
 
 do_compile_prepend(){
    # device tree compiler flags
@@ -13,6 +13,8 @@ do_compile_prepend(){
 
 SRC_URI += " \
         file://intel.cfg \
+        file://0001-peci-Add-debug-printing-to-check-caller-PID.patch \
+        file://0002-soc-aspeed-add-AST2600-A0-specific-fix-into-mbox-dri.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

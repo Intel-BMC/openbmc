@@ -1,7 +1,7 @@
-From c7fce288802ece4a6e1ff71ee060a44e0b8fe992 Mon Sep 17 00:00:00 2001
+From d50e4ce193703c008d3293acd03e1c0542c0c215 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 27 Apr 2020 17:24:15 +0200
-Subject: [PATCH 1/4] Redfish TelemetryService schema implementation
+Subject: [PATCH] Redfish TelemetryService schema implementation
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -30,13 +30,13 @@ Signed-off-by: Adrian Ambrożewicz <adrian.ambrozewicz@linux.intel.com>
 Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Change-Id: Ie6b0b49f4ef5eeaef07d1209b6c349270c04d570
 ---
- redfish-core/include/redfish.hpp               |  10 ++
- redfish-core/include/utils/telemetry_utils.hpp |  71 ++++++++++
- redfish-core/include/utils/time_utils.hpp      |  78 +++++++++++
- redfish-core/lib/metric_report.hpp             | 162 +++++++++++++++++++++
- redfish-core/lib/metric_report_definition.hpp  | 186 +++++++++++++++++++++++++
- redfish-core/lib/service_root.hpp              |   2 +
- redfish-core/lib/telemetry_service.hpp         |  93 +++++++++++++
+ redfish-core/include/redfish.hpp              |  10 +
+ .../include/utils/telemetry_utils.hpp         |  71 +++++++
+ redfish-core/include/utils/time_utils.hpp     |  78 ++++++++
+ redfish-core/lib/metric_report.hpp            | 162 +++++++++++++++
+ redfish-core/lib/metric_report_definition.hpp | 186 ++++++++++++++++++
+ redfish-core/lib/service_root.hpp             |   2 +
+ redfish-core/lib/telemetry_service.hpp        |  93 +++++++++
  7 files changed, 602 insertions(+)
  create mode 100644 redfish-core/include/utils/telemetry_utils.hpp
  create mode 100644 redfish-core/include/utils/time_utils.hpp
@@ -45,7 +45,7 @@ Change-Id: Ie6b0b49f4ef5eeaef07d1209b6c349270c04d570
  create mode 100644 redfish-core/lib/telemetry_service.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index 54d5d0e..2587b37 100644
+index dabf78e..b366e24 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -25,6 +25,8 @@
@@ -65,7 +65,7 @@ index 54d5d0e..2587b37 100644
  #include "../lib/thermal.hpp"
  #include "../lib/update_service.hpp"
  #ifdef BMCWEB_ENABLE_VM_NBDPROXY
-@@ -207,6 +210,13 @@ class RedfishService
+@@ -212,6 +215,13 @@ class RedfishService
          nodes.emplace_back(std::make_unique<HypervisorInterface>(app));
          nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
  
@@ -713,5 +713,5 @@ index 0000000..a6acc34
 +};
 +} // namespace redfish
 -- 
-2.16.6
+2.17.1
 
