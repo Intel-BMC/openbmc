@@ -1,4 +1,4 @@
-From 4b96a19bdde82d7fed24cb70e0bcaef16d8711c3 Mon Sep 17 00:00:00 2001
+From 07a269d7873c77c372acbd4ccf83612e14f05404 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 4 Oct 2019 15:54:43 -0700
 Subject: [PATCH] aspeed/ast-scu.c: fix MAC1LINK and MAC2LINK pin pads setting
@@ -8,12 +8,13 @@ so this commit disables them in SCU pin control register so that
 the pins can be used as GPIOs.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+
 ---
- arch/arm/mach-aspeed/ast-scu.c | 37 +++++++++----------------------------
+ arch/arm/mach-aspeed/ast-scu.c | 37 +++++++++-------------------------
  1 file changed, 9 insertions(+), 28 deletions(-)
 
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index 537cd4b3e1c7..28c48c115406 100644
+index 537cd4b3e1..28c48c1154 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
 @@ -419,49 +419,30 @@ void ast_scu_multi_func_eth(u8 num)
@@ -75,6 +76,3 @@ index 537cd4b3e1c7..28c48c115406 100644
  		break;
  	}
  }
--- 
-2.7.4
-

@@ -1,6 +1,5 @@
 FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
 
-SRCREV = "c35135d32f9cb84b62de7b72eee3a2e87b4b3d4d"
 SRC_URI += "file://0001-Customize-phosphor-watchdog-for-Intel-platforms.patch \
            "
 

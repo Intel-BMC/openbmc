@@ -1,4 +1,4 @@
-From 7e11461d6b65969005605f13677269eb91d39643 Mon Sep 17 00:00:00 2001
+From 872e3fd3ae8f692ab11c49dbbd1c5b311c2aaad1 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Wed, 7 Nov 2018 13:57:57 +0800
 Subject: [PATCH] enable passthrough in uboot
@@ -9,7 +9,7 @@ Subject: [PATCH] enable passthrough in uboot
  2 files changed, 24 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index fff02dc..d27f3d3 100644
+index fff02dc000..d27f3d3ede 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
 @@ -544,3 +544,25 @@ void ast_config_uart5_clk(void)
@@ -39,10 +39,10 @@ index fff02dc..d27f3d3 100644
 +	}
 +}
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index 5a1fade..b492003 100644
+index 45353b8f78..02eb2c3990 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
-@@ -20,6 +20,8 @@ int board_early_init_f(void)
+@@ -23,6 +23,8 @@ int board_early_init_f(void)
  {
  	/* make sure uart5 is using 24MHz clock */
  	ast_config_uart5_clk();

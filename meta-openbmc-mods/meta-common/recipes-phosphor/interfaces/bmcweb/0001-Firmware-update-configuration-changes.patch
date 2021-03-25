@@ -1,4 +1,4 @@
-From b831fbaf5c3ca346d2e701b021307ba219ca2ef8 Mon Sep 17 00:00:00 2001
+From 10cb7cb14974725a29b3ead4c543ca5e58234c07 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Wed, 18 Nov 2020 17:14:41 +0530
 Subject: [PATCH] Firmware update configuration changes
@@ -55,7 +55,7 @@ Signed-off-by: Helen Huang <he.huang@intel.com>
  create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index 9e382ce..7dff5c9 100644
+index 6d44171..8eda265 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
 @@ -32,6 +32,17 @@ static std::unique_ptr<sdbusplus::bus::match::match> fwUpdateErrorMatcher;
@@ -287,7 +287,7 @@ index 9e382ce..7dff5c9 100644
          // Setup callback for when new software detected
          // Give TFTP 10 minutes to complete
          monitorForSoftwareAvailable(
-             nullptr, req,
+             asyncResp, req,
              "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate",
 -            600);
 +            httpUriTargets, 600);
@@ -557,10 +557,10 @@ index 9e382ce..7dff5c9 100644
  };
  
 diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
-index e7f9d6d..bedc9e5 100644
+index 514f3dd..c068d4f 100644
 --- a/static/redfish/v1/$metadata/index.xml
 +++ b/static/redfish/v1/$metadata/index.xml
-@@ -2700,6 +2700,9 @@
+@@ -2142,6 +2142,9 @@
      <edmx:Reference Uri="/redfish/v1/schema/OemManager_v1.xml">
          <edmx:Include Namespace="OemManager"/>
      </edmx:Reference>

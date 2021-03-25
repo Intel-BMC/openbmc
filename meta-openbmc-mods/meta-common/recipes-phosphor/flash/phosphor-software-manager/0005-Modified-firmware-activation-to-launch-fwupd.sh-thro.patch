@@ -1,4 +1,4 @@
-From 05b893222a8586c51e6f66320067f13b2a89dd46 Mon Sep 17 00:00:00 2001
+From df1281792f6886b41c99919e8197c2c2d369d0ca Mon Sep 17 00:00:00 2001
 From: Jennifer Lee <jennifer1.lee@intel.com>
 Date: Mon, 10 Dec 2018 10:36:44 -0800
 Subject: [PATCH] Modified firmware activation to launch fwupd.sh through
@@ -10,7 +10,6 @@ Subject: [PATCH] Modified firmware activation to launch fwupd.sh through
 
 Signed-off-by: Jennifer Lee <jennifer1.lee@intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
-
 ---
  activation.cpp    | 45 ++++++++++++++++++++++++++++++++++++++++++++-
  meson.build       |  1 +
@@ -20,12 +19,12 @@ Signed-off-by: James Feist <james.feist@linux.intel.com>
  5 files changed, 91 insertions(+), 9 deletions(-)
 
 diff --git a/activation.cpp b/activation.cpp
-index c82e297..d690a39 100644
+index eb57587..901caf3 100644
 --- a/activation.cpp
 +++ b/activation.cpp
-@@ -88,7 +88,50 @@ auto Activation::activation(Activations value) -> Activations
- 
-     if (value == softwareServer::Activation::Activations::Activating)
+@@ -92,7 +92,50 @@ auto Activation::activation(Activations value) -> Activations
+         value ==
+             softwareServer::Activation::Activations::ActivatingAsStandbySpare)
      {
 +#ifdef FWUPD_SCRIPT
 +        if (!activationProgress)
@@ -74,7 +73,7 @@ index c82e297..d690a39 100644
  #ifdef HOST_BIOS_UPGRADE
          auto purpose = parent.versions.find(versionId)->second->purpose();
          if (purpose == VersionPurpose::Host)
-@@ -111,7 +154,6 @@ auto Activation::activation(Activations value) -> Activations
+@@ -115,7 +158,6 @@ auto Activation::activation(Activations value) -> Activations
              return softwareServer::Activation::activation(value);
          }
  #endif
@@ -82,7 +81,7 @@ index c82e297..d690a39 100644
          auto versionStr = parent.versions.find(versionId)->second->version();
  
          if (!minimum_ship_level::verify(versionStr))
-@@ -175,6 +217,7 @@ auto Activation::activation(Activations value) -> Activations
+@@ -179,6 +221,7 @@ auto Activation::activation(Activations value) -> Activations
          return softwareServer::Activation::activation(
              softwareServer::Activation::Activations::Active);
  #endif
@@ -91,24 +90,24 @@ index c82e297..d690a39 100644
      else
      {
 diff --git a/meson.build b/meson.build
-index c74a927..0e5f963 100644
+index 0a7a6a6..5990168 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -54,6 +54,7 @@ conf.set('MMC_LAYOUT', get_option('bmc-layout').contains('mmc'))
- # Configurable features
- conf.set('HOST_BIOS_UPGRADE', get_option('host-bios-upgrade').enabled())
- conf.set('WANT_SIGNATURE_VERIFY', get_option('verify-signature').enabled())
+@@ -57,6 +57,7 @@ conf.set('WANT_SIGNATURE_VERIFY', \
+     get_option('verify-signature').enabled() or \
+     get_option('verify-full-signature').enabled())
+ conf.set('WANT_SIGNATURE_FULL_VERIFY', get_option('verify-full-signature').enabled())
 +conf.set('FWUPD_SCRIPT', get_option('fwupd-script').enabled())
  
  # Configurable variables
  conf.set('ACTIVE_BMC_MAX_ALLOWED', get_option('active-bmc-max-allowed'))
 diff --git a/meson_options.txt b/meson_options.txt
-index d37e681..d86371b 100644
+index 355773c..f0c8730 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
-@@ -22,6 +22,9 @@ option('oe-sdk', type: 'feature', description: 'Enable OE SDK')
- option('verify-signature', type: 'feature',
-     description: 'Enable image signature validation.')
+@@ -25,6 +25,9 @@ option('verify-signature', type: 'feature',
+ option('verify-full-signature', type: 'feature',
+     description: 'Enable image full signature validation.')
  
 +option('fwupd-script', type: 'feature',
 +    description: 'Enable fwupd script support.')

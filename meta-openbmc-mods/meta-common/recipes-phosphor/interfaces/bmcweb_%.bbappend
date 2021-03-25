@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "a90daf182891521fcc7c3e99ba266e6a55d4b4dd"
+SRCREV = "2b3da45876aac57a36d3093379a992d699e7e396"
 
 DEPENDS += "boost-url"
 RDEPENDS_${PN} += "phosphor-nslcd-authority-cert-config"
@@ -22,15 +22,21 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0009-Add-support-to-ChangePassword-action.patch \
             file://0010-managers-add-attributes-for-Manager.CommandShell.patch \
             file://0034-recommended-fixes-by-crypto-review-team.patch \
-            file://0036-Fix-wrong-check-in-EventService-events.patch \
 "
 
+# Temporary downstream mirror of upstream patch to enable feature in Intel builds.
+SRC_URI += "file://0037-Add-state-sensor-messages-to-the-registry.patch \
+"
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
-SRC_URI += "file://telemetry/0001-Redfish-TelemetryService-schema-implementation.patch \
-            file://telemetry/0002-Add-POST-and-DELETE-in-MetricReportDefinitions.patch \
+SRC_URI += "file://telemetry/0002-Add-POST-and-DELETE-in-MetricReportDefinitions.patch \
             file://telemetry/0003-Add-support-for-MetricDefinition-scheme.patch \
             file://telemetry/0004-Sync-Telmetry-service-with-EventService.patch \
+"
+
+SRC_URI += "file://0001-Add-ConnectedVia-property-to-virtual-media-item-temp.patch \
+            file://0002-Change-InsertMedia-action-response-for-POST-in-proxy.patch \
+            file://0003-Set-Inserted-redfish-property-for-not-inserted-resou.patch \
 "
 
 # Temporary fix: Move it to service file

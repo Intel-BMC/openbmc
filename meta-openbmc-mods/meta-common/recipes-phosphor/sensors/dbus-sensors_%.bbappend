@@ -1,13 +1,16 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "a3e8f2a391f389ffb2c379ca0c181e67de43824e"
+SRCREV = "d05867c0d32065d36b13bd452f7aff9dcb20ac2f"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 SRC_URI += "\
     file://intrusionsensor-depend-on-networkd.conf \
     file://0001-Add-check-for-min-max-received-from-hwmon-files.patch \
     file://0002-Fix-PECI-client-creation-flow.patch \
+    file://0003-Fix-missing-threshold-de-assert-event-when-threshold.patch \
+    file://0004-Fan-Tach-Sensor-Threshold-Ignore-Zero.patch \
+    file://0005-Fix-PECI-ioctl-number.patch \
     "
 
 DEPENDS_append = " libgpiod libmctp"
@@ -24,13 +27,11 @@ PACKAGECONFIG += " \
     psusensor \
 "
 
-PACKAGECONFIG[nvmesensor] = "-DDISABLE_NVME=OFF, -DDISABLE_NVME=ON"
+PACKAGECONFIG[nvmesensor] = "-Dnvme=enabled, -Dnvme=disabled"
 
 SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'nvmesensor', \
                                                'xyz.openbmc_project.nvmesensor.service', \
                                                '', d)}"
-
-PACKAGECONFIG_remove = "nvmesensor"
 
 do_install_append() {
     svc="xyz.openbmc_project.intrusionsensor.service"

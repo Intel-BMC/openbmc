@@ -1,4 +1,4 @@
-From 54616ade08517374200a332e50f68ee9d0fbf5c5 Mon Sep 17 00:00:00 2001
+From 4027a17dcfa5749cf2777a62c695a5b04377756b Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Tue, 9 Apr 2019 14:42:05 +0800
 Subject: [PATCH] Add system reset status support
@@ -14,12 +14,12 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
  arch/arm/include/asm/arch-aspeed/platform.h |  2 +
  arch/arm/mach-aspeed/ast-scu.c              |  4 ++
- board/aspeed/ast-g5/ast-g5-intel.c          | 73 +++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5.c                |  7 +++
+ board/aspeed/ast-g5/ast-g5-intel.c          | 73 +++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5.c                |  7 ++
  4 files changed, 86 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
-index 3b06e52..4e4140d 100644
+index 3b06e526f5..4e4140d8e4 100644
 --- a/arch/arm/include/asm/arch-aspeed/platform.h
 +++ b/arch/arm/include/asm/arch-aspeed/platform.h
 @@ -29,6 +29,8 @@
@@ -32,7 +32,7 @@ index 3b06e52..4e4140d 100644
  #err "No define for platform.h"
  #endif
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index 3a9ba05..976c59b 100644
+index 3a9ba05bf2..976c59b82a 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
 @@ -494,6 +494,9 @@ void ast_scu_sys_rest_info(void)
@@ -54,11 +54,11 @@ index 3a9ba05..976c59b 100644
  
  u32 ast_scu_get_vga_memsize(void)
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 01f8a13..e0bf9ee 100644
+index 5796ecf055..a223c798ac 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -303,6 +303,79 @@ static inline void ast_scu_write(uint32_t val, uint32_t reg)
- #endif
+@@ -333,6 +333,79 @@ static void set_pwm_duty_cycle(int duty)
+ 
  }
  
 +
@@ -138,10 +138,10 @@ index 01f8a13..e0bf9ee 100644
  {
  	uint32_t val;
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index d41ef9c..0953677 100644
+index cab5fabcef..d89a2b799a 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
-@@ -19,6 +19,7 @@
+@@ -22,6 +22,7 @@
  DECLARE_GLOBAL_DATA_PTR;
  
  extern void ast_g5_intel(void);
@@ -149,7 +149,7 @@ index d41ef9c..0953677 100644
  
  int board_early_init_f(void)
  {
-@@ -40,6 +41,12 @@ int board_init(void)
+@@ -90,6 +91,12 @@ int board_init(void)
  	return 0;
  }
  

@@ -1,7 +1,7 @@
-From a78bad158bca59dadb93c9c52d6daefa1c52b9cf Mon Sep 17 00:00:00 2001
+From 06064b3d6e56f4e13e6b85552f8525b74d9f1931 Mon Sep 17 00:00:00 2001
 From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Date: Mon, 24 Feb 2020 13:37:12 +0530
-Subject: [PATCH] Use groupmems instead of getgrnam_r due to overlay
+Subject: [PATCH 2/2] Use groupmems instead of getgrnam_r due to overlay
 
 With JFFS2 overlay, getgrnam_r during initial time returns the
 old group details as per the lower dir, instead of the overlay one
@@ -26,18 +26,18 @@ Signed-off-by: jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
  1 file changed, 13 insertions(+), 15 deletions(-)
 
 diff --git a/user_service.cpp b/user_service.cpp
-index c3c45bd..0a6b171 100644
+index ad4e510..89b27ed 100644
 --- a/user_service.cpp
 +++ b/user_service.cpp
-@@ -143,28 +143,26 @@ class ShadowService : public phosphor::user::UserServiceInterface
-         getUsersInGroup(const std::string &groupName) const override
+@@ -147,28 +147,26 @@ class ShadowService : public phosphor::user::UserServiceInterface
+         getUsersInGroup(const std::string& groupName) const override
      {
          std::vector<std::string> usersInGroup;
 -        // Should be more than enough to get the pwd structure.
 -        std::array<char, 4096> buffer{};
 -        struct group grp;
--        struct group *grpPtr = &grp;
--        struct group *resultPtr;
+-        struct group* grpPtr = &grp;
+-        struct group* resultPtr;
 -
 -        int status = getgrnam_r(groupName.c_str(), grpPtr, buffer.data(),
 -                                buffer.max_size(), &resultPtr);
@@ -54,7 +54,7 @@ index c3c45bd..0a6b171 100644
 +                                                "-g", groupName.c_str());
          }
 -        else
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
          {
              phosphor::logging::log<phosphor::logging::level::ERR>(
                  "Group not found",
@@ -72,5 +72,5 @@ index c3c45bd..0a6b171 100644
          return usersInGroup;
      }
 -- 
-2.7.4
+2.17.1
 

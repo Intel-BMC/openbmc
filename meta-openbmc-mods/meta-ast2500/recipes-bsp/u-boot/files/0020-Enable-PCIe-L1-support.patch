@@ -1,4 +1,4 @@
-From 647cc2538ed6b64054c742b4668386fda9394221 Mon Sep 17 00:00:00 2001
+From 088d7496885148f6d953a709988ab3ac1c2919a8 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Tue, 8 Jan 2019 13:33:15 -0800
 Subject: [PATCH] Enable PCIe L1 support
@@ -12,7 +12,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 12 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
-index 66427b6..b404353 100644
+index 66427b6f33..b4043534b0 100644
 --- a/arch/arm/mach-aspeed/platform_g5.S
 +++ b/arch/arm/mach-aspeed/platform_g5.S
 @@ -2432,6 +2432,18 @@ spi_cbr_end:

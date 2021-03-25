@@ -1,0 +1,25 @@
+From 4af788655c5b5a5fae4d85b365a70dc619810fe0 Mon Sep 17 00:00:00 2001
+From: Karol Wachowski <karol.wachowski@intel.com>
+Date: Thu, 11 Feb 2021 08:35:41 +0000
+Subject: [PATCH] Add ConnectedVia property to virtual media item template
+
+Tested: Verified that ConnectedVia property is returned and set to
+	"NotConnected" for disconnected media.
+
+Signed-off-by: Karol Wachowski <karol.wachowski@intel.com>
+---
+ redfish-core/lib/virtual_media.hpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index 188248a..80e7315 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -192,6 +192,7 @@ static nlohmann::json vmItemTemplate(const std::string& name,
+     item["@odata.id"] =
+         "/redfish/v1/Managers/" + name + "/VirtualMedia/" + resName;
+     item["@odata.type"] = "#VirtualMedia.v1_3_0.VirtualMedia";
++    item["ConnectedVia"] = "NotConnected";
+     item["Name"] = "Virtual Removable Media";
+     item["Id"] = resName;
+     item["WriteProtected"] = true;

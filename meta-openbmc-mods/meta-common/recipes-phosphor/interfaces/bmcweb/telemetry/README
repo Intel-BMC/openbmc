@@ -2,15 +2,12 @@ These patches are mirror of upstream TelemetryService implementation.
 Until change is integrated they will be manually merged here to enable feature in Intel builds.
 
 Current revisions:
-- Redfish TelemetryService schema implementation
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31692/54
-
 - Add POST and DELETE in MetricReportDefinitions
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/32536/46
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/32536/58
 
 - Add support for MetricDefinition scheme
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/42
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/54
 
 - Sync Telmetry service with EventService
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/38798/9
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/38798/21
 

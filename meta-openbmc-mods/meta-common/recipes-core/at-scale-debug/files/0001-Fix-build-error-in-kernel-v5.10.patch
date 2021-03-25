@@ -1,0 +1,62 @@
+From 7ed9ba9738d8f27578ea2d00019f8245ee2a5556 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 22 Feb 2021 15:32:13 -0800
+Subject: [PATCH] Fix build error in kernel v5.10
+
+Kernel headers should be added as last headers to prevent unexpected
+build breaks.
+
+Change-Id: Ie7d1a054baf2af88b9c46f928d0d84a64d8febd9
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ i2c_handler.c     | 5 +++--
+ i2c_msg_builder.c | 5 +++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/i2c_handler.c b/i2c_handler.c
+index 21fb931..05470f4 100644
+--- a/i2c_handler.c
++++ b/i2c_handler.c
+@@ -29,8 +29,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ #include <errno.h>
+ #include <fcntl.h>
+-#include <linux/i2c-dev.h>
+-#include <linux/i2c.h>
+ #include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -40,6 +38,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ #include "logging.h"
+ 
++#include <linux/i2c-dev.h>
++#include <linux/i2c.h>
++
+ #define FILE_NAME "/dev/i2c"
+ #define MAX_I2C_DEV_FILENAME 256
+ 
+diff --git a/i2c_msg_builder.c b/i2c_msg_builder.c
+index 6ae06a0..05dc340 100644
+--- a/i2c_msg_builder.c
++++ b/i2c_msg_builder.c
+@@ -27,13 +27,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ #include "i2c_msg_builder.h"
+ 
+-#include <linux/i2c-dev.h>
+-#include <linux/i2c.h>
+ #include <stdint.h>
+ #include <stdlib.h>
+ 
+ #include "logging.h"
+ 
++#include <linux/i2c-dev.h>
++#include <linux/i2c.h>
++
+ STATUS copy_i2c_to_asd(asd_i2c_msg* asd, struct i2c_msg* i2c);
+ STATUS copy_asd_to_i2c(const asd_i2c_msg* asd, struct i2c_msg* i2c);
+ 
+-- 
+2.17.1
+

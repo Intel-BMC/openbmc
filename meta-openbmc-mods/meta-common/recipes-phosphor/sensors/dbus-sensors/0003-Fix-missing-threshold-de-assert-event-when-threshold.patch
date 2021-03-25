@@ -1,0 +1,139 @@
+From 17e3ed85f2ff919ff52b4a3fe7a1eb0026f28898 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Thu, 24 Sep 2020 14:27:32 -0700
+Subject: [PATCH] Fix missing threshold de-assert event when threshold changes.
+
+Sensor can be re-constructed when sensor configuration changes
+like a new threshold value. Threshold deassert can be missed
+if the new threshold value fixes the alarm because the
+default state for new threshold interface is de-asserted.
+Send threshold de-assert message after interfaces are initialized to
+ensure de-assert event is logged if there is an active assert
+event.
+
+Tested:
+step1:
+busctl set-property xyz.openbmc_project.ADCSensor /xyz/openbmc_project/sensors/voltage/P3VBAT xyz.openbmc_project.Sensor.Threshold.Warning WarningLow d 2.457
+ipmitool sel list
+SEL has no entries
+step2:
+busctl set-property xyz.openbmc_project.ADCSensor /xyz/openbmc_project/sensors/voltage/P3VBAT xyz.openbmc_project.Sensor.Threshold.Warning WarningLow d 3.1
+ipmitool sel list
+   1 | 09/24/20 | 21:30:15 UTC | Voltage #0x2d | Lower Non-critical going low  | Asserted
+step3:
+busctl set-property xyz.openbmc_project.ADCSensor /xyz/openbmc_project/sensors/voltage/P3VBAT xyz.openbmc_project.Sensor.Threshold.Warning WarningLow d 2.457
+ipmitool sel list
+   1 | 09/24/20 | 21:30:15 UTC | Voltage #0x2d | Lower Non-critical going low  | Asserted
+   2 | 09/24/20 | 21:30:33 UTC | Voltage #0x2d | Lower Non-critical going low  | Deasserted
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Change-Id: If28870ac1e0d09be4a631a3145408ec70390dfc5
+---
+ include/Thresholds.hpp |  5 ++++-
+ include/sensor.hpp     | 13 +++++++++++++
+ src/ADCSensor.cpp      |  1 +
+ src/Thresholds.cpp     | 15 +++++++++++++--
+ 4 files changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
+index ca2b0a0..c1d0baf 100644
+--- a/include/Thresholds.hpp
++++ b/include/Thresholds.hpp
+@@ -45,7 +45,10 @@ struct Threshold
+ 
+ void assertThresholds(Sensor* sensor, double assertValue,
+                       thresholds::Level level, thresholds::Direction direction,
+-                      bool assert);
++                      bool assert, bool force = false);
++
++void forceDeassertThresholds(Sensor* sensor, thresholds::Level level,
++                             thresholds::Direction direction);
+ 
+ struct TimerUsed
+ {
+diff --git a/include/sensor.hpp b/include/sensor.hpp
+index 0ef87d5..d50b2ff 100644
+--- a/include/sensor.hpp
++++ b/include/sensor.hpp
+@@ -312,6 +312,19 @@ struct Sensor
+             operationalInterface->register_property("Functional", true);
+             operationalInterface->initialize();
+         }
++
++        // Sensor can be reconstructed when sensor configuration changes
++        // like a new threshold value. Threshold deassert can be missed
++        // if the new threshold value fixes the alarm because
++        // default state for new threshold interface is de-asserted.
++        // Send threshold de-assert message during initialization to
++        // ensure de-assert events are logged if there is an active assert
++        // event.
++        for (auto& threshold : thresholds)
++        {
++            thresholds::forceDeassertThresholds(this, threshold.level,
++                                                threshold.direction);
++        }
+     }
+ 
+     bool readingStateGood()
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index fe600d7..632fc8c 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -88,6 +88,7 @@ ADCSensor::~ADCSensor()
+     // close the input dev to cancel async operations
+     inputDev.close();
+     waitTimer.cancel();
++
+     objServer.remove_interface(thresholdInterfaceWarning);
+     objServer.remove_interface(thresholdInterfaceCritical);
+     objServer.remove_interface(sensorInterface);
+diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
+index f4d4ed0..3c791c9 100644
+--- a/src/Thresholds.cpp
++++ b/src/Thresholds.cpp
+@@ -344,6 +344,7 @@ bool checkThresholds(Sensor* sensor)
+ {
+     bool status = true;
+     std::vector<ChangeParam> changes = checkThresholds(sensor, sensor->value);
++
+     for (const auto& change : changes)
+     {
+         assertThresholds(sensor, change.assertValue, change.threshold.level,
+@@ -392,7 +393,7 @@ void checkThresholdsPowerDelay(Sensor* sensor, ThresholdTimer& thresholdTimer)
+ 
+ void assertThresholds(Sensor* sensor, double assertValue,
+                       thresholds::Level level, thresholds::Direction direction,
+-                      bool assert)
++                      bool assert, bool force)
+ {
+     std::string property;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> interface;
+@@ -432,7 +433,9 @@ void assertThresholds(Sensor* sensor, double assertValue,
+         return;
+     }
+ 
+-    if (interface->set_property<bool, true>(property, assert))
++    bool propertyChanged =
++        interface->set_property<bool, true>(property, assert);
++    if (force || propertyChanged)
+     {
+         try
+         {
+@@ -452,6 +455,14 @@ void assertThresholds(Sensor* sensor, double assertValue,
+     }
+ }
+ 
++// Explicitely de-assert a threshold with existing sensor value
++// Should only be called on sensor desctruction
++void forceDeassertThresholds(Sensor* sensor, thresholds::Level level,
++                             thresholds::Direction direction)
++{
++    assertThresholds(sensor, sensor->value, level, direction, false, true);
++}
++
+ bool parseThresholdsFromAttr(
+     std::vector<thresholds::Threshold>& thresholdVector,
+     const std::string& inputPath, const double& scaleFactor,
+-- 
+2.17.1
+

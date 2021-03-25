@@ -1,7 +1,7 @@
 SUMMARY = "Settings"
 
 SRC_URI = "git://github.com/Intel-BMC/settings.git;protocol=ssh"
-SRCREV = "946ac7669602d5660310e8609f500dadf16bb16d"
+SRCREV = "1bdbb05873b5790bd56b683ce8ddf1a02a6795e7"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"

@@ -8,6 +8,7 @@ SYSTEMD_SERVICE_${PN} = "SetBaseboardFru.service"
 
 S = "${WORKDIR}"
 SRC_URI = "file://checkFru.sh \
+           file://decodeBoardID.sh \
            file://SetBaseboardFru.service \
            file://mkfru.cpp \
            file://CMakeLists.txt \
@@ -24,6 +25,7 @@ RDEPENDS_${PN} = "bash"
 do_install_append() {
     install -d ${D}${bindir}
     install -m 0755 ${S}/checkFru.sh ${D}/${bindir}/checkFru.sh
+    install -m 0755 ${S}/decodeBoardID.sh ${D}/${bindir}/decodeBoardID.sh
 
     install -d ${D}${base_libdir}/systemd/system
     install -m 0644 ${S}/SetBaseboardFru.service ${D}${base_libdir}/systemd/system

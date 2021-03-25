@@ -1,4 +1,4 @@
-From 0083904a79527cef9ca99e516ed015b56a6b95c7 Mon Sep 17 00:00:00 2001
+From 3d2ea02810c8b6d595536cf2ce0c692f56ebaf0c Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 7 May 2019 11:26:35 +0530
 Subject: [PATCH] CPLD u-boot commands support for PFR
@@ -29,6 +29,7 @@ ast#
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
 ---
  cmd/Makefile |   1 +
  cmd/cpld.c   | 244 +++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -297,6 +298,3 @@ index 0000000000..1b225d20dc
 +#endif
 +
 +U_BOOT_CMD(cpld, 4, 1, do_cpld, "PFR CPLD information", cpld_help_text);
--- 
-2.17.1
-

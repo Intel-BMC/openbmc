@@ -1,7 +1,7 @@
-From b6f898ef15eede75700e9e13a8e0b69d88b12fd4 Mon Sep 17 00:00:00 2001
+From 008edb2487358bb3f0f0ec1d753cc5bff7b08182 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Thu, 20 Jun 2019 18:11:43 +0530
-Subject: [PATCH 15/30] Manufacturing mode physical presence detection
+Subject: [PATCH] Manufacturing mode physical presence detection
 
 Support for physical presence of manufacturing mode added.
 Front panel power button press for 15 seconds will be detected
@@ -23,7 +23,7 @@ Change-Id: Id7e7c7e7860c7ef3ae8e3a7a7cfda7ff506c0f2b
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 
-%% original patch: 0025-Manufacturing-mode-physical-presence-detection.patch
+
 ---
  board/aspeed/ast-g5/ast-g5-gpio.h  |  2 +-
  board/aspeed/ast-g5/ast-g5-intel.c | 35 ++++++++++++++++++++++++++++++
@@ -109,6 +109,3 @@ index 45ecd83fd3..efc3315caf 100644
  }
  
  static void pwm_init(void)
--- 
-2.17.1
-

@@ -1,4 +1,4 @@
-From 0f64b0e0c0a122ce23b5ccc518f514ec296bc7f5 Mon Sep 17 00:00:00 2001
+From 61587868bf9979dd8308f12157310949f0e5c430 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 21 May 2019 00:53:04 +0530
 Subject: [PATCH] FFUJ: FW IPMI commands and flash support in u-boot
@@ -28,17 +28,18 @@ Tested:
    image transfer via KCS and flashing.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
 ---
- arch/arm/include/asm/arch-aspeed/ast-g5-intel.h |   1 +
- board/aspeed/ast-g5/Makefile                    |   2 +
- board/aspeed/ast-g5/fw-update.c                 | 486 ++++++++++++++++++++++++
- board/aspeed/ast-g5/fw-update.h                 |  50 +++
- board/aspeed/ast-g5/ipmi-fwupd.c                | 402 ++++++++++++++++++++
- board/aspeed/ast-g5/ipmi-fwupd.h                |  81 ++++
- board/aspeed/ast-g5/ipmi-handler.c              |  66 +++-
- board/aspeed/ast-g5/ipmi-handler.h              |   3 +-
- common/autoboot.c                               |  13 +
- configs/ast_g5_phy_defconfig                    |   1 +
+ .../include/asm/arch-aspeed/ast-g5-intel.h    |   1 +
+ board/aspeed/ast-g5/Makefile                  |   2 +
+ board/aspeed/ast-g5/fw-update.c               | 486 ++++++++++++++++++
+ board/aspeed/ast-g5/fw-update.h               |  50 ++
+ board/aspeed/ast-g5/ipmi-fwupd.c              | 402 +++++++++++++++
+ board/aspeed/ast-g5/ipmi-fwupd.h              |  81 +++
+ board/aspeed/ast-g5/ipmi-handler.c            |  66 ++-
+ board/aspeed/ast-g5/ipmi-handler.h            |   3 +-
+ common/autoboot.c                             |  13 +
+ configs/ast_g5_phy_defconfig                  |   1 +
  10 files changed, 1093 insertions(+), 12 deletions(-)
  create mode 100644 board/aspeed/ast-g5/fw-update.c
  create mode 100644 board/aspeed/ast-g5/fw-update.h
@@ -46,7 +47,7 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
  create mode 100644 board/aspeed/ast-g5/ipmi-fwupd.h
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
-index cd9a099..a88521a 100644
+index cd9a0994fa..a88521a1b3 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 @@ -14,6 +14,7 @@
@@ -58,7 +59,7 @@ index cd9a099..a88521a 100644
  
  #endif /* __AST_INTEL_G5_H__ */
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index f28fcfe..0b2d936 100644
+index f28fcfe61c..0b2d936c23 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -6,3 +6,5 @@ obj-y += ast-g5-gpio.o
@@ -69,7 +70,7 @@ index f28fcfe..0b2d936 100644
 +obj-y += fw-update.o
 diff --git a/board/aspeed/ast-g5/fw-update.c b/board/aspeed/ast-g5/fw-update.c
 new file mode 100644
-index 0000000..9923993
+index 0000000000..99239938b5
 --- /dev/null
 +++ b/board/aspeed/ast-g5/fw-update.c
 @@ -0,0 +1,486 @@
@@ -561,7 +562,7 @@ index 0000000..9923993
 +#endif
 diff --git a/board/aspeed/ast-g5/fw-update.h b/board/aspeed/ast-g5/fw-update.h
 new file mode 100644
-index 0000000..ed033ad
+index 0000000000..ed033adfed
 --- /dev/null
 +++ b/board/aspeed/ast-g5/fw-update.h
 @@ -0,0 +1,50 @@
@@ -617,7 +618,7 @@ index 0000000..ed033ad
 +int generate_random_number(void);
 diff --git a/board/aspeed/ast-g5/ipmi-fwupd.c b/board/aspeed/ast-g5/ipmi-fwupd.c
 new file mode 100644
-index 0000000..3eba056
+index 0000000000..3eba056e7f
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ipmi-fwupd.c
 @@ -0,0 +1,402 @@
@@ -1025,7 +1026,7 @@ index 0000000..3eba056
 +}
 diff --git a/board/aspeed/ast-g5/ipmi-fwupd.h b/board/aspeed/ast-g5/ipmi-fwupd.h
 new file mode 100644
-index 0000000..e490f6b
+index 0000000000..e490f6b527
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ipmi-fwupd.h
 @@ -0,0 +1,81 @@
@@ -1111,7 +1112,7 @@ index 0000000..e490f6b
 +u16 fwupd_get_update_status(u8 *req, u16 req_len, u8 *res);
 +u16 fwupd_image_write(u8 *req, u16 req_len, u8 *res);
 diff --git a/board/aspeed/ast-g5/ipmi-handler.c b/board/aspeed/ast-g5/ipmi-handler.c
-index 9cccee9..5e78546 100644
+index 9cccee9f2f..5e78546e70 100644
 --- a/board/aspeed/ast-g5/ipmi-handler.c
 +++ b/board/aspeed/ast-g5/ipmi-handler.c
 @@ -1,18 +1,37 @@
@@ -1212,7 +1213,7 @@ index 9cccee9..5e78546 100644
  
  #define CMD_TABLE_SIZE ARRAY_SIZE(cmd_info)
 diff --git a/board/aspeed/ast-g5/ipmi-handler.h b/board/aspeed/ast-g5/ipmi-handler.h
-index 9d46d9b..8eea930 100644
+index 9d46d9bd9a..8eea93063a 100644
 --- a/board/aspeed/ast-g5/ipmi-handler.h
 +++ b/board/aspeed/ast-g5/ipmi-handler.h
 @@ -1,4 +1,3 @@
@@ -1236,7 +1237,7 @@ index 9d46d9b..8eea930 100644
  
  /* BMC IPMB LUNs */
 diff --git a/common/autoboot.c b/common/autoboot.c
-index d66c0fa..3647d5f 100644
+index d66c0fa63a..3647d5fb21 100644
 --- a/common/autoboot.c
 +++ b/common/autoboot.c
 @@ -349,6 +349,19 @@ void autoboot_command(const char *s)
@@ -1260,7 +1261,7 @@ index d66c0fa..3647d5f 100644
  #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
  		int prev = disable_ctrlc(1);	/* disable Control C checking */
 diff --git a/configs/ast_g5_phy_defconfig b/configs/ast_g5_phy_defconfig
-index 1b96ab7..5965a9b 100644
+index 1b96ab7f3b..5965a9b04f 100644
 --- a/configs/ast_g5_phy_defconfig
 +++ b/configs/ast_g5_phy_defconfig
 @@ -15,3 +15,4 @@ CONFIG_SYS_NS16550=y
@@ -1268,6 +1269,3 @@ index 1b96ab7..5965a9b 100644
  CONFIG_CMD_I2C=y
  CONFIG_SYS_I2C_AST=y
 +CONFIG_LIB_RAND=y
--- 
-2.7.4
-

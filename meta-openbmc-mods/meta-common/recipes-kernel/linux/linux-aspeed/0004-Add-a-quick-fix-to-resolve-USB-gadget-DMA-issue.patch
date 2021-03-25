@@ -1,0 +1,33 @@
+From cdd7104850d34cfe22902c45d69dac6cb506b087 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 26 Feb 2021 11:00:54 -0800
+Subject: [PATCH] Add a quick fix to resolve USB gadget DMA issue.
+
+This is a quick fix to resolve USB gadget DMA issue and it should
+be removed when a real fix is added.
+
+Tested: Keyboard and mouse in KVM feature worked.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ kernel/dma/mapping.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/kernel/dma/mapping.c b/kernel/dma/mapping.c
+index 51bb8fa8eb89..7bcfedeb1e30 100644
+--- a/kernel/dma/mapping.c
++++ b/kernel/dma/mapping.c
+@@ -146,8 +146,10 @@ dma_addr_t dma_map_page_attrs(struct device *dev, struct page *page,
+ 
+ 	BUG_ON(!valid_dma_direction(dir));
+ 
++#if 0 /* Quick fix to resolve USB gadget issue */
+ 	if (WARN_ON_ONCE(!dev->dma_mask))
+ 		return DMA_MAPPING_ERROR;
++#endif
+ 
+ 	if (dma_map_direct(dev, ops))
+ 		addr = dma_direct_map_page(dev, page, offset, size, dir, attrs);
+-- 
+2.17.1
+

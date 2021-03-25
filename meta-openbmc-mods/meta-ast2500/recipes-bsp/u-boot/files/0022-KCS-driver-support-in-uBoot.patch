@@ -1,7 +1,7 @@
-From 6d8db23becf9665193023e350adcad00b75195b0 Mon Sep 17 00:00:00 2001
+From ecda16cf2eb96fb63aca737513abcf79cc59a44b Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 13 Mar 2019 14:28:05 +0530
-Subject: [PATCH 1/1] KCS driver support in uBoot
+Subject: [PATCH] KCS driver support in uBoot
 
 Added KCS support in uBoot. This will enable
 KCS channels and set the specified registers
@@ -26,6 +26,7 @@ via KCS interfaces using cmdtool.efi.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
  board/aspeed/ast-g5/Makefile       |   1 +
  board/aspeed/ast-g5/ast-g5-intel.c |   3 +
@@ -45,20 +46,20 @@ index 90224333c4..05972b9d17 100644
  obj-y += ast-g5-timer.o
 +obj-y += ast-g5-kcs.o
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 032f716722..c149426947 100644
+index a16e1330a0..ac2af9af56 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -256,6 +256,7 @@ int intel_force_firmware_jumper_enabled(void)
+@@ -493,6 +493,7 @@ static void pwm_init(void)
  }
  
  extern void espi_init(void);
 +extern void kcs_init(void);
  void ast_g5_intel(void)
  {
- 	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
-@@ -264,5 +265,7 @@ void ast_g5_intel(void)
- 	timer8_init();
- 	if (intel_force_firmware_jumper_enabled()) {
+ 	pwm_init();
+@@ -505,5 +506,7 @@ void ast_g5_intel(void)
+ 		id_led_control(GPIO_ID_LED, EIDLED_On);
+ 		id_led_control(GPIO_GREEN_LED, EIDLED_Off);
  		id_led_control(GPIO_AMBER_LED, EIDLED_On);
 +		kcs_init();
 +		/* TODO: need to stop the booting here. */
@@ -608,6 +609,3 @@ index 0000000000..bb697c455d
 +	u16 data_out_idx;
 +	u8 data_out[MAX_KCS_PKT_SIZE];
 +};
--- 
-2.17.1
-

@@ -11,6 +11,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=4332a97808994cf2133a65b6c6f33eaf"
 
 SRC_URI = "git://github.com/libguestfs/nbdkit.git;protocol=https"
 SRC_URI += "file://0001-Force-nbdkit-to-send-PATCH-as-upload-method.patch"
+SRC_URI += "file://0002-Add-support-for-ssl-config.patch"
 
 PV = "1.17.5+git${SRCPV}"
 SRCREV = "c8406880c6603bb617dae131dd0a8826c05869ca"

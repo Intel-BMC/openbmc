@@ -1,4 +1,4 @@
-From b6f1f040f515a43d1903f4c4020032dfe436670d Mon Sep 17 00:00:00 2001
+From a4a0c281865339c68871e4f62dd21f78504ea60e Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Sun, 27 Sep 2020 17:45:56 +0800
 Subject: [PATCH] Fix issue on host console is broken due to BMC reset by
@@ -88,6 +88,7 @@ ast# md 0x1e78909c
 1e78909c: 00000000 ffceff00 19000000 00000000
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+
 ---
  arch/arm/include/asm/arch-aspeed/regs-lpc.h | 1 +
  board/aspeed/ast-g5/ast-g5.c                | 3 +++
@@ -106,7 +107,7 @@ index b0162ae4f3..b4d3da2906 100644
  
  /*	AST_LPC_HICR5 : 0x80	Host Interface Control Register 5 */
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index 00bd92ae5f..4c5997ab8a 100644
+index 3f27503bce..6fdc06ad63 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
 @@ -45,6 +45,9 @@ int board_init(void)
@@ -119,6 +120,3 @@ index 00bd92ae5f..4c5997ab8a 100644
  	/* P2A, PCIe BMC */
  	val = readl(AST_SCU_BASE + AST_SCU_PCIE_CONFIG_SET);
  	val &= ~(SCU_PCIE_CONFIG_SET_BMC_DMA
--- 
-2.17.1
-

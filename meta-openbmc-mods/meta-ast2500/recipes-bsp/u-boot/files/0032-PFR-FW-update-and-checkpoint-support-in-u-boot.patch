@@ -1,4 +1,4 @@
-From bd0d8af493387ab1602a0a40b4a548981c1e4d00 Mon Sep 17 00:00:00 2001
+From 5d16832eb3a65e2d30c732a06abcec801c1edf38 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 24 Jul 2019 20:11:30 +0530
 Subject: [PATCH] PFR FW update and checkpoint support in u-boot
@@ -22,6 +22,7 @@ cross verified the check-points properly set or not.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
 ---
  board/aspeed/ast-g5/Makefile       |   1 +
  board/aspeed/ast-g5/ast-g5-intel.c |  10 +++
@@ -45,7 +46,7 @@ index 0b2d936c23..9021d7fc08 100644
  obj-y += fw-update.o
 +obj-y += pfr-mgr.o
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index dde5adbc70..6ef3ca9f73 100644
+index 6e43b74bc4..6a36cfa2ba 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -16,6 +16,7 @@
@@ -56,7 +57,7 @@ index dde5adbc70..6ef3ca9f73 100644
  
  /* Names to match the GPIOs */
  enum gpio_names {
-@@ -634,6 +635,10 @@ void ast_g5_intel(void)
+@@ -664,6 +665,10 @@ void ast_g5_intel(void)
  	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) |
  		      SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);
  
@@ -65,9 +66,9 @@ index dde5adbc70..6ef3ca9f73 100644
 +	set_cpld_reg(PFR_CPLD_BOOT_CHECKPOINT_REG, PFR_CPLD_CHKPOINT_START);
 +
  	uart_init();
+ 	mailbox_init();
  	pwm_init();
- 	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
-@@ -649,6 +654,11 @@ void ast_g5_intel(void)
+@@ -683,6 +688,11 @@ void ast_g5_intel(void)
  		kcs_init();
  		if (intel_get_platform_id() == COOPER_CITY_BOARD_ID)
  			set_pwm_duty_cycle(ELEVATED_PWM_DUTY_VALUE);
@@ -525,6 +526,3 @@ index 0000000000..5c5b98bbe0
 +ulong get_update_intent(u32 type);
 +ulong get_flash_region_offset(u32 type);
 +ulong get_image_max_size(u32 type);
--- 
-2.17.1
-

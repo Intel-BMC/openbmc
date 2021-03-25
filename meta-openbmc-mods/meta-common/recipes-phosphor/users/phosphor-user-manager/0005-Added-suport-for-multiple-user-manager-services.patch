@@ -1,7 +1,7 @@
-From ab2ff3d715b00a13b0a670fb010793dc626352e0 Mon Sep 17 00:00:00 2001
+From 6fd1c797ec7440551052e8fc638d06313c9d6836 Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Mon, 2 Jul 2018 19:23:25 -0700
-Subject: [PATCH] Added suport for multiple user manager services
+Subject: [PATCH 1/2] Added suport for multiple user manager services
 
 Support added for SSSD service implementation
 
@@ -10,12 +10,12 @@ Signed-off-by: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 ---
  Makefile.am      |   5 +-
- mainapp.cpp      |  89 ++++++-
- user_mgr.cpp     | 297 ++-------------------
+ mainapp.cpp      |  90 +++++-
+ user_mgr.cpp     | 297 ++----------------
  user_mgr.hpp     |   9 +-
- user_service.cpp | 786 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
- user_service.hpp | 233 +++++++++++++++++
- 6 files changed, 1145 insertions(+), 274 deletions(-)
+ user_service.cpp | 789 +++++++++++++++++++++++++++++++++++++++++++++++
+ user_service.hpp | 233 ++++++++++++++
+ 6 files changed, 1149 insertions(+), 274 deletions(-)
  create mode 100644 user_service.cpp
  create mode 100644 user_service.hpp
 
@@ -39,18 +39,19 @@ index 7c7271e..58916b0 100644
  phosphor_user_manager_LDFLAGS = $(SDBUSPLUS_LIBS) \
                                  $(PHOSPHOR_DBUS_INTERFACES_LIBS) \
 diff --git a/mainapp.cpp b/mainapp.cpp
-index c9da030..03c406a 100644
+index e08da61..f4b7f8c 100644
 --- a/mainapp.cpp
 +++ b/mainapp.cpp
-@@ -14,18 +14,105 @@
-  * limitations under the License.
-  */
- #include <string>
-+#include <iostream>
-+#include <getopt.h>
+@@ -16,18 +16,106 @@
+ #include "config.h"
+ 
  #include "user_mgr.hpp"
 +#include "user_service.hpp"
- #include "config.h"
+ 
++#include <getopt.h>
++
++#include <iostream>
+ #include <string>
  
  // D-Bus root for user manager
  constexpr auto USER_MANAGER_ROOT = "/xyz/openbmc_project/user";
@@ -150,63 +151,66 @@ index c9da030..03c406a 100644
      // Claim the bus now
      bus.request_name(USER_MANAGER_BUSNAME);
 diff --git a/user_mgr.cpp b/user_mgr.cpp
-index 9694fd1..c48196a 100644
+index c65a822..eed81aa 100644
 --- a/user_mgr.cpp
 +++ b/user_mgr.cpp
-@@ -14,27 +14,20 @@
- // limitations under the License.
- */
+@@ -18,43 +18,34 @@
  
+ #include "user_mgr.hpp"
+ 
+-#include "file.hpp"
+ #include "shadowlock.hpp"
+ #include "users.hpp"
+ 
+ #include <grp.h>
+ #include <pwd.h>
 -#include <shadow.h>
--#include <unistd.h>
 -#include <sys/types.h>
 -#include <sys/wait.h>
  #include <time.h>
-+#include <cstdio>
- #include <fstream>
- #include <grp.h>
- #include <pwd.h>
- #include <regex>
--#include <algorithm>
--#include <numeric>
+-#include <unistd.h>
+ 
+ #include <boost/algorithm/string/split.hpp>
 -#include <boost/process/child.hpp>
 -#include <boost/process/io.hpp>
- #include <boost/algorithm/string/split.hpp>
+ #include <phosphor-logging/elog-errors.hpp>
+ #include <phosphor-logging/elog.hpp>
+ #include <phosphor-logging/log.hpp>
  #include <xyz/openbmc_project/Common/error.hpp>
  #include <xyz/openbmc_project/User/Common/error.hpp>
- #include <phosphor-logging/log.hpp>
- #include <phosphor-logging/elog.hpp>
- #include <phosphor-logging/elog-errors.hpp>
+ 
+-#include <algorithm>
++#include <cstdio>
+ #include <fstream>
+-#include <numeric>
+ #include <regex>
 +#include <stdexcept>
- #include "shadowlock.hpp"
--#include "file.hpp"
- #include "user_mgr.hpp"
- #include "users.hpp"
- #include "config.h"
-@@ -44,12 +37,10 @@ namespace phosphor
+ 
+ namespace phosphor
+ {
  namespace user
  {
  
--static constexpr const char *passwdFileName = "/etc/passwd";
+-static constexpr const char* passwdFileName = "/etc/passwd";
  static constexpr size_t ipmiMaxUsers = 15;
  static constexpr size_t ipmiMaxUserNameLen = 16;
  static constexpr size_t systemMaxUserNameLen = 30;
  static constexpr size_t maxSystemUsers = 30;
--static constexpr const char *grpSsh = "ssh";
+-static constexpr const char* grpSsh = "ssh";
  static constexpr uint8_t minPasswdLength = 8;
  static constexpr int success = 0;
  static constexpr int failure = -1;
-@@ -95,79 +86,6 @@ using NoResource =
+@@ -100,79 +91,6 @@ using NoResource =
  
  using Argument = xyz::openbmc_project::Common::InvalidArgument;
  
 -template <typename... ArgTypes>
--static std::vector<std::string> executeCmd(const char *path,
--                                           ArgTypes &&... tArgs)
+-static std::vector<std::string> executeCmd(const char* path,
+-                                           ArgTypes&&... tArgs)
 -{
 -    std::vector<std::string> stdOutput;
 -    boost::process::ipstream stdOutStream;
--    boost::process::child execProg(path, const_cast<char *>(tArgs)...,
+-    boost::process::child execProg(path, const_cast<char*>(tArgs)...,
 -                                   boost::process::std_out > stdOutStream);
 -    std::string stdOutLine;
 -
@@ -254,7 +258,7 @@ index 9694fd1..c48196a 100644
 -    }
 -}
 -
--static bool removeStringFromCSV(std::string &csvStr, const std::string &delStr)
+-static bool removeStringFromCSV(std::string& csvStr, const std::string& delStr)
 -{
 -    std::string::size_type delStrPos = csvStr.find(delStr);
 -    if (delStrPos != std::string::npos)
@@ -273,10 +277,10 @@ index 9694fd1..c48196a 100644
 -    return false;
 -}
 -
- bool UserMgr::isUserExist(const std::string &userName)
+ bool UserMgr::isUserExist(const std::string& userName)
  {
      if (userName.empty())
-@@ -294,39 +212,14 @@ void UserMgr::createUser(std::string userName,
+@@ -299,39 +217,14 @@ void UserMgr::createUser(std::string userName,
  {
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
@@ -306,7 +310,7 @@ index 9694fd1..c48196a 100644
 -                   (sshRequested ? "/bin/sh" : "/bin/nologin"), "-e",
 -                   (enabled ? "" : "1970-01-02"));
 -    }
--    catch (const InternalFailure &e)
+-    catch (const InternalFailure& e)
 -    {
 -        log<level::ERR>("Unable to create new user");
 -        elog<InternalFailure>();
@@ -319,7 +323,7 @@ index 9694fd1..c48196a 100644
      std::string userObj = std::string(usersObjPath) + "/" + userName;
      std::sort(groupNames.begin(), groupNames.end());
      usersList.emplace(
-@@ -340,19 +233,11 @@ void UserMgr::createUser(std::string userName,
+@@ -345,19 +238,11 @@ void UserMgr::createUser(std::string userName,
  
  void UserMgr::deleteUser(std::string userName)
  {
@@ -330,7 +334,7 @@ index 9694fd1..c48196a 100644
 -    {
 -        executeCmd("/usr/sbin/userdel", userName.c_str(), "-r");
 -    }
--    catch (const InternalFailure &e)
+-    catch (const InternalFailure& e)
 -    {
 -        log<level::ERR>("User delete failed",
 -                        entry("USER_NAME=%s", userName.c_str()));
@@ -343,7 +347,7 @@ index 9694fd1..c48196a 100644
  
      usersList.erase(userName);
  
-@@ -363,24 +248,13 @@ void UserMgr::deleteUser(std::string userName)
+@@ -368,24 +253,13 @@ void UserMgr::deleteUser(std::string userName)
  
  void UserMgr::renameUser(std::string userName, std::string newUserName)
  {
@@ -359,7 +363,7 @@ index 9694fd1..c48196a 100644
 -        executeCmd("/usr/sbin/usermod", "-l", newUserName.c_str(),
 -                   userName.c_str(), "-d", newHomeDir.c_str(), "-m");
 -    }
--    catch (const InternalFailure &e)
+-    catch (const InternalFailure& e)
 -    {
 -        log<level::ERR>("User rename failed",
 -                        entry("USER_NAME=%s", userName.c_str()));
@@ -368,19 +372,19 @@ index 9694fd1..c48196a 100644
 +    // Call The User Service to rename user on the system
 +    userSrvc->renameUser(userName, newUserName);
 +    // Update local list to reflect the name change
-     const auto &user = usersList[userName];
+     const auto& user = usersList[userName];
      std::string priv = user.get()->userPrivilege();
      std::vector<std::string> groupNames = user.get()->userGroups();
-@@ -404,8 +278,6 @@ void UserMgr::updateGroupsAndPriv(const std::string &userName,
+@@ -409,8 +283,6 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
  {
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
 -    // All user management lock has to be based on /etc/shadow
 -    phosphor::user::shadow::Lock lock();
      throwForUserDoesNotExist(userName);
-     const std::vector<std::string> &oldGroupNames =
+     const std::vector<std::string>& oldGroupNames =
          usersList[userName].get()->userGroups();
-@@ -421,29 +293,8 @@ void UserMgr::updateGroupsAndPriv(const std::string &userName,
+@@ -426,29 +298,8 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
          throwForMaxGrpUserCount(groupNames);
      }
  
@@ -402,7 +406,7 @@ index 9694fd1..c48196a 100644
 -        executeCmd("/usr/sbin/usermod", userName.c_str(), "-G", groups.c_str(),
 -                   "-s", (sshRequested ? "/bin/sh" : "/bin/nologin"));
 -    }
--    catch (const InternalFailure &e)
+-    catch (const InternalFailure& e)
 -    {
 -        log<level::ERR>("Unable to modify user privilege / groups");
 -        elog<InternalFailure>();
@@ -412,9 +416,9 @@ index 9694fd1..c48196a 100644
  
      log<level::INFO>("User groups / privilege updated successfully",
                       entry("USER_NAME=%s", userName.c_str()));
-@@ -639,19 +490,9 @@ int UserMgr::setPamModuleArgValue(const std::string &moduleName,
+@@ -644,19 +495,9 @@ int UserMgr::setPamModuleArgValue(const std::string& moduleName,
  
- void UserMgr::userEnable(const std::string &userName, bool enabled)
+ void UserMgr::userEnable(const std::string& userName, bool enabled)
  {
 -    // All user management lock has to be based on /etc/shadow
 -    phosphor::user::shadow::Lock lock();
@@ -424,7 +428,7 @@ index 9694fd1..c48196a 100644
 -        executeCmd("/usr/sbin/usermod", userName.c_str(), "-e",
 -                   (enabled ? "" : "1970-01-02"));
 -    }
--    catch (const InternalFailure &e)
+-    catch (const InternalFailure& e)
 -    {
 -        log<level::ERR>("Unable to modify user enabled state");
 -        elog<InternalFailure>();
@@ -434,7 +438,7 @@ index 9694fd1..c48196a 100644
  
      log<level::INFO>("User enabled/disabled state updated successfully",
                       entry("USER_NAME=%s", userName.c_str()),
-@@ -773,54 +614,8 @@ bool UserMgr::userPasswordExpired(const std::string &userName)
+@@ -779,54 +620,8 @@ bool UserMgr::userPasswordExpired(const std::string& userName)
  
  UserSSHLists UserMgr::getUserAndSshGrpList()
  {
@@ -491,15 +495,15 @@ index 9694fd1..c48196a 100644
  }
  
  size_t UserMgr::getIpmiUsersCount()
-@@ -831,49 +626,14 @@ size_t UserMgr::getIpmiUsersCount()
+@@ -837,49 +632,14 @@ size_t UserMgr::getIpmiUsersCount()
  
- bool UserMgr::isUserEnabled(const std::string &userName)
+ bool UserMgr::isUserEnabled(const std::string& userName)
  {
 -    // All user management lock has to be based on /etc/shadow
 -    phosphor::user::shadow::Lock lock();
 -    std::array<char, 4096> buffer{};
 -    struct spwd spwd;
--    struct spwd *resultPtr = nullptr;
+-    struct spwd* resultPtr = nullptr;
 -    int status = getspnam_r(userName.c_str(), &spwd, buffer.data(),
 -                            buffer.max_size(), &resultPtr);
 -    if (!status && (&spwd == resultPtr))
@@ -515,13 +519,13 @@ index 9694fd1..c48196a 100644
 +    return userSrvc->isUserEnabled(userName);
  }
  
- std::vector<std::string> UserMgr::getUsersInGroup(const std::string &groupName)
+ std::vector<std::string> UserMgr::getUsersInGroup(const std::string& groupName)
  {
 -    std::vector<std::string> usersInGroup;
 -    // Should be more than enough to get the pwd structure.
 -    std::array<char, 4096> buffer{};
 -    struct group grp;
--    struct group *resultPtr = nullptr;
+-    struct group* resultPtr = nullptr;
 -
 -    int status = getgrnam_r(groupName.c_str(), &grp, buffer.data(),
 -                            buffer.max_size(), &resultPtr);
@@ -545,7 +549,7 @@ index 9694fd1..c48196a 100644
  }
  
  DbusUserObj UserMgr::getPrivilegeMapperObject(void)
-@@ -1104,11 +864,9 @@ void UserMgr::initUserObjects(void)
+@@ -1106,11 +866,9 @@ void UserMgr::initUserObjects(void)
  {
      // All user management lock has to be based on /etc/shadow
      phosphor::user::shadow::Lock lock();
@@ -559,20 +563,20 @@ index 9694fd1..c48196a 100644
  
      if (!userNameList.empty())
      {
-@@ -1163,8 +921,10 @@ void UserMgr::initUserObjects(void)
+@@ -1165,8 +923,10 @@ void UserMgr::initUserObjects(void)
      }
  }
  
--UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
+-UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path) :
 -    Ifaces(bus, path, true), bus(bus), path(path)
-+UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path,
++UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path,
 +                 UserService::ServiceType srvc) :
 +    Ifaces(bus, path, true),
 +    bus(bus), path(path)
  {
      UserMgrIface::allPrivileges(privMgr);
      std::sort(groupsMgr.begin(), groupsMgr.end());
-@@ -1272,6 +1032,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus &bus, const char *path) :
+@@ -1274,6 +1034,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path) :
          }
          AccountPolicyIface::accountUnlockTimeout(value32);
      }
@@ -581,18 +585,18 @@ index 9694fd1..c48196a 100644
  
      // emit the signal
 diff --git a/user_mgr.hpp b/user_mgr.hpp
-index e25ca87..262aaf9 100644
+index f5aac22..5d5ca99 100644
 --- a/user_mgr.hpp
 +++ b/user_mgr.hpp
-@@ -21,6 +21,7 @@
- #include <unordered_map>
- #include <variant>
- #include "users.hpp"
+@@ -14,6 +14,7 @@
+ // limitations under the License.
+ */
+ #pragma once
 +#include "user_service.hpp"
+ #include "users.hpp"
  
- namespace phosphor
- {
-@@ -28,8 +29,6 @@ namespace user
+ #include <sdbusplus/bus.hpp>
+@@ -30,8 +31,6 @@ namespace user
  {
  
  using UserMgrIface = sdbusplus::xyz::openbmc_project::User::server::Manager;
@@ -601,19 +605,19 @@ index e25ca87..262aaf9 100644
  using AccountPolicyIface =
      sdbusplus::xyz::openbmc_project::User::server::AccountPolicy;
  
-@@ -76,8 +75,10 @@ class UserMgr : public Ifaces
+@@ -77,8 +76,10 @@ class UserMgr : public Ifaces
       *
       *  @param[in] bus  - sdbusplus handler
       *  @param[in] path - D-Bus path
 +     *  @param[in] srvc - User service to be used
       */
--    UserMgr(sdbusplus::bus::bus &bus, const char *path);
-+    UserMgr(sdbusplus::bus::bus &bus, const char *path,
+-    UserMgr(sdbusplus::bus::bus& bus, const char* path);
++    UserMgr(sdbusplus::bus::bus& bus, const char* path,
 +            UserService::ServiceType srvc);
  
      /** @brief create user method.
       *  This method creates a new user as requested
-@@ -193,6 +194,8 @@ class UserMgr : public Ifaces
+@@ -194,6 +195,8 @@ class UserMgr : public Ifaces
      /** @brief object path */
      const std::string path;
  
@@ -624,10 +628,10 @@ index e25ca87..262aaf9 100644
                                          "priv-user", "priv-noaccess"};
 diff --git a/user_service.cpp b/user_service.cpp
 new file mode 100644
-index 0000000..c3c45bd
+index 0000000..ad4e510
 --- /dev/null
 +++ b/user_service.cpp
-@@ -0,0 +1,786 @@
+@@ -0,0 +1,789 @@
 +/*
 +// Copyright (c) 2018 Intel Corporation
 +//
@@ -644,15 +648,19 @@ index 0000000..c3c45bd
 +// limitations under the License.
 +*/
 +
++#include "user_service.hpp"
++
++#include "file.hpp"
++#include "shadowlock.hpp"
++
 +#include <grp.h>
 +#include <pwd.h>
-+#include <numeric>
++
++#include <boost/algorithm/string/split.hpp>
 +#include <boost/process/child.hpp>
 +#include <boost/process/io.hpp>
-+#include <boost/algorithm/string/split.hpp>
-+#include "shadowlock.hpp"
-+#include "file.hpp"
-+#include "user_service.hpp"
++
++#include <numeric>
 +
 +/* anonymous namespace for User Service interface implementations.
 +// Each class inside this namespace implements a special service
@@ -689,7 +697,7 @@ index 0000000..c3c45bd
 +    }
 +}
 +
-+bool removeStringFromCSV(std::string &csvStr, const std::string &delStr)
++bool removeStringFromCSV(std::string& csvStr, const std::string& delStr)
 +{
 +    std::string::size_type delStrPos = csvStr.find(delStr);
 +    if (delStrPos != std::string::npos)
@@ -770,14 +778,14 @@ index 0000000..c3c45bd
 +    }
 +
 +    std::vector<std::string>
-+        getUsersInGroup(const std::string &groupName) const override
++        getUsersInGroup(const std::string& groupName) const override
 +    {
 +        std::vector<std::string> usersInGroup;
 +        // Should be more than enough to get the pwd structure.
 +        std::array<char, 4096> buffer{};
 +        struct group grp;
-+        struct group *grpPtr = &grp;
-+        struct group *resultPtr;
++        struct group* grpPtr = &grp;
++        struct group* resultPtr;
 +
 +        int status = getgrnam_r(groupName.c_str(), grpPtr, buffer.data(),
 +                                buffer.max_size(), &resultPtr);
@@ -799,9 +807,9 @@ index 0000000..c3c45bd
 +        return usersInGroup;
 +    }
 +
-+    void createUser(const std::string &userName,
-+                    const std::vector<std::string> &groupNames,
-+                    const std::string &priv, const bool &enabled) const override
++    void createUser(const std::string& userName,
++                    const std::vector<std::string>& groupNames,
++                    const std::string& priv, const bool& enabled) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
 +        phosphor::user::shadow::Lock lock();
@@ -827,7 +835,7 @@ index 0000000..c3c45bd
 +                "-m", "-N", "-s", (sshRequested ? "/bin/sh" : "/bin/nologin"),
 +                "-e", (enabled ? "" : "1970-01-02"));
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to create new user");
@@ -835,8 +843,8 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    void renameUser(const std::string &userName,
-+                    const std::string &newUserName) const override
++    void renameUser(const std::string& userName,
++                    const std::string& newUserName) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
 +        phosphor::user::shadow::Lock lock();
@@ -847,7 +855,7 @@ index 0000000..c3c45bd
 +                                       newUserName.c_str(), userName.c_str(),
 +                                       "-d", newHomeDir.c_str(), "-m");
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::INFO>(
 +                "User rename failed",
@@ -856,7 +864,7 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    void deleteUser(const std::string &userName) const override
++    void deleteUser(const std::string& userName) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
 +        phosphor::user::shadow::Lock lock();
@@ -866,7 +874,7 @@ index 0000000..c3c45bd
 +            phosphor::user::executeCmd("/usr/sbin/userdel", userName.c_str(),
 +                                       "-r");
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::INFO>(
 +                "User delete failed",
@@ -875,9 +883,9 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    void updateGroupsAndPriv(const std::string &userName,
-+                             const std::vector<std::string> &groupNames,
-+                             const std::string &priv) const override
++    void updateGroupsAndPriv(const std::string& userName,
++                             const std::vector<std::string>& groupNames,
++                             const std::string& priv) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
 +        phosphor::user::shadow::Lock lock();
@@ -902,7 +910,7 @@ index 0000000..c3c45bd
 +                "/usr/sbin/usermod", userName.c_str(), "-G", groups.c_str(),
 +                "-s", (sshRequested ? "/bin/sh" : "/bin/nologin"));
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to modify user privilege / groups");
@@ -910,8 +918,8 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    void updateUserStatus(const std::string &userName,
-+                          const bool &enabled) const override
++    void updateUserStatus(const std::string& userName,
++                          const bool& enabled) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
 +        phosphor::user::shadow::Lock lock();
@@ -920,7 +928,7 @@ index 0000000..c3c45bd
 +            phosphor::user::executeCmd("/usr/sbin/usermod", userName.c_str(),
 +                                       "-e", (enabled ? "" : "1970-01-02"));
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to modify user enabled state");
@@ -928,13 +936,13 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    bool isUserEnabled(const std::string &userName) const override
++    bool isUserEnabled(const std::string& userName) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
 +        phosphor::user::shadow::Lock lock();
 +        std::array<char, 4096> buffer{};
 +        struct spwd spwd;
-+        struct spwd *resultPtr = nullptr;
++        struct spwd* resultPtr = nullptr;
 +        int status = getspnam_r(userName.c_str(), &spwd, buffer.data(),
 +                                buffer.max_size(), &resultPtr);
 +        if (!status && (&spwd == resultPtr))
@@ -949,7 +957,7 @@ index 0000000..c3c45bd
 +    }
 +
 +    std::vector<std::string>
-+        getUserGroups(const std::string &userName) const override
++        getUserGroups(const std::string& userName) const override
 +    {
 +        phosphor::logging::log<phosphor::logging::level::ERR>(
 +            "ShadowService::getUserGroups not implemented!");
@@ -957,7 +965,7 @@ index 0000000..c3c45bd
 +        return std::vector<std::string>();
 +    }
 +
-+    void createGroup(const std::string &groupName) const override
++    void createGroup(const std::string& groupName) const override
 +    {
 +        phosphor::logging::log<phosphor::logging::level::ERR>(
 +            "ShadowService::createGroup not implemented!");
@@ -965,22 +973,22 @@ index 0000000..c3c45bd
 +    }
 +
 +  private:
-+    static constexpr const char *passwdFileName = "/etc/passwd";
++    static constexpr const char* passwdFileName = "/etc/passwd";
 +};
 +
 +class SSSDService : public phosphor::user::UserServiceInterface
 +{
 +  public:
-+    SSSDService(const std::vector<std::string> &groups,
-+                const std::vector<std::string> &privs)
++    SSSDService(const std::vector<std::string>& groups,
++                const std::vector<std::string>& privs)
 +    {
 +
 +        createGroup(lockedGrp);
-+        for (const auto &g : groups)
++        for (const auto& g : groups)
 +        {
 +            createGroup(g);
 +        }
-+        for (const auto &p : privs)
++        for (const auto& p : privs)
 +        {
 +            createGroup(p);
 +        }
@@ -999,7 +1007,7 @@ index 0000000..c3c45bd
 +            exeOutput = phosphor::user::executeCmd("/usr/bin/getent", "-s",
 +                                                   "sss", "passwd");
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to get users information "
@@ -1007,7 +1015,7 @@ index 0000000..c3c45bd
 +            phosphor::logging::elog<phosphor::user::InternalFailure>();
 +        }
 +
-+        for (const auto &userLine : exeOutput)
++        for (const auto& userLine : exeOutput)
 +        {
 +            std::vector<std::string> userInfo;
 +            boost::algorithm::split(userInfo, userLine,
@@ -1035,7 +1043,7 @@ index 0000000..c3c45bd
 +    }
 +
 +    std::vector<std::string>
-+        getUsersInGroup(const std::string &groupName) const override
++        getUsersInGroup(const std::string& groupName) const override
 +    {
 +        std::vector<std::string> userList;
 +        std::vector<std::string> exeOutput;
@@ -1045,7 +1053,7 @@ index 0000000..c3c45bd
 +            exeOutput = phosphor::user::executeCmd("/usr/sbin/sss_groupshow",
 +                                                   groupName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to get group users from sssd service");
@@ -1067,9 +1075,9 @@ index 0000000..c3c45bd
 +        return userList;
 +    }
 +
-+    void createUser(const std::string &userName,
-+                    const std::vector<std::string> &groupNames,
-+                    const std::string &priv, const bool &enabled) const override
++    void createUser(const std::string& userName,
++                    const std::vector<std::string>& groupNames,
++                    const std::string& priv, const bool& enabled) const override
 +    {
 +        std::string groups = getCSVFromVector(groupNames);
 +        bool sshRequested = removeStringFromCSV(groups, phosphor::user::grpSsh);
@@ -1090,7 +1098,7 @@ index 0000000..c3c45bd
 +                "/usr/sbin/sss_useradd", "-m", "-G", groups.c_str(), "-s",
 +                (sshRequested ? "/bin/sh" : "/bin/nologin"), userName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to create new user in sssd service");
@@ -1105,8 +1113,8 @@ index 0000000..c3c45bd
 +        updateUserStatus(userName, enabled);
 +    }
 +
-+    void renameUser(const std::string &userName,
-+                    const std::string &newUserName) const override
++    void renameUser(const std::string& userName,
++                    const std::string& newUserName) const override
 +    {
 +        std::vector<std::string> exeOutput;
 +        // Local Domain for sssd doesn't have a rename feature
@@ -1123,7 +1131,7 @@ index 0000000..c3c45bd
 +            exeOutput = phosphor::user::executeCmd(
 +                "/usr/bin/getent", "-s", "sss", "passwd", userName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to get information for user");
@@ -1141,14 +1149,14 @@ index 0000000..c3c45bd
 +        deleteUser(userName);
 +    }
 +
-+    void deleteUser(const std::string &userName) const override
++    void deleteUser(const std::string& userName) const override
 +    {
 +        try
 +        {
 +            phosphor::user::executeCmd("/usr/sbin/sss_userdel", "-r",
 +                                       userName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to delete user from sssd service");
@@ -1156,9 +1164,9 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    void updateGroupsAndPriv(const std::string &userName,
-+                             const std::vector<std::string> &groupNames,
-+                             const std::string &priv) const override
++    void updateGroupsAndPriv(const std::string& userName,
++                             const std::vector<std::string>& groupNames,
++                             const std::string& priv) const override
 +    {
 +        // local domain sssd do not allow to update all list of groups,
 +        // so we will remove all groups first (except for the user one)
@@ -1183,7 +1191,7 @@ index 0000000..c3c45bd
 +                groups.c_str(), "-s",
 +                (sshRequested ? "/bin/sh" : "/bin/nologin"), userName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to update user groups and "
@@ -1192,8 +1200,8 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    void updateUserStatus(const std::string &userName,
-+                          const bool &enabled) const override
++    void updateUserStatus(const std::string& userName,
++                          const bool& enabled) const override
 +    {
 +        std::string enabledStr;
 +        std::string lockedStr;
@@ -1224,7 +1232,7 @@ index 0000000..c3c45bd
 +                                       enabledStr.c_str(), lockedGrp.c_str(),
 +                                       lockedStr.c_str(), userName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to update user status from sssd service");
@@ -1232,7 +1240,7 @@ index 0000000..c3c45bd
 +        }
 +    }
 +
-+    bool isUserEnabled(const std::string &userName) const override
++    bool isUserEnabled(const std::string& userName) const override
 +    {
 +        std::vector<std::string> userGrps = getUserGroups(userName);
 +        return std::find(userGrps.begin(), userGrps.end(), lockedGrp) ==
@@ -1240,7 +1248,7 @@ index 0000000..c3c45bd
 +    }
 +
 +    std::vector<std::string>
-+        getUserGroups(const std::string &userName) const override
++        getUserGroups(const std::string& userName) const override
 +    {
 +        std::vector<std::string> exeOutput;
 +        try
@@ -1248,7 +1256,7 @@ index 0000000..c3c45bd
 +            exeOutput =
 +                phosphor::user::executeCmd("/usr/bin/groups", userName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to get groups for user");
@@ -1267,7 +1275,7 @@ index 0000000..c3c45bd
 +        return groups;
 +    }
 +
-+    void createGroup(const std::string &groupName) const override
++    void createGroup(const std::string& groupName) const override
 +    {
 +        try
 +        {
@@ -1277,7 +1285,7 @@ index 0000000..c3c45bd
 +                                           groupName.c_str());
 +            }
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            phosphor::logging::log<phosphor::logging::level::ERR>(
 +                "Unable to create group");
@@ -1288,14 +1296,14 @@ index 0000000..c3c45bd
 +  private:
 +    static const std::string lockedGrp;
 +
-+    bool groupExists(const std::string &groupName) const
++    bool groupExists(const std::string& groupName) const
 +    {
 +        try
 +        {
 +            phosphor::user::executeCmd("/usr/sbin/sss_groupshow",
 +                                       groupName.c_str());
 +        }
-+        catch (const phosphor::user::InternalFailure &e)
++        catch (const phosphor::user::InternalFailure& e)
 +        {
 +            return false;
 +        }
@@ -1311,24 +1319,24 @@ index 0000000..c3c45bd
 +namespace user
 +{
 +
-+UserService::UserService(const ServiceType &srvcType,
-+                         const std::vector<std::string> &groups,
-+                         const std::vector<std::string> &privs)
++UserService::UserService(const ServiceType& srvcType,
++                         const std::vector<std::string>& groups,
++                         const std::vector<std::string>& privs)
 +{
 +    setServiceImpl(srvcType, groups, privs);
 +}
 +
-+void UserService::updateServiceType(const ServiceType &srvcType,
-+                                    const std::vector<std::string> &groups,
-+                                    const std::vector<std::string> &privs)
++void UserService::updateServiceType(const ServiceType& srvcType,
++                                    const std::vector<std::string>& groups,
++                                    const std::vector<std::string>& privs)
 +{
 +    usrSrvcImpl.reset();
 +    setServiceImpl(srvcType, groups, privs);
 +}
 +
-+void UserService::setServiceImpl(const ServiceType &srvcType,
-+                                 const std::vector<std::string> &groups,
-+                                 const std::vector<std::string> &privs)
++void UserService::setServiceImpl(const ServiceType& srvcType,
++                                 const std::vector<std::string>& groups,
++                                 const std::vector<std::string>& privs)
 +{
 +    switch (srvcType)
 +    {
@@ -1356,8 +1364,7 @@ index 0000000..c3c45bd
 +}
 +
 +UserService::~UserService()
-+{
-+}
++{}
 +
 +phosphor::user::UserSSHLists UserService::getUserAndSshGrpList() const
 +{
@@ -1365,49 +1372,49 @@ index 0000000..c3c45bd
 +}
 +
 +std::vector<std::string>
-+    UserService::getUsersInGroup(const std::string &groupName) const
++    UserService::getUsersInGroup(const std::string& groupName) const
 +{
 +    return usrSrvcImpl->getUsersInGroup(groupName);
 +}
 +
-+void UserService::createUser(const std::string &userName,
-+                             const std::vector<std::string> &groupNames,
-+                             const std::string &priv, const bool &enabled) const
++void UserService::createUser(const std::string& userName,
++                             const std::vector<std::string>& groupNames,
++                             const std::string& priv, const bool& enabled) const
 +{
 +    usrSrvcImpl->createUser(userName, groupNames, priv, enabled);
 +}
 +
-+void UserService::renameUser(const std::string &userName,
-+                             const std::string &newUserName) const
++void UserService::renameUser(const std::string& userName,
++                             const std::string& newUserName) const
 +{
 +    usrSrvcImpl->renameUser(userName, newUserName);
 +}
 +
-+void UserService::deleteUser(const std::string &userName) const
++void UserService::deleteUser(const std::string& userName) const
 +{
 +    usrSrvcImpl->deleteUser(userName);
 +}
 +
 +void UserService::updateGroupsAndPriv(
-+    const std::string &userName, const std::vector<std::string> &groupNames,
-+    const std::string &priv) const
++    const std::string& userName, const std::vector<std::string>& groupNames,
++    const std::string& priv) const
 +{
 +    usrSrvcImpl->updateGroupsAndPriv(userName, groupNames, priv);
 +}
 +
-+void UserService::updateUserStatus(const std::string &userName,
-+                                   const bool &enabled) const
++void UserService::updateUserStatus(const std::string& userName,
++                                   const bool& enabled) const
 +{
 +    usrSrvcImpl->updateUserStatus(userName, enabled);
 +}
 +
-+bool UserService::isUserEnabled(const std::string &userName) const
++bool UserService::isUserEnabled(const std::string& userName) const
 +{
 +    return usrSrvcImpl->isUserEnabled(userName);
 +}
 +
 +std::vector<std::string>
-+    UserService::getUserGroups(const std::string &userName) const
++    UserService::getUserGroups(const std::string& userName) const
 +{
 +    return usrSrvcImpl->getUserGroups(userName);
 +}
@@ -1416,7 +1423,7 @@ index 0000000..c3c45bd
 +} // namespace phosphor
 diff --git a/user_service.hpp b/user_service.hpp
 new file mode 100644
-index 0000000..97a049b
+index 0000000..50ee4db
 --- /dev/null
 +++ b/user_service.hpp
 @@ -0,0 +1,233 @@
@@ -1437,12 +1444,12 @@ index 0000000..97a049b
 +*/
 +
 +#pragma once
-+#include <xyz/openbmc_project/Common/error.hpp>
-+#include <xyz/openbmc_project/User/Common/error.hpp>
-+#include <phosphor-logging/log.hpp>
-+#include <phosphor-logging/elog.hpp>
 +#include <boost/process/child.hpp>
 +#include <boost/process/io.hpp>
++#include <phosphor-logging/elog.hpp>
++#include <phosphor-logging/log.hpp>
++#include <xyz/openbmc_project/Common/error.hpp>
++#include <xyz/openbmc_project/User/Common/error.hpp>
 +
 +namespace phosphor
 +{
@@ -1459,11 +1466,11 @@ index 0000000..97a049b
 +const std::string grpSsh = "ssh";
 +
 +template <typename... ArgTypes>
-+std::vector<std::string> executeCmd(const char *path, ArgTypes &&... tArgs)
++std::vector<std::string> executeCmd(const char* path, ArgTypes&&... tArgs)
 +{
 +    std::vector<std::string> stdOutput;
 +    boost::process::ipstream stdOutStream;
-+    boost::process::child execProg(path, const_cast<char *>(tArgs)...,
++    boost::process::child execProg(path, const_cast<char*>(tArgs)...,
 +                                   boost::process::std_out > stdOutStream);
 +    std::string stdOutLine;
 +
@@ -1500,23 +1507,23 @@ index 0000000..97a049b
 +    virtual ~UserServiceInterface() = default;
 +    virtual UserSSHLists getUserAndSshGrpList() const = 0;
 +    virtual std::vector<std::string>
-+        getUsersInGroup(const std::string &groupName) const = 0;
-+    virtual void createUser(const std::string &userName,
-+                            const std::vector<std::string> &groupNames,
-+                            const std::string &priv,
-+                            const bool &enabled) const = 0;
-+    virtual void renameUser(const std::string &userName,
-+                            const std::string &newUserName) const = 0;
-+    virtual void deleteUser(const std::string &userName) const = 0;
-+    virtual void updateGroupsAndPriv(const std::string &userName,
-+                                     const std::vector<std::string> &groupNames,
-+                                     const std::string &priv) const = 0;
-+    virtual void updateUserStatus(const std::string &userName,
-+                                  const bool &enabled) const = 0;
-+    virtual bool isUserEnabled(const std::string &userName) const = 0;
++        getUsersInGroup(const std::string& groupName) const = 0;
++    virtual void createUser(const std::string& userName,
++                            const std::vector<std::string>& groupNames,
++                            const std::string& priv,
++                            const bool& enabled) const = 0;
++    virtual void renameUser(const std::string& userName,
++                            const std::string& newUserName) const = 0;
++    virtual void deleteUser(const std::string& userName) const = 0;
++    virtual void updateGroupsAndPriv(const std::string& userName,
++                                     const std::vector<std::string>& groupNames,
++                                     const std::string& priv) const = 0;
++    virtual void updateUserStatus(const std::string& userName,
++                                  const bool& enabled) const = 0;
++    virtual bool isUserEnabled(const std::string& userName) const = 0;
 +    virtual std::vector<std::string>
-+        getUserGroups(const std::string &userName) const = 0;
-+    virtual void createGroup(const std::string &groupName) const = 0;
++        getUserGroups(const std::string& userName) const = 0;
++    virtual void createGroup(const std::string& groupName) const = 0;
 +};
 +
 +/** @class UserService
@@ -1532,10 +1539,10 @@ index 0000000..97a049b
 +{
 +  public:
 +    UserService() = delete;
-+    UserService(const UserService &) = delete;
-+    UserService &operator=(const UserService &) = delete;
-+    UserService(UserService &&) = delete;
-+    UserService &operator=(UserService &&) = delete;
++    UserService(const UserService&) = delete;
++    UserService& operator=(const UserService&) = delete;
++    UserService(UserService&&) = delete;
++    UserService& operator=(UserService&&) = delete;
 +
 +    // Service Types implemented. None is used to validate.
 +    enum class ServiceType
@@ -1545,9 +1552,9 @@ index 0000000..97a049b
 +        sssd
 +    };
 +
-+    UserService(const ServiceType &srvcType,
-+                const std::vector<std::string> &groups,
-+                const std::vector<std::string> &privs);
++    UserService(const ServiceType& srvcType,
++                const std::vector<std::string>& groups,
++                const std::vector<std::string>& privs);
 +    ~UserService();
 +
 +    /** @brief update the current Service type of the instance.
@@ -1559,9 +1566,9 @@ index 0000000..97a049b
 +     * @param[in] groups
 +     * @param[in] privs
 +     */
-+    void updateServiceType(const ServiceType &srvcType,
-+                           const std::vector<std::string> &groups,
-+                           const std::vector<std::string> &privs);
++    void updateServiceType(const ServiceType& srvcType,
++                           const std::vector<std::string>& groups,
++                           const std::vector<std::string>& privs);
 +
 +    /** @brief get user list and SSH group members list
 +     *  This method gets the list of users from the service.
@@ -1579,7 +1586,7 @@ index 0000000..97a049b
 +     *  @param[in] groupName - Name of the group which has to be queried
 +     */
 +    std::vector<std::string>
-+        getUsersInGroup(const std::string &groupName) const;
++        getUsersInGroup(const std::string& groupName) const;
 +
 +    /** @brief create user method.
 +     *  This method creates a new user as requested
@@ -1589,9 +1596,9 @@ index 0000000..97a049b
 +     *  @param[in] priv - Privilege of the user.
 +     *  @param[in] enabled - State of the user enabled / disabled.
 +     */
-+    void createUser(const std::string &userName,
-+                    const std::vector<std::string> &groupNames,
-+                    const std::string &priv, const bool &enabled) const;
++    void createUser(const std::string& userName,
++                    const std::vector<std::string>& groupNames,
++                    const std::string& priv, const bool& enabled) const;
 +
 +    /** @brief rename user method.
 +     *  This method renames the user as requested
@@ -1599,15 +1606,15 @@ index 0000000..97a049b
 +     *  @param[in] userName - current name of the user
 +     *  @param[in] userName - user name to which it has to be renamed.
 +     */
-+    void renameUser(const std::string &userName,
-+                    const std::string &newUserName) const;
++    void renameUser(const std::string& userName,
++                    const std::string& newUserName) const;
 +
 +    /** @brief delete user method.
 +     *  This method deletes the user as requested
 +     *
 +     *  @param[in] userName - Name of the user which has to be deleted
 +     */
-+    void deleteUser(const std::string &userName) const;
++    void deleteUser(const std::string& userName) const;
 +
 +    /** @brief Updates user Groups and Privilege.
 +     *
@@ -1615,9 +1622,9 @@ index 0000000..97a049b
 +     *  @param[in] groupNames - Group names list for user.
 +     *  @param[in] priv - Privilege of the user.
 +     */
-+    void updateGroupsAndPriv(const std::string &userName,
-+                             const std::vector<std::string> &groupNames,
-+                             const std::string &priv) const;
++    void updateGroupsAndPriv(const std::string& userName,
++                             const std::vector<std::string>& groupNames,
++                             const std::string& priv) const;
 +
 +    /** @brief Updates user status
 +     *  If enabled = false: User will be disabled
@@ -1626,8 +1633,8 @@ index 0000000..97a049b
 +     *  @param[in] userName - Name of the user
 +     *  @param[in] enabled - Status of the user: enabled / disabled?
 +     */
-+    void updateUserStatus(const std::string &userName,
-+                          const bool &enabled) const;
++    void updateUserStatus(const std::string& userName,
++                          const bool& enabled) const;
 +
 +    /** @brief Verify if user is enabled or not
 +     *  If enabled returns true
@@ -1635,24 +1642,24 @@ index 0000000..97a049b
 +     *
 +     *  @param[in] userName - Name of the user
 +     */
-+    bool isUserEnabled(const std::string &userName) const;
++    bool isUserEnabled(const std::string& userName) const;
 +
 +    /** @brief Get the list of groups a user belongs to
 +     *
 +     *  @param[in] userName - Name of the user
 +     */
-+    std::vector<std::string> getUserGroups(const std::string &userName) const;
++    std::vector<std::string> getUserGroups(const std::string& userName) const;
 +
 +  private:
 +    // User service implementation.
-+    void setServiceImpl(const ServiceType &srvcType,
-+                        const std::vector<std::string> &groups,
-+                        const std::vector<std::string> &privs);
++    void setServiceImpl(const ServiceType& srvcType,
++                        const std::vector<std::string>& groups,
++                        const std::vector<std::string>& privs);
 +    std::unique_ptr<UserServiceInterface> usrSrvcImpl;
 +};
 +
 +} // namespace user
 +} // namespace phosphor
 -- 
-2.7.4
+2.17.1
 

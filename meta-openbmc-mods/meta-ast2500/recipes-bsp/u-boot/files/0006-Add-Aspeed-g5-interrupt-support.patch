@@ -1,4 +1,4 @@
-From e782f6a90468fee35877b78e248a17f39f67c94c Mon Sep 17 00:00:00 2001
+From ad92c1981f81fe28b901894db537a0c98d5956e5 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 10:21:40 -0800
 Subject: [PATCH] Add Aspeed g5 interrupt support
@@ -11,11 +11,11 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Change-Id: Id7072f1408dcf364968b1b74f2192e50a22a82f0
 
 ---
- Kconfig                             |  13 +++
- arch/arm/lib/interrupts.c           |  11 +++
+ Kconfig                             |  13 ++
+ arch/arm/lib/interrupts.c           |  11 ++
  board/aspeed/ast-g5/Makefile        |   3 +-
- board/aspeed/ast-g5/ast-g5-irq.c    | 176 ++++++++++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5-irq.h    |  39 ++++++++
+ board/aspeed/ast-g5/ast-g5-irq.c    | 176 ++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-irq.h    |  39 ++++++
  board/aspeed/ast-g5/ast-g5.c        |   3 +
  board/aspeed/ast-g5/ast-g5.h        |   7 ++
  cmd/Kconfig                         |   5 +
@@ -28,7 +28,7 @@ Change-Id: Id7072f1408dcf364968b1b74f2192e50a22a82f0
  create mode 100644 board/aspeed/ast-g5/ast-g5.h
 
 diff --git a/Kconfig b/Kconfig
-index 3ceff25..d6439d0 100644
+index 3ceff25032..d6439d01ca 100644
 --- a/Kconfig
 +++ b/Kconfig
 @@ -115,6 +115,19 @@ if EXPERT
@@ -52,7 +52,7 @@ index 3ceff25..d6439d0 100644
  
  menu "Boot images"
 diff --git a/arch/arm/lib/interrupts.c b/arch/arm/lib/interrupts.c
-index ed83043..a96b3aa 100644
+index ed83043abb..a96b3aa070 100644
 --- a/arch/arm/lib/interrupts.c
 +++ b/arch/arm/lib/interrupts.c
 @@ -94,6 +94,17 @@ int disable_interrupts (void)
@@ -74,7 +74,7 @@ index ed83043..a96b3aa 100644
  int interrupt_init (void)
  {
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index d1d7f85..df4e639 100644
+index d1d7f8525e..df4e63966e 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -1 +1,2 @@
@@ -83,7 +83,7 @@ index d1d7f85..df4e639 100644
 +obj-y += ast-g5-irq.o
 diff --git a/board/aspeed/ast-g5/ast-g5-irq.c b/board/aspeed/ast-g5/ast-g5-irq.c
 new file mode 100644
-index 0000000..860f16c
+index 0000000000..860f16cf05
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-irq.c
 @@ -0,0 +1,176 @@
@@ -265,7 +265,7 @@ index 0000000..860f16c
 +#endif
 diff --git a/board/aspeed/ast-g5/ast-g5-irq.h b/board/aspeed/ast-g5/ast-g5-irq.h
 new file mode 100644
-index 0000000..703eeab
+index 0000000000..703eeabf13
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-irq.h
 @@ -0,0 +1,39 @@
@@ -309,11 +309,11 @@ index 0000000..703eeab
 +
 +#endif /* __AST_G5_IRQ_H__ */
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index b492003..2472aa3 100644
+index 02eb2c3990..ca25348178 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
-@@ -14,6 +14,8 @@
- #include <asm/arch/ast-sdmc.h>
+@@ -17,6 +17,8 @@
+ #include <asm/arch/regs-sdmc.h>
  #include <asm/io.h>
  
 +#include "ast-g5.h"
@@ -321,7 +321,7 @@ index b492003..2472aa3 100644
  DECLARE_GLOBAL_DATA_PTR;
  
  int board_early_init_f(void)
-@@ -22,6 +24,7 @@ int board_early_init_f(void)
+@@ -25,6 +27,7 @@ int board_early_init_f(void)
  	ast_config_uart5_clk();
  	/*enable pass through*/
  	ast_enable_pass_through();
@@ -331,7 +331,7 @@ index b492003..2472aa3 100644
  }
 diff --git a/board/aspeed/ast-g5/ast-g5.h b/board/aspeed/ast-g5/ast-g5.h
 new file mode 100644
-index 0000000..9fd10ec
+index 0000000000..9fd10eccb3
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5.h
 @@ -0,0 +1,7 @@
@@ -343,7 +343,7 @@ index 0000000..9fd10ec
 +
 +#endif /* _AST_G5_H_ */
 diff --git a/cmd/Kconfig b/cmd/Kconfig
-index d69b817..33be240 100644
+index d69b817c82..33be2407d2 100644
 --- a/cmd/Kconfig
 +++ b/cmd/Kconfig
 @@ -313,6 +313,11 @@ endmenu
@@ -359,7 +359,7 @@ index d69b817..33be240 100644
  	bool "dm - Access to driver model information"
  	depends on DM
 diff --git a/configs/ast_g5_ncsi_2boot_defconfig b/configs/ast_g5_ncsi_2boot_defconfig
-index 2d28c86..d5b7894 100644
+index 2d28c86966..d5b7894a9e 100644
 --- a/configs/ast_g5_ncsi_2boot_defconfig
 +++ b/configs/ast_g5_ncsi_2boot_defconfig
 @@ -33,3 +33,4 @@ CONFIG_CMD_CRC32=y
@@ -368,7 +368,7 @@ index 2d28c86..d5b7894 100644
  CONFIG_CMD_MX_CYCLIC=y
 +CONFIG_USE_IRQ=y
 diff --git a/configs/ast_g5_ncsi_defconfig b/configs/ast_g5_ncsi_defconfig
-index 74029ed..9481e5f 100644
+index 74029ed514..9481e5fb6e 100644
 --- a/configs/ast_g5_ncsi_defconfig
 +++ b/configs/ast_g5_ncsi_defconfig
 @@ -11,3 +11,4 @@ CONFIG_HUSH_PARSER=y
@@ -377,7 +377,7 @@ index 74029ed..9481e5f 100644
  CONFIG_SYS_NS16550=y
 +CONFIG_USE_IRQ=y
 diff --git a/configs/ast_g5_phy_defconfig b/configs/ast_g5_phy_defconfig
-index 767f3af..4aefcf4 100644
+index 767f3af605..4aefcf49e8 100644
 --- a/configs/ast_g5_phy_defconfig
 +++ b/configs/ast_g5_phy_defconfig
 @@ -12,3 +12,4 @@ CONFIG_HUSH_PARSER=y

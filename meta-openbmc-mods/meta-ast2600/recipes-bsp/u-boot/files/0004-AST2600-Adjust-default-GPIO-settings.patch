@@ -1,24 +1,24 @@
-From 122fa6153479d026a06c27512f3c7024a1515c63 Mon Sep 17 00:00:00 2001
+From a7c85034b4a0a7e061930f27a6ec561d23d97cc6 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 3 Jan 2020 15:14:09 -0800
 Subject: [PATCH] AST2600: Adjust default GPIO settings
 
 - Disabled GPIOC3 to prevent unexpected host failures.
-- Fixed GPIOC5, GPIOD4, GPIOG6, GPIOI0~7 and GPIOL6~7 directions and
-  default values.
+- Fixed GPIOC5, GPIOD4, GPIOG6, GPIOI0~7, GPIOL6~7 and GPIO_S3
+  directions and default values.
 - Disabled internal pull-down of GPIOB6.
 - Disabled HBLED.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- board/aspeed/ast2600_intel/intel.c | 65 ++++++++++++++++++++++++++++++
- 1 file changed, 65 insertions(+)
+ board/aspeed/ast2600_intel/intel.c | 74 ++++++++++++++++++++++++++++++
+ 1 file changed, 74 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index d1ac8651ac6c..7c9e78f8c005 100644
+index d1ac8651ac6c..14a20b27e178 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -162,6 +162,69 @@ static void sgpio_init(void)
+@@ -162,6 +162,78 @@ static void sgpio_init(void)
  	       SCU_BASE | SCU_414);
  }
  
@@ -31,6 +31,8 @@ index d1ac8651ac6c..7c9e78f8c005 100644
 +#define GPIO_024		0x024 /* GPIO E/F/G/H Direction */
 +#define GPIO_070		0x070 /* GPIO I/J/K/L Value */
 +#define GPIO_074		0x074 /* GPIO I/J/K/L Direction */
++#define GPIO_080		0x080 /* GPIO Q/R/S/T Value */
++#define GPIO_084		0x084 /* GPIO Q/R/S/T Direction */
 +
 +static void set_gpio_default_state(void)
 +{
@@ -83,12 +85,19 @@ index d1ac8651ac6c..7c9e78f8c005 100644
 +#define GPIO_G6			BIT(22)
 +	writel(readl(AST_GPIO_BASE | GPIO_024) & ~GPIO_G6,
 +	       AST_GPIO_BASE | GPIO_024);
++
++	/* Set GPIO S3 as push-pull output high */
++#define GPIO_S3			BIT(19)
++	writel(readl(AST_GPIO_BASE + GPIO_084) | GPIO_S3,
++	       AST_GPIO_BASE + GPIO_084);
++	writel(readl(AST_GPIO_BASE + GPIO_080) | GPIO_S3,
++	       AST_GPIO_BASE + GPIO_080);
 +}
 +
  static void timer_handler(void *regs)
  {
  	printf("+");
-@@ -175,6 +238,8 @@ int board_early_init_f(void)
+@@ -175,6 +247,8 @@ int board_early_init_f(void)
  	 * I am not sure if it actually does anything... */
  	arch_interrupt_init_early();
  

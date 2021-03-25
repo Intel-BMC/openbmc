@@ -1,4 +1,4 @@
-From 06039a941d59f265385c5b4a19231fbd55a05b26 Mon Sep 17 00:00:00 2001
+From 70589b01e3284867c77e1d1387bce83b898bd54a Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 5 Jun 2020 15:14:50 -0700
 Subject: [PATCH] net: phy: realtek: Change LED configuration
@@ -9,12 +9,13 @@ LED1 (Left Orange): Link 10/100 + Blink on Tx/Rx
 LED2 (Left Green): Link 1000 + Blink on Tx/Rx
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+
 ---
  drivers/net/phy/realtek.c | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/net/phy/realtek.c b/drivers/net/phy/realtek.c
-index 7a99cb023401..c15280259c35 100644
+index 7a99cb0234..c15280259c 100644
 --- a/drivers/net/phy/realtek.c
 +++ b/drivers/net/phy/realtek.c
 @@ -92,10 +92,15 @@ static int rtl8211f_config(struct phy_device *phydev)
@@ -35,6 +36,3 @@ index 7a99cb023401..c15280259c35 100644
  	phy_write(phydev, MDIO_DEVAD_NONE,
  		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
  
--- 
-2.7.4
-

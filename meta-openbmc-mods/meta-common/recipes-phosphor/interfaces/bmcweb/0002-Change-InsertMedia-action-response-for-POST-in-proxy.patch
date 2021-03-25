@@ -1,0 +1,30 @@
+From dcc94627aac5b8e4ad181c8548391c53d27b8896 Mon Sep 17 00:00:00 2001
+From: Karol Wachowski <karol.wachowski@intel.com>
+Date: Tue, 16 Feb 2021 06:47:11 +0000
+Subject: [PATCH] Change InsertMedia action response for POST in proxy mode
+
+Set boost::beast::http::status::method_not_allowed as a response
+for POST request to Virtual Media Insert Media action to keep
+consistency with other non existing requests.
+---
+ redfish-core/lib/virtual_media.hpp | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index 80e7315..76e8c4a 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -611,10 +611,9 @@ class VirtualMediaActionInsertMedia : public Node
+                                     // Not possible in proxy mode
+                                     BMCWEB_LOG_DEBUG << "InsertMedia not "
+                                                         "allowed in proxy mode";
+-                                    messages::resourceNotFound(
+-                                        aResp->res, "VirtualMedia.InsertMedia",
+-                                        resName);
+-
++                                    aResp->res.result(
++                                        boost::beast::http::status::
++                                            method_not_allowed);
+                                     return;
+                                 }
+ 

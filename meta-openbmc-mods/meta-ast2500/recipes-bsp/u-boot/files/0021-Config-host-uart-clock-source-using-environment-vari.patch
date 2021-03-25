@@ -1,4 +1,4 @@
-From 30c634b4969b8a3cd3afc079d60d23d2cb9f5f5c Mon Sep 17 00:00:00 2001
+From 2740b1112737d3acd23d3a0b56ab26b05a5d1a5e Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Mon, 11 Feb 2019 15:19:56 +0800
 Subject: [PATCH] Config host uart clock source using environment variable
@@ -27,15 +27,15 @@ cat /sys/class/tty/ttyS*/uartclk, ttyS0/12/3 should be 192MHz
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 
 ---
- arch/arm/include/asm/arch-aspeed/regs-scu.h |  5 ++++
- board/aspeed/ast-g5/ast-g5-intel.c          | 39 +++++++++++++++++++++++++++++
+ arch/arm/include/asm/arch-aspeed/regs-scu.h |  5 +++
+ board/aspeed/ast-g5/ast-g5-intel.c          | 39 +++++++++++++++++++++
  2 files changed, 44 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
-index 10b983a..8a596ce 100644
+index 019c00036a..a2c9549fc6 100644
 --- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
-@@ -529,6 +529,11 @@
+@@ -530,6 +530,11 @@
  /* AST_SCU_MAC_CLK			0x48 - MAC interface clock delay setting register */
  
  /* AST_SCU_MISC2_CTRL			0x4C - Misc. 2 Control register */
@@ -48,10 +48,10 @@ index 10b983a..8a596ce 100644
  #define SCU_PCIE_MAPPING_HIGH		(1 << 15)
  #define SCU_MALI_DTY_MODE		(1 << 8)
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index e0bf9ee..e19df03 100644
+index a223c798ac..a16e1330a0 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -103,6 +103,9 @@ static const GPIOValue gpio_table[] = {
+@@ -106,6 +106,9 @@ static const GPIOValue gpio_table[] = {
  #define SGPIO_ENABLE 1
  #define GPIO254 0x254
  
@@ -61,7 +61,7 @@ index e0bf9ee..e19df03 100644
  static void sgpio_init(void)
  {
  	uint32_t value;
-@@ -368,6 +371,42 @@ void ast_g5_intel_late_init(void)
+@@ -398,6 +401,42 @@ void ast_g5_intel_late_init(void)
  	char value[32];
  	u32 reset_reason = 0;
  

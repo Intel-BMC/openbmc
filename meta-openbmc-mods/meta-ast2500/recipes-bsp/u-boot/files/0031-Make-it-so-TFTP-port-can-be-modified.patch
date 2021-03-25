@@ -1,13 +1,14 @@
-From 1d680678abb76bdea7cf2128b7ce6db4a5652151 Mon Sep 17 00:00:00 2001
+From 853894273464f068107f8de3a786327871df699f Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Tue, 16 Jul 2019 16:30:02 -0700
-Subject: [PATCH 1/1] Make it so TFTP port can be modified
+Subject: [PATCH] Make it so TFTP port can be modified
 
 This makes it so we can use non-privileged tftp ports.
 
 Tested: Can load fw from non-privileged port.
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
  include/configs/ast-g5-ncsi.h | 2 ++
  include/configs/ast-g5-phy.h  | 2 ++
@@ -35,6 +36,3 @@ index 62ddb841e5..371f50a1db 100644
 +#define CONFIG_TFTP_PORT
 +
  #endif	/* __AST_G5_PHY_CONFIG_H */
--- 
-2.17.1
-

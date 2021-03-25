@@ -1,7 +1,7 @@
-From dff3a123b0318f83ecd753eea8945ebdc15fd2f9 Mon Sep 17 00:00:00 2001
+From 212e72b6df74af242b23443b252deed4d06129f4 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 10:21:40 -0800
-Subject: [PATCH 1/1] Add espi support
+Subject: [PATCH] Add espi support
 
 This adds basic eSPI support for U-Boot. The eSPI driver works best with
 interrupts because the timing of the initialization with the PCH is not
@@ -13,6 +13,7 @@ functions.
 
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
  arch/arm/include/asm/arch-aspeed/regs-scu.h |   2 +
  board/aspeed/ast-g5/Makefile                |   2 +
@@ -47,7 +48,7 @@ index df4e63966e..58e0c648f4 100644
  obj-y += ast-g5-irq.o
 diff --git a/board/aspeed/ast-g5/ast-g5-espi.c b/board/aspeed/ast-g5/ast-g5-espi.c
 new file mode 100644
-index 0000000000..5a3ffe7bef
+index 0000000000..7c82cdfd65
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ast-g5-espi.c
 @@ -0,0 +1,248 @@
@@ -342,6 +343,3 @@ index ca25348178..cab5fabcef 100644
  	return 0;
  }
  
--- 
-2.17.1
-

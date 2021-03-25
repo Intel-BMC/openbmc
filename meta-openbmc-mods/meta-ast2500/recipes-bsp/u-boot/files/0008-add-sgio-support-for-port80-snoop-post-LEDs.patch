@@ -1,4 +1,4 @@
-From 40e02e4ffa13c0128db555a3a3982a7cdc0ebf60 Mon Sep 17 00:00:00 2001
+From 248f12a6a02819a5318025df0868dfd40efa2207 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 12:09:52 -0800
 Subject: [PATCH] add sgio support for port80 snoop post LEDs
@@ -11,12 +11,12 @@ Change-Id: Iaa1b91cd40f4b6323dba0598da373cb631459e66
 
 ---
  arch/arm/include/asm/arch-aspeed/ast_scu.h |  1 +
- arch/arm/mach-aspeed/ast-scu.c             |  8 +++
- board/aspeed/ast-g5/ast-g5-intel.c         | 96 ++++++++++++++++++++++++++++++
+ arch/arm/mach-aspeed/ast-scu.c             |  8 ++
+ board/aspeed/ast-g5/ast-g5-intel.c         | 96 ++++++++++++++++++++++
  3 files changed, 105 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-index 06825ce..369c4e3 100644
+index 06825cebbf..369c4e3b60 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
 @@ -45,6 +45,7 @@ extern u32 ast_scu_get_vga_memsize(void);
@@ -28,7 +28,7 @@ index 06825ce..369c4e3 100644
  void ast_config_uart5_clk(void);
  
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index d27f3d3..3a9ba05 100644
+index d27f3d3ede..3a9ba05bf2 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
 @@ -449,6 +449,14 @@ void ast_scu_multi_func_romcs(u8 num)
@@ -47,7 +47,7 @@ index d27f3d3..3a9ba05 100644
  {
  	int i;
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index e79235c..c2a8b33 100644
+index e79235c8d0..c2a8b33aec 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -8,9 +8,105 @@

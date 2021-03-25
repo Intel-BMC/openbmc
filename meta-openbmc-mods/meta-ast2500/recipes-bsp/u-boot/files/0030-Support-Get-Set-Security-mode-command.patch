@@ -1,4 +1,4 @@
-From 294a5971c94099277ee5b5589c060896cf22c495 Mon Sep 17 00:00:00 2001
+From 60b24cc8e1da556437770e9e49e046b9f41e2979 Mon Sep 17 00:00:00 2001
 From: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Date: Thu, 20 Jun 2019 15:26:50 +0530
 Subject: [PATCH] Support Get/Set Security mode command
@@ -20,11 +20,11 @@ throws correct errors
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 
 ---
- board/aspeed/ast-g5/ipmi-handler.c | 63 +++++++++++++++++++++++++++++++++++++-
+ board/aspeed/ast-g5/ipmi-handler.c | 63 +++++++++++++++++++++++++++++-
  1 file changed, 62 insertions(+), 1 deletion(-)
 
 diff --git a/board/aspeed/ast-g5/ipmi-handler.c b/board/aspeed/ast-g5/ipmi-handler.c
-index 5e78546..4e921bd 100644
+index 5e78546e70..4e921bd575 100644
 --- a/board/aspeed/ast-g5/ipmi-handler.c
 +++ b/board/aspeed/ast-g5/ipmi-handler.c
 @@ -20,10 +20,19 @@

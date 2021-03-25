@@ -1,4 +1,4 @@
-From 2db86017f1cd48da9f6c102665d5ae3d1efe48cc Mon Sep 17 00:00:00 2001
+From e252fcfd1ad66f1af57da1851bb39a398a9545e7 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Wed, 14 Nov 2018 12:16:53 -0800
 Subject: [PATCH] Add status and ID LED support
@@ -11,15 +11,16 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Change-Id: Ic9595621b21000ef465ff57ed2047855296e2714
+
 ---
- board/aspeed/ast-g5/ast-g5-intel.c | 113 +++++++++++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c | 113 +++++++++++++++++++++++++++++
  1 file changed, 113 insertions(+)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 6e45cb4..e749992 100644
+index 4ef25ab8f5..e27b538fcc 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -146,6 +146,112 @@ static void sgpio_init(void)
+@@ -149,6 +149,112 @@ static void sgpio_init(void)
  	writel(value, AST_GPIO_BASE + GPIO254);
  }
  
@@ -132,7 +133,7 @@ index 6e45cb4..e749992 100644
  int intel_force_firmware_jumper_enabled(void)
  {
  	return gpio_get_value(GPIO_FF_UPD_JUMPER);
-@@ -157,4 +263,11 @@ void ast_g5_intel(void)
+@@ -160,4 +266,11 @@ void ast_g5_intel(void)
  	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
  	espi_init();
  	sgpio_init();
@@ -144,6 +145,3 @@ index 6e45cb4..e749992 100644
 +		id_led_control(GPIO_AMBER_LED, EIDLED_On);
 +	}
  }
--- 
-2.7.4
-

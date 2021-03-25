@@ -1,27 +1,28 @@
-From b6286fe6800ca402b013e57429025fd9e4d65cab Mon Sep 17 00:00:00 2001
+From 14a429586fd8ccb82c72611fe3310860db2e643b Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
-Date: Fri, 4 Dec 2020 14:48:41 +0100
-Subject: [PATCH] Sync Telmetry service with EventService
+Date: Tue, 15 Dec 2020 12:30:31 +0100
+Subject: [PATCH 4/4] Sync Telmetry service with EventService
 
-Now assembling MetricReport is done properly and is
-covered in one place - MetricReport node.
-Updated method of fetching Readings from Telemetry by
-EventService. Using ReportUpdate signal is no longer
-supported.
+Synced the latest changes in Telemetry service with Event Service
+code. Now assembling MetricReport is covered in single place in
+code. Updated method of fetching Readings from Telemetry by
+Event Service. Using ReportUpdate signal is no longer
+supported. Now Event Service monitors for PropertiesChanged signal
+from /xyz/openbmc_project/Telemetry/Reports path.
 
 Tested:
- - Received MetricReport in EventListener server after
-   adding subscription to EventService.
+ - Verified that EventListener received MetricReport response from
+   Event Service in insecure http push style eventing mode
 
 Change-Id: I2fc1841a6c9259a8bff30b34bddc0d4aabd41912
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 ---
- .../include/event_service_manager.hpp         | 156 ++++++------------
- redfish-core/lib/metric_report.hpp            |  35 ++--
- 2 files changed, 74 insertions(+), 117 deletions(-)
+ redfish-core/include/event_service_manager.hpp | 157 +++++++++----------------
+ redfish-core/lib/metric_report.hpp             |  28 +++--
+ 2 files changed, 71 insertions(+), 114 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index f68ae1d..893a813 100644
+index 3db9f0c..5c5a6c1 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -14,6 +14,7 @@
@@ -41,7 +42,7 @@ index f68ae1d..893a813 100644
 -                              const ReadingsObjType& readings)
 +    void filterAndSendReports(
 +        const std::string& id,
-+        const std::variant<MetricReport::TimestampReadings>& var)
++        const std::variant<telemetry::TimestampReadings>& var)
      {
 -        std::string metricReportDef =
 -            "/redfish/v1/TelemetryService/MetricReportDefinitions/" + id2;
@@ -62,7 +63,7 @@ index f68ae1d..893a813 100644
 -        nlohmann::json metricValuesArray = nlohmann::json::array();
 -        for (const auto& it : readings)
 +        nlohmann::json json;
-+        if (!MetricReport::fillReport(json, id, var))
++        if (!telemetry::fillReport(json, id, var))
          {
 -            metricValuesArray.push_back({});
 -            nlohmann::json& entry = metricValuesArray.back();
@@ -90,7 +91,7 @@ index f68ae1d..893a813 100644
      }
  
      void updateRetryConfig(const uint32_t retryAttempts,
-@@ -1342,56 +1324,71 @@ class EventServiceManager
+@@ -1342,56 +1324,72 @@ class EventServiceManager
      }
  
  #endif
@@ -152,7 +153,7 @@ index f68ae1d..893a813 100644
 -                if (!timestampPtr)
 +                std::string intf;
 +                std::vector<std::pair<
-+                    std::string, std::variant<MetricReport::TimestampReadings>>>
++                    std::string, std::variant<telemetry::TimestampReadings>>>
 +                    props;
 +                std::vector<std::string> invalidProp;
 +
@@ -166,7 +167,7 @@ index f68ae1d..893a813 100644
 -                ReadingsObjType* readingsPtr =
 -                    std::get_if<ReadingsObjType>(&resp["Readings"]);
 -                if (!readingsPtr)
-+                const std::variant<MetricReport::TimestampReadings>* varPtr =
++                const std::variant<telemetry::TimestampReadings>* varPtr =
 +                    nullptr;
 +                for (const auto& [key, var] : props)
 +                {
@@ -183,15 +184,16 @@ index f68ae1d..893a813 100644
                  }
  
 -                if (!readingsPtr->size())
-+                std::string id;
-+                if (!dbus::utility::getNthStringFromPath(msg.get_path(), 5, id))
++                sdbusplus::message::object_path path(msg.get_path());
++                std::string id = path.filename();
++                if (id.empty())
                  {
 -                    BMCWEB_LOG_DEBUG << "No metrics report to be transferred";
 +                    BMCWEB_LOG_ERROR << "Failed to get Id from path";
                      return;
                  }
  
-@@ -1401,52 +1398,9 @@ class EventServiceManager
+@@ -1401,52 +1399,9 @@ class EventServiceManager
                      std::shared_ptr<Subscription> entry = it.second;
                      if (entry->eventFormatType == metricReportFormatType)
                      {
@@ -246,85 +248,64 @@ index f68ae1d..893a813 100644
      }
  
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
-index 050304c..c2013cc 100644
+index 9caf4a3..e79a41c 100644
 --- a/redfish-core/lib/metric_report.hpp
 +++ b/redfish-core/lib/metric_report.hpp
-@@ -52,6 +52,10 @@ class MetricReport : public Node
-             {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
+@@ -31,16 +31,14 @@ inline nlohmann::json toMetricValues(const Readings& readings)
+     return metricValues;
+ }
+ 
+-inline void fillReport(const std::shared_ptr<AsyncResp>& asyncResp,
+-                       const std::string& id,
++inline bool fillReport(nlohmann::json& json, const std::string& id,
+                        const std::variant<TimestampReadings>& var)
+ {
+-    asyncResp->res.jsonValue["@odata.type"] =
+-        "#MetricReport.v1_3_0.MetricReport";
+-    asyncResp->res.jsonValue["@odata.id"] = telemetry::metricReportUri + id;
+-    asyncResp->res.jsonValue["Id"] = id;
+-    asyncResp->res.jsonValue["Name"] = id;
+-    asyncResp->res.jsonValue["MetricReportDefinition"]["@odata.id"] =
++    json["@odata.type"] = "#MetricReport.v1_3_0.MetricReport";
++    json["@odata.id"] = telemetry::metricReportUri + id;
++    json["Id"] = id;
++    json["Name"] = id;
++    json["MetricReportDefinition"]["@odata.id"] =
+         telemetry::metricReportDefinitionUri + id;
+ 
+     const TimestampReadings* timestampReadings =
+@@ -48,14 +46,14 @@ inline void fillReport(const std::shared_ptr<AsyncResp>& asyncResp,
+     if (!timestampReadings)
+     {
+         BMCWEB_LOG_ERROR << "Property type mismatch or property is missing";
+-        messages::internalError(asyncResp->res);
+-        return;
++        return false;
      }
  
-+    using Readings =
-+        std::vector<std::tuple<std::string, std::string, double, uint64_t>>;
-+    using TimestampReadings = std::tuple<uint64_t, Readings>;
-+
-   private:
-     void doGet(crow::Response& res, const crow::Request&,
-                const std::vector<std::string>& params) override
-@@ -92,7 +96,10 @@ class MetricReport : public Node
+     const auto& [timestamp, readings] = *timestampReadings;
+-    asyncResp->res.jsonValue["Timestamp"] =
++    json["Timestamp"] =
+         crow::utility::getDateTime(static_cast<time_t>(timestamp));
+-    asyncResp->res.jsonValue["MetricValues"] = toMetricValues(readings);
++    json["MetricValues"] = toMetricValues(readings);
++    return true;
+ }
+ } // namespace telemetry
+ 
+@@ -146,7 +144,11 @@ class MetricReport : public Node
                              return;
                          }
  
--                        fillReport(asyncResp, id, ret);
-+                        if (!fillReport(asyncResp->res.jsonValue, id, ret))
+-                        telemetry::fillReport(asyncResp, id, ret);
++                        if (!telemetry::fillReport(asyncResp->res.jsonValue, id,
++                                                   ret))
 +                        {
 +                            messages::internalError(asyncResp->res);
 +                        }
                      },
                      telemetry::service, reportPath,
                      "org.freedesktop.DBus.Properties", "Get",
-@@ -102,10 +109,6 @@ class MetricReport : public Node
-             "Update");
-     }
- 
--    using Readings =
--        std::vector<std::tuple<std::string, std::string, double, uint64_t>>;
--    using TimestampReadings = std::tuple<uint64_t, Readings>;
--
-     static nlohmann::json toMetricValues(const Readings& readings)
-     {
-         nlohmann::json metricValues = nlohmann::json::array_t();
-@@ -130,15 +133,15 @@ class MetricReport : public Node
-         return metricValues;
-     }
- 
--    static void fillReport(const std::shared_ptr<AsyncResp>& asyncResp,
--                           const std::string& id,
-+  public:
-+    static bool fillReport(nlohmann::json& json, const std::string& id,
-                            const std::variant<TimestampReadings>& var)
-     {
--        asyncResp->res.jsonValue["@odata.type"] = schemaType;
--        asyncResp->res.jsonValue["@odata.id"] = telemetry::metricReportUri + id;
--        asyncResp->res.jsonValue["Id"] = id;
--        asyncResp->res.jsonValue["Name"] = id;
--        asyncResp->res.jsonValue["MetricReportDefinition"]["@odata.id"] =
-+        json["@odata.type"] = schemaType;
-+        json["@odata.id"] = telemetry::metricReportUri + id;
-+        json["Id"] = id;
-+        json["Name"] = id;
-+        json["MetricReportDefinition"]["@odata.id"] =
-             telemetry::metricReportDefinitionUri + id;
- 
-         const TimestampReadings* timestampReadings =
-@@ -146,14 +149,14 @@ class MetricReport : public Node
-         if (!timestampReadings)
-         {
-             BMCWEB_LOG_ERROR << "Property type mismatch or property is missing";
--            messages::internalError(asyncResp->res);
--            return;
-+            return false;
-         }
- 
-         const auto& [timestamp, readings] = *timestampReadings;
--        asyncResp->res.jsonValue["Timestamp"] =
-+        json["Timestamp"] =
-             crow::utility::getDateTime(static_cast<time_t>(timestamp));
--        asyncResp->res.jsonValue["MetricValues"] = toMetricValues(readings);
-+        json["MetricValues"] = toMetricValues(readings);
-+        return true;
-     }
- 
-     static constexpr const char* schemaType =
 -- 
-2.17.1
+2.16.6
 

@@ -1,4 +1,4 @@
-From 9b05a276af65dd436f30b1b2680a09821c5a81aa Mon Sep 17 00:00:00 2001
+From ec61ed244f574158315df42c17f4a8d3b3504b97 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Mon, 17 Dec 2018 20:37:23 -0800
 Subject: [PATCH] u-boot: full platform reset + espi oob-ready
@@ -14,7 +14,7 @@ Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
  1 file changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
-index 2ac1ca4..66427b6 100644
+index 2ac1ca4721..66427b6f33 100644
 --- a/arch/arm/mach-aspeed/platform_g5.S
 +++ b/arch/arm/mach-aspeed/platform_g5.S
 @@ -139,7 +139,7 @@
