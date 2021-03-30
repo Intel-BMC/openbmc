@@ -1,7 +1,7 @@
-From 15d04184a94aca6db889d77c2cc5a800b280da4b Mon Sep 17 00:00:00 2001
+From 34ceaf8ee2c6556045f00b911c001bcc2f91c1f8 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Fri, 16 Nov 2018 09:58:01 -0800
-Subject: [PATCH 01/30] Add basic GPIO support
+Subject: [PATCH] Add basic GPIO support
 
 Add a table of well-known gpios (such as FP LEDs and FF UPD jumper) and
 initialize them at boot.
@@ -11,7 +11,7 @@ Add a mechanism to get/set well known gpios from command line.
 Change-Id: I4136a5ccb048b3604f13b17ea0c18a4bc596c249
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 
-%% original patch: 0009-Add-basic-GPIO-support.patch
+
 ---
  board/aspeed/ast-g5/Makefile       |   1 +
  board/aspeed/ast-g5/ast-g5-gpio.c  | 202 +++++++++++++++++++++++++++++
@@ -422,6 +422,3 @@ index 9fd10eccb3..908db1477b 100644
 +#include "ast-g5-gpio.h"
  
  #endif /* _AST_G5_H_ */
--- 
-2.17.1
-

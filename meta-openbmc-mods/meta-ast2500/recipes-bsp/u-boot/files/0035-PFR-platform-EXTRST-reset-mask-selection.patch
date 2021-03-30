@@ -1,4 +1,4 @@
-From a5dc9fb9b33aa732858dc574f1ada22bc4cbd57c Mon Sep 17 00:00:00 2001
+From 6b62f592434eaadc02057c0d35c3b79982f555bc Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Thu, 5 Sep 2019 15:03:21 +0530
 Subject: [PATCH] PFR platform - EXTRST# reset mask selection
@@ -11,14 +11,15 @@ update flow, during which certain modules of BMC should be chosen
 to be reset so that Host functionality would be intact.
 
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
 ---
- arch/arm/include/asm/arch-aspeed/ast-g5-intel.h | 31 +++++++++++++++++++++++++
- arch/arm/include/asm/arch-aspeed/regs-scu.h     | 29 +++++++++++++++++++++++
- board/aspeed/ast-g5/ast-g5-intel.c              |  9 +++++++
+ .../include/asm/arch-aspeed/ast-g5-intel.h    | 31 +++++++++++++++++++
+ arch/arm/include/asm/arch-aspeed/regs-scu.h   | 29 +++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c            |  9 ++++++
  3 files changed, 69 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
-index 64f4ed1..b9386b2 100644
+index 64f4ed17bf..b9386b2cf6 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 @@ -12,6 +12,37 @@
@@ -60,7 +61,7 @@ index 64f4ed1..b9386b2 100644
  int intel_force_firmware_jumper_enabled(void);
  int intel_failed_boot(void);
 diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
-index 1bdb1d8..0a4fb6f 100644
+index 1bdb1d8574..0a4fb6f773 100644
 --- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
 @@ -144,6 +144,35 @@
@@ -100,7 +101,7 @@ index 1bdb1d8..0a4fb6f 100644
  #define SCU_RESET_CRT3			(0x1 << 8)
  #define SCU_RESET_CRT2			(0x1 << 7)
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 06c6708..e6dd2e6 100644
+index 6a36cfa2ba..2d260a7759 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -661,6 +661,15 @@ extern void espi_init(void);
@@ -119,6 +120,3 @@ index 06c6708..e6dd2e6 100644
  	/* Disable uart port debug function */
  	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) |
  		      SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);
--- 
-2.7.4
-

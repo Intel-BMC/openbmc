@@ -1,7 +1,7 @@
-From c82bf9de515cbbdb4ea1a350be83fb89f4a83631 Mon Sep 17 00:00:00 2001
+From a4ba855a0dfac7af9720e94d82720d1fd916cb4b Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Wed, 31 Jul 2019 16:01:49 -0700
-Subject: [PATCH 1/1] Reboot into UBOOT on Watchdog Failures
+Subject: [PATCH] Reboot into UBOOT on Watchdog Failures
 
 We use watchdog1 to reboot when there is a watchdog
 error. Reboot into u-boot as we are using that as
@@ -11,6 +11,7 @@ Tested: watchdog -T 0 -F /dev/watchdog1 reboots into
 uboot after 3 times
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
  .../include/asm/arch-aspeed/ast-g5-intel.h    |  1 +
  board/aspeed/ast-g5/ast-g5-intel.c            | 31 +++++++++++++++++++
@@ -30,10 +31,10 @@ index a88521a1b3..64f4ed17bf 100644
  #endif
  
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index e68ab8546a..c003d9a7bc 100644
+index a8b65658b3..12216922ac 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -111,6 +111,24 @@ static const GPIOValue gpio_table[] = {
+@@ -114,6 +114,24 @@ static const GPIOValue gpio_table[] = {
  #define HOST_SERIAL_A_HIGH_SPEED (1 << 0)
  #define HOST_SERIAL_B_HIGH_SPEED (1 << 1)
  
@@ -58,7 +59,7 @@ index e68ab8546a..c003d9a7bc 100644
  static void sgpio_init(void)
  {
  	uint32_t value;
-@@ -270,6 +288,11 @@ int intel_force_firmware_jumper_enabled(void)
+@@ -275,6 +293,11 @@ int intel_force_firmware_jumper_enabled(void)
  	return gpio_get_value(GPIO_FF_UPD_JUMPER);
  }
  
@@ -70,7 +71,7 @@ index e68ab8546a..c003d9a7bc 100644
  void arch_preboot_os(void)
  {
  	// last second before booting... set the LEDs
-@@ -402,6 +425,7 @@ void ast_g5_intel_late_init(void)
+@@ -436,6 +459,7 @@ void ast_g5_intel_late_init(void)
  {
  	char value[32];
  	u32 reset_reason = 0;
@@ -78,7 +79,7 @@ index e68ab8546a..c003d9a7bc 100644
  
  	/* By default host serail A and B use normal speed */
  	uint32_t host_serial_cfg = 0;
-@@ -446,6 +470,13 @@ void ast_g5_intel_late_init(void)
+@@ -480,6 +504,13 @@ void ast_g5_intel_late_init(void)
  
  	update_bootargs_cmd("resetreason", value);
  
@@ -93,7 +94,7 @@ index e68ab8546a..c003d9a7bc 100644
  	if (is_mfg_mode_phy_req())
  		update_bootargs_cmd("special", "mfg");
 diff --git a/common/autoboot.c b/common/autoboot.c
-index 45a600e663..03fd164501 100644
+index 3647d5fb21..0e7f7b0965 100644
 --- a/common/autoboot.c
 +++ b/common/autoboot.c
 @@ -263,6 +263,8 @@ static int abortboot(int bootdelay)
@@ -105,6 +106,3 @@ index 45a600e663..03fd164501 100644
  # endif
  
  	if (bootdelay >= 0)
--- 
-2.17.1
-

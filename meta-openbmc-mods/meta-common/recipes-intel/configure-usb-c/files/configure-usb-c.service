@@ -1,0 +1,9 @@
+[Unit]
+Description=Configure USB Type C controller
+
+[Service]
+ExecStart=/usr/bin/configure-usb-c.sh
+Type=oneshot
+
+[Install]
+WantedBy=basic.target

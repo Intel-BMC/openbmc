@@ -1,4 +1,4 @@
-From ea4f14a24b67d5085149d48c7fb38d00f3a7444a Mon Sep 17 00:00:00 2001
+From dd5ead5f8474a9929301745d3cdac23385ff6ded Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Mon, 6 May 2019 03:01:55 +0530
 Subject: [PATCH] Aspeed I2C support in U-Boot
@@ -16,24 +16,24 @@ Change-Id: Iad9af4a57a58bc8dc5c470bfadad9dac1371c238
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 
 ---
- arch/arm/include/asm/arch-aspeed/ast_g5_platform.h |  14 +
- arch/arm/include/asm/arch-aspeed/ast_scu.h         |   5 +
- arch/arm/include/asm/arch-aspeed/regs-iic.h        | 204 +++++
- arch/arm/mach-aspeed/ast-scu.c                     | 122 +++
- board/aspeed/ast-g5/ast-g5.c                       |   8 +
- configs/ast_g5_phy_defconfig                       |   2 +
- drivers/i2c/Kconfig                                |   5 +
- drivers/i2c/Makefile                               |   1 +
- drivers/i2c/ast_i2c.c                              | 852 +++++++++++++++++++++
- drivers/i2c/ast_i2c.h                              | 131 ++++
- include/configs/ast-common.h                       |   5 +
+ .../include/asm/arch-aspeed/ast_g5_platform.h |  14 +
+ arch/arm/include/asm/arch-aspeed/ast_scu.h    |   5 +
+ arch/arm/include/asm/arch-aspeed/regs-iic.h   | 204 +++++
+ arch/arm/mach-aspeed/ast-scu.c                | 122 +++
+ board/aspeed/ast-g5/ast-g5.c                  |   8 +
+ configs/ast_g5_phy_defconfig                  |   2 +
+ drivers/i2c/Kconfig                           |   5 +
+ drivers/i2c/Makefile                          |   1 +
+ drivers/i2c/ast_i2c.c                         | 852 ++++++++++++++++++
+ drivers/i2c/ast_i2c.h                         | 131 +++
+ include/configs/ast-common.h                  |   5 +
  11 files changed, 1349 insertions(+)
  create mode 100644 arch/arm/include/asm/arch-aspeed/regs-iic.h
  create mode 100644 drivers/i2c/ast_i2c.c
  create mode 100644 drivers/i2c/ast_i2c.h
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h b/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h
-index 4210873..a84f471 100644
+index 42108733f3..a84f471bf4 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h
 @@ -105,6 +105,20 @@
@@ -58,7 +58,7 @@ index 4210873..a84f471 100644
  #define AST_PCIARBITER_BASE		0x1E78C000 /* PCI ARBITER */
  #define AST_UART2_BASE			0x1E78D000 /* UART2 */
 diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-index 369c4e3..b94d13e 100644
+index 369c4e3b60..b94d13e97d 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
 @@ -28,6 +28,8 @@
@@ -89,7 +89,7 @@ index 369c4e3..b94d13e 100644
  
 diff --git a/arch/arm/include/asm/arch-aspeed/regs-iic.h b/arch/arm/include/asm/arch-aspeed/regs-iic.h
 new file mode 100644
-index 0000000..5eb3f0a
+index 0000000000..5eb3f0a828
 --- /dev/null
 +++ b/arch/arm/include/asm/arch-aspeed/regs-iic.h
 @@ -0,0 +1,204 @@
@@ -298,7 +298,7 @@ index 0000000..5eb3f0a
 +
 +#endif /* __ASM_ARCH_REGS_IIC_H */
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index 976c59b..537cd4b 100644
+index 976c59b82a..537cd4b3e1 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
 @@ -112,6 +112,12 @@ static struct soc_id soc_map_table[] = {
@@ -445,18 +445,18 @@ index 976c59b..537cd4b 100644
  {
  	int i;
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index 0953677..3c33546 100644
+index d89a2b799a..ead2e1bb63 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
-@@ -13,6 +13,7 @@
- #include <asm/arch/ast_scu.h>
- #include <asm/arch/ast-sdmc.h>
+@@ -16,6 +16,7 @@
+ #include <asm/arch/regs-scu.h>
+ #include <asm/arch/regs-sdmc.h>
  #include <asm/io.h>
 +#include <i2c.h>
  
  #include "ast-g5.h"
  
-@@ -37,6 +38,13 @@ int board_init(void)
+@@ -87,6 +88,13 @@ int board_init(void)
  	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
  	gd->flags = 0;
  
@@ -471,7 +471,7 @@ index 0953677..3c33546 100644
  	return 0;
  }
 diff --git a/configs/ast_g5_phy_defconfig b/configs/ast_g5_phy_defconfig
-index 4aefcf4..1b96ab7 100644
+index 4aefcf49e8..1b96ab7f3b 100644
 --- a/configs/ast_g5_phy_defconfig
 +++ b/configs/ast_g5_phy_defconfig
 @@ -13,3 +13,5 @@ CONFIG_OF_LIBFDT=y
@@ -481,7 +481,7 @@ index 4aefcf4..1b96ab7 100644
 +CONFIG_CMD_I2C=y
 +CONFIG_SYS_I2C_AST=y
 diff --git a/drivers/i2c/Kconfig b/drivers/i2c/Kconfig
-index 6e22bba..5368ba2 100644
+index 6e22bbadff..5368ba270a 100644
 --- a/drivers/i2c/Kconfig
 +++ b/drivers/i2c/Kconfig
 @@ -58,6 +58,11 @@ config DM_I2C_GPIO
@@ -497,7 +497,7 @@ index 6e22bba..5368ba2 100644
         bool "Freescale I2C bus driver"
         depends on DM_I2C
 diff --git a/drivers/i2c/Makefile b/drivers/i2c/Makefile
-index 167424d..b2a69ea 100644
+index 167424db98..b2a69eafc1 100644
 --- a/drivers/i2c/Makefile
 +++ b/drivers/i2c/Makefile
 @@ -11,6 +11,7 @@ obj-$(CONFIG_$(SPL_)I2C_CROS_EC_TUNNEL) += cros_ec_tunnel.o
@@ -510,7 +510,7 @@ index 167424d..b2a69ea 100644
  obj-$(CONFIG_TSI108_I2C) += tsi108_i2c.o
 diff --git a/drivers/i2c/ast_i2c.c b/drivers/i2c/ast_i2c.c
 new file mode 100644
-index 0000000..533419f
+index 0000000000..533419f9dd
 --- /dev/null
 +++ b/drivers/i2c/ast_i2c.c
 @@ -0,0 +1,852 @@
@@ -1368,7 +1368,7 @@ index 0000000..533419f
 +#endif
 diff --git a/drivers/i2c/ast_i2c.h b/drivers/i2c/ast_i2c.h
 new file mode 100644
-index 0000000..7cff0e5
+index 0000000000..7cff0e5a10
 --- /dev/null
 +++ b/drivers/i2c/ast_i2c.h
 @@ -0,0 +1,131 @@
@@ -1504,7 +1504,7 @@ index 0000000..7cff0e5
 +
 +#endif				/* __AST_I2C_H_ */
 diff --git a/include/configs/ast-common.h b/include/configs/ast-common.h
-index b7d7192..0bc7f2d 100644
+index b7d7192cce..0bc7f2d75f 100644
 --- a/include/configs/ast-common.h
 +++ b/include/configs/ast-common.h
 @@ -84,6 +84,11 @@
@@ -1519,6 +1519,3 @@ index b7d7192..0bc7f2d 100644
  /*
   * Optional MTD and UBI support
   */
--- 
-2.7.4
-

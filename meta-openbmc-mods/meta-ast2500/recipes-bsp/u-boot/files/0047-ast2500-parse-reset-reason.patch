@@ -1,9 +1,10 @@
-From 96eb25949b824af10cabd387cfdc6401d23ac04b Mon Sep 17 00:00:00 2001
+From 079424a954cf0c697b65492a2d6a38f1938fe1bf Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Tue, 7 Jul 2020 13:41:48 +0800
 Subject: [PATCH] ast2500: parse reset reason.
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+
 ---
  arch/arm/mach-aspeed/ast-scu.c | 39 +++++++++++++++++++++++++++++++++-
  1 file changed, 38 insertions(+), 1 deletion(-)
@@ -60,6 +61,3 @@ index 28c48c1154..ff90c0fc7e 100644
  #else
  	if (rest & SCU_SYS_EXT_RESET_FLAG) {
  		printf("RST : External\n");
--- 
-2.17.1
-

@@ -77,6 +77,7 @@ IMAGE_INSTALL_append = " \
         biosconfig-manager \
         telemetry \
         i3c-tools \
+        configure-usb-c \
         "
 
 IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"

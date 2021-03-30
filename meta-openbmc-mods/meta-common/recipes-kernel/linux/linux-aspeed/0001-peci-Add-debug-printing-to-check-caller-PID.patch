@@ -1,4 +1,4 @@
-From 63d053b12cc7ca63a668872ce70e6592fe1dd7e5 Mon Sep 17 00:00:00 2001
+From 7474fe190f770e064a5ce5e939bd713ce2aa1de5 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 3 Feb 2021 16:18:37 -0800
 Subject: [PATCH] peci: Add debug printing to check caller PID
@@ -16,18 +16,18 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 5 insertions(+)
 
 diff --git a/drivers/peci/peci-core.c b/drivers/peci/peci-core.c
-index 0fc2f246ada8..0fdb26a15150 100644
+index 10375e6087a5..02c8502fd846 100644
 --- a/drivers/peci/peci-core.c
 +++ b/drivers/peci/peci-core.c
-@@ -193,6 +193,7 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
+@@ -194,6 +194,7 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
  		       bool do_retry, bool has_aw_fcs)
  {
- 	uint interval_ms = PECI_DEV_RETRY_INTERVAL_MIN_MSEC;
+ 	uint interval_us = PECI_DEV_RETRY_INTERVAL_MIN_USEC;
 +	char task_name[TASK_COMM_LEN];
  	ulong timeout = jiffies;
  	u8 aw_fcs;
  	int ret;
-@@ -213,6 +214,10 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
+@@ -214,6 +215,10 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
  		}
  	}
  

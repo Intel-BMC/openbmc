@@ -1,19 +1,20 @@
-From 039b9a278a4d075e455a38ec93171dc812aec8b2 Mon Sep 17 00:00:00 2001
+From 118b202b435df8b9a8bdee296289fd42c4a95959 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Fri, 16 Nov 2018 15:57:57 -0800
-Subject: [PATCH 1/1] aspeed: add Pwm Driver
+Subject: [PATCH] aspeed: add Pwm Driver
 
 Change-Id: Ia8b80212f7c70aafcc6a71782936ec95cf9b7f38
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
  board/aspeed/ast-g5/ast-g5-intel.c | 113 +++++++++++++++++++++++++++++
  1 file changed, 113 insertions(+)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index e74999223b..74e218dfd0 100644
+index e27b538fcc..a6cad69b1e 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -257,9 +257,122 @@ int intel_force_firmware_jumper_enabled(void)
+@@ -260,9 +260,122 @@ int intel_force_firmware_jumper_enabled(void)
  	return gpio_get_value(GPIO_FF_UPD_JUMPER);
  }
  
@@ -136,6 +137,3 @@ index e74999223b..74e218dfd0 100644
  	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
  	espi_init();
  	sgpio_init();
--- 
-2.17.1
-

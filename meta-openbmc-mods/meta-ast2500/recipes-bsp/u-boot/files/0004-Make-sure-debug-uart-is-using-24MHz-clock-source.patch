@@ -1,4 +1,4 @@
-From 954e7dd9ff9c5d1159f0896afa34c673061b82ea Mon Sep 17 00:00:00 2001
+From 9efa565f1bc09b1906328b25a01e041ab5024769 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Tue, 11 Sep 2018 16:24:06 +0800
 Subject: [PATCH] Make sure debug uart is using 24MHz clock source
@@ -16,7 +16,7 @@ Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
  4 files changed, 17 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
-index dcbc673..06825ce 100644
+index dcbc6730d4..06825cebbf 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
 @@ -46,4 +46,6 @@ extern void ast_scu_init_eth(u8 num);
@@ -27,7 +27,7 @@ index dcbc673..06825ce 100644
 +
  #endif
 diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
-index 1c02914..92ea33b 100644
+index 1c02914fcb..92ea33b89a 100644
 --- a/arch/arm/include/asm/arch-aspeed/platform.h
 +++ b/arch/arm/include/asm/arch-aspeed/platform.h
 @@ -27,6 +27,7 @@
@@ -39,7 +39,7 @@ index 1c02914..92ea33b 100644
  #err "No define for platform.h"
  #endif
 diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
-index 12de9b8..fff02dc 100644
+index 12de9b8036..fff02dc000 100644
 --- a/arch/arm/mach-aspeed/ast-scu.c
 +++ b/arch/arm/mach-aspeed/ast-scu.c
 @@ -538,3 +538,9 @@ void ast_scu_get_who_init_dram(void)
@@ -53,10 +53,10 @@ index 12de9b8..fff02dc 100644
 +				~(1 << 28), AST_SCU_MISC2_CTRL);
 +}
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index e67a4bf..5a1fade 100644
+index 12496cea09..45353b8f78 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
-@@ -16,6 +16,14 @@
+@@ -19,6 +19,14 @@
  
  DECLARE_GLOBAL_DATA_PTR;
  
@@ -70,4 +70,4 @@ index e67a4bf..5a1fade 100644
 +
  int board_init(void)
  {
- 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+ 	bool sdmc_unlocked;

@@ -1,7 +1,7 @@
 # Keep this as a comment to enable the auto-bump script without
 # stomping on SRC_URI from previous .bbappend files
 #SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git"
-SRCREV = "6be85da9193d5c529b49fbf9345507e0be2b9477"
+SRCREV = "d01d1f84191894ad605a9ba5b546280bcfc64f7d"
 
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
@@ -18,5 +18,4 @@ SRC_URI += "file://0007-ipmi-set-BIOS-id.patch \
             file://0030-Add-PLDM-version-purpose-enumeration.patch \
             file://0032-update-meson-build-for-MCTP-interfaces.patch \
             file://0033-update-meson-build-for-PLDM-FWU-interfaces.patch \
-            file://0034-Fix-crash-issue-due-to-throw-undefined-error.patch \
             "

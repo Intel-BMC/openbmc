@@ -1,6 +1,8 @@
 COMPATIBLE_MACHINE_intel-ast2600 = "intel-ast2600"
 KMACHINE = "aspeed"
-KERNEL_DEVICETREE = "${KMACHINE}-bmc-${COMPATIBLE_MACHINE}.dtb"
+KERNEL_DEVICETREE = " \
+    ${KMACHINE}-bmc-${COMPATIBLE_MACHINE}.dtb \
+    "
 #KERNEL_DEVICETREE = "${KMACHINE}-ast2600-evb.dtb"
 
 require conf/machine/include/ast2600.inc

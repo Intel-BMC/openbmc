@@ -5,10 +5,7 @@ FRUPATH="/etc/fru"
 PRODIDPATH="/var/cache/private"
 fruFile="$FRUPATH/baseboard.fru.bin"
 prodIDFile="$PRODIDPATH/prodID"
-
-if [ -f $fruFile -a -f $prodIDFile ]; then
-    exit 0
-fi
+source decodeBoardID.sh
 
 read_id() {
     local idx=0
@@ -23,46 +20,28 @@ read_id() {
     echo $result
 }
 
+if [ -f $fruFile -a -f $prodIDFile ] &&
+    grep -q 'CPU part\s*: 0xc07' /proc/cpuinfo; then
+    exit 0
+fi
+
+NAME="Unknown"
+PRODID="0x00"
+EEPROM_FRU=false
+
 BOARD_ID=$(read_id)
-if grep -q 'CPU part\s*: 0xb76' /proc/cpuinfo; then
-    # AST2500
-    case $BOARD_ID in
-        12) NAME="D50TNP1SB"
-            PRODID="0x99";;
-        40) NAME="CooperCity"
-            PRODID="0x9d";;
-        42) NAME="WilsonCity"
-            PRODID="0x91";;
-        44) NAME="WilsonCityM"
-            PRODID="0x91";;
-        45) NAME="WilsonCity"
-            PRODID="0x91";;
-        60) NAME="M50CYP2SB2U"
-            PRODID="0x98";;
-        62) NAME="WilsonPoint"
-            PRODID="0x9a";;
-        *)  NAME="S2600WFT"
-            PRODID="0x7b";;
-    esac
-
-elif grep -q 'CPU part\s*: 0xc07' /proc/cpuinfo; then
-    # AST2600
-    case $BOARD_ID in
-        62) NAME="ArcherCity"
-            PRODID="0x9c";;
-        *)  NAME="AST2600EVB"
-            PRODID="0x00";;
-    esac
-
-fi
-
-if [ -z "$NAME" ]; then
-    NAME="Unknown"
-fi
+decode_board_id
 
 if [ ! -e $prodIDFile ]
 then
     echo $PRODID >$prodIDFile
+fi
+
+if $EEPROM_FRU;
+then
+    # Remove baseboard filesystem FRU(if any), as this platform has EEPROM FRU.
+    rm -f $fruFile
+    exit 0
 fi
 
 if [ ! -f $fruFile ]
@@ -72,5 +51,4 @@ then
     mkfru $NAME
     mv $NAME.fru.bin $fruFile
 fi
-
 

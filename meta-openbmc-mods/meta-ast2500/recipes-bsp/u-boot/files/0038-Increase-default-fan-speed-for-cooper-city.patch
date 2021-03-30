@@ -1,7 +1,7 @@
-From e465945672408b632d5e3c2cf7f08ade1268419e Mon Sep 17 00:00:00 2001
+From d248ebf5bddd0c0bc6f7e287867b651d0c17aafe Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Thu, 24 Oct 2019 14:39:22 -0700
-Subject: [PATCH 1/1] Increase default fan speed for cooper city
+Subject: [PATCH] Increase default fan speed for cooper city
 
 This increases the uboot fan speed for cooper city
 as it has high core count CPUS.
@@ -9,16 +9,17 @@ as it has high core count CPUS.
 Tested: In uboot fans appeared to run faster
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
+
 ---
  board/aspeed/ast-g5/ast-g5-gpio.h  |  6 ++++
  board/aspeed/ast-g5/ast-g5-intel.c | 46 ++++++++++++++++++++++++++++++
  2 files changed, 52 insertions(+)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-gpio.h b/board/aspeed/ast-g5/ast-g5-gpio.h
-index ed2499f5cc..9088cdd3e3 100644
+index 8ccf437346..7f0c06d88f 100644
 --- a/board/aspeed/ast-g5/ast-g5-gpio.h
 +++ b/board/aspeed/ast-g5/ast-g5-gpio.h
-@@ -70,9 +70,15 @@
+@@ -71,9 +71,15 @@
  #define ID_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_6)
  #define GRN_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_4)
  #define AMB_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_5)
@@ -35,7 +36,7 @@ index ed2499f5cc..9088cdd3e3 100644
  // GPIO Configuration Register bits
  #define GPCFG_EVENT_TO_SMI (1 << 7) // 1 == enabled
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index c58fd3591b..9d5db68b7e 100644
+index e05a6da468..4b017269f9 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -25,6 +25,12 @@ enum gpio_names {
@@ -51,8 +52,8 @@ index c58fd3591b..9d5db68b7e 100644
  };
  
  #define GPIO_CFG_DEFAULT (GPCFG_ACTIVE_HIGH | GPCFG_LEVEL_TRIG)
-@@ -60,6 +66,21 @@ static const GPIOValue gpio_table[] = {
- 	[GPIO_FP_PWR_BTN] = {FP_PWR_BTN_PORT_PIN, GPIO_CFG_DEFAULT, 0,
+@@ -63,6 +69,21 @@ static const GPIOValue gpio_table[] = {
+ 	[GPIO_FP_PWR_BTN] = {FP_PWR_BTN_PORT_PIN, GPIO_CFG_LOW_INPUT, 0,
  				   GPIO_DEBOUNCE_8MS},
  
 +	/* Platform ID Pins */
@@ -73,7 +74,7 @@ index c58fd3591b..9d5db68b7e 100644
  };
  
  #define LPC_SNOOP_ADDR 0x80
-@@ -114,6 +135,8 @@ static const GPIOValue gpio_table[] = {
+@@ -117,6 +138,8 @@ static const GPIOValue gpio_table[] = {
  #define WATCHDOG_RESET_BIT 0x8
  #define BOOT_FAILURE_LIMIT 0x3
  
@@ -82,7 +83,7 @@ index c58fd3591b..9d5db68b7e 100644
  static int get_boot_failures(void)
  {
  	return getenv_ulong("bootfailures", 10, 0);
-@@ -295,6 +318,26 @@ int intel_failed_boot(void)
+@@ -298,6 +321,26 @@ int intel_failed_boot(void)
  	return get_boot_failures() >= BOOT_FAILURE_LIMIT;
  }
  
@@ -109,7 +110,7 @@ index c58fd3591b..9d5db68b7e 100644
  void arch_preboot_os(void)
  {
  	// last second before booting... set the LEDs
-@@ -322,6 +365,7 @@ void arch_preboot_os(void)
+@@ -325,6 +368,7 @@ void arch_preboot_os(void)
  #define PWM_CLK_ENABLE BIT(0)
  #define PWM_DUTY(PCT) (((PCT) * 128) / 100)
  #define DEFAULT_PWM_DUTY_VALUE PWM_DUTY(57)
@@ -117,7 +118,7 @@ index c58fd3591b..9d5db68b7e 100644
  
  
  static inline uint32_t ast_scu_read(uint32_t reg)
-@@ -595,6 +639,8 @@ void ast_g5_intel(void)
+@@ -606,6 +650,8 @@ void ast_g5_intel(void)
  		id_led_control(GPIO_GREEN_LED, EIDLED_Off);
  		id_led_control(GPIO_AMBER_LED, EIDLED_On);
  		kcs_init();
@@ -126,6 +127,3 @@ index c58fd3591b..9d5db68b7e 100644
  		/* TODO: need to stop the booting here. */
  	}
  }
--- 
-2.17.1
-

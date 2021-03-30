@@ -1,4 +1,4 @@
-From 2048226878a80fefcbcbe999fd826cc7c02ed9e4 Mon Sep 17 00:00:00 2001
+From 85e7b2d9ede4bb33e02f48ea1d4691d2154fc4a5 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
 Date: Tue, 13 Oct 2020 15:00:51 -0700
 Subject: [PATCH] Improve initialization of I2C sensors
@@ -32,15 +32,15 @@ missing after AC cycles.
 Change-Id: I118df674162677d66e7d211b089430fce384086b
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- include/devices.hpp | 153 +++++++++++++++++++----------------
+ include/devices.hpp | 165 ++++++++++++++++++++-----------------
  src/Overlay.cpp     | 192 ++++++++++++++++++++++++++++++++++----------
- 2 files changed, 233 insertions(+), 112 deletions(-)
+ 2 files changed, 239 insertions(+), 118 deletions(-)
 
 diff --git a/include/devices.hpp b/include/devices.hpp
-index acbfb95..1f25864 100644
+index c375b1c..b7dc7d0 100644
 --- a/include/devices.hpp
 +++ b/include/devices.hpp
-@@ -31,99 +31,116 @@ struct CmpStr
+@@ -31,105 +31,122 @@ struct CmpStr
  
  struct ExportTemplate
  {
@@ -65,12 +65,18 @@ index acbfb95..1f25864 100644
 -                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
 -         {"24C64", ExportTemplate("24c64 $Address",
 -                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"ADM1266",
+-          ExportTemplate("adm1266 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
 +        {{"24C02",
 +          ExportTemplate("24c02 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
 +                         "new_device", "delete_device", false)},
 +         {"24C64",
 +          ExportTemplate("24c64 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
 +                         "new_device", "delete_device", false)},
++         {"ADM1266", ExportTemplate("adm1266 $Address",
++                                    "/sys/bus/i2c/devices/i2c-$Bus/new_device",
++                                    "new_device", "delete_device", false)},
           {"ADM1272",
 -          ExportTemplate("adm1272 $Address",
 -                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
@@ -152,8 +158,14 @@ index acbfb95..1f25864 100644
           {"MAX31730",
 -          ExportTemplate("max31730 $Address",
 -                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"MAX34440",
+-          ExportTemplate("max34440 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
 +          ExportTemplate("max31730 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
 +                         "new_device", "delete_device", true)},
++         {"MAX34440", ExportTemplate("max34440 $Address",
++                                     "/sys/bus/i2c/devices/i2c-$Bus/new_device",
++                                     "new_device", "delete_device", true)},
           {"MAX34451",
 -          ExportTemplate("max34451 $Address",
 -                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
@@ -471,5 +483,5 @@ index cb6ed10..7a3089e 100644
          linkMux(name, static_cast<size_t>(*bus), static_cast<size_t>(*address),
                  *channels);
 -- 
-2.26.2
+2.17.1
 

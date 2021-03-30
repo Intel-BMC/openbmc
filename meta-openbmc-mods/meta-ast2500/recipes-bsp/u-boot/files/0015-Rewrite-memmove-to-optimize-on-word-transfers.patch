@@ -1,4 +1,4 @@
-From 711c7bc5a07b62e8369bc76a9db265c960bacef8 Mon Sep 17 00:00:00 2001
+From e600623b13e3de73be5cd3b2711d58095efb4573 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Mon, 19 Nov 2018 11:04:02 -0800
 Subject: [PATCH] Rewrite memmove to optimize on word transfers
@@ -12,11 +12,11 @@ Change-Id: Ie0a1f3261e507fb34a908571883d9bf04a1059ee
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 
 ---
- lib/string.c | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++----------
+ lib/string.c | 77 +++++++++++++++++++++++++++++++++++++++++++---------
  1 file changed, 64 insertions(+), 13 deletions(-)
 
 diff --git a/lib/string.c b/lib/string.c
-index 67d5f6a..0bf472f 100644
+index 67d5f6a421..0bf472f1f6 100644
 --- a/lib/string.c
 +++ b/lib/string.c
 @@ -505,26 +505,77 @@ void * memcpy(void *dest, const void *src, size_t count)

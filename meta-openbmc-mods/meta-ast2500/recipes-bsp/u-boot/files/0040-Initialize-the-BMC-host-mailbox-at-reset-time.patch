@@ -1,4 +1,4 @@
-From 933d80ac82dbe1f74c653b0ac505fde406e2553c Mon Sep 17 00:00:00 2001
+From c749a717d02936b49f6213f8861e3c17b35abf67 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Mon, 27 Jan 2020 15:13:10 -0800
 Subject: [PATCH] Initialize the BMC/host mailbox at reset time
@@ -10,15 +10,16 @@ Tested: boot the BMC and take note that the mailbox registers are no
         longer random garbage.
 
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
+
 ---
  board/aspeed/ast-g5/ast-g5-intel.c | 28 ++++++++++++++++++++++++++++
  1 file changed, 28 insertions(+)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index ce87a46cd1..1086742045 100644
+index 4b017269f9..6c193d8afb 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -575,6 +575,33 @@ static void pwm_init(void)
+@@ -629,6 +629,33 @@ static void pwm_init(void)
  	writel(val, PWM_BASE_ADDR + PWM_CONTROL);
  }
  
@@ -52,14 +53,11 @@ index ce87a46cd1..1086742045 100644
  extern void espi_init(void);
  extern void kcs_init(void);
  void ast_g5_intel(void)
-@@ -597,6 +624,7 @@ void ast_g5_intel(void)
- 	set_cpld_reg(PFR_CPLD_BOOT_CHECKPOINT_REG, PFR_CPLD_CHKPOINT_START);
+@@ -638,6 +665,7 @@ void ast_g5_intel(void)
+ 		      SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);
  
  	uart_init();
 +	mailbox_init();
  	pwm_init();
  	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
  	espi_init();
--- 
-2.17.1
-

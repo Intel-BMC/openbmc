@@ -1,4 +1,4 @@
-From 367c6c2734e54ff37eac2ace4691f55b0e3d6096 Mon Sep 17 00:00:00 2001
+From 18e6251fbd3b58069d2b3d7097e5c24b70b42bf9 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 14 Sep 2020 17:38:28 -0700
 Subject: [PATCH] Add WDT to u-boot to cover booting failures
@@ -12,6 +12,7 @@ code. The early u-boot WD timeout is 5 seconds and kernel booting WD
 timeout is 100 seconds.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+
 ---
  arch/arm/mach-aspeed/flash.c       |  7 +++
  arch/arm/mach-aspeed/platform_g5.S | 78 ++++++++++++++++++++++++++++++
@@ -21,7 +22,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  5 files changed, 121 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm/mach-aspeed/flash.c b/arch/arm/mach-aspeed/flash.c
-index d33fb9e0fe78..31bbf77e9e67 100644
+index d33fb9e0fe..31bbf77e9e 100644
 --- a/arch/arm/mach-aspeed/flash.c
 +++ b/arch/arm/mach-aspeed/flash.c
 @@ -30,6 +30,7 @@
@@ -53,7 +54,7 @@ index d33fb9e0fe78..31bbf77e9e67 100644
  
  	reset_flash(info);
 diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
-index f221c97b19dc..e468ed68d687 100644
+index f221c97b19..e468ed68d6 100644
 --- a/arch/arm/mach-aspeed/platform_g5.S
 +++ b/arch/arm/mach-aspeed/platform_g5.S
 @@ -582,6 +582,31 @@ espi_early_init_done:
@@ -191,10 +192,10 @@ index f221c97b19dc..e468ed68d687 100644
      mov   lr, r4
  
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index c46bd70b71b2..92518a66fa67 100644
+index 6c193d8afb..6e43b74bc4 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -701,6 +701,9 @@ void ast_g5_intel(void)
+@@ -673,6 +673,9 @@ void ast_g5_intel(void)
  	timer8_init();
  	enable_onboard_tpm();
  	if (intel_force_firmware_jumper_enabled()) {
@@ -205,7 +206,7 @@ index c46bd70b71b2..92518a66fa67 100644
  		id_led_control(GPIO_ID_LED, EIDLED_On);
  		id_led_control(GPIO_GREEN_LED, EIDLED_Off);
 diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
-index 00bd92ae5f94..3f27503bce62 100644
+index 00bd92ae5f..3f27503bce 100644
 --- a/board/aspeed/ast-g5/ast-g5.c
 +++ b/board/aspeed/ast-g5/ast-g5.c
 @@ -125,9 +125,35 @@ int board_eth_init(bd_t *bd)
@@ -247,7 +248,7 @@ index 00bd92ae5f94..3f27503bce62 100644
  }
  #endif /* CONFIG_WATCHDOG */
 diff --git a/common/bootm_os.c b/common/bootm_os.c
-index b56eb39780e8..ec0e12ac84b9 100644
+index b56eb39780..ec0e12ac84 100644
 --- a/common/bootm_os.c
 +++ b/common/bootm_os.c
 @@ -473,11 +473,16 @@ __weak void arch_preboot_os(void)
@@ -267,6 +268,3 @@ index b56eb39780e8..ec0e12ac84b9 100644
  	boot_fn(state, argc, argv, images);
  
  	/* Stand-alone may return when 'autostart' is 'no' */
--- 
-2.17.1
-

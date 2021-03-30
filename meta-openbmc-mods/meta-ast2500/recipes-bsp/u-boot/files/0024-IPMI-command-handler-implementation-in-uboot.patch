@@ -1,4 +1,4 @@
-From 2314db61ea792a98c35fcc75b0ac09cbc0db005d Mon Sep 17 00:00:00 2001
+From 7bbaf8f4c268f9df195a84486caf3c22e21db59e Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 21 May 2019 00:19:16 +0530
 Subject: [PATCH] IPMI command handler implementation in uboot
@@ -23,15 +23,15 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 
 ---
  board/aspeed/ast-g5/Makefile       |   1 +
- board/aspeed/ast-g5/ast-g5-kcs.c   |  77 +++++++++++++-----------
- board/aspeed/ast-g5/ipmi-handler.c | 118 +++++++++++++++++++++++++++++++++++++
- board/aspeed/ast-g5/ipmi-handler.h |  40 +++++++++++++
+ board/aspeed/ast-g5/ast-g5-kcs.c   |  77 ++++++++++---------
+ board/aspeed/ast-g5/ipmi-handler.c | 118 +++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ipmi-handler.h |  40 ++++++++++
  4 files changed, 202 insertions(+), 34 deletions(-)
  create mode 100644 board/aspeed/ast-g5/ipmi-handler.c
  create mode 100644 board/aspeed/ast-g5/ipmi-handler.h
 
 diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
-index 05972b9..f28fcfe 100644
+index 05972b9d17..f28fcfe61c 100644
 --- a/board/aspeed/ast-g5/Makefile
 +++ b/board/aspeed/ast-g5/Makefile
 @@ -5,3 +5,4 @@ obj-y += ast-g5-irq.o
@@ -40,7 +40,7 @@ index 05972b9..f28fcfe 100644
  obj-y += ast-g5-kcs.o
 +obj-y += ipmi-handler.o
 diff --git a/board/aspeed/ast-g5/ast-g5-kcs.c b/board/aspeed/ast-g5/ast-g5-kcs.c
-index 7bff26f..98bf69b 100644
+index 7bff26f9db..98bf69ba85 100644
 --- a/board/aspeed/ast-g5/ast-g5-kcs.c
 +++ b/board/aspeed/ast-g5/ast-g5-kcs.c
 @@ -1,7 +1,7 @@
@@ -160,7 +160,7 @@ index 7bff26f..98bf69b 100644
  	kcs_pkt->read_req_done = false;
 diff --git a/board/aspeed/ast-g5/ipmi-handler.c b/board/aspeed/ast-g5/ipmi-handler.c
 new file mode 100644
-index 0000000..9cccee9
+index 0000000000..9cccee9f2f
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ipmi-handler.c
 @@ -0,0 +1,118 @@
@@ -284,7 +284,7 @@ index 0000000..9cccee9
 +}
 diff --git a/board/aspeed/ast-g5/ipmi-handler.h b/board/aspeed/ast-g5/ipmi-handler.h
 new file mode 100644
-index 0000000..9d46d9b
+index 0000000000..9d46d9bd9a
 --- /dev/null
 +++ b/board/aspeed/ast-g5/ipmi-handler.h
 @@ -0,0 +1,40 @@

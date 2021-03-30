@@ -32,14 +32,12 @@ SRC_URI_append_intel-ast2600 = " \
     file://0024-fix-SUS_WARN-handling-logic.patch \
     file://0025-ast2600-PFR-platform-EXTRST-reset-mask-selection.patch \
     file://0025-Enable-PCIe-L1-support.patch \
+    file://0027-ast2600-Add-Mailbox-init-function.patch \
     "
 
 # CVE-2020-10648 vulnerability fix
 SRC_URI_append_intel-ast2600 = " \
     file://0001-image-Correct-comment-for-fit_conf_get_node.patch \
-    file://0002-image-Be-a-little-more-verbose-when-checking-signatu.patch \
-    file://0003-image-Return-an-error-message-from-fit_config_verify.patch \
-    file://0007-image-Check-hash-nodes-when-checking-configurations.patch \
     file://0008-image-Load-the-correct-configuration-in-fit_check_si.patch \
     file://0009-fit_check_sign-Allow-selecting-the-configuration-to-.patch \
     file://0012-image-Use-constants-for-required-and-key-name-hint.patch \

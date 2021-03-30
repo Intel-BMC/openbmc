@@ -1,4 +1,4 @@
-From 5029f400e62981278957f62c5f8b4e22c2faecd9 Mon Sep 17 00:00:00 2001
+From a5e31f9ef7622b001c55f96a98dd18b19976c90c Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 26 Jun 2020 14:35:47 -0700
 Subject: [PATCH] Add BMC running indicator LED control
@@ -15,19 +15,19 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 18 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index e93ef57dabed..565893777ffc 100644
+index 1d650ff959f6..95a90474cbd3 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -192,6 +192,8 @@ static void sgpio_init(void)
- #define GPIO_024		0x024 /* GPIO E/F/G/H Direction */
- #define GPIO_070		0x070 /* GPIO I/J/K/L Value */
+@@ -194,6 +194,8 @@ static void sgpio_init(void)
  #define GPIO_074		0x074 /* GPIO I/J/K/L Direction */
+ #define GPIO_080		0x080 /* GPIO Q/R/S/T Value */
+ #define GPIO_084		0x084 /* GPIO Q/R/S/T Direction */
 +#define GPIO_088		0x088 /* GPIO U/V/W/X Value */
 +#define GPIO_08C		0x08C /* GPIO U/V/W/X Direction */
  
  static void set_gpio_default_state(void)
  {
-@@ -252,6 +254,20 @@ void enable_onboard_tpm(void)
+@@ -270,6 +272,20 @@ void enable_onboard_tpm(void)
  	       AST_GPIO_BASE | GPIO_000);
  }
  
@@ -48,7 +48,7 @@ index e93ef57dabed..565893777ffc 100644
  static void timer_callback(void *cookie)
  {
  	uint timer_nr = (uint)cookie;
-@@ -292,6 +308,8 @@ int board_early_init_r(void)
+@@ -310,6 +326,8 @@ int board_early_init_r(void)
  
  	enable_onboard_tpm();
  
@@ -58,5 +58,5 @@ index e93ef57dabed..565893777ffc 100644
  }
  
 -- 
-2.7.4
+2.17.1
 

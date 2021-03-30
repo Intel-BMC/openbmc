@@ -1,0 +1,29 @@
+From f85dd776301371892ff5197c1995bf2224dd87ab Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 22 Feb 2021 15:57:20 -0800
+Subject: [PATCH] Fix PECI ioctl number
+
+This commit fixes PECI ioctl number to 0xb8 to avoid conflicts in
+kernel v5.10.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ include/linux/peci-ioctl.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/peci-ioctl.h b/include/linux/peci-ioctl.h
+index e5b4b8bd3275..1f44edf4fc04 100644
+--- a/include/linux/peci-ioctl.h
++++ b/include/linux/peci-ioctl.h
+@@ -601,7 +601,7 @@ struct peci_crashdump_get_frame_msg {
+ 	__u8	data[16];
+ } __attribute__((__packed__));
+ 
+-#define PECI_IOC_BASE	0xb7
++#define PECI_IOC_BASE	0xb8
+ 
+ #define PECI_IOC_XFER \
+ 	_IOWR(PECI_IOC_BASE, PECI_CMD_XFER, struct peci_xfer_msg)
+-- 
+2.17.1
+

@@ -1,4 +1,4 @@
-From d08d22af794eed7b928ab96030a103cfb7bf6ce1 Mon Sep 17 00:00:00 2001
+From 1ce8ac1579502cc4a0e00a2d997a46a83941361b Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@linux.intel.com>
 Date: Fri, 16 Nov 2018 14:59:04 -0800
 Subject: [PATCH] Update Force Firmware Update Jumper to use new gpio API
@@ -10,16 +10,16 @@ Change-Id: I8ead931e9dd828522095a0ef386875be652ec885
 Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
 
 ---
- arch/arm/include/asm/arch-aspeed/ast-g5-intel.h | 19 +++++++++++++++++++
- arch/arm/include/asm/arch-aspeed/platform.h     |  1 +
- board/aspeed/ast-g5/ast-g5-intel.c              |  5 +++++
- common/autoboot.c                               |  6 ++++++
+ .../include/asm/arch-aspeed/ast-g5-intel.h    | 19 +++++++++++++++++++
+ arch/arm/include/asm/arch-aspeed/platform.h   |  1 +
+ board/aspeed/ast-g5/ast-g5-intel.c            |  5 +++++
+ common/autoboot.c                             |  6 ++++++
  4 files changed, 31 insertions(+)
  create mode 100644 arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 new file mode 100644
-index 0000000..cd9a099
+index 0000000000..cd9a0994fa
 --- /dev/null
 +++ b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 @@ -0,0 +1,19 @@
@@ -43,7 +43,7 @@ index 0000000..cd9a099
 +
 +#endif /* __AST_INTEL_G5_H__ */
 diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
-index 92ea33b..3b06e52 100644
+index 92ea33b89a..3b06e526f5 100644
 --- a/arch/arm/include/asm/arch-aspeed/platform.h
 +++ b/arch/arm/include/asm/arch-aspeed/platform.h
 @@ -27,6 +27,7 @@
@@ -55,10 +55,10 @@ index 92ea33b..3b06e52 100644
  #else
  #err "No define for platform.h"
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 069e7a3..144765a 100644
+index 1868c230eb..9779052da4 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -145,6 +145,11 @@ static void sgpio_init(void)
+@@ -148,6 +148,11 @@ static void sgpio_init(void)
  	writel(value, AST_GPIO_BASE + GPIO254);
  }
  
@@ -71,7 +71,7 @@ index 069e7a3..144765a 100644
  void ast_g5_intel(void)
  {
 diff --git a/common/autoboot.c b/common/autoboot.c
-index c52bad8..d66c0fa 100644
+index c52bad84a4..d66c0fa63a 100644
 --- a/common/autoboot.c
 +++ b/common/autoboot.c
 @@ -14,6 +14,7 @@

@@ -1,4 +1,4 @@
-From 4cbfb21b7792e6dae74e2db6e2e2d6803bf6cc1d Mon Sep 17 00:00:00 2001
+From d0546e59ff42f964ab09cebb1bab0fc2d8e7e6d8 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Tue, 26 Mar 2019 20:34:51 +0530
 Subject: [PATCH] u-boot env change for PFR image
@@ -6,12 +6,13 @@ Subject: [PATCH] u-boot env change for PFR image
 Tested: verified BMC booting from 0x20b00000
 
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
 ---
  include/configs/ast-common.h | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/include/configs/ast-common.h b/include/configs/ast-common.h
-index 0bc7f2d..821ea8f 100644
+index 0bc7f2d75f..821ea8f8eb 100644
 --- a/include/configs/ast-common.h
 +++ b/include/configs/ast-common.h
 @@ -108,7 +108,7 @@
@@ -32,6 +33,3 @@ index 0bc7f2d..821ea8f 100644
  #define CONFIG_ENV_OVERWRITE
  
  #define ASPEED_ENV_SETTINGS \
--- 
-2.7.4
-

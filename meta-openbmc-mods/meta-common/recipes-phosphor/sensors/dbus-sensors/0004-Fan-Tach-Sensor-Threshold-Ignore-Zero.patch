@@ -1,0 +1,58 @@
+From 8f850ea8745aa7aafcb504aa50686ba00fdfcfee Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Fri, 19 Feb 2021 12:14:05 -0800
+Subject: [PATCH] Fan Tach Sensor Threshold Ignore Zero
+
+Currently there are systems that have system fans plugged
+into different fan connectors. Fan present detection is
+not supported in most of these systems. Critical low
+threshold is asserted for the non-utilized fans
+resulting in FSC boost all fans.
+
+Skip threshold checking for fan tach reading less or equal
+to zero. This is a temporary WA until a more robust solution
+is available.
+
+Note: with this workaround a completely non-working fan
+will not be detected. FSC will still boost fans due to other
+constraints if the system can't be cooled with the working fans.
+
+Tested:
+No cr event for the missing fans.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/TachSensor.cpp | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index 1ec979f..b17be98 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -185,12 +185,18 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
+ 
+ void TachSensor::checkThresholds(void)
+ {
+-    bool status = thresholds::checkThresholds(this);
+-
+-    if (redundancy && *redundancy)
++    // WA - treat value <= 0 as not present
++    bool status = false;
++    if (value > 0)
+     {
+-        (*redundancy)
+-            ->update("/xyz/openbmc_project/sensors/fan_tach/" + name, !status);
++        status = thresholds::checkThresholds(this);
++
++        if (redundancy && *redundancy)
++        {
++            (*redundancy)
++                ->update("/xyz/openbmc_project/sensors/fan_tach/" + name,
++                         !status);
++        }
+     }
+ 
+     bool curLed = !status;
+-- 
+2.17.1
+

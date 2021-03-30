@@ -1,7 +1,16 @@
-Index: u-boot/arch/arm/mach-aspeed/flash.c
-===================================================================
---- u-boot.orig/arch/arm/mach-aspeed/flash.c
-+++ u-boot/arch/arm/mach-aspeed/flash.c
+From 614d875d383c6567dd282faeb7ced1db1e4d07d9 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Thu, 26 Apr 2018 13:29:46 -0700
+Subject: [PATCH] U-Boot aspeed flash driver should not use udelay
+
+---
+ arch/arm/mach-aspeed/flash.c | 229 ++++++++++++++---------------------
+ 1 file changed, 88 insertions(+), 141 deletions(-)
+
+diff --git a/arch/arm/mach-aspeed/flash.c b/arch/arm/mach-aspeed/flash.c
+index b8a438df75..d33fb9e0fe 100644
+--- a/arch/arm/mach-aspeed/flash.c
++++ b/arch/arm/mach-aspeed/flash.c
 @@ -28,6 +28,7 @@
  #include <common.h>
  #include <asm/processor.h>
@@ -10,7 +19,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  #include <environment.h>
  
  #include <asm/arch/ast_scu.h>
-@@ -199,7 +200,7 @@ static void reset_flash (flash_info_t *
+@@ -202,7 +203,7 @@ static void reset_flash (flash_info_t * info)
          if (info->dualport)
              ulCtrlData  |= 0x08;
  #endif
@@ -19,7 +28,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  
  }
  
-@@ -228,28 +229,22 @@ static void enable_write (flash_info_t *
+@@ -231,28 +232,22 @@ static void enable_write (flash_info_t * info)
  
          ulCtrlData  = (info->tCK_Write << 8);
          ulCtrlData |= CE_LOW | USERMODE;
@@ -55,7 +64,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  
  }
  
-@@ -280,30 +275,23 @@ static void write_status_register (flash
+@@ -283,30 +278,23 @@ static void write_status_register (flash_info_t * info, uchar data)
  
          ulCtrlData  = (info->tCK_Write << 8);
          ulCtrlData |= CE_LOW | USERMODE;
@@ -94,7 +103,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  }
  
  static void enable4b (flash_info_t * info)
-@@ -330,13 +318,11 @@ static void enable4b (flash_info_t * inf
+@@ -333,13 +321,11 @@ static void enable4b (flash_info_t * info)
  
          ulCtrlData  = (info->tCK_Write << 8);
          ulCtrlData |= CE_LOW | USERMODE;
@@ -111,7 +120,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  
  } /* enable4b */
  
-@@ -366,29 +352,23 @@ static void enable4b_spansion (flash_inf
+@@ -369,29 +355,23 @@ static void enable4b_spansion (flash_info_t * info)
  	/* Enable 4B: BAR0 D[7] = 1 */
  	ulCtrlData  = (info->tCK_Write << 8);
  	ulCtrlData |= CE_LOW | USERMODE;
@@ -149,7 +158,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  
  } /* enable4b_spansion */
  
-@@ -420,14 +400,11 @@ static void enable4b_numonyx (flash_info
+@@ -423,14 +403,11 @@ static void enable4b_numonyx (flash_info_t * info)
  	/* Enable 4B: CMD:0xB7 */
  	ulCtrlData  = (info->tCK_Write << 8);
  	ulCtrlData |= CE_LOW | USERMODE;
@@ -167,7 +176,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  
  } /* enable4b_numonyx */
  
-@@ -463,63 +440,49 @@ static void flash_write_buffer (flash_in
+@@ -466,63 +443,49 @@ static void flash_write_buffer (flash_info_t *info, uchar *src, ulong addr, int
  
          ulCtrlData &= CMD_MASK;
          ulCtrlData |= CE_LOW | USERMODE;
@@ -247,7 +256,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
          }
  }
  
-@@ -603,57 +566,44 @@ int flash_erase (flash_info_t * info, in
+@@ -606,57 +569,44 @@ int flash_erase (flash_info_t * info, int s_first, int s_last)
  
                          ulCtrlData &= CMD_MASK;
                          ulCtrlData |= CE_LOW | USERMODE;
@@ -320,7 +329,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
                          }
  
  			putc ('.');
-@@ -764,22 +714,16 @@ static ulong flash_get_size (ulong base,
+@@ -767,22 +717,16 @@ static ulong flash_get_size (ulong base, flash_info_t *info)
  	}
  
  	/* Get Flash ID */
@@ -351,7 +360,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  	ulID = ((ulong)ch[0]) | ((ulong)ch[1] << 8) | ((ulong)ch[2] << 16) ;
  	info->flash_id = ulID;
  
-@@ -1294,13 +1238,13 @@ static ulong flash_get_size (ulong base,
+@@ -1339,13 +1283,13 @@ static ulong flash_get_size (ulong base, flash_info_t *info)
  
  	if (info->address32) {
  #ifndef AST_SOC_G5
@@ -369,7 +378,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  
  		/* set flash chips to 32bits addressing mode */
  		if ((info->flash_id & 0xFF) == 0x01)	/* Spansion */
-@@ -1322,7 +1266,7 @@ unsigned long flash_init (void)
+@@ -1367,7 +1311,7 @@ unsigned long flash_init (void)
  	unsigned long size = 0;
  	int i;
  
@@ -378,7 +387,7 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  
  	/* Init: FMC  */
  	/* BANK 0 : FMC CS0 , 1: FMC CS1, */
-@@ -1352,7 +1296,7 @@ unsigned long flash_init (void)
+@@ -1397,7 +1341,7 @@ unsigned long flash_init (void)
  #ifdef CONFIG_SPI0_CS
  	//pin switch by trap[13:12]	-- [0:1] Enable SPI Master
  	ast_scu_spi_master(1);	/* enable SPI master */
@@ -387,22 +396,21 @@ Index: u-boot/arch/arm/mach-aspeed/flash.c
  	flash_info[CONFIG_FMC_CS].sysspi = 1;
  	flash_info[CONFIG_FMC_CS].reg_base = AST_FMC_SPI0_BASE;
  	flash_info[CONFIG_FMC_CS].flash_id = FLASH_UNKNOWN;
-@@ -1403,21 +1347,24 @@ void memmove_dma(void * dest,const void
+@@ -1448,21 +1392,24 @@ void memmove_dma(void * dest,const void *src,size_t count)
          poll_time = 100;			/* set 100 us as default */
  
          /* force end of burst read */
 -	*(volatile ulong *) (AST_FMC_BASE + CS0_CTRL) |= CE_HIGH;
 -	*(volatile ulong *) (AST_FMC_BASE + CS0_CTRL) &= ~CE_HIGH;
--
++	data = readl(AST_FMC_BASE + CS0_CTRL);
++	writel(data |  CE_HIGH, AST_FMC_BASE + CS0_CTRL);
++	writel(data & ~CE_HIGH, AST_FMC_BASE + CS0_CTRL);
+ 
 -	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_CONTROL) = (ulong) (~FLASH_DMA_ENABLE);
 -	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_FLASH_BASE) = (ulong) (src);
 -	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_DRAM_BASE) = (ulong) (dest);
 -	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_LENGTH) = (ulong) (count_align);
 -	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_CONTROL) = (ulong) (FLASH_DMA_ENABLE);
-+	data = readl(AST_FMC_BASE + CS0_CTRL);
-+	writel(data |  CE_HIGH, AST_FMC_BASE + CS0_CTRL);
-+	writel(data & ~CE_HIGH, AST_FMC_BASE + CS0_CTRL);
-+
 +	writel(~FLASH_DMA_ENABLE, AST_FMC_BASE + REG_FLASH_DMA_CONTROL);
 +	writel((ulong)src, AST_FMC_BASE + REG_FLASH_DMA_FLASH_BASE);
 +	writel((ulong)dest, AST_FMC_BASE + REG_FLASH_DMA_DRAM_BASE);

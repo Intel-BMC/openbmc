@@ -1,10 +1,10 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
-KBRANCH = "dev-5.8-intel"
+KBRANCH = "dev-5.10-intel"
 KSRC = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=${KBRANCH}"
 # Include this as a comment only for downstream auto-bump
-# SRC_URI = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=dev-5.8-intel"
-SRCREV="0f6cc27c3bed1e633100e9ea8d8e0384ca51e613"
+# SRC_URI = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=dev-5.10-intel"
+SRCREV="c306c95688f3e2d9ee9b5270eff4bfb3e6e34b8a"
 
 do_compile_prepend(){
    # device tree compiler flags
@@ -15,6 +15,8 @@ SRC_URI += " \
         file://intel.cfg \
         file://0001-peci-Add-debug-printing-to-check-caller-PID.patch \
         file://0002-soc-aspeed-add-AST2600-A0-specific-fix-into-mbox-dri.patch \
+        file://0003-Fix-libmctp-build-error.patch \
+        file://0004-Add-a-quick-fix-to-resolve-USB-gadget-DMA-issue.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

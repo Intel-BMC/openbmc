@@ -1,4 +1,4 @@
-From 622df2804c7f8540587df26c81653b47809c9984 Mon Sep 17 00:00:00 2001
+From e23fbe6c3867b92b8ba7bfb36e1719348b102399 Mon Sep 17 00:00:00 2001
 From: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
 Date: Thu, 16 Jul 2020 11:02:53 +0530
 Subject: [PATCH] Apply WDT1-2 reset mask to reset needed controller
@@ -57,12 +57,13 @@ Tested:
    BMC should not hang and able to complete the "erase all" command
 
 Signed-off-by: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
+
 ---
  arch/arm/mach-aspeed/platform_g5.S | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
-index b404353..97253f4 100644
+index b4043534b0..f221c97b19 100644
 --- a/arch/arm/mach-aspeed/platform_g5.S
 +++ b/arch/arm/mach-aspeed/platform_g5.S
 @@ -366,7 +366,10 @@ init_dram:
@@ -77,6 +78,3 @@ index b404353..97253f4 100644
      str   r1, [r0]
      b     bypass_first_reset
  
--- 
-2.7.4
-
