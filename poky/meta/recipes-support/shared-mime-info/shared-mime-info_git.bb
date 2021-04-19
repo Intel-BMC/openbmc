@@ -1,4 +1,5 @@
 SUMMARY = "Shared MIME type database and specification"
+DESCRIPTION = "The shared-mime-info package contains the core database of common types and the update-mime-database command used to extend it. It requires glib2 to be installed for building the update command. Additionally, it uses intltool for translations, though this is only a dependency for the maintainers."
 HOMEPAGE = "http://freedesktop.org/wiki/Software/shared-mime-info"
 SECTION = "base"
 
@@ -8,8 +9,8 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263"
 DEPENDS = "libxml2 itstool-native glib-2.0 shared-mime-info-native xmlto-native"
 
 SRC_URI = "git://gitlab.freedesktop.org/xdg/shared-mime-info.git;protocol=https"
-SRCREV = "ef58b2b2f7ad4070171c6e45e3b3764daa3ff2c1"
-PV = "2.0"
+SRCREV = "18e558fa1c8b90b86757ade09a4ba4d6a6cf8f70"
+PV = "2.1"
 S = "${WORKDIR}/git"
 
 inherit meson pkgconfig gettext python3native mime

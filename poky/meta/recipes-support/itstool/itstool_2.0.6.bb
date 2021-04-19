@@ -1,4 +1,8 @@
 SUMMARY = "ITS Tool allows you to translate your XML documents with PO files"
+DESCRIPTION = "It extracts messages from XML files and outputs PO template \
+files, then merges translations from MO files to create translated \
+XML files. It determines what to translate and how to chunk it into \
+messages using the W3C Internationalization Tag Set (ITS). "
 HOMEPAGE = "http://itstool.org/"
 LICENSE = "GPLv3"
 LIC_FILES_CHKSUM = "file://COPYING;md5=59c57b95fd7d0e9e238ebbc7ad47c5a5"
@@ -18,4 +22,3 @@ SRC_URI[sha256sum] = "6233cc22726a9a5a83664bf67d1af79549a298c23185d926c3677afa91
 BBCLASSEXTEND = "native nativesdk"
 
 RDEPENDS_${PN} += "libxml2-python"
-RDEPENDS_${PN}_class-native = ""

@@ -33,18 +33,19 @@ class ImageOptionsTests(OESelftestTestCase):
         self.assertTrue(incremental_removed, msg = "Match failed in:\n%s" % log_data_removed)
 
     def test_ccache_tool(self):
-        bb_vars = get_bb_vars(['HOSTTOOLS_DIR'], 'm4-native')
-        p = bb_vars['HOSTTOOLS_DIR'] + "/" + "ccache"
-        if not os.path.isfile(p):
-            self.skipTest("No ccache binary found in %s" % bb_vars['HOSTTOOLS_DIR'])
+        bitbake("ccache-native")
+        bb_vars = get_bb_vars(['SYSROOT_DESTDIR', 'bindir'], 'ccache-native')
+        p = bb_vars['SYSROOT_DESTDIR'] + bb_vars['bindir'] + "/" + "ccache"
+        self.assertTrue(os.path.isfile(p), msg = "No ccache found (%s)" % p)
         self.write_config('INHERIT += "ccache"')
-        self.add_command_to_tearDown('bitbake -c clean m4-native')
-        bitbake("m4-native -c clean")
-        bitbake("m4-native -f -c compile")
-        log_compile = os.path.join(get_bb_var("WORKDIR","m4-native"), "temp/log.do_compile")
+        recipe = "libgcc-initial"
+        self.add_command_to_tearDown('bitbake -c clean %s' % recipe)
+        bitbake("%s -c clean" % recipe)
+        bitbake("%s -f -c compile" % recipe)
+        log_compile = os.path.join(get_bb_var("WORKDIR", recipe), "temp/log.do_compile")
         with open(log_compile, "r") as f:
             loglines = "".join(f.readlines())
-        self.assertIn("ccache", loglines, msg="No match for ccache in m4-native log.do_compile. For further details: %s" % log_compile)
+        self.assertIn("ccache", loglines, msg="No match for ccache in %s log.do_compile. For further details: %s" % (recipe , log_compile))
 
     def test_read_only_image(self):
         distro_features = get_bb_var('DISTRO_FEATURES')

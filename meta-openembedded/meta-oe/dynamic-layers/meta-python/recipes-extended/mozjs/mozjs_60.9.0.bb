@@ -18,6 +18,7 @@ SRC_URI = " \
     file://0011-To-fix-build-error-on-arm32BE.patch \
     file://0012-JS_PUBLIC_API.patch \
     file://0013-riscv-Disable-atomic-operations.patch \
+    file://0014-remove-JS_VOLATIME_ARM.patch \
 "
 SRC_URI_append_libc-musl = " \
     file://musl/0001-support-musl.patch \
@@ -125,6 +126,8 @@ MULTILIB_SCRIPTS += " ${PN}-dev:${bindir}/js60-config"
 
 do_install_append() {
        oe_multilib_header mozjs-60/js-config.h
+       sed -e 's@${STAGING_DIR_HOST}@@g' \
+           -i ${D}${bindir}/js60-config
 }
 
 PACKAGES =+ "lib${BPN}"

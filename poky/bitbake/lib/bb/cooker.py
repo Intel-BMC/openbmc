@@ -411,6 +411,8 @@ class BBCooker:
             self.data.disableTracking()
 
     def parseConfiguration(self):
+        self.updateCacheSync()
+
         # Change nice level if we're asked to
         nice = self.data.getVar("BB_NICE_LEVEL")
         if nice:
@@ -441,7 +443,7 @@ class BBCooker:
                         continue
                 except AttributeError:
                     pass
-                logger.debug(1, "Marking as dirty due to '%s' option change to '%s'" % (o, options[o]))
+                logger.debug("Marking as dirty due to '%s' option change to '%s'" % (o, options[o]))
                 print("Marking as dirty due to '%s' option change to '%s'" % (o, options[o]))
                 clean = False
             if hasattr(self.configuration, o):
@@ -468,17 +470,17 @@ class BBCooker:
 
         for k in bb.utils.approved_variables():
             if k in environment and k not in self.configuration.env:
-                logger.debug(1, "Updating new environment variable %s to %s" % (k, environment[k]))
+                logger.debug("Updating new environment variable %s to %s" % (k, environment[k]))
                 self.configuration.env[k] = environment[k]
                 clean = False
             if k in self.configuration.env and k not in environment:
-                logger.debug(1, "Updating environment variable %s (deleted)" % (k))
+                logger.debug("Updating environment variable %s (deleted)" % (k))
                 del self.configuration.env[k]
                 clean = False
             if k not in self.configuration.env and k not in environment:
                 continue
             if environment[k] != self.configuration.env[k]:
-                logger.debug(1, "Updating environment variable %s from %s to %s" % (k, self.configuration.env[k], environment[k]))
+                logger.debug("Updating environment variable %s from %s to %s" % (k, self.configuration.env[k], environment[k]))
                 self.configuration.env[k] = environment[k]
                 clean = False
 
@@ -486,7 +488,7 @@ class BBCooker:
         self.configuration.env = environment
 
         if not clean:
-            logger.debug(1, "Base environment change, triggering reparse")
+            logger.debug("Base environment change, triggering reparse")
             self.reset()
 
     def runCommands(self, server, data, abort):
@@ -614,7 +616,7 @@ class BBCooker:
         # Replace string such as "mc:*:bash"
         # into "mc:A:bash mc:B:bash bash"
         for k in targetlist:
-            if k.startswith("mc:"):
+            if k.startswith("mc:") and k.count(':') >= 2:
                 if wildcard:
                     bb.fatal('multiconfig conflict')
                 if k.split(":")[1] == "*":
@@ -648,7 +650,7 @@ class BBCooker:
         for k in fulltargetlist:
             origk = k
             mc = ""
-            if k.startswith("mc:"):
+            if k.startswith("mc:") and k.count(':') >= 2:
                 mc = k.split(":")[1]
                 k = ":".join(k.split(":")[2:])
             ktask = task
@@ -697,7 +699,7 @@ class BBCooker:
                         if depmc not in self.multiconfigs:
                             bb.fatal("Multiconfig dependency %s depends on nonexistent multiconfig configuration named configuration %s" % (k,depmc))
                         else:
-                            logger.debug(1, "Adding providers for multiconfig dependency %s" % l[3])
+                            logger.debug("Adding providers for multiconfig dependency %s" % l[3])
                             taskdata[depmc].add_provider(localdata[depmc], self.recipecaches[depmc], l[3])
                             seen.add(k)
                             new = True
@@ -1553,7 +1555,7 @@ class BBCooker:
         self.inotify_modified_files = []
 
         if not self.baseconfig_valid:
-            logger.debug(1, "Reloading base configuration data")
+            logger.debug("Reloading base configuration data")
             self.initConfigurationData()
             self.handlePRServ()
 
@@ -2209,18 +2211,18 @@ class CookerParser(object):
         except bb.BBHandledException as exc:
             self.error += 1
             logger.error('Failed to parse recipe: %s' % exc.recipe)
-            self.shutdown(clean=False)
+            self.shutdown(clean=False, force=True)
             return False
         except ParsingFailure as exc:
             self.error += 1
             logger.error('Unable to parse %s: %s' %
                      (exc.recipe, bb.exceptions.to_string(exc.realexception)))
-            self.shutdown(clean=False)
+            self.shutdown(clean=False, force=True)
             return False
         except bb.parse.ParseError as exc:
             self.error += 1
             logger.error(str(exc))
-            self.shutdown(clean=False)
+            self.shutdown(clean=False, force=True)
             return False
         except bb.data_smart.ExpansionError as exc:
             self.error += 1
@@ -2229,7 +2231,7 @@ class CookerParser(object):
             tb = list(itertools.dropwhile(lambda e: e.filename.startswith(bbdir), exc.traceback))
             logger.error('ExpansionError during parsing %s', value.recipe,
                          exc_info=(etype, value, tb))
-            self.shutdown(clean=False)
+            self.shutdown(clean=False, force=True)
             return False
         except Exception as exc:
             self.error += 1
@@ -2241,7 +2243,7 @@ class CookerParser(object):
                 # Most likely, an exception occurred during raising an exception
                 import traceback
                 logger.error('Exception during parse: %s' % traceback.format_exc())
-            self.shutdown(clean=False)
+            self.shutdown(clean=False, force=True)
             return False
 
         self.current += 1
