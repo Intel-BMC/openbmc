@@ -1,4 +1,4 @@
-From 82f31d1e6096acd4f223f0b0fe0d814c27450022 Mon Sep 17 00:00:00 2001
+From 0e426ce8bcde3b6fb131405ef265250a96aa7e0a Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Mon, 17 Jun 2019 12:00:58 -0700
 Subject: [PATCH] Customize phosphor-watchdog for Intel platforms
@@ -10,18 +10,20 @@ required for compatibility with Intel platforms.
    2. Use dbus properties for power control insted of service files
    3. Use host status to enable/disable watchdog
    4. Set preTimeoutInterruptOccurFlag
+   5. Assign watchdog cause for correct reset cause reporting
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: Ren Yu <yux.ren@intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- watchdog.cpp | 213 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
- watchdog.hpp |  23 ++++++-
- 2 files changed, 226 insertions(+), 10 deletions(-)
+ watchdog.cpp | 212 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ watchdog.hpp |  23 +++++-
+ 2 files changed, 224 insertions(+), 11 deletions(-)
 
 diff --git a/watchdog.cpp b/watchdog.cpp
-index 9090760..079d88e 100644
+index 9090760..2685401 100644
 --- a/watchdog.cpp
 +++ b/watchdog.cpp
 @@ -1,11 +1,14 @@
@@ -225,7 +227,7 @@ index 9090760..079d88e 100644
  
      auto target = actionTargetMap.find(action);
      if (target == actionTargetMap.end())
-@@ -128,10 +287,23 @@ void Watchdog::timeOutHandler()
+@@ -128,12 +287,45 @@ void Watchdog::timeOutHandler()
  
          try
          {
@@ -236,34 +238,6 @@ index 9090760..079d88e 100644
 +            sdbusplus::message::message method;
 +            if (action == Watchdog::Action::HardReset)
 +            {
-+                method = bus.new_method_call(host::busName, host::path,
-+                                             "org.freedesktop.DBus.Properties",
-+                                             "Set");
-+                method.append(host::interface, host::request,
-+                              std::variant<std::string>(target->second));
-+            }
-+            else
-+            {
-+                method = bus.new_method_call(chassis::busName, chassis::path,
-+                                             "org.freedesktop.DBus.Properties",
-+                                             "Set");
-+                method.append(chassis::interface, chassis::request,
-+                              std::variant<std::string>(target->second));
-+            }
- 
-             bus.call_noreply(method);
-         }
-@@ -142,6 +314,29 @@ void Watchdog::timeOutHandler()
-                             entry("ERROR=%s", e.what()));
-             commit<InternalFailure>();
-         }
-+
-+        // set restart cause for watchdog HardReset & PowerCycle actions
-+        if ((action == Watchdog::Action::HardReset) ||
-+            (action == Watchdog::Action::PowerCycle))
-+        {
-+            try
-+            {
 +                auto method = bus.new_method_call(
 +                    restart::busName, restart::path,
 +                    "org.freedesktop.DBus.Properties", "Set");
@@ -271,18 +245,39 @@ index 9090760..079d88e 100644
 +                    restart::interface, restart::property,
 +                    std::variant<std::string>("xyz.openbmc_project.State.Host."
 +                                              "RestartCause.WatchdogTimer"));
-+                bus.call(method);
-+            }
-+            catch (sdbusplus::exception_t& e)
-+            {
-+                log<level::ERR>("Failed to set HostRestartCause property",
-+                                entry("ERROR=%s", e.what()));
-+                commit<InternalFailure>();
-+            }
-+        }
-     }
++                bus.call_noreply(method);
  
-     tryFallbackOrDisable();
+-            bus.call_noreply(method);
++                method = bus.new_method_call(host::busName, host::path,
++                                             "org.freedesktop.DBus.Properties",
++                                             "Set");
++                method.append(host::interface, host::request,
++                              std::variant<std::string>(target->second));
++                bus.call_noreply(method);
++            }
++            else
++            {
++                if (action == Watchdog::Action::PowerCycle)
++                {
++                    auto method = bus.new_method_call(
++                        restart::busName, restart::path,
++                        "org.freedesktop.DBus.Properties", "Set");
++                    method.append(restart::interface, restart::property,
++                                  std::variant<std::string>(
++                                      "xyz.openbmc_project.State.Host."
++                                      "RestartCause.WatchdogTimer"));
++                    bus.call_noreply(method);
++                }
++                method = bus.new_method_call(chassis::busName, chassis::path,
++                                             "org.freedesktop.DBus.Properties",
++                                             "Set");
++                method.append(chassis::interface, chassis::request,
++                              std::variant<std::string>(target->second));
++                bus.call_noreply(method);
++            }
+         }
+         catch (const SdBusError& e)
+         {
 diff --git a/watchdog.hpp b/watchdog.hpp
 index 7de9bb3..b004b7a 100644
 --- a/watchdog.hpp
@@ -332,5 +327,5 @@ index 7de9bb3..b004b7a 100644
      void timeOutHandler();
  
 -- 
-2.7.4
+2.29.2
 

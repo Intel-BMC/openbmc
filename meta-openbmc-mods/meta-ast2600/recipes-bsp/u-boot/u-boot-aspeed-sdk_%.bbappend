@@ -33,6 +33,7 @@ SRC_URI_append_intel-ast2600 = " \
     file://0025-ast2600-PFR-platform-EXTRST-reset-mask-selection.patch \
     file://0025-Enable-PCIe-L1-support.patch \
     file://0027-ast2600-Add-Mailbox-init-function.patch \
+    file://0028-Improve-randomness-of-mac-address-generation.patch \
     "
 
 # CVE-2020-10648 vulnerability fix

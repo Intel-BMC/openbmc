@@ -1,0 +1,71 @@
+diff --git a/lang/c++/CMakeLists.txt b/lang/c++/CMakeLists.txt
+index 28a272b15..06ec38382 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -25,6 +25,7 @@ if (NOT DEFINED CMAKE_CXX_STANDARD)
+ endif()
+ 
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
++set(PKGCONFIG_SUPPORT ON)
+ 
+ cmake_policy (SET CMP0042 NEW)
+ 
+@@ -107,6 +108,12 @@ set (AVRO_SOURCE_FILES
+         impl/Resolver.cc impl/Validator.cc
+         )
+ 
++if (PKGCONFIG_SUPPORT)
++    install(FILES "avrocpp.pc"
++        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
++      message("${CMAKE_INSTALL_LIBDIR}/pkgconfig")
++endif()
++
+ add_library (avrocpp SHARED ${AVRO_SOURCE_FILES})
+ 
+ set_property (TARGET avrocpp
+@@ -141,6 +148,7 @@ macro (gen file ns)
+     add_custom_target (${file}_hh DEPENDS ${file}.hh)
+ endmacro (gen)
+ 
++if (NOT DEFINED YOCTO_BUILD)
+ gen (empty_record empty)
+ gen (bigrecord testgen)
+ gen (bigrecord_r testgen_r)
+@@ -196,13 +204,16 @@ include (InstallRequiredSystemLibraries)
+ set (CPACK_PACKAGE_FILE_NAME "avrocpp-${AVRO_VERSION_MAJOR}")
+ 
+ include (CPack)
++endif ()
+ 
+ install (TARGETS avrocpp avrocpp_s
+     LIBRARY DESTINATION lib
+     ARCHIVE DESTINATION lib
+     RUNTIME DESTINATION lib)
+ 
++if (NOT DEFINED YOCTO_BUILD)
+ install (TARGETS avrogencpp RUNTIME DESTINATION bin)
++endif ()
+ 
+ install (DIRECTORY api/ DESTINATION include/avro
+     FILES_MATCHING PATTERN *.hh)
+@@ -212,3 +223,4 @@ if (NOT CMAKE_BUILD_TYPE)
+       "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+       FORCE)
+ endif (NOT CMAKE_BUILD_TYPE)
++
+diff --git a/lang/c++/avrocpp.pc b/lang/c++/avrocpp.pc
+new file mode 100644
+index 000000000..471f1863c
+--- /dev/null
++++ b/avrocpp.pc
+@@ -0,0 +1,10 @@
++prefix=/usr
++libdir=${prefix}/lib
++includedir=${prefix}/include/avro
++
++Name: avrocpp
++Description: C++ bindings for Apache avro
++Version: 1.0.0
++Libs: -L${libdir} -lavrocpp
++Cflags: -I${includedir}
++

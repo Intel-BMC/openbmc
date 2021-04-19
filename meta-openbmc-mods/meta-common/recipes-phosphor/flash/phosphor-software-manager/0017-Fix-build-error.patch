@@ -1,0 +1,34 @@
+From 1f3531eff8a05bb5375dea89c1ca9292f69863b0 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Thu, 11 Mar 2021 11:42:39 -0800
+Subject: [PATCH] Fix build error
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ pfr_image_manager.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
+index f844b8e79565..55ad21f8a3d4 100644
+--- a/pfr_image_manager.cpp
++++ b/pfr_image_manager.cpp
+@@ -333,6 +333,7 @@ int Manager::processImage(const std::string& imgFilePath)
+ 
+     int retry = 3;
+     std::string ver;
++    std::string extVer;
+     std::string purposeString;
+ 
+     if (0 != verifyImage(imgFilePath, ver, purposeString))
+@@ -398,7 +399,7 @@ int Manager::processImage(const std::string& imgFilePath)
+     std::string objPath = std::string{SOFTWARE_OBJPATH} + '/' + id;
+ 
+     auto versionPtr = std::make_unique<Version>(
+-        bus, objPath, ver, purpose, imageDirPath.string(),
++        bus, objPath, ver, purpose, extVer, imageDirPath.string(),
+         std::bind(&Manager::erase, this, std::placeholders::_1));
+     versionPtr->deleteObject =
+         std::make_unique<phosphor::software::manager::Delete>(bus, objPath,
+-- 
+2.17.1
+

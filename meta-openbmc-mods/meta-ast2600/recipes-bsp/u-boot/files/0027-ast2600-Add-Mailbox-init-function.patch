@@ -3,8 +3,18 @@ From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Thu, 25 Feb 2021 14:45:12 +0800
 Subject: [PATCH] ast2600: Add Mailbox init function.
 
-Add Mailbox init function to make sure
-mailbox regs are clear when BMC reset.
+Add Mailbox init function to make sure mailbox regs are reset
+to expected values at reset.
+
+At power-on reset, 0x0c=0, 0x0d=2, 0x0e=5e, 0x0f=31
+as per the handshake definition with BIOS.
+
+At all other resets, 0x0c is preserved, 0x0d, 0x0e, 0x0f
+are reset the same as power-on reset.
+
+Because the reset behavior depends on a flag set in the _f phase of
+booting, the mailbox_init function must be called from the _r phase.
+
 AST2600 A0 has 16 mailboxes.
 AST2600 A1 has 32 mailboxes.
 
@@ -13,7 +23,7 @@ BMC could boot correctly and all the mailboxes clear
 ast# md 0x1e789200
 1e789200: 00000000 00000000 00000000 00000000    ................
 1e789210: 00000000 00000000 00000000 00000000    ................
-1e789220: 00000000 00000000 00000000 00000000    ................
+1e789220: 00000000 00000002 0000005e 00000031    .........^..1...
 1e789230: 00000000 00000000 00000000 00000000    ................
 1e789240: 00000000 00000000 00000000 00000000    ................
 
@@ -25,10 +35,14 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 24 insertions(+), 2 deletions(-)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index 17a21c746098..17d1b1952d4d 100644
+index 4a5ff0bdac..fbc3215138 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -10,6 +10,9 @@
+@@ -7,9 +7,13 @@
+ #include <asm/io.h>
+ #include <malloc.h>
+ 
++#define SYS_PWR_RESET_FLAG  BIT(0) /* from scu_info.c */
  #define WATCHDOG_RESET_BIT	BIT(20)
  #define BOOT_FAILURE_LIMIT	3
  
@@ -38,16 +52,18 @@ index 17a21c746098..17d1b1952d4d 100644
  static int get_boot_failures(void)
  {
  	return env_get_ulong("bootfailures", 10, 0);
-@@ -320,6 +323,25 @@ static void timer_callback(void *cookie)
+@@ -329,6 +333,55 @@ static void timer_callback(void *cookie)
  	}
  }
  
 +#define AST_MBX_BASE		0x1e789200
 +#define AST_MBX_COUNT_A0	16
 +#define AST_MBX_COUNT		32
++#define MAILBOX_INIT_D		0x02
++#define MAILBOX_INIT_E		0x5e
++#define MAILBOX_INIT_F		0x31
 +static void mailbox_init(void)
 +{
-+	/* clear out default mbox values */
 +	int i, mbx_count;
 +
 +	if (readl(SCU_BASE + SCU_014) == REV_ID_AST2600A0)
@@ -55,25 +71,53 @@ index 17a21c746098..17d1b1952d4d 100644
 +	else
 +		mbx_count = AST_MBX_COUNT;
 +
-+	for (i = 0; i < mbx_count; i++)
++	if (gd->reset_reason & SYS_PWR_RESET_FLAG)
 +	{
-+		writel(0, AST_MBX_BASE + 4 * i);
++		/* on AC-reset, clear all except special values to d/e/f */
++		for (i = 0; i < mbx_count; i++)
++		{
++			long v;
++			if (i == 0x0d)
++				v = MAILBOX_INIT_D;
++			else if (i == 0x0e)
++				v = MAILBOX_INIT_E;
++			else if (i == 0x0f)
++				v = MAILBOX_INIT_F;
++			else
++				v = 0;
++			writel(v, AST_MBX_BASE + 4 * i);
++		}
++	}
++	else
++	{
++		/* on other resets, clear all except c/d/e/f */
++		for (i = 0; i < mbx_count; i++)
++		{
++			long v;
++			if (i == 0x0d)
++				v = MAILBOX_INIT_D;
++			else if (i == 0x0c || i == 0x0e || i == 0x0f)
++				continue;
++			else
++				v = 0;
++			writel(v, AST_MBX_BASE + 4 * i);
++		}
 +	}
 +}
 +
  int board_early_init_f(void)
  {
  	/* This is called before relocation; beware! */
-@@ -333,6 +355,8 @@ int board_early_init_f(void)
- 
- 	sgpio_init();
+@@ -350,6 +405,8 @@ int board_early_init_r(void)
+ {
+ 	debug("board_early_init_r\n");
  
 +	mailbox_init();
 +
- 	/* TODO: is it too late to enforce HW security registers? */
- 	return 0;
- }
-@@ -469,8 +493,6 @@ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
+ 	enable_onboard_tpm();
+ 
+ 	bmc_running_indicator(true);
+@@ -447,8 +504,6 @@ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
  			 void *cookie);
  int board_late_init(void)
  {

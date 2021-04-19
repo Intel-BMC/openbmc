@@ -8,7 +8,6 @@ KERNEL_DEVICETREE = " \
 require conf/machine/include/ast2600.inc
 require conf/machine/include/obmc-bsp-si-common.inc
 require conf/machine/include/intel.inc
-require conf/distro/include/phosphor-tiny.inc
 
 TARGET_FPU = "hard"
 

@@ -4,7 +4,7 @@ KBRANCH = "dev-5.10-intel"
 KSRC = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=${KBRANCH}"
 # Include this as a comment only for downstream auto-bump
 # SRC_URI = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=dev-5.10-intel"
-SRCREV="c306c95688f3e2d9ee9b5270eff4bfb3e6e34b8a"
+SRCREV="e51019aa5cea44aa55b922261df9c7c7a4e5bcbc"
 
 do_compile_prepend(){
    # device tree compiler flags

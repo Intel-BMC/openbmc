@@ -1,0 +1,143 @@
+From b8b701fde79e7a8ca7bf5aa6ca6832524c011fa5 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@intel.com>
+Date: Tue, 15 Dec 2020 16:09:00 -0800
+Subject: [PATCH] Filter memory thermtrip events based on DIMM status
+
+There is a race-condition on shutdown that makes it difficult to
+differentiate between a normal shutdown and a memory thermtrip
+shutdown.  This race-condition will be resolved in the CPLD for
+future platforms but for now it requires a workaround.
+
+This workaround assumes that a memory thermtrip can only occur
+if a DIMM temperature sensor has already reached a critical
+threshold.  When memory thermtrip asserts on shutdown, it only
+logs an error if a DIMM is critical; otherwise it is treated
+as a normal shutdown.
+
+Tested:
+Memory thermtrip errors no longer log on each power-off.
+Manually set a DIMM temperature above critical and verified
+that the memory thermtrip event is logged.
+
+Change-Id: I9d8cf9b1de688e27babb8004b41f662242c78b3c
+Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
+---
+ .../error_monitors/mem_thermtrip_monitor.hpp  | 81 +++++++++++++++++++
+ 1 file changed, 81 insertions(+)
+
+diff --git a/include/error_monitors/mem_thermtrip_monitor.hpp b/include/error_monitors/mem_thermtrip_monitor.hpp
+index d3dff1d3b..0a3f2fc22 100644
+--- a/include/error_monitors/mem_thermtrip_monitor.hpp
++++ b/include/error_monitors/mem_thermtrip_monitor.hpp
+@@ -14,6 +14,7 @@
+ // limitations under the License.
+ */
+ #pragma once
++#include <boost/container/flat_set.hpp>
+ #include <error_monitors/base_gpio_monitor.hpp>
+ #include <host_error_monitor.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+@@ -28,6 +29,72 @@ class MemThermtripMonitor :
+             host_error_monitor::base_gpio_monitor::AssertValue::lowAssert;
+     size_t cpuNum;
+ 
++    std::shared_ptr<sdbusplus::bus::match::match> dimmThresholdEventMonitor;
++    boost::container::flat_set<std::string> criticalDIMMs;
++
++    std::shared_ptr<sdbusplus::bus::match::match>
++        startDIMMThresholdEventMonitor()
++    {
++        return std::make_shared<sdbusplus::bus::match::match>(
++            *conn,
++            "type='signal',interface='org.freedesktop.DBus.Properties',member='"
++            "PropertiesChanged',arg0namespace='xyz.openbmc_project.Sensor."
++            "Threshold.Critical'",
++            [this](sdbusplus::message::message& msg) {
++                std::string interfaceName;
++                boost::container::flat_map<std::string, std::variant<bool>>
++                    propertiesChanged;
++                try
++                {
++                    msg.read(interfaceName, propertiesChanged);
++                }
++                catch (std::exception& e)
++                {
++                    std::cerr << "Unable to read threshold event\n";
++                    return;
++                }
++                // We only want to check for CriticalAlarmHigh
++                if (propertiesChanged.begin()->first != "CriticalAlarmHigh")
++                {
++                    return;
++                }
++                const bool* alarm =
++                    std::get_if<bool>(&(propertiesChanged.begin()->second));
++                if (alarm == nullptr)
++                {
++                    std::cerr << propertiesChanged.begin()->first
++                              << " property invalid\n";
++                    return;
++                }
++
++                // Get the sensor path and check if it's a DIMM sensor
++                std::string sensor = msg.get_path();
++                if (sensor.find("DIMM") == std::string::npos)
++                {
++                    // Not a DIMM sensor
++                    return;
++                }
++
++                // Check if the DIMM belongs to this CPU
++                if (sensor.find("CPU" + std::to_string(cpuNum)) ==
++                    std::string::npos)
++                {
++                    return;
++                }
++
++                if (*alarm)
++                {
++                    // DIMM crossed a critical threshold, so store it
++                    criticalDIMMs.insert(sensor);
++                }
++                else
++                {
++                    // DIMM is no longer critical, so remove it
++                    criticalDIMMs.erase(sensor);
++                }
++            });
++    }
++
+     void logEvent() override
+     {
+         std::string cpuNumber = "CPU " + std::to_string(cpuNum);
+@@ -39,6 +106,17 @@ class MemThermtripMonitor :
+                         "REDFISH_MESSAGE_ARGS=%s", cpuNumber.c_str(), NULL);
+     }
+ 
++    void assertHandler() override
++    {
++        // Only log a memory thermtrip if a DIMM is critical
++        if (criticalDIMMs.empty())
++        {
++            return;
++        }
++
++        host_error_monitor::base_gpio_monitor::BaseGPIOMonitor::assertHandler();
++    }
++
+   public:
+     MemThermtripMonitor(boost::asio::io_service& io,
+                         std::shared_ptr<sdbusplus::asio::connection> conn,
+@@ -46,6 +124,9 @@ class MemThermtripMonitor :
+         BaseGPIOMonitor(io, conn, signalName, assertValue),
+         cpuNum(cpuNum)
+     {
++        // Start tracking critical DIMM status
++        dimmThresholdEventMonitor = startDIMMThresholdEventMonitor();
++
+         if (valid)
+         {
+             startMonitoring();
+-- 
+2.17.1
+
