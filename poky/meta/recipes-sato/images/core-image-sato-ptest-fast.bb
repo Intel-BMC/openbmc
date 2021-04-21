@@ -1,9 +1,13 @@
+inherit features_check
+REQUIRED_DISTRO_FEATURES = "ptest"
+
 require core-image-sato-sdk.bb
 require conf/distro/include/ptest-packagelists.inc
 
 IMAGE_INSTALL += "${PTESTS_FAST}"
 
 DESCRIPTION += "Also includes ptest packages with fast execution times to allow for more automated QA."
+HOMEPAGE = "https://www.yoctoproject.org/"
 
 # This image is sufficiently large (~1.8GB) that it can't actually fit in a live
 # image (which has a 4GB limit), so nullify the overhead factor (1.3x out of the

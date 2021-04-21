@@ -1,0 +1,194 @@
+From 1b2df626b20aa14c0de7f46915758d10394d01b4 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@intel.com>
+Date: Tue, 15 Dec 2020 10:05:31 -0800
+Subject: [PATCH] Configure host error monitors for meta-wht
+
+The new host error monitor architecture allows the list of error
+monitors to be customized through a platform-specific patch file.
+
+This patch configures the host error monitors for meta-wht.
+
+Change-Id: I7070a3409b1471d7f9c93eca3e36b477f484e5d7
+Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
+---
+ include/error_monitors.hpp | 137 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 129 insertions(+), 8 deletions(-)
+
+diff --git a/include/error_monitors.hpp b/include/error_monitors.hpp
+index 55b8790d..8d1651d3 100644
+--- a/include/error_monitors.hpp
++++ b/include/error_monitors.hpp
+@@ -14,23 +14,88 @@
+ // limitations under the License.
+ */
+ #pragma once
++#include <error_monitors/cpu_mismatch_monitor.hpp>
++#include <error_monitors/cpu_thermtrip_monitor.hpp>
++#include <error_monitors/err2_monitor.hpp>
++#include <error_monitors/err_pin_monitor.hpp>
++#include <error_monitors/ierr_monitor.hpp>
++#include <error_monitors/mem_thermtrip_monitor.hpp>
++#include <error_monitors/pch_thermtrip_monitor.hpp>
++#include <error_monitors/smi_monitor.hpp>
++#include <error_monitors/vr_hot_monitor.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+-// #include <error_monitors/smi_monitor.hpp>
+ 
+ #include <memory>
+ 
+ namespace host_error_monitor::error_monitors
+ {
+ // Error signals to monitor
+-// static std::unique_ptr<host_error_monitor::smi_monitor::SMIMonitor>
+-// smiMonitor;
++static std::unique_ptr<host_error_monitor::smi_monitor::SMIMonitor> smiMonitor;
++static std::unique_ptr<
++    host_error_monitor::cpu_mismatch_monitor::CPUMismatchMonitor>
++    cpu1MismatchMonitor;
++static std::unique_ptr<
++    host_error_monitor::cpu_mismatch_monitor::CPUMismatchMonitor>
++    cpu2MismatchMonitor;
++static std::unique_ptr<host_error_monitor::err_pin_monitor::ErrPinMonitor>
++    err0Monitor;
++static std::unique_ptr<host_error_monitor::err_pin_monitor::ErrPinMonitor>
++    err1Monitor;
++static std::unique_ptr<host_error_monitor::err2_monitor::Err2Monitor>
++    err2Monitor;
++static std::unique_ptr<host_error_monitor::ierr_monitor::IERRMonitor>
++    ierrMonitor;
++static std::unique_ptr<
++    host_error_monitor::cpu_thermtrip_monitor::CPUThermtripMonitor>
++    cpu1ThermtripMonitor;
++static std::unique_ptr<
++    host_error_monitor::cpu_thermtrip_monitor::CPUThermtripMonitor>
++    cpu2ThermtripMonitor;
++static std::unique_ptr<
++    host_error_monitor::mem_thermtrip_monitor::MemThermtripMonitor>
++    mem1ThermtripMonitor;
++static std::unique_ptr<
++    host_error_monitor::mem_thermtrip_monitor::MemThermtripMonitor>
++    mem2ThermtripMonitor;
++static std::unique_ptr<host_error_monitor::vr_hot_monitor::VRHotMonitor>
++    cpu1VRHotMonitor;
++static std::unique_ptr<host_error_monitor::vr_hot_monitor::VRHotMonitor>
++    cpu1MemABCDVRHotMonitor;
++static std::unique_ptr<host_error_monitor::vr_hot_monitor::VRHotMonitor>
++    cpu1MemEFGHVRHotMonitor;
++static std::unique_ptr<host_error_monitor::vr_hot_monitor::VRHotMonitor>
++    cpu2VRHotMonitor;
++static std::unique_ptr<host_error_monitor::vr_hot_monitor::VRHotMonitor>
++    cpu2MemABCDVRHotMonitor;
++static std::unique_ptr<host_error_monitor::vr_hot_monitor::VRHotMonitor>
++    cpu2MemEFGHVRHotMonitor;
++static std::unique_ptr<
++    host_error_monitor::pch_thermtrip_monitor::PCHThermtripMonitor>
++    pchThermtripMonitor;
+ 
+ // Check if all the signal monitors started successfully
+ bool checkMonitors()
+ {
+     bool ret = true;
+ 
+-    // ret &= smiMonitor->isValid();
++    ret &= smiMonitor->isValid();
++    ret &= cpu1MismatchMonitor->isValid();
++    ret &= cpu2MismatchMonitor->isValid();
++    ret &= err0Monitor->isValid();
++    ret &= err1Monitor->isValid();
++    ret &= err2Monitor->isValid();
++    ret &= ierrMonitor->isValid();
++    ret &= cpu1ThermtripMonitor->isValid();
++    ret &= cpu2ThermtripMonitor->isValid();
++    ret &= mem1ThermtripMonitor->isValid();
++    ret &= mem2ThermtripMonitor->isValid();
++    ret &= cpu1VRHotMonitor->isValid();
++    ret &= cpu1MemABCDVRHotMonitor->isValid();
++    ret &= cpu1MemEFGHVRHotMonitor->isValid();
++    ret &= cpu2VRHotMonitor->isValid();
++    ret &= cpu2MemABCDVRHotMonitor->isValid();
++    ret &= cpu2MemEFGHVRHotMonitor->isValid();
++    ret &= pchThermtripMonitor->isValid();
+ 
+     return ret;
+ }
+@@ -39,9 +104,59 @@ bool checkMonitors()
+ bool startMonitors(boost::asio::io_service& io,
+                    std::shared_ptr<sdbusplus::asio::connection> conn)
+ {
+-    // smiMonitor =
+-    // std::make_unique<host_error_monitor::smi_monitor::SMIMonitor>(
+-    //     io, conn, "SMI");
++    smiMonitor = std::make_unique<host_error_monitor::smi_monitor::SMIMonitor>(
++        io, conn, "SMI");
++    cpu1MismatchMonitor = std::make_unique<
++        host_error_monitor::cpu_mismatch_monitor::CPUMismatchMonitor>(
++        io, conn, "CPU1_MISMATCH", 1);
++    cpu2MismatchMonitor = std::make_unique<
++        host_error_monitor::cpu_mismatch_monitor::CPUMismatchMonitor>(
++        io, conn, "CPU2_MISMATCH", 2);
++    err0Monitor =
++        std::make_unique<host_error_monitor::err_pin_monitor::ErrPinMonitor>(
++            io, conn, "CPU_ERR0", 0);
++    err1Monitor =
++        std::make_unique<host_error_monitor::err_pin_monitor::ErrPinMonitor>(
++            io, conn, "CPU_ERR1", 1);
++    err2Monitor =
++        std::make_unique<host_error_monitor::err2_monitor::Err2Monitor>(
++            io, conn, "CPU_ERR2");
++    ierrMonitor =
++        std::make_unique<host_error_monitor::ierr_monitor::IERRMonitor>(
++            io, conn, "CPU_CATERR");
++    cpu1ThermtripMonitor = std::make_unique<
++        host_error_monitor::cpu_thermtrip_monitor::CPUThermtripMonitor>(
++        io, conn, "CPU1_THERMTRIP", 1, "CPU1_FIVR_FAULT");
++    cpu2ThermtripMonitor = std::make_unique<
++        host_error_monitor::cpu_thermtrip_monitor::CPUThermtripMonitor>(
++        io, conn, "CPU2_THERMTRIP", 2, "CPU2_FIVR_FAULT");
++    mem1ThermtripMonitor = std::make_unique<
++        host_error_monitor::mem_thermtrip_monitor::MemThermtripMonitor>(
++        io, conn, "CPU1_MEM_THERM_EVENT", 1);
++    mem2ThermtripMonitor = std::make_unique<
++        host_error_monitor::mem_thermtrip_monitor::MemThermtripMonitor>(
++        io, conn, "CPU2_MEM_THERM_EVENT", 2);
++    cpu1VRHotMonitor =
++        std::make_unique<host_error_monitor::vr_hot_monitor::VRHotMonitor>(
++            io, conn, "CPU1_VRHOT", "CPU 1");
++    cpu1MemABCDVRHotMonitor =
++        std::make_unique<host_error_monitor::vr_hot_monitor::VRHotMonitor>(
++            io, conn, "CPU1_MEM_ABCD_VRHOT", "CPU 1 Memory ABCD");
++    cpu1MemEFGHVRHotMonitor =
++        std::make_unique<host_error_monitor::vr_hot_monitor::VRHotMonitor>(
++            io, conn, "CPU1_MEM_EFGH_VRHOT", "CPU 1 Memory EFGH");
++    cpu2VRHotMonitor =
++        std::make_unique<host_error_monitor::vr_hot_monitor::VRHotMonitor>(
++            io, conn, "CPU2_VRHOT", "CPU 2");
++    cpu2MemABCDVRHotMonitor =
++        std::make_unique<host_error_monitor::vr_hot_monitor::VRHotMonitor>(
++            io, conn, "CPU2_MEM_ABCD_VRHOT", "CPU 2 Memory ABCD");
++    cpu2MemEFGHVRHotMonitor =
++        std::make_unique<host_error_monitor::vr_hot_monitor::VRHotMonitor>(
++            io, conn, "CPU2_MEM_EFGH_VRHOT", "CPU 2 Memory EFGH");
++    pchThermtripMonitor = std::make_unique<
++        host_error_monitor::pch_thermtrip_monitor::PCHThermtripMonitor>(
++        io, conn, "PCH_BMC_THERMTRIP");
+ 
+     return checkMonitors();
+ }
+@@ -49,7 +164,13 @@ bool startMonitors(boost::asio::io_service& io,
+ // Notify the signal monitors of host on event
+ void sendHostOn()
+ {
+-    // smiMonitor->hostOn();
++    smiMonitor->hostOn();
++    cpu1MismatchMonitor->hostOn();
++    cpu2MismatchMonitor->hostOn();
++    err0Monitor->hostOn();
++    err1Monitor->hostOn();
++    err2Monitor->hostOn();
++    ierrMonitor->hostOn();
+ }
+ 
+ } // namespace host_error_monitor::error_monitors
+-- 
+2.17.1
+

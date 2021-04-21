@@ -1,7 +1,11 @@
+inherit features_check
+REQUIRED_DISTRO_FEATURES = "ptest"
+
 require core-image-sato-sdk.bb
 require conf/distro/include/ptest-packagelists.inc
 
 DESCRIPTION += "Also includes ptest packages."
+HOMEPAGE = "https://www.yoctoproject.org/"
 
 PROVIDES += "core-image-sato-ptest"
 

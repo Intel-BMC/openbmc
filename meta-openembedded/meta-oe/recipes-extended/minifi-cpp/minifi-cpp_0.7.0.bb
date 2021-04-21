@@ -28,6 +28,7 @@ SRC_URI = "git://github.com/apache/nifi-minifi-cpp.git \
             file://0002-cmake-LibreSSL.cmake-use-libressl-local-source-tarba.patch \
             file://0003-cmake-BundledOSSPUUID.cmake-use-ossp-uuid-local-sour.patch \
             file://0001-civetweb-CMakeLists.txt-do-not-search-gcc-ar-and-gcc.patch \
+            file://0001-cxxopts-Add-limits-header.patch \
             file://minifi.service \
             file://systemd-volatile.conf \
             file://sysvinit-volatile.conf \
@@ -75,6 +76,7 @@ TARGET_CFLAGS_append_riscv64 = " -fpic"
 TARGET_CXXFLAGS_append_riscv64 = " -fpic"
 
 do_install[cleandirs] += "${WORKDIR}/minifi-install"
+PSEUDO_CONSIDER_PATHS .= ",${WORKDIR}/minifi-install"
 
 do_install() {
     DESTDIR='${WORKDIR}/minifi-install' cmake_runcmake_build --target ${OECMAKE_TARGET_INSTALL}

@@ -1,4 +1,8 @@
 SUMMARY = "Free peer-reviewed portable C++ source libraries"
+DESCRIPTION = "Provides free peer-reviewed portable C++ source libraries.  The emphasis is on libraries which work well with the C++ \
+Standard Library.  One goal is to establish 'existing practice' and \
+provide reference implementations so that the Boost libraries are suitable for eventual standardization.  Some of the libraries have already been proposed for inclusion in the C++ Standards Committee's \
+upcoming C++ Standard Library Technical Report."
 SECTION = "libs"
 DEPENDS = "boost-build-native zlib bzip2"
 
@@ -59,10 +63,13 @@ PACKAGES = "${PN}-dbg ${BOOST_PACKAGES}"
 python __anonymous () {
     packages = []
     extras = []
+    pn = d.getVar("PN")
     mlprefix = d.getVar("MLPREFIX")
     for lib in d.getVar('BOOST_LIBS').split():
         extras.append("--with-%s" % lib)
         pkg = "boost-%s" % (lib.replace("_", "-"))
+        if "-native" in pn:
+            pkg = pkg + "-native"
         packages.append(mlprefix + pkg)
         if not d.getVar("FILES_%s" % pkg):
                 d.setVar("FILES_%s%s" % (mlprefix, pkg), "${libdir}/libboost_%s*.so.*" % lib)

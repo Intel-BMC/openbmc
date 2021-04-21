@@ -9,11 +9,13 @@ SRC_URI = "git://github.com/openbmc/openpower-hw-diags"
 
 SYSTEMD_SERVICE_${PN} = "attn_handler.service"
 PV = "0.1+git${SRCPV}"
-SRCREV = "7a0dd543c8fef050f7347dde760e6aff84b07122"
+SRCREV = "8af9e46f43d2ffa030275d17716571d4fcc8ad18"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "boost libgpiod pdbg phosphor-logging sdbusplus openpower-libhei"
+DEPENDS = "boost libgpiod pdbg phosphor-logging sdbusplus openpower-libhei \
+           nlohmann-json"
+
 FILES_${PN} += "${UNITDIR}/attn_handler.service"
 
 # This is required so that libhei is installed with the chip data files.

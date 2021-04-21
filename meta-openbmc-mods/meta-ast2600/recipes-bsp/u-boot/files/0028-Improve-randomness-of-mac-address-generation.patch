@@ -1,0 +1,53 @@
+From da155e990fe763d3a03bdac76054e1d5530b8c16 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 10 Mar 2021 20:15:10 -0800
+Subject: [PATCH] Improve randomness of mac address generation
+
+This commit improves randomness of mac address generation using
+AST2600's hardware random number generator.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ lib/rand.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/lib/rand.c b/lib/rand.c
+index af4cf3a0e8cf..0a12b0b82276 100644
+--- a/lib/rand.c
++++ b/lib/rand.c
+@@ -8,16 +8,32 @@
+  */
+ 
+ #include <common.h>
++#include <asm/io.h>
+ 
+ static unsigned int y = 1U;
+ 
+ unsigned int rand_r(unsigned int *seedp)
+ {
++#ifdef CONFIG_ASPEED_AST2600
++#define SCU_524 0x1e6e2524
++	int i;
++
++	/*
++	 * Use hardware random number generator. It generates a new number on
++	 * each 1us or on each 32 read command cycle so this code makes
++	 * intentional dummy 32 reads.
++	 */
++	for (i = 0; i < 32; i++)
++		*seedp ^= readl(SCU_524);
++
++	return readl(SCU_524);
++#else
+ 	*seedp ^= (*seedp << 13);
+ 	*seedp ^= (*seedp >> 17);
+ 	*seedp ^= (*seedp << 5);
+ 
+ 	return *seedp;
++#endif
+ }
+ 
+ unsigned int rand(void)
+-- 
+2.17.1
+

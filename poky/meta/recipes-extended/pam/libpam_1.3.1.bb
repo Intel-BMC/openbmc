@@ -128,6 +128,13 @@ python populate_packages_prepend () {
     do_split_packages(d, pam_filterdir, r'^(.*)$', 'pam-filter-%s', 'PAM filter for %s', extra_depends='')
 }
 
+do_compile_ptest() {
+        cd tests
+        sed -i -e 's/$(MAKE) $(AM_MAKEFLAGS) check-TESTS//' Makefile
+        oe_runmake check-am
+        cd -
+}
+
 do_install() {
 	autotools_do_install
 
@@ -145,6 +152,13 @@ do_install() {
 	if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
 		echo "session optional pam_systemd.so" >> ${D}${sysconfdir}/pam.d/common-session
 	fi
+}
+
+do_install_ptest() {
+    if [ ${PTEST_ENABLED} = "1" ]; then
+        mkdir -p ${D}${PTEST_PATH}/tests
+        install -m 0755 ${B}/tests/.libs/* ${D}${PTEST_PATH}/tests
+    fi
 }
 
 inherit features_check

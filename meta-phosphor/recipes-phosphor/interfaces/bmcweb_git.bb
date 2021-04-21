@@ -13,21 +13,26 @@ LIC_FILES_CHKSUM = "file://LICENCE;md5=a6a4edad4aed50f39a66d098d74b265b"
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
 
 PV = "1.0+git${SRCPV}"
-SRCREV = "ee135e246d8348048b5409b5ed0b81d9c1820c30"
+SRCREV = "d8ef9915dda4d2e3b7aec885ebfa7debce61bff8"
 
 S = "${WORKDIR}/git"
 
-DEPENDS = "openssl \
-           zlib \
-           boost \
-           boost-url \
-           libpam \
-           sdbusplus \
-           gtest \
-           nlohmann-json \
-           libtinyxml2 "
+DEPENDS = " \
+    openssl \
+    zlib \
+    boost \
+    boost-url \
+    libpam \
+    sdbusplus \
+    gtest \
+    nlohmann-json \
+    libtinyxml2 \
+"
 
-RDEPENDS_${PN} += "jsnbd"
+RDEPENDS_${PN} += " \
+    jsnbd \
+    phosphor-mapper \
+"
 
 FILES_${PN} += "${datadir}/** "
 

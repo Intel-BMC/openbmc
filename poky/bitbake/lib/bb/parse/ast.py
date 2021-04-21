@@ -34,7 +34,7 @@ class IncludeNode(AstNode):
         Include the file and evaluate the statements
         """
         s = data.expand(self.what_file)
-        logger.debug(2, "CONF %s:%s: including %s", self.filename, self.lineno, s)
+        logger.debug2("CONF %s:%s: including %s", self.filename, self.lineno, s)
 
         # TODO: Cache those includes... maybe not here though
         if self.force:
@@ -335,7 +335,7 @@ def finalize(fn, d, variant = None):
             if not handlerfn:
                 bb.fatal("Undefined event handler function '%s'" % var)
             handlerln = int(d.getVarFlag(var, "lineno", False))
-            bb.event.register(var, d.getVar(var, False), (d.getVarFlag(var, "eventmask") or "").split(), handlerfn, handlerln)
+            bb.event.register(var, d.getVar(var, False), (d.getVarFlag(var, "eventmask") or "").split(), handlerfn, handlerln, data=d)
 
         bb.event.fire(bb.event.RecipePreFinalise(fn), d)
 
@@ -376,7 +376,7 @@ def _create_variants(datastores, names, function, onlyfinalise):
 def multi_finalize(fn, d):
     appends = (d.getVar("__BBAPPEND") or "").split()
     for append in appends:
-        logger.debug(1, "Appending .bbappend file %s to %s", append, fn)
+        logger.debug("Appending .bbappend file %s to %s", append, fn)
         bb.parse.BBHandler.handle(append, d, True)
 
     onlyfinalise = d.getVar("__ONLYFINALISE", False)
