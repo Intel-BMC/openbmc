@@ -1,0 +1,50 @@
+From 2dcfef0170ca5ba1f934de6934db64b545ab3b55 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Tue, 23 Mar 2021 23:36:40 +0000
+Subject: [PATCH] Move EventService init  to later stage
+
+The bmcweb crash issue seen when there is eventservice
+config with subscriptions in persistent file.
+
+During EventService instantiation, it uses the "get_io_context()"
+from systemBus, so it should be called after systemBus init. So
+moved the EventService instantiation after systemBus initialization.
+
+Tested:
+ - bmcweb crash issue resolved.
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Change-Id: Iab52f0e89478e306af475066fb5691153a05677d
+---
+ src/webserver_main.cpp | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/webserver_main.cpp b/src/webserver_main.cpp
+index 3b9631a..f0e2207 100644
+--- a/src/webserver_main.cpp
++++ b/src/webserver_main.cpp
+@@ -80,9 +80,6 @@ int main(int /*argc*/, char** /*argv*/)
+ #ifdef BMCWEB_ENABLE_REDFISH
+     crow::redfish::requestRoutes(app);
+     redfish::RedfishService redfish(app);
+-
+-    // Create EventServiceManager instance and initialize Config
+-    redfish::EventServiceManager::getInstance();
+ #endif
+ 
+ #ifdef BMCWEB_ENABLE_DBUS_REST
+@@ -116,6 +113,11 @@ int main(int /*argc*/, char** /*argv*/)
+     crow::connections::systemBus =
+         std::make_shared<sdbusplus::asio::connection>(*io);
+ 
++#ifdef BMCWEB_ENABLE_REDFISH
++    // Create EventServiceManager instance and initialize Config
++    redfish::EventServiceManager::getInstance();
++#endif
++
+ #ifdef BMCWEB_ENABLE_VM_NBDPROXY
+     crow::nbd_proxy::requestRoutes(app);
+ #endif
+-- 
+2.17.1
+

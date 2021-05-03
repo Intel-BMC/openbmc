@@ -1,4 +1,4 @@
-From bc1635622e122f307fb3b8eb9bbd66ea576a8f0c Mon Sep 17 00:00:00 2001
+From 03c4ece83b58b954323111a1a7b2bf2b61402d7e Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Mon, 18 May 2020 11:56:57 +0200
 Subject: [PATCH 2/4] Add POST and DELETE in MetricReportDefinitions
@@ -31,26 +31,39 @@ Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Change-Id: I2fed96848594451e22fde686f8c066d7770cc65a
 ---
  meson.build                                   |   1 +
- redfish-core/include/utils/time_utils.hpp     | 138 ++++++++++-
- redfish-core/lib/metric_report_definition.hpp | 328 ++++++++++++++++++++++++++
- redfish-core/ut/time_utils_test.cpp           |  63 +++++
- 4 files changed, 528 insertions(+), 2 deletions(-)
+ .../include/utils/telemetry_utils.hpp         |   2 +
+ redfish-core/include/utils/time_utils.hpp     | 138 +++++++-
+ redfish-core/lib/metric_report_definition.hpp | 328 ++++++++++++++++++
+ redfish-core/ut/time_utils_test.cpp           |  63 ++++
+ 5 files changed, 530 insertions(+), 2 deletions(-)
  create mode 100644 redfish-core/ut/time_utils_test.cpp
 
 diff --git a/meson.build b/meson.build
-index 7a16e91..3d65b01 100644
+index 66a066b..22a8c4a 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -330,6 +330,7 @@ srcfiles_bmcweb = ['src/webserver_main.cpp','redfish-core/src/error_messages.cpp
- srcfiles_unittest = ['include/ut/dbus_utility_test.cpp',
+@@ -345,6 +345,7 @@ srcfiles_unittest = ['include/ut/dbus_utility_test.cpp',
                       'redfish-core/ut/privileges_test.cpp',
                       'redfish-core/ut/lock_test.cpp',
+                      'redfish-core/ut/configfile_test.cpp',
 +                     'redfish-core/ut/time_utils_test.cpp',
                       'http/ut/utility_test.cpp']
  
  # Gather the Configuration data
+diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
+index a3a8156..0a3af5f 100644
+--- a/redfish-core/include/utils/telemetry_utils.hpp
++++ b/redfish-core/include/utils/telemetry_utils.hpp
+@@ -1,5 +1,7 @@
+ #pragma once
+ 
++#include "dbus_utility.hpp"
++
+ namespace redfish
+ {
+ 
 diff --git a/redfish-core/include/utils/time_utils.hpp b/redfish-core/include/utils/time_utils.hpp
-index dd4ea75..e94801b 100644
+index 4a87ba0..9965d4d 100644
 --- a/redfish-core/include/utils/time_utils.hpp
 +++ b/redfish-core/include/utils/time_utils.hpp
 @@ -1,7 +1,13 @@
@@ -212,7 +225,7 @@ index dd4ea75..e94801b 100644
  /**
   * @brief Convert time value into duration format that is based on ISO 8601.
   *        Example output: "P12DT1M5.5S"
-@@ -36,8 +171,7 @@ std::string toDurationString(std::chrono::milliseconds ms)
+@@ -36,8 +171,7 @@ inline std::string toDurationString(std::chrono::milliseconds ms)
      std::string fmt;
      fmt.reserve(sizeof("PxxxxxxxxxxxxDTxxHxxMxx.xxxxxxS"));
  
@@ -654,5 +667,5 @@ index 0000000..70999ce
 +    EXPECT_THAT(redfish::time_utils::toDurationString(ms), Eq(expected));
 +}
 -- 
-2.16.6
+2.17.1
 

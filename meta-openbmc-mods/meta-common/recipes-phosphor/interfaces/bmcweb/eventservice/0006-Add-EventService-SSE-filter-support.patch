@@ -1,0 +1,243 @@
+From 693de7b901e7618585e0e8d848fc37fa0cccd18e Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Wed, 17 Mar 2021 01:16:50 +0000
+Subject: [PATCH 6/6] Add EventService SSE filter support
+
+This commit implements the Event Service SSE stream
+filters support. As per redfish specification:
+The SSE streams have these formats:
+ - Metric report SSE stream
+ - Event message SSE stream
+
+To reduce the amount of data, service supports $filter
+query parameter in SSE URI.
+Below properties support as filter criteria:
+ - EventFormatType( Event & MetricReport)
+ - MessageId
+ - RegistryPrefix
+ - MetricReportDefinition
+
+For more details, refer Redfish specification section 13.5.2
+
+Tested:
+ Created SSE stream with different filters and observed
+ desired events on SSE stream client(browser), some examples
+  - To get all Redfish events,
+    URI: /redfish/v1/EventService/Subscriptions/SSE?$filter=(EventFormatType%20eq%20Event)
+  - To get Redfish events with RegistryPrefix "OpenBMC"
+    URi: /redfish/v1/EventService/Subscriptions/SSE?$filter=(RegistryPrefix%20eq%20OpenBMC)
+  - To get only DC power of Events,
+    URI: /redfish/v1/EventService/Subscriptions/SSE?$filter=(EventFormatType%20eq%20Event)%20and%20(MessageId%20eq%20DCPowerOff)
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Change-Id: I55c6f53bb5e57aa1f2d1601f1a16525a33b13bd2
+---
+ include/eventservice_sse.hpp                  | 94 ++++++++++++++++++-
+ redfish-core/include/error_messages.hpp       |  9 ++
+ .../include/event_service_manager.hpp         |  5 +
+ redfish-core/lib/event_service.hpp            |  4 -
+ redfish-core/src/error_messages.cpp           | 26 +++++
+ 5 files changed, 130 insertions(+), 8 deletions(-)
+
+diff --git a/include/eventservice_sse.hpp b/include/eventservice_sse.hpp
+index 6c98e6e..ff72c4d 100644
+--- a/include/eventservice_sse.hpp
++++ b/include/eventservice_sse.hpp
+@@ -23,16 +23,102 @@ static bool createSubscription(std::shared_ptr<crow::SseConnection>& conn,
+     }
+     BMCWEB_LOG_DEBUG << "Request query param size: " << req.urlParams.size();
+ 
++    // EventService SSE supports only "$filter" query param.
++    if (req.urlParams.size() > 1)
++    {
++        messages::invalidQueryFilter(res);
++        res.end();
++        return false;
++    }
++    std::string eventFormatType;
++    std::string queryFilters;
++    if (req.urlParams.size())
++    {
++        boost::urls::url_view::params_type::iterator it =
++            req.urlParams.find("$filter");
++        if (it == req.urlParams.end())
++        {
++            messages::invalidQueryFilter(res);
++            res.end();
++            return false;
++        }
++        queryFilters = it->value();
++    }
++    else
++    {
++        eventFormatType = "Event";
++    }
++
++    std::vector<std::string> msgIds;
++    std::vector<std::string> regPrefixes;
++    std::vector<std::string> mrdsArray;
++    if (!queryFilters.empty())
++    {
++        // Reading from query params.
++        bool status = readSSEQueryParams(queryFilters, eventFormatType, msgIds,
++                                         regPrefixes, mrdsArray);
++        if (!status)
++        {
++            messages::invalidObject(res, queryFilters);
++            res.end();
++            return false;
++        }
++
++        // RegsitryPrefix and messageIds are mutuly exclusive as per redfish
++        // specification.
++        if (regPrefixes.size() && msgIds.size())
++        {
++            messages::mutualExclusiveProperties(res, "RegistryPrefix",
++                                                "MessageId");
++            res.end();
++            return false;
++        }
++
++        if (!eventFormatType.empty())
++        {
++            if (std::find(supportedEvtFormatTypes.begin(),
++                          supportedEvtFormatTypes.end(),
++                          eventFormatType) == supportedEvtFormatTypes.end())
++            {
++                messages::propertyValueNotInList(res, eventFormatType,
++                                                 "EventFormatType");
++                res.end();
++                return false;
++            }
++        }
++        else
++        {
++            // If nothing specified, using default "Event"
++            eventFormatType = "Event";
++        }
++
++        if (!regPrefixes.empty())
++        {
++            for (const std::string& it : regPrefixes)
++            {
++                if (std::find(supportedRegPrefixes.begin(),
++                              supportedRegPrefixes.end(),
++                              it) == supportedRegPrefixes.end())
++                {
++                    messages::propertyValueNotInList(res, it, "RegistryPrefix");
++                    res.end();
++                    return false;
++                }
++            }
++        }
++    }
++
+     std::shared_ptr<redfish::Subscription> subValue =
+         std::make_shared<redfish::Subscription>(std::move(conn));
+ 
+     // GET on this URI means, Its SSE subscriptionType.
+-    subValue->subscriptionType = redfish::subscriptionTypeSSE;
+-
+-    // TODO: parse $filter query params and fill config.
++    subValue->subscriptionType = subscriptionTypeSSE;
+     subValue->protocol = "Redfish";
+     subValue->retryPolicy = "TerminateAfterRetries";
+-    subValue->eventFormatType = "Event";
++    subValue->eventFormatType = eventFormatType;
++    subValue->registryMsgIds = msgIds;
++    subValue->registryPrefixes = regPrefixes;
++    subValue->metricReportDefinitions = mrdsArray;
+ 
+     std::string id =
+         redfish::EventServiceManager::getInstance().addSubscription(subValue,
+diff --git a/redfish-core/include/error_messages.hpp b/redfish-core/include/error_messages.hpp
+index 7dfdc80..922dae9 100644
+--- a/redfish-core/include/error_messages.hpp
++++ b/redfish-core/include/error_messages.hpp
+@@ -959,6 +959,15 @@ nlohmann::json mutualExclusiveProperties(const std::string& arg1,
+ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
+                                const std::string& arg2);
+ 
++/**
++ * @brief Formats InvalidQueryFilter message into JSON
++ * Message body: "The requested URL contains the invalid query filters"
++ *
++ * @returns Message InvalidQueryFilter formatted to JSON */
++nlohmann::json invalidQueryFilter();
++
++void invalidQueryFilter(crow::Response& res);
++
+ } // namespace messages
+ 
+ } // namespace redfish
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index e3eba86..8f120b1 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -54,6 +54,11 @@ static constexpr const char* eventServiceFile =
+ static constexpr const uint8_t maxNoOfSubscriptions = 20;
+ static constexpr const uint8_t maxNoOfSSESubscriptions = 10;
+ 
++static constexpr const std::array<const char*, 2> supportedEvtFormatTypes = {
++    eventFormatType, metricReportFormatType};
++static constexpr const std::array<const char*, 3> supportedRegPrefixes = {
++    "Base", "OpenBMC", "Task"};
++
+ #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
+ static std::optional<boost::asio::posix::stream_descriptor> inotifyConn;
+ static constexpr const char* redfishEventLogDir = "/var/log";
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 1875ec9..4d1ac9f 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -19,10 +19,6 @@
+ namespace redfish
+ {
+ 
+-static constexpr const std::array<const char*, 2> supportedEvtFormatTypes = {
+-    eventFormatType, metricReportFormatType};
+-static constexpr const std::array<const char*, 3> supportedRegPrefixes = {
+-    "Base", "OpenBMC", "Task"};
+ static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
+     "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
+ 
+diff --git a/redfish-core/src/error_messages.cpp b/redfish-core/src/error_messages.cpp
+index cfbc9c2..3493132 100644
+--- a/redfish-core/src/error_messages.cpp
++++ b/redfish-core/src/error_messages.cpp
+@@ -2147,6 +2147,32 @@ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
+     addMessageToErrorJson(res.jsonValue, mutualExclusiveProperties(arg1, arg2));
+ }
+ 
++/**
++ * @internal
++ * @brief Formats InvalidQueryFilter into JSON
++ *
++ * See header file for more information
++ * @endinternal
++ */
++nlohmann::json invalidQueryFilter()
++{
++    return nlohmann::json{
++        {"@odata.type", "#Message.v1_0_0.Message"},
++        {"MessageId", "Base.1.5.0.InvalidQueryFilter"},
++        {"Message", "The requested url contains the invalid query filter."},
++        {"MessageArgs", nlohmann::json::array()},
++        {"Severity", "Warning"},
++        {"Resolution",
++         "Ensure the correct query filter is specified in requested url "
++         "and resubmit the request."}};
++}
++
++void invalidQueryFilter(crow::Response& res)
++{
++    res.result(boost::beast::http::status::bad_request);
++    addMessageToErrorJson(res.jsonValue, invalidQueryFilter());
++}
++
+ } // namespace messages
+ 
+ } // namespace redfish
+-- 
+2.17.1
+
