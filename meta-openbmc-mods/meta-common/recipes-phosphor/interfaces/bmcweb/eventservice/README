@@ -1,0 +1,22 @@
+Eventservice specific patches: Temporary pulling down
+the upstream patches. These will be remove as soon as
+thee gets merged upstream.
+
+Upstream revision information:
+ - EventService : Fix retry handling for http-client
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/40731/18
+
+ - EventService: https client support
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31735/38
+
+ - Move EventService init  to later stage
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41516
+
+ - Add Server-Sent-Events support
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41258/5
+
+ - Add SSE style subscription support to eventservice
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41319/5
+
+ - Add EventService SSE filter support
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41349/2

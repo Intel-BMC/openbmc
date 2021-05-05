@@ -1,0 +1,227 @@
+From 4b7e67d7200c0aba1b27478968d4f71449f1406a Mon Sep 17 00:00:00 2001
+From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
+Date: Mon, 8 Mar 2021 14:35:54 +0000
+Subject: [PATCH] Sync ReadingUnit with Redfish Sensor Schema
+
+Actual attribute "ReadingUnits" does not match with Redfish Sensor
+Schema. This change match "ReadingUnits" with Redfish Sensor Scheme
+1.0.0 and add missing "ReadingType" attribute. This change affect all
+users that depends on old units that does not match with Redfish
+standard. Added toReadingType and toReadingUnit function that uses
+values taken from Redfish Sensor Scheme 1.0.0. Latest version 1.2.0 of
+Sensor scheme defines units same units.
+
+Tested:
+  - RedfishServiceValidator pass
+
+Change-Id: I0c8820eba7271022c427cd25dec321db36aa0176
+Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+---
+ redfish-core/lib/power.hpp   |   4 +-
+ redfish-core/lib/sensors.hpp | 107 +++++++++++++++++++++++++++++------
+ redfish-core/lib/thermal.hpp |   4 +-
+ 3 files changed, 94 insertions(+), 21 deletions(-)
+
+diff --git a/redfish-core/lib/power.hpp b/redfish-core/lib/power.hpp
+index 1c7a009..99c45ef 100644
+--- a/redfish-core/lib/power.hpp
++++ b/redfish-core/lib/power.hpp
+@@ -153,7 +153,7 @@ class Power : public Node
+         res.jsonValue["PowerControl"] = nlohmann::json::array();
+ 
+         auto sensorAsyncResp = std::make_shared<SensorsAsyncResp>(
+-            res, chassisName, sensors::dbus::types.at(sensors::node::power),
++            res, chassisName, sensors::dbus::paths.at(sensors::node::power),
+             sensors::node::power);
+ 
+         getChassisData(sensorAsyncResp);
+@@ -336,7 +336,7 @@ class Power : public Node
+ 
+         const std::string& chassisName = params[0];
+         auto asyncResp = std::make_shared<SensorsAsyncResp>(
+-            res, chassisName, sensors::dbus::types.at(sensors::node::power),
++            res, chassisName, sensors::dbus::paths.at(sensors::node::power),
+             sensors::node::power);
+ 
+         std::optional<std::vector<nlohmann::json>> voltageCollections;
+diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
+index 35114bf..af030f0 100644
+--- a/redfish-core/lib/sensors.hpp
++++ b/redfish-core/lib/sensors.hpp
+@@ -54,9 +54,10 @@ static constexpr std::string_view thermal = "Thermal";
+ 
+ namespace dbus
+ {
++
+ static const boost::container::flat_map<std::string_view,
+                                         std::vector<const char*>>
+-    types = {{node::power,
++    paths = {{node::power,
+               {"/xyz/openbmc_project/sensors/voltage",
+                "/xyz/openbmc_project/sensors/power"}},
+              {node::sensors,
+@@ -67,6 +68,88 @@ static const boost::container::flat_map<std::string_view,
+               {"/xyz/openbmc_project/sensors/fan_tach",
+                "/xyz/openbmc_project/sensors/temperature",
+                "/xyz/openbmc_project/sensors/fan_pwm"}}};
++} // namespace dbus
++
++inline const char* toReadingType(const std::string& sensorType)
++{
++    if (sensorType == "voltage")
++    {
++        return "Voltage";
++    }
++    if (sensorType == "power")
++    {
++        return "Power";
++    }
++    if (sensorType == "current")
++    {
++        return "Current";
++    }
++    if (sensorType == "fan_tach")
++    {
++        return "Rotational";
++    }
++    if (sensorType == "temperature")
++    {
++        return "Temperature";
++    }
++    if (sensorType == "fan_pwm" || sensorType == "utilization")
++    {
++        return "Percent";
++    }
++    if (sensorType == "altitude")
++    {
++        return "Altitude";
++    }
++    if (sensorType == "airflow")
++    {
++        return "AirFlow";
++    }
++    if (sensorType == "energy")
++    {
++        return "EnergyJoules";
++    }
++    return "";
++}
++
++inline const char* toReadingUnits(const std::string& sensorType)
++{
++    if (sensorType == "voltage")
++    {
++        return "V";
++    }
++    if (sensorType == "power")
++    {
++        return "W";
++    }
++    if (sensorType == "current")
++    {
++        return "A";
++    }
++    if (sensorType == "fan_tach")
++    {
++        return "RPM";
++    }
++    if (sensorType == "temperature")
++    {
++        return "Cel";
++    }
++    if (sensorType == "fan_pwm" || sensorType == "utilization")
++    {
++        return "%";
++    }
++    if (sensorType == "altitude")
++    {
++        return "m";
++    }
++    if (sensorType == "airflow")
++    {
++        return "cft_i/min";
++    }
++    if (sensorType == "energy")
++    {
++        return "J";
++    }
++    return "";
+ }
+ } // namespace sensors
+ 
+@@ -854,18 +937,8 @@ inline void objectInterfacesToJson(
+     if (sensorsAsyncResp->chassisSubNode == sensors::node::sensors)
+     {
+         sensorJson["@odata.type"] = "#Sensor.v1_0_0.Sensor";
+-        if (sensorType == "power")
+-        {
+-            sensorJson["ReadingUnits"] = "Watts";
+-        }
+-        else if (sensorType == "current")
+-        {
+-            sensorJson["ReadingUnits"] = "Amperes";
+-        }
+-        else if (sensorType == "utilization")
+-        {
+-            sensorJson["ReadingUnits"] = "Percent";
+-        }
++        sensorJson["ReadingType"] = sensors::toReadingType(sensorType);
++        sensorJson["ReadingUnits"] = sensors::toReadingUnits(sensorType);
+     }
+     else if (sensorType == "temperature")
+     {
+@@ -2979,8 +3052,8 @@ inline void retrieveUriToDbusMap(const std::string& chassis,
+                                  const std::string& node,
+                                  SensorsAsyncResp::DataCompleteCb&& mapComplete)
+ {
+-    auto typesIt = sensors::dbus::types.find(node);
+-    if (typesIt == sensors::dbus::types.end())
++    auto pathIt = sensors::dbus::paths.find(node);
++    if (pathIt == sensors::dbus::paths.end())
+     {
+         BMCWEB_LOG_ERROR << "Wrong node provided : " << node;
+         mapComplete(boost::beast::http::status::bad_request, {});
+@@ -2995,7 +3068,7 @@ inline void retrieveUriToDbusMap(const std::string& chassis,
+                 uriToDbus) { mapCompleteCb(status, uriToDbus); };
+ 
+     auto resp = std::make_shared<SensorsAsyncResp>(
+-        *respBuffer, chassis, typesIt->second, node, std::move(callback));
++        *respBuffer, chassis, pathIt->second, node, std::move(callback));
+     getChassisData(resp);
+ }
+ 
+@@ -3030,7 +3103,7 @@ class SensorCollection : public Node
+         const std::string& chassisId = params[0];
+         std::shared_ptr<SensorsAsyncResp> asyncResp =
+             std::make_shared<SensorsAsyncResp>(
+-                res, chassisId, sensors::dbus::types.at(sensors::node::sensors),
++                res, chassisId, sensors::dbus::paths.at(sensors::node::sensors),
+                 sensors::node::sensors);
+ 
+         auto getChassisCb =
+diff --git a/redfish-core/lib/thermal.hpp b/redfish-core/lib/thermal.hpp
+index 8e01bee..00acdf9 100644
+--- a/redfish-core/lib/thermal.hpp
++++ b/redfish-core/lib/thermal.hpp
+@@ -48,7 +48,7 @@ class Thermal : public Node
+         }
+         const std::string& chassisName = params[0];
+         auto sensorAsyncResp = std::make_shared<SensorsAsyncResp>(
+-            res, chassisName, sensors::dbus::types.at(sensors::node::thermal),
++            res, chassisName, sensors::dbus::paths.at(sensors::node::thermal),
+             sensors::node::thermal);
+ 
+         // TODO Need to get Chassis Redundancy information.
+@@ -71,7 +71,7 @@ class Thermal : public Node
+             allCollections;
+ 
+         auto asyncResp = std::make_shared<SensorsAsyncResp>(
+-            res, chassisName, sensors::dbus::types.at(sensors::node::thermal),
++            res, chassisName, sensors::dbus::paths.at(sensors::node::thermal),
+             sensors::node::thermal);
+ 
+         if (!json_util::readJson(req, asyncResp->res, "Temperatures",
+-- 
+2.25.1
+

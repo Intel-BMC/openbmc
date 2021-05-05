@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
 SRC_URI += "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "86d4e9d3f2214c825ed76b38865abc47d2c7a11f"
+SRCREV = "07adfb357cdb679bf9bbcf2eaff7406cfb5fd52b"
 
 S = "${WORKDIR}/git/pldmd"
 

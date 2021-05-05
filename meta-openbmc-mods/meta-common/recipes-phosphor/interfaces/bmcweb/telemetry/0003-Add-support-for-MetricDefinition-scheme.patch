@@ -1,4 +1,4 @@
-From 462b2e814698e12a18b4956eb3c6421c34a3a4ba Mon Sep 17 00:00:00 2001
+From b6ccf463b4cfb8df4a904f06c5f4852029a96c50 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Tue, 15 Dec 2020 12:28:17 +0100
 Subject: [PATCH 3/4] Add support for MetricDefinition scheme
@@ -8,9 +8,6 @@ to list all available metrics in OpenBMC that are supported
 by Telemetry service. Metrics are grouped by following
 categories: temperature, power, voltage, current, fan_tach,
 fan_pwm, utilization.
-
-Added generic function to fill ReadingUnits and ReadingType
-in Sensor node.
 
 Tested:
  - MetricDefinitions response is filled with existing sensors,
@@ -24,18 +21,15 @@ Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
 Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Change-Id: I3086e1302e1ba2e5442d1367939fd5507a0cbc00
 ---
- redfish-core/include/redfish.hpp               |   3 +
- redfish-core/include/utils/telemetry_utils.hpp |   2 +
- redfish-core/lib/metric_definition.hpp         | 283 +++++++++++++++++++++++++
- redfish-core/lib/power.hpp                     |   4 +-
- redfish-core/lib/sensors.hpp                   |  85 ++++++--
- redfish-core/lib/telemetry_service.hpp         |   2 +
- redfish-core/lib/thermal.hpp                   |   4 +-
- 7 files changed, 361 insertions(+), 22 deletions(-)
+ redfish-core/include/redfish.hpp              |   3 +
+ .../include/utils/telemetry_utils.hpp         |   2 +
+ redfish-core/lib/metric_definition.hpp        | 283 ++++++++++++++++++
+ redfish-core/lib/telemetry_service.hpp        |   2 +
+ 4 files changed, 290 insertions(+)
  create mode 100644 redfish-core/lib/metric_definition.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index e94c0f3..83f2300 100644
+index aad28ac..dfcb8cd 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -25,6 +25,7 @@
@@ -46,8 +40,8 @@ index e94c0f3..83f2300 100644
  #include "../lib/metric_report.hpp"
  #include "../lib/metric_report_definition.hpp"
  #include "../lib/network_protocol.hpp"
-@@ -213,6 +214,8 @@ class RedfishService
-         nodes.emplace_back(std::make_unique<HypervisorSystem>(app));
+@@ -215,6 +216,8 @@ class RedfishService
+         nodes.emplace_back(std::make_unique<HypervisorResetActionInfo>(app));
  
          nodes.emplace_back(std::make_unique<TelemetryService>(app));
 +        nodes.emplace_back(std::make_unique<MetricDefinitionCollection>(app));
@@ -56,10 +50,10 @@ index e94c0f3..83f2300 100644
              std::make_unique<MetricReportDefinitionCollection>(app));
          nodes.emplace_back(std::make_unique<MetricReportDefinition>(app));
 diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
-index a3a8156..c1b7639 100644
+index 0a3af5f..54b5133 100644
 --- a/redfish-core/include/utils/telemetry_utils.hpp
 +++ b/redfish-core/include/utils/telemetry_utils.hpp
-@@ -8,6 +8,8 @@ namespace telemetry
+@@ -10,6 +10,8 @@ namespace telemetry
  
  constexpr const char* service = "xyz.openbmc_project.Telemetry";
  constexpr const char* reportInterface = "xyz.openbmc_project.Telemetry.Report";
@@ -70,7 +64,7 @@ index a3a8156..c1b7639 100644
  constexpr const char* metricReportUri =
 diff --git a/redfish-core/lib/metric_definition.hpp b/redfish-core/lib/metric_definition.hpp
 new file mode 100644
-index 0000000..4a40af5
+index 0000000..f9c7779
 --- /dev/null
 +++ b/redfish-core/lib/metric_definition.hpp
 @@ -0,0 +1,283 @@
@@ -96,7 +90,7 @@ index 0000000..4a40af5
 +    crow::connections::systemBus->async_method_call(
 +        [asyncResp,
 +         callback = std::move(cb)](const boost::system::error_code ec,
-+                                   std::vector<std::string>& chassises) {
++                                   std::vector<std::string>& chassis) {
 +            if (ec)
 +            {
 +                messages::internalError(asyncResp->res);
@@ -105,18 +99,18 @@ index 0000000..4a40af5
 +            }
 +
 +            std::vector<std::string> chassisNames;
-+            chassisNames.reserve(chassises.size());
-+            for (const std::string& chassis : chassises)
++            chassisNames.reserve(chassis.size());
++            for (const auto& path : chassis)
 +            {
-+                sdbusplus::message::object_path path(chassis);
-+                std::string name = path.filename();
++                sdbusplus::message::object_path dbusPath = path;
++                std::string name = dbusPath.filename();
 +                if (name.empty())
 +                {
 +                    messages::internalError(asyncResp->res);
-+                    BMCWEB_LOG_ERROR << "Invalid chassis: " << chassis;
++                    BMCWEB_LOG_ERROR << "Invalid chassis: " << dbusPath.str;
 +                    return;
 +                }
-+                chassisNames.push_back(name);
++                chassisNames.emplace_back(std::move(name));
 +            }
 +
 +            callback(chassisNames);
@@ -131,14 +125,15 @@ index 0000000..4a40af5
 +namespace telemetry
 +{
 +
-+class DefinitionCollectionReduce
++class MetricDefinitionCollectionReduce
 +{
 +  public:
-+    DefinitionCollectionReduce(const std::shared_ptr<AsyncResp>& asyncResp) :
++    MetricDefinitionCollectionReduce(
++        const std::shared_ptr<AsyncResp>& asyncResp) :
 +        asyncResp{asyncResp}
 +    {}
 +
-+    ~DefinitionCollectionReduce()
++    ~MetricDefinitionCollectionReduce()
 +    {
 +        if (asyncResp->res.result() != boost::beast::http::status::ok)
 +        {
@@ -179,15 +174,15 @@ index 0000000..4a40af5
 +    boost::container::flat_set<std::string> dbusTypes;
 +};
 +
-+class DefinitionReduce
++class MetricDefinitionReduce
 +{
 +  public:
-+    DefinitionReduce(const std::shared_ptr<AsyncResp>& asyncResp,
-+                     const std::string& id) :
++    MetricDefinitionReduce(const std::shared_ptr<AsyncResp>& asyncResp,
++                           const std::string& id) :
 +        id(id),
 +        pattern{'/' + id + '/'}, asyncResp{asyncResp}
 +    {}
-+    ~DefinitionReduce()
++    ~MetricDefinitionReduce()
 +    {
 +        if (asyncResp->res.result() != boost::beast::http::status::ok)
 +        {
@@ -259,11 +254,10 @@ index 0000000..4a40af5
 +        res.jsonValue["Members@odata.count"] = 0;
 +
 +        auto asyncResp = std::make_shared<AsyncResp>(res);
-+        auto collectionReduce =
-+            std::make_shared<telemetry::DefinitionCollectionReduce>(asyncResp);
 +        utils::getChassisNames(
-+            [asyncResp,
-+             collectionReduce](const std::vector<std::string>& chassisNames) {
++            [asyncResp](const std::vector<std::string>& chassisNames) {
++                auto collectionReduce = std::make_shared<
++                    telemetry::MetricDefinitionCollectionReduce>(asyncResp);
 +                for (const std::string& chassisName : chassisNames)
 +                {
 +                    for (const auto& [sensorNode, _] : sensors::dbus::paths)
@@ -322,11 +316,11 @@ index 0000000..4a40af5
 +        }
 +
 +        const std::string& id = params[0];
-+        auto definitionGather =
-+            std::make_shared<telemetry::DefinitionReduce>(asyncResp, id);
 +        utils::getChassisNames(
-+            [asyncResp,
-+             definitionGather](const std::vector<std::string>& chassisNames) {
++            [asyncResp, id](const std::vector<std::string>& chassisNames) {
++                auto definitionGather =
++                    std::make_shared<telemetry::MetricDefinitionReduce>(
++                        asyncResp, id);
 +                for (const std::string& chassisName : chassisNames)
 +                {
 +                    for (const auto& [sensorNode, dbusPaths] :
@@ -357,164 +351,6 @@ index 0000000..4a40af5
 +};
 +
 +} // namespace redfish
-diff --git a/redfish-core/lib/power.hpp b/redfish-core/lib/power.hpp
-index 1c7a009..99c45ef 100644
---- a/redfish-core/lib/power.hpp
-+++ b/redfish-core/lib/power.hpp
-@@ -153,7 +153,7 @@ class Power : public Node
-         res.jsonValue["PowerControl"] = nlohmann::json::array();
- 
-         auto sensorAsyncResp = std::make_shared<SensorsAsyncResp>(
--            res, chassisName, sensors::dbus::types.at(sensors::node::power),
-+            res, chassisName, sensors::dbus::paths.at(sensors::node::power),
-             sensors::node::power);
- 
-         getChassisData(sensorAsyncResp);
-@@ -336,7 +336,7 @@ class Power : public Node
- 
-         const std::string& chassisName = params[0];
-         auto asyncResp = std::make_shared<SensorsAsyncResp>(
--            res, chassisName, sensors::dbus::types.at(sensors::node::power),
-+            res, chassisName, sensors::dbus::paths.at(sensors::node::power),
-             sensors::node::power);
- 
-         std::optional<std::vector<nlohmann::json>> voltageCollections;
-diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
-index 14c9593..5080f77 100644
---- a/redfish-core/lib/sensors.hpp
-+++ b/redfish-core/lib/sensors.hpp
-@@ -54,9 +54,10 @@ static constexpr std::string_view thermal = "Thermal";
- 
- namespace dbus
- {
-+
- static const boost::container::flat_map<std::string_view,
-                                         std::vector<const char*>>
--    types = {{node::power,
-+    paths = {{node::power,
-               {"/xyz/openbmc_project/sensors/voltage",
-                "/xyz/openbmc_project/sensors/power"}},
-              {node::sensors,
-@@ -67,6 +68,64 @@ static const boost::container::flat_map<std::string_view,
-               {"/xyz/openbmc_project/sensors/fan_tach",
-                "/xyz/openbmc_project/sensors/temperature",
-                "/xyz/openbmc_project/sensors/fan_pwm"}}};
-+} // namespace dbus
-+
-+inline const char* toReadingType(const std::string& sensorType)
-+{
-+    if (sensorType == "voltage")
-+    {
-+        return "Voltage";
-+    }
-+    if (sensorType == "power")
-+    {
-+        return "Power";
-+    }
-+    if (sensorType == "current")
-+    {
-+        return "Current";
-+    }
-+    if (sensorType == "fan_tach")
-+    {
-+        return "Rotational";
-+    }
-+    if (sensorType == "temperature")
-+    {
-+        return "Temperature";
-+    }
-+    if (sensorType == "fan_pwm" || sensorType == "utilization")
-+    {
-+        return "Percent";
-+    }
-+    return "";
-+}
-+
-+inline const char* toReadingUnits(const std::string& sensorType)
-+{
-+    if (sensorType == "voltage")
-+    {
-+        return "V";
-+    }
-+    if (sensorType == "power")
-+    {
-+        return "W";
-+    }
-+    if (sensorType == "current")
-+    {
-+        return "A";
-+    }
-+    if (sensorType == "fan_tach")
-+    {
-+        return "RPM";
-+    }
-+    if (sensorType == "temperature")
-+    {
-+        return "Cel";
-+    }
-+    if (sensorType == "fan_pwm" || sensorType == "utilization")
-+    {
-+        return "%";
-+    }
-+    return "";
- }
- } // namespace sensors
- 
-@@ -345,11 +404,11 @@ inline void reduceSensorList(
-         return;
-     }
- 
--    for (const char* type : sensorsAsyncResp->types)
-+    for (const char* path : sensorsAsyncResp->types)
-     {
-         for (const std::string& sensor : *allSensors)
-         {
--            if (boost::starts_with(sensor, type))
-+            if (boost::starts_with(sensor, path))
-             {
-                 activeSensors->emplace(sensor);
-             }
-@@ -853,18 +912,8 @@ inline void objectInterfacesToJson(
-     if (sensorsAsyncResp->chassisSubNode == sensors::node::sensors)
-     {
-         sensorJson["@odata.type"] = "#Sensor.v1_0_0.Sensor";
--        if (sensorType == "power")
--        {
--            sensorJson["ReadingUnits"] = "Watts";
--        }
--        else if (sensorType == "current")
--        {
--            sensorJson["ReadingUnits"] = "Amperes";
--        }
--        else if (sensorType == "utilization")
--        {
--            sensorJson["ReadingUnits"] = "Percent";
--        }
-+        sensorJson["ReadingType"] = sensors::toReadingType(sensorType);
-+        sensorJson["ReadingUnits"] = sensors::toReadingUnits(sensorType);
-     }
-     else if (sensorType == "temperature")
-     {
-@@ -2976,8 +3025,8 @@ inline void retrieveUriToDbusMap(const std::string& chassis,
-                                  const std::string& node,
-                                  SensorsAsyncResp::DataCompleteCb&& mapComplete)
- {
--    auto typesIt = sensors::dbus::types.find(node);
--    if (typesIt == sensors::dbus::types.end())
-+    auto typesIt = sensors::dbus::paths.find(node);
-+    if (typesIt == sensors::dbus::paths.end())
-     {
-         BMCWEB_LOG_ERROR << "Wrong node provided : " << node;
-         mapComplete(boost::beast::http::status::bad_request, {});
-@@ -3027,7 +3076,7 @@ class SensorCollection : public Node
-         const std::string& chassisId = params[0];
-         std::shared_ptr<SensorsAsyncResp> asyncResp =
-             std::make_shared<SensorsAsyncResp>(
--                res, chassisId, sensors::dbus::types.at(sensors::node::sensors),
-+                res, chassisId, sensors::dbus::paths.at(sensors::node::sensors),
-                 sensors::node::sensors);
- 
-         auto getChassisCb =
 diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
 index 61ca891..a8c8b03 100644
 --- a/redfish-core/lib/telemetry_service.hpp
@@ -528,28 +364,6 @@ index 61ca891..a8c8b03 100644
          res.jsonValue["MetricReportDefinitions"]["@odata.id"] =
              "/redfish/v1/TelemetryService/MetricReportDefinitions";
          res.jsonValue["MetricReports"]["@odata.id"] =
-diff --git a/redfish-core/lib/thermal.hpp b/redfish-core/lib/thermal.hpp
-index 8e01bee..00acdf9 100644
---- a/redfish-core/lib/thermal.hpp
-+++ b/redfish-core/lib/thermal.hpp
-@@ -48,7 +48,7 @@ class Thermal : public Node
-         }
-         const std::string& chassisName = params[0];
-         auto sensorAsyncResp = std::make_shared<SensorsAsyncResp>(
--            res, chassisName, sensors::dbus::types.at(sensors::node::thermal),
-+            res, chassisName, sensors::dbus::paths.at(sensors::node::thermal),
-             sensors::node::thermal);
- 
-         // TODO Need to get Chassis Redundancy information.
-@@ -71,7 +71,7 @@ class Thermal : public Node
-             allCollections;
- 
-         auto asyncResp = std::make_shared<SensorsAsyncResp>(
--            res, chassisName, sensors::dbus::types.at(sensors::node::thermal),
-+            res, chassisName, sensors::dbus::paths.at(sensors::node::thermal),
-             sensors::node::thermal);
- 
-         if (!json_util::readJson(req, asyncResp->res, "Temperatures",
 -- 
-2.16.6
+2.17.1
 

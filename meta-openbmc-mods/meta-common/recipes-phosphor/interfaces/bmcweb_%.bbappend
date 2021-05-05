@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "2b3da45876aac57a36d3093379a992d699e7e396"
+SRCREV = "8e6c099ac8d4b4b3163a26b58fa0f9abb987979a"
 
 DEPENDS += "boost-url"
 RDEPENDS_${PN} += "phosphor-nslcd-authority-cert-config"
@@ -15,7 +15,6 @@ GROUPADD_PARAM_${PN} = "web; redfish "
 SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0002-Use-chip-id-based-UUID-for-Service-Root.patch \
             file://0004-bmcweb-handle-device-or-resource-busy-exception.patch \
-            file://0005-EventService-https-client-support.patch \
             file://0006-Define-Redfish-interface-Registries-Bios.patch \
             file://0007-BIOS-config-Add-support-for-PATCH-operation.patch \
             file://0008-Add-support-to-ResetBios-action.patch \
@@ -28,8 +27,18 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
 SRC_URI += "file://0037-Add-state-sensor-messages-to-the-registry.patch \
 "
 
+# EventService: Temporary pulled to downstream. See eventservice\README for details
+SRC_URI += "file://eventservice/0001-EventService-Fix-retry-handling-for-http-client.patch \
+            file://eventservice/0002-EventService-https-client-support.patch \
+            file://eventservice/0003-Move-EventService-init-to-later-stage.patch \
+            file://eventservice/0004-Add-Server-Sent-Events-support.patch \
+            file://eventservice/0005-Add-SSE-style-subscription-support-to-eventservice.patch \
+            file://eventservice/0006-Add-EventService-SSE-filter-support.patch \
+"
+
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
-SRC_URI += "file://telemetry/0002-Add-POST-and-DELETE-in-MetricReportDefinitions.patch \
+SRC_URI += "file://telemetry/0001-Sync_ReadingUnit_with_Redfish_Sensor_Schema.patch \
+            file://telemetry/0002-Add-POST-and-DELETE-in-MetricReportDefinitions.patch \
             file://telemetry/0003-Add-support-for-MetricDefinition-scheme.patch \
             file://telemetry/0004-Sync-Telmetry-service-with-EventService.patch \
 "
@@ -37,6 +46,9 @@ SRC_URI += "file://telemetry/0002-Add-POST-and-DELETE-in-MetricReportDefinitions
 SRC_URI += "file://0001-Add-ConnectedVia-property-to-virtual-media-item-temp.patch \
             file://0002-Change-InsertMedia-action-response-for-POST-in-proxy.patch \
             file://0003-Set-Inserted-redfish-property-for-not-inserted-resou.patch \
+"
+
+SRC_URI += "file://0038-Revert-Disable-nbd-proxy-from-the-build.patch \
 "
 
 # Temporary fix: Move it to service file
