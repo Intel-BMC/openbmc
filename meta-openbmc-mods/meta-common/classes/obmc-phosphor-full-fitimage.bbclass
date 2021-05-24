@@ -77,7 +77,7 @@ fitimage_emit_section_kernel() {
 
     if [ -n "${kernel_csum}" ]; then
         hash_blk=$(cat << EOF
-                        hash@1 {
+                        hash-1 {
                                 algo = "${kernel_csum}";
                         };
 EOF
@@ -91,7 +91,7 @@ EOF
     fi
 
     cat << EOF >> ${1}
-                kernel@${2} {
+                kernel-${2} {
                         description = "Linux kernel";
                         data = /incbin/("${3}");
                         type = "kernel";
@@ -117,7 +117,7 @@ fitimage_emit_section_dtb() {
     dtb_csum="${4}"
     if [ -n "${dtb_csum}" ]; then
         hash_blk=$(cat << EOF
-                        hash@1 {
+                        hash-1 {
                                 algo = "${dtb_csum}";
                         };
 EOF
@@ -125,7 +125,7 @@ EOF
     fi
 
     cat << EOF >> ${1}
-                fdt@${2} {
+                fdt-${2} {
                         description = "Flattened Device Tree blob";
                         data = /incbin/("${3}");
                         type = "flat_dt";
@@ -148,7 +148,7 @@ fitimage_emit_section_setup() {
     setup_csum="${4}"
     if [ -n "${setup_csum}" ]; then
         hash_blk=$(cat << EOF
-                        hash@1 {
+                        hash-1 {
                                 algo = "${setup_csum}";
                         };
 EOF
@@ -156,7 +156,7 @@ EOF
     fi
 
     cat << EOF >> ${1}
-                setup@${2} {
+                setup-${2} {
                         description = "Linux setup.bin";
                         data = /incbin/("${3}");
                         type = "x86_setup";
@@ -182,7 +182,7 @@ fitimage_emit_section_ramdisk() {
     ramdisk_csum="${4}"
     if [ -n "${ramdisk_csum}" ]; then
         hash_blk=$(cat << EOF
-                        hash@1 {
+                        hash-1 {
                                 algo = "${ramdisk_csum}";
                         };
 EOF
@@ -218,7 +218,7 @@ EOF
     esac
 
     cat << EOF >> ${1}
-                ramdisk@${2} {
+                ramdisk-${2} {
                         description = "${INITRAMFS_IMAGE}";
                         data = /incbin/("${3}");
                         type = "ramdisk";
@@ -248,7 +248,7 @@ fitimage_emit_section_config() {
     conf_csum="${7}"
     if [ -n "${conf_csum}" ]; then
         hash_blk=$(cat << EOF
-                        hash@1 {
+                        hash-1 {
                                 algo = "${conf_csum}";
                         };
 EOF
@@ -260,7 +260,7 @@ EOF
 
     # Test if we have any DTBs at all
     conf_desc="Linux kernel"
-    kernel_line="kernel = \"kernel@${2}\";"
+    kernel_line="kernel = \"kernel-${2}\";"
     fdt_line=""
     ramdisk_line=""
     setup_line=""
@@ -268,26 +268,26 @@ EOF
 
     if [ -n "${3}" ]; then
         conf_desc="${conf_desc}, FDT blob"
-        fdt_line="fdt = \"fdt@${3}\";"
+        fdt_line="fdt = \"fdt-${3}\";"
     fi
 
     if [ -n "${4}" ]; then
         conf_desc="${conf_desc}, ramdisk"
-        ramdisk_line="ramdisk = \"ramdisk@${4}\";"
+        ramdisk_line="ramdisk = \"ramdisk-${4}\";"
     fi
 
     if [ -n "${5}" ]; then
         conf_desc="${conf_desc}, setup"
-        setup_line="setup = \"setup@${5}\";"
+        setup_line="setup = \"setup-${5}\";"
     fi
 
     if [ "${6}" = "1" ]; then
-        default_line="default = \"conf@${3}\";"
+        default_line="default = \"conf-${3}\";"
     fi
 
     cat << EOF >> ${1}
                 ${default_line}
-                conf@${3} {
+                conf-${3} {
                         description = "${6} ${conf_desc}";
                         ${kernel_line}
                         ${fdt_line}
@@ -315,7 +315,7 @@ EOF
         sign_line="${sign_line};"
 
         cat << EOF >> ${1}
-                        signature@1 {
+                        signature-1 {
                                 algo = "${conf_csum},rsa2048";
                                 key-name-hint = "${conf_sign_keyname}";
                                 ${sign_line}

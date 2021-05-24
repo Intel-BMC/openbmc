@@ -1,6 +1,5 @@
 COMPATIBLE_MACHINE = "intel-ast2600"
 FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files:"
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2020-10648:"
 
 # the meta-phosphor layer adds this patch, which conflicts
 # with the intel layout for environment
@@ -23,10 +22,10 @@ SRC_URI_append_intel-ast2600 = " \
     file://0014-Add-a-workaround-to-cover-eSPI-OOB-free-bug-in-AST26.patch \
     file://0015-net-phy-realtek-Change-LED-configuration.patch \
     file://0016-Add-system-reset-status-support.patch \
+    file://0016-Add-LED-control-support.patch \
     file://0017-Manufacturing-mode-physical-presence-detection.patch \
     file://0018-Add-a-workaround-to-cover-VGA-memory-size-bug-in-A0.patch \
     file://0019-Apply-WDT1-2-reset-mask-to-reset-needed-controller.patch \
-    file://0020-Add-BMC-running-indicator-LED-control.patch \
     file://0022-Reboot-into-UBOOT-on-Watchdog-Failures.patch \
     file://0023-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
     file://0024-fix-SUS_WARN-handling-logic.patch \
@@ -34,14 +33,60 @@ SRC_URI_append_intel-ast2600 = " \
     file://0025-Enable-PCIe-L1-support.patch \
     file://0027-ast2600-Add-Mailbox-init-function.patch \
     file://0028-Improve-randomness-of-mac-address-generation.patch \
+    file://0029-Set-UART-routing-in-lowlevel_init.patch \
     "
 
 # CVE-2020-10648 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2020-10648:"
 SRC_URI_append_intel-ast2600 = " \
     file://0001-image-Correct-comment-for-fit_conf_get_node.patch \
     file://0008-image-Load-the-correct-configuration-in-fit_check_si.patch \
     file://0009-fit_check_sign-Allow-selecting-the-configuration-to-.patch \
     file://0012-image-Use-constants-for-required-and-key-name-hint.patch \
+    "
+
+# CVE-2019-11059 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-11059:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-Fix-ext4-block-group-descriptor-sizing.patch \
+    "
+
+# CVE-2019-11690 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-11690:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-lib-uuid-Fix-unseeded-PRNG-on-RANDOM_UUID-y.patch \
+    "
+
+# CVE-2019-13104 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13104:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-CVE-2019-13104-ext4-check-for-underflow-in-ext4fs_re.patch \
+    "
+
+# CVE-2019-13105 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13105:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-fs-ext4-cache-extent-data.patch \
+    file://0002-CVE-2019-13105-ext4-fix-double-free-in-ext4_cache_re.patch \
+    "
+
+# CVE-2019-13106 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13106:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-CVE-2019-13106-ext4-fix-out-of-bounds-memset.patch \
+    "
+
+# CVE-2021-27097 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2021-27097:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-image-Adjust-the-workings-of-fit_check_format.patch \
+    file://0002-image-Add-an-option-to-do-a-full-check-of-the-FIT.patch \
+    "
+
+# CVE-2021-27138 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2021-27138:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-image-Check-for-unit-addresses-in-FITs.patch \
     "
 
 PFR_SRC_URI = " \

@@ -2,7 +2,7 @@ SUMMARY = "i3c-tools"
 DESCRIPTION = "Set of tools to interact with i3c devices from user space"
 
 SRC_URI = "git://github.com/vitor-soares-snps/i3c-tools.git"
-SRCREV = "2b37323d0de6265e5da3539f29fe34ac317e5b27"
+SRCREV = "5d752038c72af8e011a2cf988b1476872206e706"
 
 S = "${WORKDIR}/git"
 

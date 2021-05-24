@@ -1,0 +1,43 @@
+From b6f6c6fe9b92e3b1bbed12e27a65e822a44da528 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 26 Apr 2021 13:20:21 -0700
+Subject: [PATCH] Set UART routing in lowlevel_init
+
+This commit sets the UART routing back to default in lowlevel_init
+to prevent any data dropping from the physical host serial until
+SOL service is activated.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/ast2600/platform.S | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index 0d038920b150..dce15c83a093 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -79,6 +79,9 @@
+ #define AST_GPIO_BASE		(0x1E780000)
+ #define AST_GPIOYZ_DATA_VALUE	(AST_GPIO_BASE + 0x1E0)
+ 
++#define AST_LPC_BASE		0x1E789000
++#define AST_LPC_HICRA		(AST_LPC_BASE + 0x09C)
++
+ /* Revision ID */
+ #define REV_ID_AST2600A0	0x05000303
+ #define REV_ID_AST2600A1	0x05010303
+@@ -409,6 +412,11 @@ skip_fill_wip_bit:
+ 	orr     r1, #0x0A
+ 	str     r1, [r0]
+ 
++	/* set UART routing back to default */
++	ldr	r0, =AST_LPC_HICRA
++	ldr	r1, =0x0
++	str	r1, [r0]
++
+ 	/* relocate mailbox insn. for cpuN polling SMP go signal */
+ 	adrl	r0, mailbox_insn
+ 	adrl	r1, mailbox_insn_end
+-- 
+2.17.1
+

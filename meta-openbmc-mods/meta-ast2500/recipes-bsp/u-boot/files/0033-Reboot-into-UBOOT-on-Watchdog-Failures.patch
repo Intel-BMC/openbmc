@@ -1,4 +1,4 @@
-From a4ba855a0dfac7af9720e94d82720d1fd916cb4b Mon Sep 17 00:00:00 2001
+From 655a30e879704b72e1934bdc8e47d93166978c38 Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Wed, 31 Jul 2019 16:01:49 -0700
 Subject: [PATCH] Reboot into UBOOT on Watchdog Failures
@@ -11,15 +11,14 @@ Tested: watchdog -T 0 -F /dev/watchdog1 reboots into
 uboot after 3 times
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
-
 ---
  .../include/asm/arch-aspeed/ast-g5-intel.h    |  1 +
- board/aspeed/ast-g5/ast-g5-intel.c            | 31 +++++++++++++++++++
- common/autoboot.c                             |  2 ++
- 3 files changed, 34 insertions(+)
+ board/aspeed/ast-g5/ast-g5-intel.c            | 29 +++++++++++++++++++
+ common/autoboot.c                             |  5 ++++
+ 3 files changed, 35 insertions(+)
 
 diff --git a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
-index a88521a1b3..64f4ed17bf 100644
+index a88521a1b3c7..64f4ed17bfd5 100644
 --- a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 +++ b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
 @@ -14,6 +14,7 @@
@@ -31,14 +30,15 @@ index a88521a1b3..64f4ed17bf 100644
  #endif
  
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index a8b65658b3..12216922ac 100644
+index d05de5c4a274..9b546cffee77 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -114,6 +114,24 @@ static const GPIOValue gpio_table[] = {
+@@ -114,7 +114,23 @@ static const GPIOValue gpio_table[] = {
  #define HOST_SERIAL_A_HIGH_SPEED (1 << 0)
  #define HOST_SERIAL_B_HIGH_SPEED (1 << 1)
  
-+#define WATCHDOG_RESET_BIT 0x8
++#define WATCHDOG_RESET_BIT BIT(3)
+ #define POWERON_RESET_BIT BIT(0)
 +#define BOOT_FAILURE_LIMIT 0x3
 +
 +static int get_boot_failures(void)
@@ -54,12 +54,10 @@ index a8b65658b3..12216922ac 100644
 +	setenv_ulong("bootfailures", count);
 +	saveenv();
 +}
-+
-+
+ 
  static void sgpio_init(void)
  {
- 	uint32_t value;
-@@ -275,6 +293,11 @@ int intel_force_firmware_jumper_enabled(void)
+@@ -277,6 +293,11 @@ int intel_force_firmware_jumper_enabled(void)
  	return gpio_get_value(GPIO_FF_UPD_JUMPER);
  }
  
@@ -71,7 +69,7 @@ index a8b65658b3..12216922ac 100644
  void arch_preboot_os(void)
  {
  	// last second before booting... set the LEDs
-@@ -436,6 +459,7 @@ void ast_g5_intel_late_init(void)
+@@ -438,6 +459,7 @@ void ast_g5_intel_late_init(void)
  {
  	char value[32];
  	u32 reset_reason = 0;
@@ -79,7 +77,7 @@ index a8b65658b3..12216922ac 100644
  
  	/* By default host serail A and B use normal speed */
  	uint32_t host_serial_cfg = 0;
-@@ -480,6 +504,13 @@ void ast_g5_intel_late_init(void)
+@@ -482,6 +504,13 @@ void ast_g5_intel_late_init(void)
  
  	update_bootargs_cmd("resetreason", value);
  
@@ -91,18 +89,24 @@ index a8b65658b3..12216922ac 100644
 +		set_boot_failures(0);
 +
  	/* Update the special mode in bootargs */
- 	if (is_mfg_mode_phy_req())
+ 	if (reset_reason & POWERON_RESET_BIT && is_mfg_mode_phy_req())
  		update_bootargs_cmd("special", "mfg");
 diff --git a/common/autoboot.c b/common/autoboot.c
-index 3647d5fb21..0e7f7b0965 100644
+index 393738ce0f4c..35dad222ff7c 100644
 --- a/common/autoboot.c
 +++ b/common/autoboot.c
-@@ -263,6 +263,8 @@ static int abortboot(int bootdelay)
- # ifdef AST_G5_INTEL
- 	if (intel_force_firmware_jumper_enabled())
- 		return 1;
-+	if (intel_failed_boot())
-+		return 1;
+@@ -271,6 +271,11 @@ static int abortboot(int bootdelay)
+ 		abort = 1;
+ 		goto exit;
+ 	}
++
++	if (intel_failed_boot()) {
++		abort = 1;
++		goto exit;
++	}
  # endif
  
  	if (bootdelay >= 0)
+-- 
+2.17.1
+

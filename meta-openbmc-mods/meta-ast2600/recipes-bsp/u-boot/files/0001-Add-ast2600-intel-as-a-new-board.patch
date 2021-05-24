@@ -1,4 +1,4 @@
-From 2cec5042f3b33c6762073deb9275a66875538d82 Mon Sep 17 00:00:00 2001
+From ada80beb48d974f101201745657d10e72fe30b9c Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Thu, 24 Oct 2019 14:06:33 -0700
 Subject: [PATCH] Add ast2600-intel as a new board
@@ -8,20 +8,21 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  arch/arm/dts/Makefile                  |   3 +-
- arch/arm/dts/ast2600-intel.dts         | 197 ++++++++++++++++
+ arch/arm/dts/ast2600-intel.dts         | 197 ++++++++++++
  arch/arm/lib/interrupts.c              |   5 +
  arch/arm/mach-aspeed/ast2600/Kconfig   |   8 +
- board/aspeed/ast2600_intel/Kconfig     |  13 ++
+ board/aspeed/ast2600_intel/Kconfig     |  13 +
  board/aspeed/ast2600_intel/Makefile    |   4 +
- board/aspeed/ast2600_intel/ast-espi.c  | 292 ++++++++++++++++++++++++
- board/aspeed/ast2600_intel/ast-irq.c   | 399 +++++++++++++++++++++++++++++++++
+ board/aspeed/ast2600_intel/ast-espi.c  | 292 ++++++++++++++++++
+ board/aspeed/ast2600_intel/ast-irq.c   | 399 +++++++++++++++++++++++++
  board/aspeed/ast2600_intel/ast-irq.h   |   8 +
- board/aspeed/ast2600_intel/ast-timer.c |  59 +++++
- board/aspeed/ast2600_intel/intel.c     | 192 ++++++++++++++++
+ board/aspeed/ast2600_intel/ast-timer.c |  59 ++++
+ board/aspeed/ast2600_intel/intel.c     | 192 ++++++++++++
  cmd/Kconfig                            |   2 +-
  common/autoboot.c                      |  10 +
  configs/ast2600_openbmc_defconfig      |   2 +-
  14 files changed, 1191 insertions(+), 3 deletions(-)
+ mode change 100755 => 100644 arch/arm/dts/Makefile
  create mode 100644 arch/arm/dts/ast2600-intel.dts
  create mode 100644 board/aspeed/ast2600_intel/Kconfig
  create mode 100644 board/aspeed/ast2600_intel/Makefile
@@ -30,12 +31,15 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  create mode 100644 board/aspeed/ast2600_intel/ast-irq.h
  create mode 100644 board/aspeed/ast2600_intel/ast-timer.c
  create mode 100644 board/aspeed/ast2600_intel/intel.c
+ mode change 100755 => 100644 configs/ast2600_openbmc_defconfig
 
 diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
-index e4dae2937968..da8903123999 100644
+old mode 100755
+new mode 100644
+index e9d994737949..d2ad5968775e
 --- a/arch/arm/dts/Makefile
 +++ b/arch/arm/dts/Makefile
-@@ -683,7 +683,8 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
+@@ -684,7 +684,8 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
  	ast2600-fpga.dtb \
  	ast2600-rainier.dtb \
  	ast2600-slt.dtb \
@@ -284,7 +288,7 @@ index ee775ce5d264..8c985532afb4 100644
  {
  	efi_restore_gd();
 diff --git a/arch/arm/mach-aspeed/ast2600/Kconfig b/arch/arm/mach-aspeed/ast2600/Kconfig
-index dd991e87c795..7ccbb0b5e0ea 100644
+index 518f41b558d3..8023397cff58 100644
 --- a/arch/arm/mach-aspeed/ast2600/Kconfig
 +++ b/arch/arm/mach-aspeed/ast2600/Kconfig
 @@ -51,6 +51,13 @@ config TARGET_SLT_AST2600
@@ -300,8 +304,8 @@ index dd991e87c795..7ccbb0b5e0ea 100644
 +
  endchoice
  
- source "board/aspeed/evb_ast2600a0/Kconfig"
-@@ -59,5 +66,6 @@ source "board/aspeed/ncsi_ast2600a0/Kconfig"
+ config ASPEED_SECBOOT_BL2
+@@ -71,5 +78,6 @@ source "board/aspeed/ncsi_ast2600a0/Kconfig"
  source "board/aspeed/ncsi_ast2600a1/Kconfig"
  source "board/aspeed/fpga_ast2600/Kconfig"
  source "board/aspeed/slt_ast2600/Kconfig"
@@ -1318,10 +1322,10 @@ index 000000000000..4a40a050c3da
 +}
 +#endif
 diff --git a/cmd/Kconfig b/cmd/Kconfig
-index d5aa204290bd..89f6668b788e 100644
+index 1d2aa3a179a7..7599dd052df2 100644
 --- a/cmd/Kconfig
 +++ b/cmd/Kconfig
-@@ -1876,7 +1876,7 @@ config CMD_DIAG
+@@ -1888,7 +1888,7 @@ config CMD_DIAG
  
  config CMD_IRQ
  	bool "irq - Show information about interrupts"
@@ -1356,7 +1360,9 @@ index 94133eaeda78..5e69000b848b 100644
  		abort = __abortboot(bootdelay);
  
 diff --git a/configs/ast2600_openbmc_defconfig b/configs/ast2600_openbmc_defconfig
-index 2e2df2e3a235..77c39d848312 100644
+old mode 100755
+new mode 100644
+index 2e2df2e3a235..77c39d848312
 --- a/configs/ast2600_openbmc_defconfig
 +++ b/configs/ast2600_openbmc_defconfig
 @@ -13,7 +13,7 @@ CONFIG_FIT=y
@@ -1369,5 +1375,5 @@ index 2e2df2e3a235..77c39d848312 100644
  CONFIG_DISPLAY_BOARDINFO_LATE=y
  CONFIG_ARCH_EARLY_INIT_R=y
 -- 
-2.7.4
+2.17.1
 

@@ -1,0 +1,32 @@
+From 9493bb8e2f5c708e187313c86e6033de5f103c51 Mon Sep 17 00:00:00 2001
+From: Alicja Rybak <alicja.rybak@intel.com>
+Date: Fri, 23 Apr 2021 17:35:52 +0200
+Subject: [PATCH] Fix unmounting image in proxy mode.
+
+Sometimes Slot0 got higher key than Slot1 and erase function for Slot1
+invalidates elements with keys not less than the erased element.
+In that case invalid slot0 will be unmounted.
+Change order of calling close() and erase() functions to
+unmount correct device.
+
+Change-Id: I7a40a4518982f697d3eed635cde6d06978149cf0
+Signed-off-by: Alicja Rybak <alicja.rybak@intel.com>
+---
+ include/nbd_proxy.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/nbd_proxy.hpp b/include/nbd_proxy.hpp
+index 7b90e90..fa7f647 100644
+--- a/include/nbd_proxy.hpp
++++ b/include/nbd_proxy.hpp
+@@ -428,9 +428,9 @@ inline void requestRoutes(App& app)
+                     BMCWEB_LOG_DEBUG << "No session to close";
+                     return;
+                 }
++                session->second->close();
+                 // Remove reference to session in global map
+                 sessions.erase(session);
+-                session->second->close();
+             })
+         .onmessage([](crow::websocket::Connection& conn,
+                       const std::string& data, bool) {

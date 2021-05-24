@@ -1,4 +1,4 @@
-From 0e426ce8bcde3b6fb131405ef265250a96aa7e0a Mon Sep 17 00:00:00 2001
+From 67797d726b6eb6fa8e1dad063c7d2021cec47ab3 Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Mon, 17 Jun 2019 12:00:58 -0700
 Subject: [PATCH] Customize phosphor-watchdog for Intel platforms
@@ -11,19 +11,23 @@ required for compatibility with Intel platforms.
    3. Use host status to enable/disable watchdog
    4. Set preTimeoutInterruptOccurFlag
    5. Assign watchdog cause for correct reset cause reporting
+   6. Add NMI Pre-Interrupt support for IPMI watchdog timer.
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: Ren Yu <yux.ren@intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+Signed-off-by: Sunita Kumari <sunitax.kumari@intel.com>
+
+%% original patch: 0001-Customize-phosphor-watchdog-for-Intel-platforms.patch
 ---
- watchdog.cpp | 212 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ watchdog.cpp | 230 ++++++++++++++++++++++++++++++++++++++++++++++++---
  watchdog.hpp |  23 +++++-
- 2 files changed, 224 insertions(+), 11 deletions(-)
+ 2 files changed, 242 insertions(+), 11 deletions(-)
 
 diff --git a/watchdog.cpp b/watchdog.cpp
-index 9090760..2685401 100644
+index 57e9050..1204db4 100644
 --- a/watchdog.cpp
 +++ b/watchdog.cpp
 @@ -1,11 +1,14 @@
@@ -41,7 +45,7 @@ index 9090760..2685401 100644
  
  namespace phosphor
  {
-@@ -18,10 +21,77 @@ using namespace phosphor::logging;
+@@ -18,10 +21,86 @@ using namespace phosphor::logging;
  using sdbusplus::exception::SdBusError;
  using sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
  
@@ -104,6 +108,15 @@ index 9090760..2685401 100644
 +static constexpr const char* request = "RequestedHostTransition";
 +} // namespace host
 +
++namespace nmi
++{
++static constexpr const char* busName = "xyz.openbmc_project.Control.Host.NMI";
++static constexpr const char* path = "/xyz/openbmc_project/control/host0/nmi";
++static constexpr const char* interface = "xyz.openbmc_project.Control.Host.NMI";
++static constexpr const char* request = "NMI";
++
++} // namespace nmi
++
 +void Watchdog::powerStateChangedHandler(
 +    const std::map<std::string, std::variant<std::string>>& props)
 +{
@@ -123,7 +136,7 @@ index 9090760..2685401 100644
  
  void Watchdog::resetTimeRemaining(bool enableWatchdog)
  {
-@@ -102,13 +172,102 @@ uint64_t Watchdog::interval(uint64_t value)
+@@ -107,13 +186,111 @@ uint64_t Watchdog::interval(uint64_t value)
  // Optional callback function on timer expiration
  void Watchdog::timeOutHandler()
  {
@@ -223,11 +236,20 @@ index 9090760..2685401 100644
 +                        "Watchdog timeout. timer use: %s",
 +                        preInterruptActionMessageArgs.c_str(),
 +                        timeUserMessage.c_str(), NULL);
++
++        if (preTimeoutInterruptAction ==
++            Watchdog::PreTimeoutInterruptAction::NMI)
++        {
++            sdbusplus::message::message preTimeoutInterruptHandler;
++            preTimeoutInterruptHandler = bus.new_method_call(
++                nmi::busName, nmi::path, nmi::interface, nmi::request);
++            bus.call_noreply(preTimeoutInterruptHandler);
++        }
 +    }
  
      auto target = actionTargetMap.find(action);
      if (target == actionTargetMap.end())
-@@ -128,12 +287,45 @@ void Watchdog::timeOutHandler()
+@@ -133,12 +310,45 @@ void Watchdog::timeOutHandler()
  
          try
          {
@@ -327,5 +349,5 @@ index 7de9bb3..b004b7a 100644
      void timeOutHandler();
  
 -- 
-2.29.2
+2.17.1
 

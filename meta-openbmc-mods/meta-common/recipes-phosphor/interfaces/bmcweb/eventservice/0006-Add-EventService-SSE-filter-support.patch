@@ -1,4 +1,4 @@
-From 693de7b901e7618585e0e8d848fc37fa0cccd18e Mon Sep 17 00:00:00 2001
+From 82185c52ae6e27cc1e086654a3b7d10e63ecc783 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 17 Mar 2021 01:16:50 +0000
 Subject: [PATCH 6/6] Add EventService SSE filter support
@@ -171,10 +171,10 @@ index 7dfdc80..922dae9 100644
  
  } // namespace redfish
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index e3eba86..8f120b1 100644
+index f4d57c2..567fb9c 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -54,6 +54,11 @@ static constexpr const char* eventServiceFile =
+@@ -55,6 +55,11 @@ static constexpr const char* eventServiceFile =
  static constexpr const uint8_t maxNoOfSubscriptions = 20;
  static constexpr const uint8_t maxNoOfSSESubscriptions = 10;
  
@@ -202,7 +202,7 @@ index 1875ec9..4d1ac9f 100644
      "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
  
 diff --git a/redfish-core/src/error_messages.cpp b/redfish-core/src/error_messages.cpp
-index cfbc9c2..3493132 100644
+index 7059a38..1e3ef2f 100644
 --- a/redfish-core/src/error_messages.cpp
 +++ b/redfish-core/src/error_messages.cpp
 @@ -2147,6 +2147,32 @@ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,

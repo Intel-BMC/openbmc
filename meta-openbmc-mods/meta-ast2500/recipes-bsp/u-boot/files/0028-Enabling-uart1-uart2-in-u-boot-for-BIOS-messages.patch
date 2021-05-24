@@ -1,4 +1,4 @@
-From f387e9be00ccaa49d77c82d4340dff6f84bb4bb3 Mon Sep 17 00:00:00 2001
+From 777d3db853a7a9e6ec6e19d97ed12db689faa051 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Mon, 13 May 2019 23:49:02 +0530
 Subject: [PATCH] Enabling uart1&uart2 in u-boot for BIOS messages
@@ -13,17 +13,16 @@ to uefi, checked bios serial logs working fine and accessed
 keyboard in uefi without any issues.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
-
 ---
  board/aspeed/ast-g5/ast-g5-intel.c | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index efc3315caf..a8b65658b3 100644
+index 4eaed429e327..4190fb05acbe 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -487,6 +487,26 @@ void ast_g5_intel_late_init(void)
- 		update_bootargs_cmd("special", NULL);
+@@ -492,6 +492,26 @@ void board_pre_abort_autoboot(void)
+ 	ast_enable_pass_through();
  }
  
 +static void uart_init(void)
@@ -49,7 +48,7 @@ index efc3315caf..a8b65658b3 100644
  static void pwm_init(void)
  {
  	uint32_t val;
-@@ -538,6 +558,7 @@ extern void espi_init(void);
+@@ -543,6 +563,7 @@ extern void espi_init(void);
  extern void kcs_init(void);
  void ast_g5_intel(void)
  {
@@ -57,3 +56,6 @@ index efc3315caf..a8b65658b3 100644
  	pwm_init();
  	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
  	espi_init();
+-- 
+2.17.1
+

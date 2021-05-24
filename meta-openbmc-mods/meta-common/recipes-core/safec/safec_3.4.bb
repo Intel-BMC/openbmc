@@ -7,7 +7,7 @@ SECTION = "lib"
 inherit autotools pkgconfig
 
 S = "${WORKDIR}/git"
-SRCREV = "a4abce065446410d137cece7cd017ff80251713d"
+SRCREV = "bfc9f8bb8a9bfd02fde8ef3fd78fcd61411d070d"
 SRC_URI = "git://github.com/rurban/safeclib.git"
 
 COMPATIBLE_HOST = '(x86_64|i.86|powerpc|powerpc64|arm|aarch64).*-linux'

@@ -1,0 +1,59 @@
+From 6c10adb53d3247f65e5d9399290e6b8e7962cdef Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 28 Apr 2021 17:19:50 -0700
+Subject: [PATCH] Add UART routing logic into host console connection flow
+
+Switching UART routing when starting obmc-service introduces garbled
+character printing out on physical host serial output and it's
+inevitable so this commit moves the routing logic into host console
+connection flow in bmcweb to avoid the issue until SOL is actually
+activated.
+
+Tested: The garbled character printing out was not observed during
+BMC booting. SOL worked well.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ include/obmc_console.hpp | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/include/obmc_console.hpp b/include/obmc_console.hpp
+index cdb19901e82d..9c4ae8821074 100644
+--- a/include/obmc_console.hpp
++++ b/include/obmc_console.hpp
+@@ -22,6 +22,9 @@ static boost::container::flat_set<crow::websocket::Connection*> sessions;
+ 
+ static bool doingWrite = false;
+ 
++constexpr char const* uartMuxCtrlPath = "/sys/bus/platform/drivers/aspeed-uart-routing/1e78909c.uart_routing/raw";
++constexpr char const* uartMuxCtrlVal = "0x03450003";
++
+ inline void doWrite()
+ {
+     if (doingWrite)
+@@ -110,6 +113,22 @@ inline void connectHandler(const boost::system::error_code& ec)
+         return;
+     }
+ 
++    FILE* file = fopen(uartMuxCtrlPath, "w");
++    if (file != nullptr)
++    {
++        int rc = fputs(uartMuxCtrlVal, file);
++        fclose(file);
++        if (rc < 0)
++        {
++            BMCWEB_LOG_ERROR << "Couldn't change UART routing: " << rc;
++            for (crow::websocket::Connection* session : sessions)
++            {
++                session->close("Error in connecting to host port");
++            }
++            return;
++        }
++    }
++
+     doWrite();
+     doRead();
+ }
+-- 
+2.17.1
+

@@ -75,7 +75,7 @@ index e05a6da468..4b017269f9 100644
  
  #define LPC_SNOOP_ADDR 0x80
 @@ -117,6 +138,8 @@ static const GPIOValue gpio_table[] = {
- #define WATCHDOG_RESET_BIT 0x8
+ #define POWERON_RESET_BIT BIT(0)
  #define BOOT_FAILURE_LIMIT 0x3
  
 +#define COOPER_CITY_BOARD_ID 40

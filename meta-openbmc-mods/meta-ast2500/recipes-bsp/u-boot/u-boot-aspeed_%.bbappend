@@ -48,6 +48,7 @@ SRC_URI_append_intel-ast2500 = " \
     file://0047-ast2500-parse-reset-reason.patch \
     file://0048-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
     file://0049-Fix-issue-on-host-console-is-broken-due-to-BMC-reset.patch \
+    file://0050-Set-UART-routing-in-lowlevel_init.patch \
     "
 # CVE-2020-10648 vulnerability fix
 SRC_URI_append_intel-ast2500 = " \

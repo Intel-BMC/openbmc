@@ -149,6 +149,11 @@ RESTORE_FLAG=$RWFS_MNT/.restore_op
 if [ -f "$RESTORE_FLAG" ]; then
     mount -o remount,rw "$RWFS_MNT"
     restore_op=$(cat $RESTORE_FLAG) # read from NV
+    modified_on=$(stat -c %y $RESTORE_FLAG) # get last modified time
+    log "restore_op: $restore_op modified on: $modified_on"
+    # To rule out stale file mounted, Write unique, unused value 0x10
+    # (last 2-bits are b00) before removing the file.
+    echo 16 > $RESTORE_FLAG
     # set default value 0 if RESTORE_FLAG file was empty
     restore_op=${restore_op:-0}
     restore_op=$((restore_op & 3))  # mask off 2 bits

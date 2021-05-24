@@ -15,7 +15,6 @@ EXTRA_OECONF = " \
     --sysconfdir=${sysconfdir} \
     --libexecdir=${libexecdir} \
     --localstatedir=${localstatedir} \
-    --with-confsuffix=/${BPN} \
     --disable-strip \
     --disable-werror \
     --extra-cflags='${CFLAGS}' \

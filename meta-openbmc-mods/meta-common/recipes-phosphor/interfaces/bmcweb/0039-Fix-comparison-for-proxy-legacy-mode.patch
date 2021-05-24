@@ -1,0 +1,51 @@
+From 7cde56820505a4f750cc67caa0dc9300688f3fd9 Mon Sep 17 00:00:00 2001
+From: Przemyslaw Czarnowski <przemyslaw.hawrylewicz.czarnowski@intel.com>
+Date: Tue, 13 Apr 2021 15:16:43 +0200
+Subject: [PATCH] Fix comparison for proxy/legacy mode
+
+After sdbusplus made available string path wrapper VM code has been
+updated to use it.  This makes legacy mode unusable as appropriate
+change introduced a problem with comparison of DBus object path, which
+is now fixed.
+
+Tested:
+After applying this fix, legacy mode has InsertMedia action enabled
+again.
+
+Change-Id: I062994f23b77cb7ab9c4421f296a65a80b9ce896
+Signed-off-by: Przemyslaw Czarnowski <przemyslaw.hawrylewicz.czarnowski@intel.com>
+---
+ redfish-core/lib/virtual_media.hpp | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index 365290b..dda73d8 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -274,10 +274,22 @@ static void getVmData(const std::shared_ptr<AsyncResp>& aResp,
+                     continue;
+                 }
+ 
++                auto mode = item.first.parent_path();
++                auto type = mode.parent_path();
++                if (mode.filename().empty() || type.filename().empty())
++                {
++                    continue;
++                }
++
++                if (type.filename() != "VirtualMedia")
++                {
++                    continue;
++                }
++
+                 aResp->res.jsonValue = vmItemTemplate(name, resName);
+ 
+                 // Check if dbus path is Legacy type
+-                if (thispath.find("VirtualMedia/Legacy") != std::string::npos)
++                if (mode.filename() == "Legacy")
+                 {
+                     aResp->res.jsonValue["Actions"]["#VirtualMedia.InsertMedia"]
+                                         ["target"] =
+-- 
+2.26.2
+

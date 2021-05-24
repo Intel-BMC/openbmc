@@ -1,88 +1,317 @@
-From c4aebdd00365539dc155e88ee4f6b88cccdccd8f Mon Sep 17 00:00:00 2001
+From 473b1990ecb578b6dc5d3347dc0ab8f7d5609137 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 16 Sep 2020 13:25:36 -0700
 Subject: [PATCH] Add WDT to u-boot to cover booting failures
 
-This commit enables WDT2 before loading kernel image to make BMC
-reset to cover booting failures. If BMC meet any failure or if
-systemd can't initiate watchdog timer service properly, BMC will
-be reset by this watchdog. In case if u-boot meets a kernel image
-decoding issue, this watchdog will be immediately disabled and BMC
-will stay in u-boot console.
+This commit enables WDT1 in early u-boot and before loading kernel
+image to make BMC reset to cover booting failures. If BMC meets any
+failure or if kernel can't initiate watchdog timer properly, BMC will
+be reset by this watchdog.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- board/aspeed/ast2600_intel/intel.c | 23 ++++++++++++++++++++++-
- common/bootm_os.c                  | 11 +++++++++++
- 2 files changed, 33 insertions(+), 1 deletion(-)
+ arch/arm/mach-aspeed/ast2600/platform.S | 15 +++++
+ board/aspeed/ast2600_intel/intel.c      | 50 ++++++++++++++--
+ common/board_f.c                        |  1 +
+ common/image.c                          |  3 +-
+ drivers/mtd/spi/spi-nor-core.c          |  5 ++
+ drivers/watchdog/ast_wdt.c              | 78 ++++++++++++++-----------
+ include/configs/aspeed-common.h         |  2 +
+ 7 files changed, 116 insertions(+), 38 deletions(-)
 
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index cd8a57edd76b..08f33a9f1a17 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -64,6 +64,9 @@
+ #define AST_MAC2_CTRL2		(AST_MAC2_BASE + 0x058)
+ 
+ #define AST_WDT1_BASE		0x1E785000
++#define AST_WDT1_RELOAD_VAL	(AST_WDT1_BASE + 0x004)
++#define AST_WDT1_RESTART_CTRL	(AST_WDT1_BASE + 0x008)
++#define AST_WDT1_CTRL		(AST_WDT1_BASE + 0x00C)
+ #define AST_WDT1_RESET_MASK1	(AST_WDT1_BASE + 0x01C)
+ #define AST_WDT1_RESET_MASK2	(AST_WDT1_BASE + 0x020)
+ 
+@@ -313,6 +316,18 @@ wait_lock:
+ 	ldr	r1, =AST_SCU_CA7_PARITY_CHK
+ 	str	r0, [r1]
+ 
++#ifdef CONFIG_HW_WATCHDOG
++	/* Enable WDT1 to recover u-boot hang */
++	ldr   r0, =AST_WDT1_RELOAD_VAL
++	ldr   r1, =0x00500000             @ ~5 seconds
++	str   r1, [r0]
++	ldr   r0, =AST_WDT1_RESTART_CTRL
++	ldr   r1, =0x00004755
++	str   r1, [r0]
++	ldr   r0, =AST_WDT1_CTRL
++	ldr   r1, =0x00000013
++	str   r1, [r0]
++#endif
+ #if 0
+ 	ldr	r1, =AST_FMC_WDT2_CTRL_MODE
+ 	str	r0, [r1]
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index 807202295757..af2af9786926 100644
+index 948f8a01f868..1a95893631c8 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -474,12 +474,33 @@ void board_init(void)
- */
+@@ -7,6 +7,7 @@
+ #include <asm/io.h>
+ #include <led.h>
+ #include <malloc.h>
++#include <wdt.h>
  
- #ifdef CONFIG_WATCHDOG
--/* watchdog stuff */
-+#define WDT2_BASE			0x1e785040
-+#define WDT_COUNTER_STATUS		0x00
-+#define WDT_COUNTER_RELOAD_VALUE	0x04
-+#define WDT_COUNTER_RESTART_CTRL	0x08
-+#define  WDT_RESTART_VALUE		0x4755
-+#define WDT_CTRL			0x0c
-+#define  WDT_RST_BY_SOC_RST		BIT(4)
-+#define  WDT_SYS_RESET			BIT(1)
-+#define  WDT_ENABLE			BIT(0)
-+#define WDT_TIMEOUT_DEFAULT		0x6000000 /* ~100 seconds */
-+
- void watchdog_init(void)
- {
-+	writel(0, WDT2_BASE + WDT_CTRL);
-+	writel(WDT_TIMEOUT_DEFAULT, WDT2_BASE + WDT_COUNTER_RELOAD_VALUE);
-+	writel(WDT_RESTART_VALUE, WDT2_BASE + WDT_COUNTER_RESTART_CTRL);
-+	writel(WDT_RST_BY_SOC_RST | WDT_SYS_RESET | WDT_ENABLE,
-+	       WDT2_BASE + WDT_CTRL);
+ #define SYS_PWR_RESET_FLAG	BIT(0) /* from scu_info.c */
+ #define WATCHDOG_RESET_BIT	BIT(20)
+@@ -584,13 +585,54 @@ void board_preboot_os(void)
+ 		led_set_state(dev, LEDST_ON);
  }
  
- void watchdog_reset(void)
- {
-+	writel(WDT_RESTART_VALUE, WDT2_BASE + WDT_COUNTER_RESTART_CTRL);
+-#ifdef CONFIG_WATCHDOG
+-/* watchdog stuff */
+-void watchdog_init(void)
++#ifdef CONFIG_HW_WATCHDOG
++#define WDT_TIMEOUT_DEFAULT	0x6000000 /* ~100 seconds */
++
++void hw_watchdog_init(void)
++{
++	struct udevice *dev;
++	int ret;
++
++	ret = uclass_first_device(UCLASS_WDT, &dev);
++	if (ret) {
++		debug("Can't find a WDT: %d\n", ret);
++		return;
++	}
++
++	ret = wdt_start(dev, WDT_TIMEOUT_DEFAULT, 0);
++	if (ret)
++		debug("WDT start failed: %d\n", ret);
 +}
 +
-+void watchdog_disable(void)
-+{
-+	writel(0, WDT2_BASE + WDT_CTRL);
++void hw_watchdog_reset(void)
+ {
++	struct udevice *dev;
++	int ret;
++
++	ret = uclass_first_device(UCLASS_WDT, &dev);
++	if (ret) {
++		debug("Can't find a WDT: %d\n", ret);
++		return;
++	}
++
++	ret = wdt_reset(dev);
++	if (ret)
++		debug("WDT reset failed: %d\n", ret);
+ }
+ 
+-void watchdog_reset(void)
++void hw_watchdog_disable(void)
+ {
++	struct udevice *dev;
++	int ret;
++
++	ret = uclass_first_device(UCLASS_WDT, &dev);
++	if (ret) {
++		debug("Can't find a WDT: %d\n", ret);
++		return;
++	}
++
++	ret = wdt_stop(dev);
++	if (ret)
++		debug("WDT stop failed: %d\n", ret);
  }
  #endif
-diff --git a/common/bootm_os.c b/common/bootm_os.c
-index 855c471c28e6..05836e76c8e8 100644
---- a/common/bootm_os.c
-+++ b/common/bootm_os.c
-@@ -511,12 +511,23 @@ __weak void board_preboot_os(void)
- 	/* please define board specific board_preboot_os() */
- }
+diff --git a/common/board_f.c b/common/board_f.c
+index 149a7229e8fa..fe3e8e59d93e 100644
+--- a/common/board_f.c
++++ b/common/board_f.c
+@@ -94,6 +94,7 @@ static int init_func_watchdog_init(void)
+ {
+ # if defined(CONFIG_HW_WATCHDOG) && \
+ 	(defined(CONFIG_M68K) || defined(CONFIG_MICROBLAZE) || \
++	defined(CONFIG_ASPEED_AST2600) || \
+ 	defined(CONFIG_SH) || \
+ 	defined(CONFIG_DESIGNWARE_WATCHDOG) || \
+ 	defined(CONFIG_IMX_WATCHDOG))
+diff --git a/common/image.c b/common/image.c
+index 4d4248f234fb..90687092e1ae 100644
+--- a/common/image.c
++++ b/common/image.c
+@@ -528,7 +528,8 @@ void memmove_wd(void *to, void *from, size_t len, ulong chunksz)
+ 	if (to == from)
+ 		return;
  
-+#ifdef CONFIG_WATCHDOG
-+extern void watchdog_init(void);
-+extern void watchdog_disable(void);
+-#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
++#if !defined(CONFIG_ASPEED_SPI_DMA) && \
++    (defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG))
+ 	if (to > from) {
+ 		from += len;
+ 		to += len;
+diff --git a/drivers/mtd/spi/spi-nor-core.c b/drivers/mtd/spi/spi-nor-core.c
+index 1793a9e1f560..2ba5e5d65f4a 100644
+--- a/drivers/mtd/spi/spi-nor-core.c
++++ b/drivers/mtd/spi/spi-nor-core.c
+@@ -20,6 +20,7 @@
+ #include <linux/mtd/spi-nor.h>
+ #include <spi-mem.h>
+ #include <spi.h>
++#include <watchdog.h>
+ 
+ #include "sf_internal.h"
+ 
+@@ -425,6 +426,10 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
+ 	unsigned long timebase;
+ 	int ret;
+ 
++#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
++	WATCHDOG_RESET();
 +#endif
 +
- int boot_selected_os(int argc, char * const argv[], int state,
- 		     bootm_headers_t *images, boot_os_fn *boot_fn)
+ 	timebase = get_timer(0);
+ 
+ 	while (get_timer(timebase) < timeout) {
+diff --git a/drivers/watchdog/ast_wdt.c b/drivers/watchdog/ast_wdt.c
+index c2dc3cf548d2..811ead41bb95 100644
+--- a/drivers/watchdog/ast_wdt.c
++++ b/drivers/watchdog/ast_wdt.c
+@@ -19,10 +19,11 @@
+ #define WDT_CTRL_RESET_MODE_SHIFT	5
+ #define WDT_CTRL_RESET_MODE_MASK	3
+ 
+-#define WDT_CTRL_EN			(1 << 0)
+-#define WDT_CTRL_RESET			(1 << 1)
+-#define WDT_CTRL_CLK1MHZ		(1 << 4)
+-#define WDT_CTRL_2ND_BOOT		(1 << 7)
++#define WDT_CTRL_EN			BIT(0)
++#define WDT_CTRL_RESET			BIT(1)
++#define WDT_CTRL_CLK1MHZ		BIT(4) /* AST2400/2500 */
++#define WDT_CTRL_WDT_RST_BY_SOC_RST	BIT(4) /* AST2600 */
++#define WDT_CTRL_2ND_BOOT		BIT(7)
+ 
+ /* Values for Reset Mode */
+ #define WDT_CTRL_RESET_SOC		0
+@@ -31,32 +32,32 @@
+ #define WDT_CTRL_RESET_MASK		3
+ 
+ /* Reset Mask register */
+-#define WDT_RESET_ARM			(1 << 0)
+-#define WDT_RESET_COPROC		(1 << 1)
+-#define WDT_RESET_SDRAM			(1 << 2)
+-#define WDT_RESET_AHB			(1 << 3)
+-#define WDT_RESET_I2C			(1 << 4)
+-#define WDT_RESET_MAC1			(1 << 5)
+-#define WDT_RESET_MAC2			(1 << 6)
+-#define WDT_RESET_GCRT			(1 << 7)
+-#define WDT_RESET_USB20			(1 << 8)
+-#define WDT_RESET_USB11_HOST		(1 << 9)
+-#define WDT_RESET_USB11_EHCI2		(1 << 10)
+-#define WDT_RESET_VIDEO			(1 << 11)
+-#define WDT_RESET_HAC			(1 << 12)
+-#define WDT_RESET_LPC			(1 << 13)
+-#define WDT_RESET_SDSDIO		(1 << 14)
+-#define WDT_RESET_MIC			(1 << 15)
+-#define WDT_RESET_CRT2C			(1 << 16)
+-#define WDT_RESET_PWM			(1 << 17)
+-#define WDT_RESET_PECI			(1 << 18)
+-#define WDT_RESET_JTAG			(1 << 19)
+-#define WDT_RESET_ADC			(1 << 20)
+-#define WDT_RESET_GPIO			(1 << 21)
+-#define WDT_RESET_MCTP			(1 << 22)
+-#define WDT_RESET_XDMA			(1 << 23)
+-#define WDT_RESET_SPI			(1 << 24)
+-#define WDT_RESET_MISC			(1 << 25)
++#define WDT_RESET_ARM			BIT(0)
++#define WDT_RESET_COPROC		BIT(1)
++#define WDT_RESET_SDRAM			BIT(2)
++#define WDT_RESET_AHB			BIT(3)
++#define WDT_RESET_I2C			BIT(4)
++#define WDT_RESET_MAC1			BIT(5)
++#define WDT_RESET_MAC2			BIT(6)
++#define WDT_RESET_GCRT			BIT(7)
++#define WDT_RESET_USB20			BIT(8)
++#define WDT_RESET_USB11_HOST		BIT(9)
++#define WDT_RESET_USB11_EHCI2		BIT(10)
++#define WDT_RESET_VIDEO			BIT(11)
++#define WDT_RESET_HAC			BIT(12)
++#define WDT_RESET_LPC			BIT(13)
++#define WDT_RESET_SDSDIO		BIT(14)
++#define WDT_RESET_MIC			BIT(15)
++#define WDT_RESET_CRT2C			BIT(16)
++#define WDT_RESET_PWM			BIT(17)
++#define WDT_RESET_PECI			BIT(18)
++#define WDT_RESET_JTAG			BIT(19)
++#define WDT_RESET_ADC			BIT(20)
++#define WDT_RESET_GPIO			BIT(21)
++#define WDT_RESET_MCTP			BIT(22)
++#define WDT_RESET_XDMA			BIT(23)
++#define WDT_RESET_SPI			BIT(24)
++#define WDT_RESET_MISC			BIT(25)
+ 
+ #define WDT_RESET_DEFAULT						\
+ 	(WDT_RESET_ARM | WDT_RESET_COPROC | WDT_RESET_I2C |		\
+@@ -98,12 +99,18 @@ struct ast_wdt_priv {
+ static int ast_wdt_start(struct udevice *dev, u64 timeout, ulong flags)
  {
- 	arch_preboot_os();
- 	board_preboot_os();
-+#ifdef CONFIG_WATCHDOG
-+	watchdog_init();
+ 	struct ast_wdt_priv *priv = dev_get_priv(dev);
++	ulong driver_data = dev_get_driver_data(dev);
+ 
+ 	writel((u32) timeout, &priv->regs->counter_reload_val);
+ 	
+ 	writel(WDT_COUNTER_RESTART_VAL, &priv->regs->counter_restart);
+ 
+-	writel(WDT_CTRL_EN | WDT_CTRL_RESET, &priv->regs->ctrl);
++	if (driver_data == WDT_AST2600) {
++		writel(WDT_CTRL_EN | WDT_CTRL_RESET |
++		       WDT_CTRL_WDT_RST_BY_SOC_RST, &priv->regs->ctrl);
++	} else {
++		writel(WDT_CTRL_EN | WDT_CTRL_RESET, &priv->regs->ctrl);
++	}
+ 
+ 	return 0;
+ }
+@@ -115,12 +122,15 @@ static int ast_wdt_stop(struct udevice *dev)
+ 
+ 	clrbits_le32(&priv->regs->ctrl, WDT_CTRL_EN);
+ 
++#if !defined(CONFIG_TARGET_AST2600_INTEL)
+ 	if(driver_data == WDT_AST2600) {
+ 		writel(0x030f1ff1, &priv->regs->reset_mask1);
+ 		writel(0x3fffff1, &priv->regs->reset_mask2);
+-	} else 
++	} else {
+ 		writel(WDT_RESET_DEFAULT, &priv->regs->reset_mask1);
+-	
++	}
 +#endif
- 	boot_fn(state, argc, argv, images);
-+#ifdef CONFIG_WATCHDOG
-+	watchdog_disable();
++
+ 	return 0;
+ }
+ 
+@@ -168,7 +178,9 @@ static const struct wdt_ops ast_wdt_ops = {
+ static int ast_wdt_probe(struct udevice *dev)
+ {
+ 	debug("%s() wdt%u\n", __func__, dev->seq);
++#if !defined(CONFIG_TARGET_AST2600_INTEL)
+ 	ast_wdt_stop(dev);
 +#endif
  
- 	/* Stand-alone may return when 'autostart' is 'no' */
- 	if (images->os.type == IH_TYPE_STANDALONE ||
+ 	return 0;
+ }
+diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
+index 255901ff0ea8..0797cd4febed 100755
+--- a/include/configs/aspeed-common.h
++++ b/include/configs/aspeed-common.h
+@@ -18,6 +18,8 @@
+ #define CONFIG_IPADDR		192.168.0.45
+ #define CONFIG_SERVERIP		192.168.0.81
+ 
++#define CONFIG_HW_WATCHDOG
++
+ /* Misc CPU related */
+ #define CONFIG_CMDLINE_TAG
+ #define CONFIG_SETUP_MEMORY_TAGS
 -- 
 2.17.1
 
