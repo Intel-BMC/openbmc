@@ -155,7 +155,7 @@ superuser by following these steps:
    is the :term:`Build Directory`,
    invoke the ``createsuperuser`` command from ``manage.py``::
 
-      $ cd ~/poky/build
+      $ cd poky/build
       $ ../bitbake/lib/toaster/manage.py createsuperuser
 
 #. Django prompts you for the username, which you need to provide.
@@ -362,7 +362,7 @@ Perform the following steps to install Toaster:
 
       /etc/httpd/conf.d/toaster.conf
 
-    If you are using OpenSUSE, put it here::
+    If you are using openSUSE, put it here::
 
       /etc/apache2/conf.d/toaster.conf
 
@@ -380,13 +380,13 @@ Perform the following steps to install Toaster:
             Require all granted
          </IfModule>
       </Directory>
-    
+
       <Directory /var/www/toaster/poky/bitbake/lib/toaster/toastermain>
          <Files "wsgi.py">
             Require all granted
          </Files>
       </Directory>
-    
+
       WSGIDaemonProcess toaster_wsgi python-path=/var/www/toaster/poky/bitbake/lib/toaster:/var/www/toaster/.local/lib/python3.4/site-packages
       WSGIScriptAlias / "/var/www/toaster/poky/bitbake/lib/toaster/toastermain/wsgi.py"
       <Location />
@@ -402,7 +402,7 @@ Perform the following steps to install Toaster:
       $ chmod +x bitbake/lib/toaster/toastermain/wsgi.py
 
     Finally, restart Apache to make sure all new configuration is loaded. For Ubuntu,
-    Debian, and OpenSUSE use::
+    Debian, and openSUSE use::
 
       $ sudo service apache2 restart
 
@@ -417,13 +417,13 @@ Perform the following steps to install Toaster:
 
       [Unit]
       Description=Toaster runbuilds
-      
+
       [Service]
       Type=forking User=toaster
       ExecStart=/usr/bin/screen -d -m -S runbuilds /var/www/toaster/poky/bitbake/lib/toaster/runbuilds-service.sh start
       ExecStop=/usr/bin/screen -S runbuilds -X quit
       WorkingDirectory=/var/www/toaster/poky
-      
+
       [Install]
       WantedBy=multi-user.target
 
@@ -433,11 +433,11 @@ Perform the following steps to install Toaster:
     up executable permissions::
 
       #!/bin/bash
-      
+
       #export http_proxy=http://proxy.host.com:8080
       #export https_proxy=http://proxy.host.com:8080
       #export GIT_PROXY_COMMAND=$HOME/bin/gitproxy
-      cd ~/poky/
+      cd poky/
       source ./oe-init-build-env build
       source ../bitbake/bin/toaster $1 noweb
       [ "$1" == 'start' ] && /bin/bash

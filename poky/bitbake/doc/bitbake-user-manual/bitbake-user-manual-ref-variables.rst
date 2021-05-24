@@ -39,6 +39,19 @@ overview of their function and contents.
       when specified allows for the Git binary from the host to be used
       rather than building ``git-native``.
 
+   :term:`AZ_SAS`
+      Azure Storage Shared Access Signature, when using the
+      :ref:`Azure Storage fetcher <bitbake-user-manual/bitbake-user-manual-fetching:fetchers>`
+      This variable can be defined to be used by the fetcher to authenticate
+      and gain access to non-public artifacts.
+      ::
+
+         AZ_SAS = ""se=2021-01-01&sp=r&sv=2018-11-09&sr=c&skoid=<skoid>&sig=<signature>""
+
+      For more information see Microsoft's Azure Storage documentation at
+      https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview
+
+
    :term:`B`
       The directory in which BitBake executes functions during a recipe's
       build process.
@@ -256,45 +269,6 @@ overview of their function and contents.
       task. For example, if the ``do_fetch`` task that resides in the
       ``my-recipe.bb`` is executing, the ``BB_FILENAME`` variable contains
       "/foo/path/my-recipe.bb".
-
-   :term:`BBFILES_DYNAMIC`
-      Activates content depending on presence of identified layers.  You
-      identify the layers by the collections that the layers define.
-
-      Use the ``BBFILES_DYNAMIC`` variable to avoid ``.bbappend`` files whose
-      corresponding ``.bb`` file is in a layer that attempts to modify other
-      layers through ``.bbappend`` but does not want to introduce a hard
-      dependency on those other layers.
-
-      Additionally you can prefix the rule with "!" to add ``.bbappend`` and
-      ``.bb`` files in case a layer is not present.  Use this avoid hard
-      dependency on those other layers.
-
-      Use the following form for ``BBFILES_DYNAMIC``: ::
-
-         collection_name:filename_pattern
-
-      The following example identifies two collection names and two filename
-      patterns: ::
-
-         BBFILES_DYNAMIC += "\
-             clang-layer:${LAYERDIR}/bbappends/meta-clang/*/*/*.bbappend \
-             core:${LAYERDIR}/bbappends/openembedded-core/meta/*/*/*.bbappend \
-         "
-
-      When the collection name is prefixed with "!" it will add the file pattern in case
-      the layer is absent: ::
-
-         BBFILES_DYNAMIC += "\
-             !clang-layer:${LAYERDIR}/backfill/meta-clang/*/*/*.bb \
-         "
-
-      This next example shows an error message that occurs because invalid
-      entries are found, which cause parsing to abort: ::
-
-         ERROR: BBFILES_DYNAMIC entries must be of the form {!}<collection name>:<filename pattern>, not:
-         /work/my-layer/bbappends/meta-security-isafw/*/*/*.bbappend
-         /work/my-layer/bbappends/openembedded-core/meta/*/*/*.bbappend
 
    :term:`BB_GENERATE_MIRROR_TARBALLS`
       Causes tarballs of the Git repositories, including the Git metadata,
@@ -670,6 +644,45 @@ overview of their function and contents.
       `glob <https://docs.python.org/3/library/glob.html>`_ syntax.
       For details on the syntax, see the documentation by following the
       previous link.
+
+   :term:`BBFILES_DYNAMIC`
+      Activates content depending on presence of identified layers.  You
+      identify the layers by the collections that the layers define.
+
+      Use the ``BBFILES_DYNAMIC`` variable to avoid ``.bbappend`` files whose
+      corresponding ``.bb`` file is in a layer that attempts to modify other
+      layers through ``.bbappend`` but does not want to introduce a hard
+      dependency on those other layers.
+
+      Additionally you can prefix the rule with "!" to add ``.bbappend`` and
+      ``.bb`` files in case a layer is not present.  Use this avoid hard
+      dependency on those other layers.
+
+      Use the following form for ``BBFILES_DYNAMIC``: ::
+
+         collection_name:filename_pattern
+
+      The following example identifies two collection names and two filename
+      patterns: ::
+
+         BBFILES_DYNAMIC += "\
+             clang-layer:${LAYERDIR}/bbappends/meta-clang/*/*/*.bbappend \
+             core:${LAYERDIR}/bbappends/openembedded-core/meta/*/*/*.bbappend \
+         "
+
+      When the collection name is prefixed with "!" it will add the file pattern in case
+      the layer is absent: ::
+
+         BBFILES_DYNAMIC += "\
+             !clang-layer:${LAYERDIR}/backfill/meta-clang/*/*/*.bb \
+         "
+
+      This next example shows an error message that occurs because invalid
+      entries are found, which cause parsing to abort: ::
+
+         ERROR: BBFILES_DYNAMIC entries must be of the form {!}<collection name>:<filename pattern>, not:
+         /work/my-layer/bbappends/meta-security-isafw/*/*/*.bbappend
+         /work/my-layer/bbappends/openembedded-core/meta/*/*/*.bbappend
 
    :term:`BBINCLUDED`
       Contains a space-separated list of all of all files that BitBake's
@@ -1083,8 +1096,8 @@ overview of their function and contents.
          PREFERRED_PROVIDER_aaa = "bbb"
 
    :term:`PREFERRED_VERSION`
-      If there are multiple versions of recipes available, this variable
-      determines which recipe should be given preference. You must always
+      If there are multiple versions of a recipe available, this variable
+      determines which version should be given preference. You must always
       suffix the variable with the :term:`PN` you want to
       select, and you should set :term:`PV` accordingly for
       precedence.
@@ -1103,6 +1116,10 @@ overview of their function and contents.
          The use of the " % " character is limited in that it only works at the
          end of the string. You cannot use the wildcard character in any other
          location of the string.
+
+      If a recipe with the specified version is not available, a warning
+      message will be shown. See :term:`REQUIRED_VERSION` if you want this
+      to be an error instead.
 
    :term:`PREMIRRORS`
       Specifies additional paths from which BitBake gets source code. When
@@ -1214,6 +1231,16 @@ overview of their function and contents.
       The directory in which a local copy of a ``google-repo`` directory is
       stored when it is synced.
 
+   :term:`REQUIRED_VERSION`
+      If there are multiple versions of a recipe available, this variable
+      determines which version should be given preference. ``REQUIRED_VERSION``
+      works in exactly the same manner as :term:`PREFERRED_VERSION`, except
+      that if the specified version is not available then an error message
+      is shown and the build fails immediately.
+
+      If both ``REQUIRED_VERSION`` and ``PREFERRED_VERSION`` are set for
+      the same recipe, the ``REQUIRED_VERSION`` value applies.
+
    :term:`RPROVIDES`
       A list of package name aliases that a package also provides. These
       aliases are useful for satisfying runtime dependencies of other
@@ -1302,6 +1329,8 @@ overview of their function and contents.
 
       -  ``svn://`` : Fetches files from a Subversion (``svn``) revision
          control repository.
+
+      -  ``az://`` : Fetches files from an Azure Storage account using HTTPS.
 
       Here are some additional options worth mentioning:
 

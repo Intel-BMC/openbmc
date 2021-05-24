@@ -58,7 +58,7 @@ available. Follow these general steps to run QEMU:
       environment script (i.e. :ref:`structure-core-script`):
       ::
 
-         $ cd ~/poky
+         $ cd poky
          $ source oe-init-build-env
 
    -  If you installed a cross-toolchain, you can run the script that
@@ -66,7 +66,7 @@ available. Follow these general steps to run QEMU:
       the initialization script from the default ``poky_sdk`` directory:
       ::
 
-         . ~/poky_sdk/environment-setup-core2-64-poky-linux
+         . poky_sdk/environment-setup-core2-64-poky-linux
 
 3. *Ensure the Artifacts are in Place:* You need to be sure you have a
    pre-built kernel that will boot in QEMU. You also need the target
@@ -306,8 +306,8 @@ present, the toolchain is also automatically used.
       tarball by using the ``runqemu-extract-sdk`` command. After
       running the command, you must then point the ``runqemu`` script to
       the extracted directory instead of a root filesystem image file.
-      See the "`Running Under a Network File System (NFS)
-      Server <#qemu-running-under-a-network-file-system-nfs-server>`__"
+      See the
+      ":ref:`dev-manual/qemu:running under a network file system (nfs) server`"
       section for more information.
 
 QEMU Command-Line Syntax
@@ -452,7 +452,7 @@ command line:
    or "qemux86-64" QEMU architectures. For KVM with VHOST to work, the
    following conditions must be met:
 
-   -  `kvm <#kvm-cond>`__ option conditions must be met.
+   -  ``kvm`` option conditions defined above must be met.
 
    -  Your build host has to have virtio net device, which are
       ``/dev/vhost-net``.

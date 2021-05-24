@@ -208,7 +208,7 @@ Customizing Pre-Set Data
 ------------------------
 
 The pre-set data for Toaster is easily customizable. You can create the
-``orm/fixtures/custom.xml`` file to customize the values that go into to
+``orm/fixtures/custom.xml`` file to customize the values that go into
 the database. Customization is additive, and can either extend or
 completely replace the existing values.
 
@@ -554,7 +554,7 @@ example that assumes default repository and build directory names:
 
 .. code-block:: shell
 
-   $ cd ~/poky/build
+   $ cd poky/build
    $ python ../bitbake/lib/toaster/manage.py buildslist
 
 If your Toaster database had only one build, the above

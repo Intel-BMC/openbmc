@@ -38,7 +38,7 @@ Follow these steps to locate and hand-install the toolchain:
                 "sato" or "minimal"
 
           arch is a string representing the target architecture:
-                 "aarch64", "armv5e", "core2-64", "coretexa8hf-neon", "i586", "mips32r2",
+                 "aarch64", "armv5e", "core2-64", "cortexa8hf-neon", "i586", "mips32r2",
                  "mips64", or "ppc7400"
 
           release is the version of Yocto Project.
@@ -68,10 +68,10 @@ Follow these steps to locate and hand-install the toolchain:
       $ ~/Downloads/poky-glibc-x86_64-core-image-sato-core2-64-toolchain-ext-&DISTRO;.sh
 
    During execution of the script, you choose the root location for the
-   toolchain. See the "`Installed Standard SDK Directory
-   Structure <#sdk-installed-standard-sdk-directory-structure>`__"
-   section and the "`Installed Extensible SDK Directory
-   Structure <#sdk-installed-extensible-sdk-directory-structure>`__"
+   toolchain. See the
+   ":ref:`sdk-manual/appendix-obtain:installed standard sdk directory structure`"
+   section and the
+   ":ref:`sdk-manual/appendix-obtain:installed extensible sdk directory structure`"
    section for more information.
 
 Building an SDK Installer
@@ -173,14 +173,14 @@ build the SDK installer. Follow these steps:
    ``tmp/deploy/sdk`` in the Build Directory. Following is an example:
    ::
 
-      $ cd ~/poky/build/tmp/deploy/sdk
+      $ cd poky/build/tmp/deploy/sdk
       $ ./poky-glibc-x86_64-core-image-sato-core2-64-toolchain-ext-&DISTRO;.sh
 
    During execution of the script, you choose the root location for the
-   toolchain. See the "`Installed Standard SDK Directory
-   Structure <#sdk-installed-standard-sdk-directory-structure>`__"
-   section and the "`Installed Extensible SDK Directory
-   Structure <#sdk-installed-extensible-sdk-directory-structure>`__"
+   toolchain. See the
+   ":ref:`sdk-manual/appendix-obtain:installed standard sdk directory structure`"
+   section and the
+   ":ref:`sdk-manual/appendix-obtain:installed extensible sdk directory structure`"
    section for more information.
 
 Extracting the Root Filesystem
@@ -249,7 +249,7 @@ Follow these steps to extract the root filesystem:
    ":ref:`sdk-manual/appendix-obtain:locating pre-built sdk installers`" section:
    ::
 
-      $ source ~/poky_sdk/environment-setup-core2-64-poky-linux
+      $ source poky_sdk/environment-setup-core2-64-poky-linux
 
 3. *Extract the Root Filesystem:* Use the ``runqemu-extract-sdk``
    command and provide the root filesystem image.

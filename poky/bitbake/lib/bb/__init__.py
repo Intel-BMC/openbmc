@@ -9,7 +9,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-__version__ = "1.49.2"
+__version__ = "1.50.0"
 
 import sys
 if sys.version_info < (3, 5, 0):
@@ -58,7 +58,7 @@ class BBLoggerMixin(object):
         if not bb.event.worker_pid:
             if self.name in bb.msg.loggerDefaultDomains and loglevel > (bb.msg.loggerDefaultDomains[self.name]):
                 return
-            if loglevel > bb.msg.loggerDefaultLogLevel:
+            if loglevel < bb.msg.loggerDefaultLogLevel:
                 return
         return self.log(loglevel, msg, *args, **kwargs)
 
