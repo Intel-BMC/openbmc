@@ -28,5 +28,9 @@ CONF_VERSION = "5"
 #BB_NUMBER_THREADS = "70"
 
 FULL_OPTIMIZATION = "-Os -pipe ${DEBUG_FLAGS}"
-require conf/distro/include/security_flags.inc
+
+# The following class prints the SRC_URI of each recipe in the build
+# Once enabled, run 'bitbake intel-platforms --runonly print_src'
+# on a clean workspace to get the output
+#INHERIT += "print-src"
 

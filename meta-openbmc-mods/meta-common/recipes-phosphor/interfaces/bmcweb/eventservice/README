@@ -9,9 +9,6 @@ Upstream revision information:
  - EventService: https client support
    https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31735/38
 
- - Move EventService init  to later stage
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41516
-
  - Add Server-Sent-Events support
    https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41258/5
 

@@ -1,4 +1,4 @@
-From 008edb2487358bb3f0f0ec1d753cc5bff7b08182 Mon Sep 17 00:00:00 2001
+From 3ed477feebb959749bd20a22e3acd8b39e22c193 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Thu, 20 Jun 2019 18:11:43 +0530
 Subject: [PATCH] Manufacturing mode physical presence detection
@@ -22,15 +22,15 @@ and no physical indication has been provided
 Change-Id: Id7e7c7e7860c7ef3ae8e3a7a7cfda7ff506c0f2b
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
-
-
 ---
  board/aspeed/ast-g5/ast-g5-gpio.h  |  2 +-
- board/aspeed/ast-g5/ast-g5-intel.c | 35 ++++++++++++++++++++++++++++++
- 2 files changed, 36 insertions(+), 1 deletion(-)
+ board/aspeed/ast-g5/ast-g5-intel.c | 42 ++++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5.c       |  2 --
+ common/autoboot.c                  | 16 ++++++++++--
+ 4 files changed, 57 insertions(+), 5 deletions(-)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-gpio.h b/board/aspeed/ast-g5/ast-g5-gpio.h
-index 54b7388a22..8ccf437346 100644
+index 54b7388a22f5..8ccf4373460b 100644
 --- a/board/aspeed/ast-g5/ast-g5-gpio.h
 +++ b/board/aspeed/ast-g5/ast-g5-gpio.h
 @@ -73,7 +73,7 @@
@@ -43,7 +43,7 @@ index 54b7388a22..8ccf437346 100644
  // GPIO Configuration Register bits
  #define GPCFG_EVENT_TO_SMI (1 << 7) // 1 == enabled
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 45ecd83fd3..efc3315caf 100644
+index 45ecd83fd3f0..79de13caa0af 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -24,6 +24,7 @@ enum gpio_names {
@@ -65,7 +65,16 @@ index 45ecd83fd3..efc3315caf 100644
  };
  
  #define LPC_SNOOP_ADDR 0x80
-@@ -403,6 +408,30 @@ static void update_bootargs_cmd(const char *key, const char *value)
+@@ -109,6 +114,8 @@ static const GPIOValue gpio_table[] = {
+ #define HOST_SERIAL_A_HIGH_SPEED (1 << 0)
+ #define HOST_SERIAL_B_HIGH_SPEED (1 << 1)
+ 
++#define POWERON_RESET_BIT BIT(0)
++
+ static void sgpio_init(void)
+ {
+ 	uint32_t value;
+@@ -403,6 +410,30 @@ static void update_bootargs_cmd(const char *key, const char *value)
  	free(buf);
  }
  
@@ -96,16 +105,76 @@ index 45ecd83fd3..efc3315caf 100644
  void ast_g5_intel_late_init(void)
  {
  	char value[32];
-@@ -450,6 +479,12 @@ void ast_g5_intel_late_init(void)
+@@ -450,6 +481,17 @@ void ast_g5_intel_late_init(void)
  	ast_scu_write(0, AST_SCU_SYS_CTRL);
  
  	update_bootargs_cmd("resetreason", value);
 +
 +	/* Update the special mode in bootargs */
-+	if (is_mfg_mode_phy_req())
++	if (reset_reason & POWERON_RESET_BIT && is_mfg_mode_phy_req())
 +		update_bootargs_cmd("special", "mfg");
 +	else
 +		update_bootargs_cmd("special", NULL);
++}
++
++void board_pre_abort_autoboot(void)
++{
++	ast_enable_pass_through();
  }
  
  static void pwm_init(void)
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index d89a2b799a05..a4f3681c0602 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -28,8 +28,6 @@ int board_early_init_f(void)
+ {
+ 	/* make sure uart5 is using 24MHz clock */
+ 	ast_config_uart5_clk();
+-	/*enable pass through*/
+-	ast_enable_pass_through();
+ 	arch_interrupt_init_early();
+ 
+ 	return 0;
+diff --git a/common/autoboot.c b/common/autoboot.c
+index d66c0fa63a3e..570d8956988c 100644
+--- a/common/autoboot.c
++++ b/common/autoboot.c
+@@ -256,13 +256,21 @@ static int __abortboot(int bootdelay)
+ }
+ # endif	/* CONFIG_AUTOBOOT_KEYED */
+ 
++/* Allow for board specific config when we check abort condition */
++__weak void board_pre_abort_autoboot(void)
++{
++	/* please define board specific board_pre_abort_autoboot() */
++}
++
+ static int abortboot(int bootdelay)
+ {
+ 	int abort = 0;
+ 
+ # ifdef AST_G5_INTEL
+-	if (intel_force_firmware_jumper_enabled())
+-		return 1;
++	if (intel_force_firmware_jumper_enabled()) {
++		abort = 1;
++		goto exit;
++	}
+ # endif
+ 
+ 	if (bootdelay >= 0)
+@@ -273,6 +281,10 @@ static int abortboot(int bootdelay)
+ 		gd->flags &= ~GD_FLG_SILENT;
+ #endif
+ 
++exit:
++	if (abort)
++		board_pre_abort_autoboot();
++
+ 	return abort;
+ }
+ 
+-- 
+2.17.1
+

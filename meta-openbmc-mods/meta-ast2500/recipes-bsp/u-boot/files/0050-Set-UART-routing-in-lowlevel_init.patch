@@ -1,0 +1,43 @@
+From 03487b1de06f1caa4e0bb0597da21f0690125bac Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 26 Apr 2021 13:32:29 -0700
+Subject: [PATCH] Set UART routing in lowlevel_init
+
+This commit sets the UART routing back to default in lowlevel_init
+to prevent any data dropping from the physical host serial until
+SOL service is activated.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/mach-aspeed/platform_g5.S | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
+index 2c8bf03b0eff..7c4722688f90 100644
+--- a/arch/arm/mach-aspeed/platform_g5.S
++++ b/arch/arm/mach-aspeed/platform_g5.S
+@@ -111,6 +111,9 @@
+ #include <config.h>
+ #include <version.h>
+ 
++#define AST_LPC_BASE  0x1E789000
++#define AST_LPC_HICRA (AST_LPC_BASE + 0x09C)
++
+ /******************************************************************************
+   r4 : return program counter
+   r5 : DDR speed timing table base address
+@@ -2445,6 +2448,11 @@ spi_cbr_end:
+     orr   r1, r1, r2
+     str   r1, [r0]
+ 
++    /* set UART routing back to default */
++    ldr   r0, =AST_LPC_HICRA
++    ldr   r1, =0x0
++    str   r1, [r0]
++
+     ldr   r0, =0x1e6e2008                        @ Set Video ECLK phase
+     ldr   r1, [r0]
+     ldr   r2, =0x0ffffff3
+-- 
+2.17.1
+

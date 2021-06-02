@@ -37,7 +37,9 @@ RDEPENDS_${PN}-flash = " \
 
 SUMMARY_${PN}-system = "AMD System"
 RDEPENDS_${PN}-system = " \
+        amd-fpga \
         bmcweb \
+        dbus-sensors \
         entity-manager \
         ipmitool \
         phosphor-hostlogger \

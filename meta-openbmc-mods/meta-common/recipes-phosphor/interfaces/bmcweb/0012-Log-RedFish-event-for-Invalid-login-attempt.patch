@@ -1,0 +1,67 @@
+From 1f572a1991fc8d9b08689aa6e3470080467977a7 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Thu, 15 Apr 2021 10:59:42 +0000
+Subject: [PATCH] Log RedFish event for Invalid login attempt
+
+This commit adds support for logging RedFish event log while user tries
+to attempt login with invalid credentials.
+When user trying to login with invalid credentials on HTTPS interface
+like WebUI and RedFish, event should be logged in RedFish event log.
+This event log is useful for further analysis to debug the root-cause
+for failure.
+
+Tested:
+1. Verified RedFish validator passed
+2. Login with wrong credentials on HTTPS interface.
+3. Verified for RedFish/WebUI events. RedFish event logged successfully.
+GET: https://BMC-IP/redfish/v1/Systems/system/LogServices/
+     EventLog/Entries
+Response:
+"Members": [
+{
+    "@odata.id": "/redfish/v1/Systems/system/LogServices/EventLog/
+                  Entries/1618466128",
+    "@odata.type": "#LogEntry.v1_4_0.LogEntry",
+    "Created": "2021-04-15T05:55:28+00:00",
+    "EntryType": "Event",
+    "Id": "1618466128",
+    "Message": "Invalid username or password attempted on HTTPS.",
+    "MessageArgs": [
+        "HTTPS"
+    ],
+    "MessageId": "OpenBMC.0.1.InvalidLoginAttempted",
+    "Name": "System Event Log Entry",
+    "Severity": "Warning"
+}
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ include/pam_authenticate.hpp | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/include/pam_authenticate.hpp b/include/pam_authenticate.hpp
+index 12f19c0..01bf301 100644
+--- a/include/pam_authenticate.hpp
++++ b/include/pam_authenticate.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <security/pam_appl.h>
++#include <systemd/sd-journal.h>
+ 
+ #include <boost/utility/string_view.hpp>
+ 
+@@ -75,6 +76,10 @@ inline int pamAuthenticateUser(const std::string_view username,
+                               PAM_SILENT | PAM_DISALLOW_NULL_AUTHTOK);
+     if (retval != PAM_SUCCESS)
+     {
++        sd_journal_send("MESSAGE= %s", "Invalid login attempted on HTTPS",
++                        "PRIORITY=%i", LOG_WARNING, "REDFISH_MESSAGE_ID=%s",
++                        "OpenBMC.0.1.InvalidLoginAttempted",
++                        "REDFISH_MESSAGE_ARGS=%s", "HTTPS", NULL);
+         pam_end(localAuthHandle, PAM_SUCCESS); // ignore retval
+         return retval;
+     }
+-- 
+2.17.1
+

@@ -1,4 +1,4 @@
-From 85e7b2d9ede4bb33e02f48ea1d4691d2154fc4a5 Mon Sep 17 00:00:00 2001
+From a85d4c9cf702965593ec771e57a975e30d1d5853 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
 Date: Tue, 13 Oct 2020 15:00:51 -0700
 Subject: [PATCH] Improve initialization of I2C sensors
@@ -32,15 +32,15 @@ missing after AC cycles.
 Change-Id: I118df674162677d66e7d211b089430fce384086b
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- include/devices.hpp | 165 ++++++++++++++++++++-----------------
+ include/devices.hpp | 167 +++++++++++++++++++++-----------------
  src/Overlay.cpp     | 192 ++++++++++++++++++++++++++++++++++----------
- 2 files changed, 239 insertions(+), 118 deletions(-)
+ 2 files changed, 243 insertions(+), 116 deletions(-)
 
 diff --git a/include/devices.hpp b/include/devices.hpp
-index c375b1c..b7dc7d0 100644
+index 50fbe63..2e299a0 100644
 --- a/include/devices.hpp
 +++ b/include/devices.hpp
-@@ -31,105 +31,122 @@ struct CmpStr
+@@ -31,107 +31,130 @@ struct CmpStr
  
  struct ExportTemplate
  {
@@ -61,14 +61,20 @@ index c375b1c..b7dc7d0 100644
  
  const boost::container::flat_map<const char*, ExportTemplate, CmpStr>
      exportTemplates{
--        {{"24C02", ExportTemplate("24c02 $Address",
--                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
--         {"24C64", ExportTemplate("24c64 $Address",
--                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+         {{"EEPROM_24C02",
+           ExportTemplate("24c02 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++                         "/sys/bus/i2c/devices/i2c-$Bus/new_device",
++                         "new_device", "delete_device", false)},
+          {"EEPROM_24C64",
+           ExportTemplate("24c64 $Address",
+-                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
 -         {"ADM1266",
 -          ExportTemplate("adm1266 $Address",
 -                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
-+        {{"24C02",
++                         "/sys/bus/i2c/devices/i2c-$Bus/new_device",
++                         "new_device", "delete_device", false)},
++         {"24C02",
 +          ExportTemplate("24c02 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
 +                         "new_device", "delete_device", false)},
 +         {"24C64",

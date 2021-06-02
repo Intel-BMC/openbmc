@@ -1,4 +1,4 @@
-From c5c5634ccc31cd494ad5333987fa6076f0f7464a Mon Sep 17 00:00:00 2001
+From 07bba51a168b769563a649f1c0f3a9126f480e57 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Thu, 2 Apr 2020 17:06:07 +0530
 Subject: [PATCH] Adding channel specific privilege to network
@@ -19,17 +19,17 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- ethernet_interface.cpp | 123 +++++++++++++++++++++++++++++++++++++++++
- ethernet_interface.hpp |  37 ++++++++++++-
- network_manager.cpp    | 102 ++++++++++++++++++++++++++++++++++
+ ethernet_interface.cpp | 124 +++++++++++++++++++++++++++++++++++++++++
+ ethernet_interface.hpp |  37 +++++++++++-
+ network_manager.cpp    | 102 +++++++++++++++++++++++++++++++++
  network_manager.hpp    |   9 +++
- 4 files changed, 270 insertions(+), 1 deletion(-)
+ 4 files changed, 271 insertions(+), 1 deletion(-)
 
 diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
-index 522be57..89adf69 100644
+index c47a759..d7a4168 100644
 --- a/ethernet_interface.cpp
 +++ b/ethernet_interface.cpp
-@@ -44,6 +44,10 @@ constexpr auto PROPERTY_INTERFACE = "org.freedesktop.DBus.Properties";
+@@ -45,6 +45,10 @@ constexpr auto PROPERTY_INTERFACE = "org.freedesktop.DBus.Properties";
  constexpr auto RESOLVED_SERVICE_PATH = "/org/freedesktop/resolve1/link/";
  constexpr auto METHOD_GET = "Get";
  
@@ -40,7 +40,7 @@ index 522be57..89adf69 100644
  struct EthernetIntfSocket
  {
      EthernetIntfSocket(int domain, int type, int protocol)
-@@ -101,6 +105,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+@@ -128,6 +132,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
      EthernetInterfaceIntf::autoNeg(std::get<2>(ifInfo));
      EthernetInterfaceIntf::speed(std::get<0>(ifInfo));
  #endif
@@ -48,10 +48,11 @@ index 522be57..89adf69 100644
  
      // Emit deferred signal.
      if (emitSignal)
-@@ -1068,5 +1073,123 @@ void EthernetInterface::deleteAll()
+@@ -1148,5 +1153,124 @@ std::string EthernetInterface::defaultGateway6(std::string gateway)
      manager.writeToConfigurationFile();
+     return gw;
  }
- 
++
 +nlohmann::json EthernetInterface::readJsonFile(const std::string& configFile)
 +{
 +    std::ifstream jsonFile(configFile);
@@ -173,7 +174,7 @@ index 522be57..89adf69 100644
  } // namespace network
  } // namespace phosphor
 diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
-index abaf43e..f6d6363 100644
+index e2418a2..60fd272 100644
 --- a/ethernet_interface.hpp
 +++ b/ethernet_interface.hpp
 @@ -2,11 +2,14 @@
@@ -216,9 +217,9 @@ index abaf43e..f6d6363 100644
  
  class Manager; // forward declaration of network manager.
  
-@@ -223,6 +230,14 @@ class EthernetInterface : public Ifaces
+@@ -233,6 +240,14 @@ class EthernetInterface : public Ifaces
       */
-     void deleteAll();
+     std::string defaultGateway6(std::string gateway) override;
  
 +    /** @brief sets the channel maxium privilege.
 +     *  @param[in] value - Channel privilege which needs to be set on the
@@ -231,7 +232,7 @@ index abaf43e..f6d6363 100644
      using EthernetInterfaceIntf::dHCPEnabled;
      using EthernetInterfaceIntf::interfaceName;
      using EthernetInterfaceIntf::linkUp;
-@@ -344,6 +359,26 @@ class EthernetInterface : public Ifaces
+@@ -356,6 +371,26 @@ class EthernetInterface : public Ifaces
       *  @returns true/false value if the address is static
       */
      bool originIsManuallyAssigned(IP::AddressOrigin origin);
@@ -406,5 +407,5 @@ index 6815d3f..96e20a6 100644
  
  } // namespace network
 -- 
-2.29.2
+2.17.1
 

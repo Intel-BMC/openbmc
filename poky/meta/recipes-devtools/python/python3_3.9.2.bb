@@ -30,6 +30,7 @@ SRC_URI = "http://www.python.org/ftp/python/${PV}/Python-${PV}.tar.xz \
            file://0001-Makefile-do-not-compile-.pyc-in-parallel.patch \
            file://0020-configure.ac-setup.py-do-not-add-a-curses-include-pa.patch \
            file://0001-Lib-sysconfig.py-use-libdir-values-from-configuratio.patch \
+           file://0001-Skip-failing-tests-due-to-load-variability-on-YP-AB.patch \
            "
 
 SRC_URI_append_class-native = " \
@@ -371,6 +372,7 @@ RDEPENDS_${PN}-ptest_append_libc-glibc = " locale-base-tr-tr.iso-8859-9"
 RDEPENDS_${PN}-tkinter += "${@bb.utils.contains('PACKAGECONFIG', 'tk', 'tk tk-lib', '', d)}"
 RDEPENDS_${PN}-idle += "${@bb.utils.contains('PACKAGECONFIG', 'tk', '${PN}-tkinter tcl', '', d)}"
 RDEPENDS_${PN}-dev = ""
+RDEPENDS_${PN}-pydoc += "${PN}-io"
 
 RDEPENDS_${PN}-tests_append_class-target = " ${MLPREFIX}bash"
 RDEPENDS_${PN}-tests_append_class-nativesdk = " ${MLPREFIX}bash"

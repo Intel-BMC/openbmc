@@ -1,4 +1,4 @@
-From dbaf8c1dc402da97fec723d050e063cd283d8736 Mon Sep 17 00:00:00 2001
+From 698d2615c5bc30ab7f89f11ed5659df8bf248ea0 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 16 Mar 2021 15:37:24 +0000
 Subject: [PATCH 5/6] Add SSE style subscription support to eventservice
@@ -126,10 +126,10 @@ index 0000000..6c98e6e
 +} // namespace eventservice_sse
 +} // namespace redfish
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 148c703..e3eba86 100644
+index 5821e2e..f4d57c2 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -22,13 +22,15 @@
+@@ -23,13 +23,15 @@
  #include <sys/inotify.h>
  
  #include <boost/asio/io_context.hpp>
@@ -146,7 +146,7 @@ index 148c703..e3eba86 100644
  #include <cstdlib>
  #include <ctime>
  #include <fstream>
-@@ -45,9 +47,13 @@ using EventServiceConfig = std::tuple<bool, uint32_t, uint32_t>;
+@@ -46,9 +48,13 @@ using EventServiceConfig = std::tuple<bool, uint32_t, uint32_t>;
  static constexpr const char* eventFormatType = "Event";
  static constexpr const char* metricReportFormatType = "MetricReport";
  
@@ -160,8 +160,8 @@ index 148c703..e3eba86 100644
  #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
  static std::optional<boost::asio::posix::stream_descriptor> inotifyConn;
  static constexpr const char* redfishEventLogDir = "/var/log";
-@@ -390,11 +396,9 @@ class Subscription
-             path);
+@@ -391,11 +397,9 @@ class Subscription
+             path, uriProto);
      }
  
 -    Subscription(const std::shared_ptr<boost::beast::tcp_stream>& adaptor) :
@@ -175,7 +175,7 @@ index 148c703..e3eba86 100644
  
      ~Subscription() = default;
  
-@@ -419,7 +423,7 @@ class Subscription
+@@ -420,7 +424,7 @@ class Subscription
  
          if (sseConn != nullptr)
          {
@@ -184,7 +184,7 @@ index 148c703..e3eba86 100644
          }
      }
  
-@@ -509,6 +513,7 @@ class Subscription
+@@ -510,6 +514,7 @@ class Subscription
  
          this->sendEvent(
              msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
@@ -192,7 +192,7 @@ index 148c703..e3eba86 100644
      }
  #endif
  
-@@ -579,14 +584,39 @@ class Subscription
+@@ -565,14 +570,39 @@ class Subscription
          return eventSeqNum;
      }
  
@@ -233,7 +233,7 @@ index 148c703..e3eba86 100644
  };
  
  static constexpr const bool defaultEnabledState = true;
-@@ -977,6 +1007,8 @@ class EventServiceManager
+@@ -963,6 +993,8 @@ class EventServiceManager
          subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
          subValue->updateRetryPolicy();
  
@@ -242,7 +242,7 @@ index 148c703..e3eba86 100644
          return id;
      }
  
-@@ -1001,11 +1033,40 @@ class EventServiceManager
+@@ -987,11 +1019,40 @@ class EventServiceManager
          }
      }
  
@@ -603,7 +603,7 @@ index be6f04d..1875ec9 100644
               {{"@odata.id", "/redfish/v1/EventService/Subscriptions"}}},
              {"Actions",
 diff --git a/src/webserver_main.cpp b/src/webserver_main.cpp
-index 3b9631a..bf8e705 100644
+index 902c32b..c871faa 100644
 --- a/src/webserver_main.cpp
 +++ b/src/webserver_main.cpp
 @@ -5,6 +5,7 @@
@@ -614,14 +614,14 @@ index 3b9631a..bf8e705 100644
  #include <hostname_monitor.hpp>
  #include <ibm/management_console_rest.hpp>
  #include <image_upload.hpp>
-@@ -79,6 +80,7 @@ int main(int /*argc*/, char** /*argv*/)
- 
+@@ -83,6 +84,7 @@ int main(int /*argc*/, char** /*argv*/)
  #ifdef BMCWEB_ENABLE_REDFISH
-     crow::redfish::requestRoutes(app);
-+    redfish::eventservice_sse::requestRoutes(app);
+     redfish::requestRoutes(app);
      redfish::RedfishService redfish(app);
++    redfish::eventservice_sse::requestRoutes(app);
  
      // Create EventServiceManager instance and initialize Config
+     redfish::EventServiceManager::getInstance();
 -- 
 2.17.1
 

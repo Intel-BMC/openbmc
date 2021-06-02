@@ -2,9 +2,6 @@ These patches are mirror of upstream TelemetryService implementation.
 Until change is integrated they will be manually merged here to enable feature in Intel builds.
 
 Current revisions:
-- Add POST and DELETE in MetricReportDefinitions
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/32536/63
-
 - Add support for MetricDefinition scheme
   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/60
 

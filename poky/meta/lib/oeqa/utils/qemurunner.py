@@ -32,7 +32,7 @@ re_control_char = re.compile('[%s]' % re.escape("".join(control_chars)))
 class QemuRunner:
 
     def __init__(self, machine, rootfs, display, tmpdir, deploy_dir_image, logfile, boottime, dump_dir, dump_host_cmds,
-                 use_kvm, logger, use_slirp=False, serial_ports=2, boot_patterns = defaultdict(str), use_ovmf=False, workdir=None):
+                 use_kvm, logger, use_slirp=False, serial_ports=2, boot_patterns = defaultdict(str), use_ovmf=False, workdir=None, tmpfsdir=None):
 
         # Popen object for runqemu
         self.runqemu = None
@@ -61,6 +61,7 @@ class QemuRunner:
         self.serial_ports = serial_ports
         self.msg = ''
         self.boot_patterns = boot_patterns
+        self.tmpfsdir = tmpfsdir
 
         self.runqemutime = 120
         if not workdir:
@@ -150,6 +151,9 @@ class QemuRunner:
         else:
             env["DEPLOY_DIR_IMAGE"] = self.deploy_dir_image
 
+        if self.tmpfsdir:
+            env["RUNQEMU_TMPFS_DIR"] = self.tmpfsdir
+
         if not launch_cmd:
             launch_cmd = 'runqemu %s' % ('snapshot' if discard_writes else '')
             if self.use_kvm:
@@ -176,7 +180,7 @@ class QemuRunner:
             self.logger.error("Failed to create listening socket: %s" % msg[1])
             return False
 
-        bootparams = 'console=tty1 console=ttyS0,115200n8 printk.time=1'
+        bootparams = ' printk.time=1'
         if extra_bootparams:
             bootparams = bootparams + ' ' + extra_bootparams
 

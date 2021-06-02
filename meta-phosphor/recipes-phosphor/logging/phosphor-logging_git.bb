@@ -24,13 +24,10 @@ DEPENDS += "phosphor-dbus-interfaces"
 DEPENDS += "virtual/phosphor-logging-callouts"
 DEPENDS += "libcereal"
 DEPENDS += "sdeventplus"
-DEPENDS_append_class-target = " packagegroup-obmc-yaml-providers"
+DEPENDS += "packagegroup-obmc-yaml-providers"
 
 PACKAGE_BEFORE_PN = "${PN}-test"
 FILES_${PN}-test = "${bindir}/*-test"
-
-PACKAGE_BEFORE_PN += "${PN}-elog"
-FILES_${PN}-elog += "${elog_dir}"
 
 # Package configuration
 LOGGING_PACKAGES = " \
@@ -55,61 +52,25 @@ FILES_phosphor-rsyslog-config += " \
 "
 
 SRC_URI += "git://github.com/openbmc/phosphor-logging"
-SRCREV = "25d986c1e7d749d3f78da5a5e507d1f2bcbc7874"
+SRCREV = "6b3f345b3f265036ec339d097f9d60d12998015d"
 
 S = "${WORKDIR}/git"
 
-# Do not DEPEND on the specified packages for native build
-# as they will not be available in host machine
-DEPENDS_remove_class-native = " \
-        virtual/phosphor-logging-callouts \
-        sdbusplus \
-        systemd \
-        libcereal \
-        sdeventplus \
-        "
-
-# Do not DEPEND on the specified packages for native SDK build
-# as they will not be available in host machine
-DEPENDS_remove_class-nativesdk = " \
-        virtual/phosphor-logging-callouts \
-        sdbusplus \
-        libcereal \
-        systemd \
-        phosphor-dbus-interfaces \
-        sdeventplus \
-        "
-
-PACKAGECONFIG ??= "metadata-processing install_scripts"
+PACKAGECONFIG ??= "metadata-processing"
 
 PACKAGECONFIG[metadata-processing] = " \
         --enable-metadata-processing, \
         --disable-metadata-processing, , \
         "
 
-# Provide a means to enable/disable install_scripts feature
-PACKAGECONFIG[install_scripts] = " \
-        --enable-install_scripts, \
-        --disable-install_scripts, ,\
-        "
-
 PACKAGECONFIG[openpower-pels] = " \
         --enable-openpower-pel-extension, \
         --disable-openpower-pel-extension, \
-        nlohmann-json nlohmann-fifo cli11 pldm, \
+        nlohmann-json cli11 pldm, \
         python3, \
         "
-
-# Enable install_scripts during native and native SDK build
-PACKAGECONFIG_add_class-native = "install_scripts"
-PACKAGECONFIG_add_class-nativesdk = "install_scripts"
-
-# Disable install_scripts during target build
-PACKAGECONFIG_remove_class-target = "install_scripts"
 
 EXTRA_OECONF = " \
         YAML_DIR=${STAGING_DIR_TARGET}${yaml_dir} \
         CALLOUTS_YAML=${STAGING_DIR_NATIVE}${callouts_datadir}/callouts.yaml \
         "
-
-BBCLASSEXTEND += "native nativesdk"

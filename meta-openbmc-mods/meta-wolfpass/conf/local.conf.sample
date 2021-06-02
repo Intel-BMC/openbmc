@@ -22,4 +22,3 @@ CONF_VERSION = "4"
 #BB_NUMBER_THREADS = "70"
 
 FULL_OPTIMIZATION = "-Os -pipe ${DEBUG_FLAGS}"
-require conf/distro/include/security_flags.inc

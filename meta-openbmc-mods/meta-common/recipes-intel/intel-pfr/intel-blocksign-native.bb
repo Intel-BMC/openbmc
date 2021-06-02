@@ -1,7 +1,7 @@
 SUMMARY = "Intel Blocksign tool for PFR image"
 DESCRIPTION = "Image signing tool for BMC PFR image"
 
-inherit native cmake
+inherit cmake native
 
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fecd0a2940a0d1658"
