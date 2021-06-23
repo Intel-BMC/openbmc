@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "196f057fe8efea8080ec71ad4159df0675dd6a4c"
+SRCREV = "5ee1b657ccfc61f4dac4a4d59da62a781065b0ad"
 
 S = "${WORKDIR}/git/pmci_launcher"
 

@@ -107,6 +107,10 @@ while read IFACE UBDEV; do
 		if [ $error -ne 0 ] && [ $first_error_seen -eq 0 ]; then
 		    first_error_seen=$error
 		fi
+        else
+            # Disable netipmid if present because eth(x) is not present
+            /bin/systemctl disable "phosphor-ipmi-net@$IFACE.socket"
+            /bin/systemctl disable "phosphor-ipmi-net@$IFACE.service"
 	fi
 done <<-END_CONF
 	eth0 eth1addr

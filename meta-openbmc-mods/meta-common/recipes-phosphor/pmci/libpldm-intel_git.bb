@@ -2,7 +2,7 @@ SUMMARY = "libpldm_intel"
 DESCRIPTION = "Provides encode/decode APIs for PLDM specifications"
 
 SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "196f057fe8efea8080ec71ad4159df0675dd6a4c"
+SRCREV = "0b73929a2116d9e1386e7e95190787bed7e715a8"
 
 S = "${WORKDIR}/git/libpldm_intel"
 

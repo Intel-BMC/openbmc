@@ -3,14 +3,14 @@ index 610511f7..92be4656 100644
 --- a/plugins/curl/curl.c
 +++ b/plugins/curl/curl.c
 @@ -69,6 +69,8 @@ static const char *proxy = NULL;
- static char *proxy_password = NULL;
- static const char *proxy_user = NULL;
- static bool sslverify = true;
-+static const char *ssl_version = NULL;
-+static const char *ssl_cipher_list = NULL;
- static bool tcp_keepalive = false;
- static bool tcp_nodelay = true;
- static uint32_t timeout = 0;
+ char *proxy_password = NULL;
+ const char *proxy_user = NULL;
+ bool sslverify = true;
++const char *ssl_version = NULL;
++const char *ssl_cipher_list = NULL;
+ bool tcp_keepalive = false;
+ bool tcp_nodelay = true;
+ uint32_t timeout = 0;
 @@ -232,6 +234,12 @@ curl_config (const char *key, const char *value)
      sslverify = r;
    }

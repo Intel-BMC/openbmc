@@ -1,0 +1,37 @@
+From d31d913a8c5dbacf6a36407532cf777852099ced Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Sun, 2 May 2021 11:07:16 +0000
+Subject: [PATCH] Fix VM NBDPROXY build issue with AsyncResp
+
+8d1b46d7 moves bmcweb to using AsyncResp everywhere, and not have
+each individual handler creating its own object.
+
+This commit fixes the build failure when enabling virtual media
+compile flag(BMCWEB_ENABLE_VM_NBDPROXY). This is caused by above
+mentioned recent change.
+
+Tested:
+ - Build is successful with enabled virtual media flag.
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Change-Id: I363a41a08fae9dc05b3553695b96ffd26948f696
+---
+ redfish-core/lib/virtual_media.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index 685ee5c..99542c4 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -635,7 +635,7 @@ class VirtualMediaActionInsertMedia : public Node
+                                 }
+ 
+                                 bool paramsValid = validateParams(
+-                                    asyncResp->res, imageUrl, inserted,
++                                    asyncResp, imageUrl, inserted,
+                                     transferMethod, transferProtocolType);
+ 
+                                 if (paramsValid == false)
+-- 
+2.17.1
+

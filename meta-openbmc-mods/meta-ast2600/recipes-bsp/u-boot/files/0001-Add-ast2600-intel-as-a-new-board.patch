@@ -1,4 +1,4 @@
-From ada80beb48d974f101201745657d10e72fe30b9c Mon Sep 17 00:00:00 2001
+From 041ad6cfc3d379c8e4fd271e7f9e3d8ea6ee61ac Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Thu, 24 Oct 2019 14:06:33 -0700
 Subject: [PATCH] Add ast2600-intel as a new board
@@ -36,7 +36,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
 old mode 100755
 new mode 100644
-index e9d994737949..d2ad5968775e
+index 786042cd8340..df844065cd4f
 --- a/arch/arm/dts/Makefile
 +++ b/arch/arm/dts/Makefile
 @@ -684,7 +684,8 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
@@ -288,10 +288,10 @@ index ee775ce5d264..8c985532afb4 100644
  {
  	efi_restore_gd();
 diff --git a/arch/arm/mach-aspeed/ast2600/Kconfig b/arch/arm/mach-aspeed/ast2600/Kconfig
-index 518f41b558d3..8023397cff58 100644
+index 6258b337bc3d..ffcb110c3ae3 100644
 --- a/arch/arm/mach-aspeed/ast2600/Kconfig
 +++ b/arch/arm/mach-aspeed/ast2600/Kconfig
-@@ -51,6 +51,13 @@ config TARGET_SLT_AST2600
+@@ -32,10 +32,18 @@ config TARGET_SLT_AST2600
  	help
  	  SLT-AST2600 is Aspeed SLT board for AST2600 chip.
  
@@ -304,9 +304,7 @@ index 518f41b558d3..8023397cff58 100644
 +
  endchoice
  
- config ASPEED_SECBOOT_BL2
-@@ -71,5 +78,6 @@ source "board/aspeed/ncsi_ast2600a0/Kconfig"
- source "board/aspeed/ncsi_ast2600a1/Kconfig"
+ source "board/aspeed/evb_ast2600/Kconfig"
  source "board/aspeed/fpga_ast2600/Kconfig"
  source "board/aspeed/slt_ast2600/Kconfig"
 +source "board/aspeed/ast2600_intel/Kconfig"

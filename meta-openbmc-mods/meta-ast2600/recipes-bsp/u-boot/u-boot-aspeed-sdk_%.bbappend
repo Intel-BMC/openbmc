@@ -7,7 +7,7 @@ FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files:"
 SRC_URI_append_intel-ast2600 = " \
     file://intel.cfg \
     file://0001-Add-ast2600-intel-as-a-new-board.patch \
-    file://0021-AST2600-Enable-host-searial-port-clock-configuration.patch \
+    file://0002-AST2600-Enable-host-searial-port-clock-configuration.patch \
     file://0003-ast2600-intel-layout-environment-addr.patch \
     file://0004-AST2600-Adjust-default-GPIO-settings.patch \
     file://0005-Ast2600-Enable-interrupt-in-u-boot.patch \
@@ -30,10 +30,12 @@ SRC_URI_append_intel-ast2600 = " \
     file://0023-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
     file://0024-fix-SUS_WARN-handling-logic.patch \
     file://0025-ast2600-PFR-platform-EXTRST-reset-mask-selection.patch \
-    file://0025-Enable-PCIe-L1-support.patch \
+    file://0026-Enable-PCIe-L1-support.patch \
     file://0027-ast2600-Add-Mailbox-init-function.patch \
     file://0028-Improve-randomness-of-mac-address-generation.patch \
     file://0029-Set-UART-routing-in-lowlevel_init.patch \
+    file://0030-Add-Aspeed-PWM-uclass-driver.patch \
+    file://0031-Add-a-workaround-to-fix-AST2600-A0-booting-issue.patch \
     "
 
 # CVE-2020-10648 vulnerability fix
@@ -57,17 +59,17 @@ SRC_URI_append_intel-ast2600 = " \
     file://0001-lib-uuid-Fix-unseeded-PRNG-on-RANDOM_UUID-y.patch \
     "
 
-# CVE-2019-13104 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13104:"
-SRC_URI_append_intel-ast2600 = " \
-    file://0001-CVE-2019-13104-ext4-check-for-underflow-in-ext4fs_re.patch \
-    "
-
 # CVE-2019-13105 vulnerability fix
 FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13105:"
 SRC_URI_append_intel-ast2600 = " \
     file://0001-fs-ext4-cache-extent-data.patch \
     file://0002-CVE-2019-13105-ext4-fix-double-free-in-ext4_cache_re.patch \
+    "
+
+# CVE-2019-13104 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13104:"
+SRC_URI_append_intel-ast2600 = " \
+    file://0001-CVE-2019-13104-ext4-check-for-underflow-in-ext4fs_re.patch \
     "
 
 # CVE-2019-13106 vulnerability fix
@@ -95,5 +97,7 @@ PFR_SRC_URI = " \
 SRC_URI_append_intel-ast2600 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
 
 do_install_append () {
+    install -m 0644 ${WORKDIR}/fw_env.config ${D}${sysconfdir}/fw_env.config
     install -m 0644 ${WORKDIR}/fw_env.config ${S}/tools/env/fw_env.config
 }
+RDEPENDS_${PN} = "udev-aspeed-mtd-partitions"

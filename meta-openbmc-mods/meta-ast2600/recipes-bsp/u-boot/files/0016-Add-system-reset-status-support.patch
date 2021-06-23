@@ -1,4 +1,4 @@
-From 0a2511d407ad9294b8c08f5228d85e042c104aaa Mon Sep 17 00:00:00 2001
+From ea8f8aa37182b66893ac9afcbbb4d5043b3b4166 Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Tue, 9 Apr 2019 14:42:05 +0800
 Subject: [PATCH] Add system reset status support
@@ -13,12 +13,12 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  arch/arm/mach-aspeed/ast2600/scu_info.c |  4 ++
- board/aspeed/ast2600_intel/intel.c      | 65 +++++++++++++++++++++++++++++++++
+ board/aspeed/ast2600_intel/intel.c      | 65 +++++++++++++++++++++++++
  include/asm-generic/global_data.h       |  3 ++
  3 files changed, 72 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/scu_info.c b/arch/arm/mach-aspeed/ast2600/scu_info.c
-index 2ee88b4dd39b..2cc6c3652bab 100644
+index fe26f743c0ca..18514c812018 100644
 --- a/arch/arm/mach-aspeed/ast2600/scu_info.c
 +++ b/arch/arm/mach-aspeed/ast2600/scu_info.c
 @@ -9,6 +9,8 @@
@@ -30,7 +30,7 @@ index 2ee88b4dd39b..2cc6c3652bab 100644
  /* SoC mapping Table */
  #define SOC_ID(str, rev) { .name = str, .rev_id = rev, }
  
-@@ -237,6 +239,8 @@ void aspeed_print_sysrst_info(void)
+@@ -263,6 +265,8 @@ void aspeed_print_sysrst_info(void)
  			writel(SYS_EXT_RESET, ASPEED_SYS_RESET_CTRL);
  		}	
  	}
@@ -40,7 +40,7 @@ index 2ee88b4dd39b..2cc6c3652bab 100644
  
  #define SOC_FW_INIT_DRAM		BIT(7)
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index 05872b439361..95e5492009d7 100644
+index 0d1ce69b6e53..849e81ff3fef 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
 @@ -5,6 +5,7 @@
@@ -51,7 +51,7 @@ index 05872b439361..95e5492009d7 100644
  
  /* use GPIOC0 on intel boards */
  #define FFUJ_GPIO "gpio@1e78000016"
-@@ -274,6 +275,65 @@ int board_early_init_r(void)
+@@ -292,6 +293,65 @@ int board_early_init_r(void)
  	return 0;
  }
  
@@ -117,7 +117,7 @@ index 05872b439361..95e5492009d7 100644
  extern void espi_init(void);
  extern void kcs_init(void);
  extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
-@@ -283,12 +343,17 @@ int board_late_init(void)
+@@ -301,12 +361,17 @@ int board_late_init(void)
  #define SCU_014			0x014		/* Silicon Revision ID */
  #define REV_ID_AST2600A0	0x05000303	/* AST2600 A0 */
  #define ONE_MSEC_IN_USEC	1000
@@ -150,5 +150,5 @@ index 78dcf40bff48..fa51e384520f 100644
  #endif
  
 -- 
-2.7.4
+2.17.1
 

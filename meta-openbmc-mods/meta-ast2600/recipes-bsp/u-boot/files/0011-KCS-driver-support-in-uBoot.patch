@@ -1,4 +1,4 @@
-From 1fbd857e2ff5396ea057f686cbd01c6db4328316 Mon Sep 17 00:00:00 2001
+From b26b11483b006f603e0134551bfb1238e0980972 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Mon, 20 Apr 2020 11:08:22 -0700
 Subject: [PATCH] KCS driver support in uBoot
@@ -29,8 +29,8 @@ Signed-off-by: James Feist <james.feist@linux.intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
  board/aspeed/ast2600_intel/Makefile  |   1 +
- board/aspeed/ast2600_intel/ast-kcs.c | 418 +++++++++++++++++++++++++++++++++++
- board/aspeed/ast2600_intel/ast-kcs.h | 112 ++++++++++
+ board/aspeed/ast2600_intel/ast-kcs.c | 418 +++++++++++++++++++++++++++
+ board/aspeed/ast2600_intel/ast-kcs.h | 112 +++++++
  board/aspeed/ast2600_intel/intel.c   |   4 +
  4 files changed, 535 insertions(+)
  create mode 100644 board/aspeed/ast2600_intel/ast-kcs.c
@@ -588,10 +588,10 @@ index 000000000000..e9b949eccf69
 +	u8 data_out[MAX_KCS_PKT_SIZE];
 +};
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index befeaff0a953..6ac24beb930b 100644
+index 7c005fb323e6..b3d2fb313561 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -251,6 +251,7 @@ int board_early_init_r(void)
+@@ -281,6 +281,7 @@ int board_early_init_r(void)
  }
  
  extern void espi_init(void);
@@ -599,7 +599,7 @@ index befeaff0a953..6ac24beb930b 100644
  extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
  			 void *cookie);
  int board_late_init(void)
-@@ -260,6 +261,9 @@ int board_late_init(void)
+@@ -290,6 +291,9 @@ int board_late_init(void)
  	timer_enable(0, ONE_SEC_IN_USEC, timer_callback, (void *)0);
  	espi_init();
  
@@ -610,5 +610,5 @@ index befeaff0a953..6ac24beb930b 100644
  }
  
 -- 
-2.7.4
+2.17.1
 

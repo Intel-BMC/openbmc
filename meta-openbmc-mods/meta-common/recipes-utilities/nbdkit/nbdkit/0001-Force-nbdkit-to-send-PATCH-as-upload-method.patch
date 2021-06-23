@@ -23,7 +23,7 @@ diff --git a/plugins/curl/curl.c b/plugins/curl/curl.c
 index 0ed3984..804ad78 100644
 --- a/plugins/curl/curl.c
 +++ b/plugins/curl/curl.c
-@@ -525,6 +525,7 @@ static int
+@@ -787,6 +787,7 @@ static int
  curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
  {
    struct curl_handle *h = handle;
@@ -31,10 +31,10 @@ index 0ed3984..804ad78 100644
    CURLcode r;
    char range[128];
  
-@@ -535,15 +536,21 @@ curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
+@@ -800,15 +801,21 @@ curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
    h->read_count = count;
  
-   curl_easy_setopt (h->c, CURLOPT_UPLOAD, 1);
+   curl_easy_setopt (h->c, CURLOPT_UPLOAD, 1L);
 +  curl_easy_setopt (h->c, CURLOPT_CUSTOMREQUEST, "PATCH");
  
    /* Make an HTTP range request. */
@@ -55,7 +55,7 @@ index 0ed3984..804ad78 100644
      display_curl_error (h, r, "pwrite: curl_easy_perform");
      return -1;
    }
-@@ -554,6 +561,10 @@ curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
+@@ -819,6 +826,10 @@ curl_pwrite (void *handle, const void *buf, uint32_t count, uint64_t offset)
  
    /* As far as I understand the cURL API, this should never happen. */
    assert (h->read_count == 0);

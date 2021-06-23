@@ -1,4 +1,4 @@
-From 10cb7cb14974725a29b3ead4c543ca5e58234c07 Mon Sep 17 00:00:00 2001
+From d5f2e8b00bc5f8a727a1ef678941c4993c3ea7a6 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Wed, 18 Nov 2020 17:14:41 +0530
 Subject: [PATCH] Firmware update configuration changes
@@ -39,23 +39,21 @@ Tested:
 
  - Successfully ran redfish validater with no new errors.
 
-Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
-
-%% original patch: 0001-Firmware-update-configuration-changes.patch
-
 Change-Id: I44e1743fd76aa37c7b8affa49a3e05f808187037
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Signed-off-by: Helen Huang <he.huang@intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- redfish-core/lib/update_service.hpp           | 339 ++++++++++++++++--
+ redfish-core/lib/update_service.hpp           | 338 ++++++++++++++++--
  static/redfish/v1/$metadata/index.xml         |   3 +
  .../JsonSchemas/OemUpdateService/index.json   |  69 ++++
  .../redfish/v1/schema/OemUpdateService_v1.xml |  40 +++
- 4 files changed, 421 insertions(+), 30 deletions(-)
+ 4 files changed, 421 insertions(+), 29 deletions(-)
  create mode 100644 static/redfish/v1/JsonSchemas/OemUpdateService/index.json
  create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index 6d44171..8eda265 100644
+index ca1234f..0a9f81a 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
 @@ -32,6 +32,17 @@ static std::unique_ptr<sdbusplus::bus::match::match> fwUpdateErrorMatcher;
@@ -76,7 +74,7 @@ index 6d44171..8eda265 100644
  
  static void cleanUp()
  {
-@@ -40,27 +51,119 @@ static void cleanUp()
+@@ -40,28 +51,120 @@ static void cleanUp()
      fwUpdateErrorMatcher = nullptr;
  }
  static void activateImage(const std::string& objPath,
@@ -201,12 +199,13 @@ index 6d44171..8eda265 100644
  
  // Note that asyncResp can be either a valid pointer or nullptr. If nullptr
  // then no asyncResp updates will occur
- static void softwareInterfaceAdded(const std::shared_ptr<AsyncResp>& asyncResp,
-+                                   const std::vector<std::string> imgUriTargets,
-                                    sdbusplus::message::message& m,
-                                    const crow::Request& req)
+ static void
+     softwareInterfaceAdded(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                           const std::vector<std::string> imgUriTargets,
+                            sdbusplus::message::message& m,
+                            const crow::Request& req)
  {
-@@ -73,22 +176,24 @@ static void softwareInterfaceAdded(const std::shared_ptr<AsyncResp>& asyncResp,
+@@ -74,22 +177,24 @@ static void
  
      m.read(objPath, interfacesProperties);
  
@@ -235,7 +234,7 @@ index 6d44171..8eda265 100644
                          BMCWEB_LOG_DEBUG << "error msg = "
                                           << errorCode.message();
                          if (asyncResp)
-@@ -115,7 +220,7 @@ static void softwareInterfaceAdded(const std::shared_ptr<AsyncResp>& asyncResp,
+@@ -116,7 +221,7 @@ static void
                      // is added
                      fwAvailableTimer = nullptr;
  
@@ -244,7 +243,7 @@ index 6d44171..8eda265 100644
                      if (asyncResp)
                      {
                          std::shared_ptr<task::TaskData> task =
-@@ -247,8 +352,7 @@ static void softwareInterfaceAdded(const std::shared_ptr<AsyncResp>& asyncResp,
+@@ -248,8 +353,7 @@ static void
                  "xyz.openbmc_project.ObjectMapper",
                  "/xyz/openbmc_project/object_mapper",
                  "xyz.openbmc_project.ObjectMapper", "GetObject", objPath.str,
@@ -254,17 +253,16 @@ index 6d44171..8eda265 100644
          }
      }
  }
-@@ -257,7 +361,8 @@ static void softwareInterfaceAdded(const std::shared_ptr<AsyncResp>& asyncResp,
- // then no asyncResp updates will occur
+@@ -259,7 +363,7 @@ static void
  static void monitorForSoftwareAvailable(
-     const std::shared_ptr<AsyncResp>& asyncResp, const crow::Request& req,
--    const std::string& url, int timeoutTimeSeconds = 10)
-+    const std::string& url, const std::vector<std::string>& imgUriTargets,
-+    int timeoutTimeSeconds = 10)
+     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+     const crow::Request& req, const std::string& url,
+-    int timeoutTimeSeconds = 10)
++    const std::vector<std::string>& imgUriTargets, int timeoutTimeSeconds = 10)
  {
      // Only allow one FW update at a time
      if (fwUpdateInProgress != false)
-@@ -297,9 +402,10 @@ static void monitorForSoftwareAvailable(
+@@ -299,9 +403,10 @@ static void monitorForSoftwareAvailable(
              }
          });
  
@@ -277,7 +275,7 @@ index 6d44171..8eda265 100644
      };
  
      fwUpdateInProgress = true;
-@@ -475,12 +581,15 @@ class UpdateServiceActionsSimpleUpdate : public Node
+@@ -477,12 +582,15 @@ class UpdateServiceActionsSimpleUpdate : public Node
          std::string fwFile = imageURI.substr(separator + 1);
          BMCWEB_LOG_DEBUG << "Server: " << tftpServer + " File: " << fwFile;
  
@@ -294,7 +292,7 @@ index 6d44171..8eda265 100644
  
          // TFTP can take up to 10 minutes depending on image size and
          // connection speed. Return to caller as soon as the TFTP operation
-@@ -514,7 +623,8 @@ class UpdateServiceActionsSimpleUpdate : public Node
+@@ -516,7 +624,8 @@ class UpdateServiceActionsSimpleUpdate : public Node
  class UpdateService : public Node
  {
    public:
@@ -304,37 +302,38 @@ index 6d44171..8eda265 100644
      {
          entityPrivileges = {
              {boost::beast::http::verb::get, {{"Login"}}},
-@@ -526,6 +636,8 @@ class UpdateService : public Node
+@@ -528,6 +637,8 @@ class UpdateService : public Node
      }
  
    private:
 +    std::vector<std::string> httpPushUriTargets;
 +    bool httpPushUriTargetBusy;
-     void doGet(crow::Response& res, const crow::Request&,
-                const std::vector<std::string>&) override
+     void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                const crow::Request&, const std::vector<std::string>&) override
      {
-@@ -536,6 +648,8 @@ class UpdateService : public Node
-         res.jsonValue["Description"] = "Service for Software Update";
-         res.jsonValue["Name"] = "Update Service";
-         res.jsonValue["HttpPushUri"] = "/redfish/v1/UpdateService";
-+        res.jsonValue["HttpPushUriTargets"] = httpPushUriTargets;
-+        res.jsonValue["HttpPushUriTargetsBusy"] = httpPushUriTargetBusy;
+@@ -538,6 +649,9 @@ class UpdateService : public Node
+         asyncResp->res.jsonValue["Description"] = "Service for Software Update";
+         asyncResp->res.jsonValue["Name"] = "Update Service";
+         asyncResp->res.jsonValue["HttpPushUri"] = "/redfish/v1/UpdateService";
++        asyncResp->res.jsonValue["HttpPushUriTargets"] = httpPushUriTargets;
++        asyncResp->res.jsonValue["HttpPushUriTargetsBusy"] =
++            httpPushUriTargetBusy;
          // UpdateService cannot be disabled
-         res.jsonValue["ServiceEnabled"] = true;
-         res.jsonValue["FirmwareInventory"] = {
-@@ -585,6 +699,31 @@ class UpdateService : public Node
+         asyncResp->res.jsonValue["ServiceEnabled"] = true;
+         asyncResp->res.jsonValue["FirmwareInventory"] = {
+@@ -587,6 +701,32 @@ class UpdateService : public Node
              "/xyz/openbmc_project/software/apply_time",
              "org.freedesktop.DBus.Properties", "Get",
              "xyz.openbmc_project.Software.ApplyTime", "RequestedApplyTime");
 +
 +        // Get the ApplyOptions value
 +        crow::connections::systemBus->async_method_call(
-+            [aResp](const boost::system::error_code ec,
-+                    const std::variant<bool> applyOption) {
++            [asyncResp](const boost::system::error_code ec,
++                        const std::variant<bool> applyOption) {
 +                if (ec)
 +                {
 +                    BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
-+                    messages::internalError(aResp->res);
++                    messages::internalError(asyncResp->res);
 +                    return;
 +                }
 +
@@ -342,10 +341,11 @@ index 6d44171..8eda265 100644
 +
 +                if (b)
 +                {
-+                    aResp->res.jsonValue["Oem"]["ApplyOptions"]["@odata.type"] =
++                    asyncResp->res
++                        .jsonValue["Oem"]["ApplyOptions"]["@odata.type"] =
 +                        "#OemUpdateService.ApplyOptions";
-+                    aResp->res.jsonValue["Oem"]["ApplyOptions"]["ClearConfig"] =
-+                        *b;
++                    asyncResp->res
++                        .jsonValue["Oem"]["ApplyOptions"]["ClearConfig"] = *b;
 +                }
 +            },
 +            "xyz.openbmc_project.Software.BMC.Updater",
@@ -353,21 +353,20 @@ index 6d44171..8eda265 100644
 +            "Get", "xyz.openbmc_project.Software.ApplyOptions", "ClearConfig");
      }
  
-     void doPatch(crow::Response& res, const crow::Request& req,
-@@ -595,12 +734,61 @@ class UpdateService : public Node
-         std::shared_ptr<AsyncResp> asyncResp = std::make_shared<AsyncResp>(res);
+     void doPatch(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+@@ -596,12 +736,61 @@ class UpdateService : public Node
+         BMCWEB_LOG_DEBUG << "doPatch...";
  
          std::optional<nlohmann::json> pushUriOptions;
--        if (!json_util::readJson(req, res, "HttpPushUriOptions",
--                                 pushUriOptions))
 +        std::optional<std::vector<std::string>> imgTargets;
 +        std::optional<bool> imgTargetBusy;
 +        std::optional<nlohmann::json> oemProps;
 +
-+        if (!json_util::readJson(req, res, "HttpPushUriOptions", pushUriOptions,
-+                                 "HttpPushUriTargets", imgTargets,
-+                                 "HttpPushUriTargetsBusy", imgTargetBusy, "Oem",
-+                                 oemProps))
+         if (!json_util::readJson(req, asyncResp->res, "HttpPushUriOptions",
+-                                 pushUriOptions))
++                                 pushUriOptions, "HttpPushUriTargets",
++                                 imgTargets, "HttpPushUriTargetsBusy",
++                                 imgTargetBusy, "Oem", oemProps))
          {
 +            BMCWEB_LOG_DEBUG << "UpdateService doPatch: Invalid request body";
              return;
@@ -377,7 +376,7 @@ index 6d44171..8eda265 100644
 +        {
 +            std::optional<nlohmann::json> applyOptions;
 +
-+            if (!json_util::readJson(*oemProps, res, "ApplyOptions",
++            if (!json_util::readJson(*oemProps, asyncResp->res, "ApplyOptions",
 +                                     applyOptions))
 +            {
 +                return;
@@ -386,8 +385,8 @@ index 6d44171..8eda265 100644
 +            if (applyOptions)
 +            {
 +                std::optional<bool> clearConfig;
-+                if (!json_util::readJson(*applyOptions, res, "ClearConfig",
-+                                         clearConfig))
++                if (!json_util::readJson(*applyOptions, asyncResp->res,
++                                         "ClearConfig", clearConfig))
 +                {
 +                    return;
 +                }
@@ -418,7 +417,7 @@ index 6d44171..8eda265 100644
          if (pushUriOptions)
          {
              std::optional<nlohmann::json> pushUriApplyTime;
-@@ -665,6 +853,98 @@ class UpdateService : public Node
+@@ -666,6 +855,98 @@ class UpdateService : public Node
                  }
              }
          }
@@ -516,9 +515,9 @@ index 6d44171..8eda265 100644
 +        }
      }
  
-     void doPost(crow::Response& res, const crow::Request& req,
-@@ -675,8 +955,8 @@ class UpdateService : public Node
-         std::shared_ptr<AsyncResp> asyncResp = std::make_shared<AsyncResp>(res);
+     void doPost(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+@@ -675,8 +956,8 @@ class UpdateService : public Node
+         BMCWEB_LOG_DEBUG << "doPost...";
  
          // Setup callback for when new software detected
 -        monitorForSoftwareAvailable(asyncResp, req,
@@ -528,7 +527,7 @@ index 6d44171..8eda265 100644
  
          std::string filepath(
              "/tmp/images/" +
-@@ -761,7 +1041,7 @@ class SoftwareInventoryCollection : public Node
+@@ -759,7 +1040,7 @@ class SoftwareInventoryCollection : public Node
              "/xyz/openbmc_project/object_mapper",
              "xyz.openbmc_project.ObjectMapper", "GetSubTree",
              "/xyz/openbmc_project/software", static_cast<int32_t>(0),
@@ -537,7 +536,7 @@ index 6d44171..8eda265 100644
      }
  };
  
-@@ -943,7 +1223,7 @@ class SoftwareInventory : public Node
+@@ -940,7 +1221,7 @@ class SoftwareInventory : public Node
                          },
                          obj.second[0].first, obj.first,
                          "org.freedesktop.DBus.Properties", "GetAll",
@@ -546,7 +545,7 @@ index 6d44171..8eda265 100644
                  }
                  if (!found)
                  {
-@@ -964,8 +1244,7 @@ class SoftwareInventory : public Node
+@@ -961,8 +1242,7 @@ class SoftwareInventory : public Node
              "xyz.openbmc_project.ObjectMapper",
              "/xyz/openbmc_project/object_mapper",
              "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
@@ -557,19 +556,19 @@ index 6d44171..8eda265 100644
  };
  
 diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
-index 514f3dd..c068d4f 100644
+index 9d9fd1f..6cbc0d1 100644
 --- a/static/redfish/v1/$metadata/index.xml
 +++ b/static/redfish/v1/$metadata/index.xml
-@@ -2142,6 +2142,9 @@
-     <edmx:Reference Uri="/redfish/v1/schema/OemManager_v1.xml">
-         <edmx:Include Namespace="OemManager"/>
+@@ -2145,6 +2145,9 @@
+     <edmx:Reference Uri="/redfish/v1/schema/OemComputerSystem_v1.xml">
+         <edmx:Include Namespace="OemComputerSystem"/>
      </edmx:Reference>
 +    <edmx:Reference Uri="/redfish/v1/schema/OemUpdateService_v1.xml">
 +        <edmx:Include Namespace="OemUpdateService"/>
 +    </edmx:Reference>
-     <edmx:Reference Uri="/redfish/v1/schema/OemCrashdump_v1.xml">
-         <edmx:Include Namespace="OemCrashdump.v1_0_0"/>
-     </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/OemVirtualMedia_v1.xml">
+         <edmx:Include Namespace="OemVirtualMedia"/>
+         <edmx:Include Namespace="OemVirtualMedia.v1_0_0"/>
 diff --git a/static/redfish/v1/JsonSchemas/OemUpdateService/index.json b/static/redfish/v1/JsonSchemas/OemUpdateService/index.json
 new file mode 100644
 index 0000000..74e39cd

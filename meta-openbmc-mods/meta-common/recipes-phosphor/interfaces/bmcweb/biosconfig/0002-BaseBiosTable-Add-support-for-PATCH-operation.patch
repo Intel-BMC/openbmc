@@ -1,4 +1,4 @@
-From ad2b1c83bd9cb1bb6eb86bebd1867b0172e5a7a8 Mon Sep 17 00:00:00 2001
+From 9c498d683be59ce25dd0124ba7ec5e026c59bbbf Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Wed, 23 Dec 2020 16:50:45 +0800
 Subject: [PATCH] BaseBiosTable: Add support for PATCH operation
@@ -26,11 +26,11 @@ backend and that updates the BaseBiosTable.
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
- redfish-core/lib/bios.hpp | 94 ++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 93 insertions(+), 1 deletion(-)
+ redfish-core/lib/bios.hpp | 93 ++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 92 insertions(+), 1 deletion(-)
 
 diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
-index 5f8c91b..cf76fe0 100644
+index cb2b74d..860a643 100644
 --- a/redfish-core/lib/bios.hpp
 +++ b/redfish-core/lib/bios.hpp
 @@ -96,6 +96,29 @@ static std::string mapAttrTypeToRedfish(const std::string_view typeDbus)
@@ -63,7 +63,7 @@ index 5f8c91b..cf76fe0 100644
  static std::string mapBoundTypeToRedfish(const std::string_view typeDbus)
  {
      std::string ret;
-@@ -262,7 +285,9 @@ class BiosSettings : public Node
+@@ -260,7 +283,9 @@ class BiosSettings : public Node
      BiosSettings(App& app) :
          Node(app, "/redfish/v1/Systems/system/Bios/Settings")
      {
@@ -74,16 +74,15 @@ index 5f8c91b..cf76fe0 100644
      }
  
    private:
-@@ -359,6 +384,73 @@ class BiosSettings : public Node
+@@ -356,6 +381,72 @@ class BiosSettings : public Node
              "/xyz/openbmc_project/bios_config/manager",
              std::array<const char*, 0>());
      }
 +
-+    void doPatch(crow::Response& res, const crow::Request& req,
++    void doPatch(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                 const crow::Request& req,
 +                 const std::vector<std::string>&) override
 +    {
-+        auto asyncResp = std::make_shared<AsyncResp>(res);
-+
 +        nlohmann::json inpJson;
 +
 +        if (!redfish::json_util::readJson(req, asyncResp->res, "data", inpJson))

@@ -1,9 +1,8 @@
-
-From 1bbabe4ecdeea20da809b9f1d8e194683629517c Mon Sep 17 00:00:00 2001
+From 805641a2d189da9befc05168f51cef76da1ba326 Mon Sep 17 00:00:00 2001
 From: Alicja Rybak <alicja.rybak@intel.com>
 Date: Tue, 20 Apr 2021 16:32:37 +0200
-Subject: [PATCH] Invalid status code from InsertMedia REST methods GET, PUT,
- DELETE, PATCH in proxy mode
+Subject: [PATCH] Invalid status code from InsertMedia REST methods GET,
+ PUT, DELETE, PATCH in proxy mode
 
 Add handlers for GET, PUT, DELETE, PATCH method and function that
 checks which mode is used and set suitable status code:
@@ -12,14 +11,14 @@ Not allowed for Legacy and Not found for Proxy.
 Change-Id: Ib4c0a3e9a2a8853caa74c59239d9fcfed99c5e8b
 Signed-off-by: Alicja Rybak <alicja.rybak@intel.com>
 ---
- redfish-core/lib/virtual_media.hpp | 154 +++++++++++++++++++++++++++++
- 1 file changed, 154 insertions(+)
+ redfish-core/lib/virtual_media.hpp | 155 +++++++++++++++++++++++++++++
+ 1 file changed, 155 insertions(+)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index 8353ce7..66bf220 100644
+index aa7c639..3e28164 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
-@@ -530,6 +530,160 @@ class VirtualMediaActionInsertMedia : public Node
+@@ -548,6 +548,161 @@ class VirtualMediaActionInsertMedia : public Node
          return true;
      }
  
@@ -28,15 +27,13 @@ index 8353ce7..66bf220 100644
 +     *        and sets suitable response code for unsupported REST method.
 +     *
 +     */
-+    void CheckProxyMode(crow::Response& res,
++    void CheckProxyMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 +                        const crow::Request& req,
 +                        const std::vector<std::string>& params)
 +    {
-+        auto aResp = std::make_shared<AsyncResp>(res);
-+
 +        if (params.size() != 2)
 +        {
-+            messages::internalError(res);
++            messages::internalError(aResp->res);
 +            return;
 +        }
 +
@@ -45,7 +42,8 @@ index 8353ce7..66bf220 100644
 +
 +        if (params[0] != "bmc")
 +        {
-+            messages::resourceNotFound(res, "VirtualMedia.Insert", resName);
++            messages::resourceNotFound(aResp->res, "VirtualMedia.Insert",
++                                       resName);
 +
 +            return;
 +        }
@@ -58,8 +56,7 @@ index 8353ce7..66bf220 100644
 +                {
 +                    BMCWEB_LOG_ERROR << "ObjectMapper::GetObject call failed: "
 +                                     << ec;
-+                    aResp->res.result(
-+                        boost::beast::http::status::not_found);
++                    aResp->res.result(boost::beast::http::status::not_found);
 +
 +                    return;
 +                }
@@ -109,9 +106,8 @@ index 8353ce7..66bf220 100644
 +                                BMCWEB_LOG_DEBUG << "InsertMedia only allowed "
 +                                                    "with POST method "
 +                                                    "in legacy mode";
-+                                aResp->res.result(
-+                                    boost::beast::http::status::
-+                                        method_not_allowed);
++                                aResp->res.result(boost::beast::http::status::
++                                                      method_not_allowed);
 +
 +                                return;
 +                            }
@@ -144,39 +140,46 @@ index 8353ce7..66bf220 100644
 +    /**
 +     * @brief Function handles GET method request.
 +     */
-+    void doGet(crow::Response& res, const crow::Request& req,
-+                const std::vector<std::string>& params) override
++    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const crow::Request& req,
++               const std::vector<std::string>& params) override
 +    {
-+        CheckProxyMode(res, req, params);
++        CheckProxyMode(asyncResp, req, params);
 +    }
 +
 +    /**
 +     * @brief Function handles PATCH method request.
 +     */
-+    void doPatch(crow::Response& res, const crow::Request& req,
-+                const std::vector<std::string>& params) override
++    void doPatch(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                 const crow::Request& req,
++                 const std::vector<std::string>& params) override
 +    {
-+        CheckProxyMode(res, req, params);
++        CheckProxyMode(asyncResp, req, params);
 +    }
 +
 +    /**
 +     * @brief Function handles PUT method request.
 +     */
-+    void doPut(crow::Response& res, const crow::Request& req,
-+                const std::vector<std::string>& params) override
++    void doPut(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const crow::Request& req,
++               const std::vector<std::string>& params) override
 +    {
-+        CheckProxyMode(res, req, params);
++        CheckProxyMode(asyncResp, req, params);
 +    }
 +
 +    /**
 +     * @brief Function handles DELETE method request.
 +     */
-+    void doDelete(crow::Response& res, const crow::Request& req,
-+                const std::vector<std::string>& params) override
++    void doDelete(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                  const crow::Request& req,
++                  const std::vector<std::string>& params) override
 +    {
-+        CheckProxyMode(res, req, params);
++        CheckProxyMode(asyncResp, req, params);
 +    }
 +
      /**
       * @brief Function handles POST method request.
       *
+-- 
+2.17.1
+

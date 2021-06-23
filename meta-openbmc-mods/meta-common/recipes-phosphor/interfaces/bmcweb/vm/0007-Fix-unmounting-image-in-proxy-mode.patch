@@ -1,4 +1,4 @@
-From 9493bb8e2f5c708e187313c86e6033de5f103c51 Mon Sep 17 00:00:00 2001
+From 6f4b5fc1879f39b0f5fee0838f0ecbc481275d5e Mon Sep 17 00:00:00 2001
 From: Alicja Rybak <alicja.rybak@intel.com>
 Date: Fri, 23 Apr 2021 17:35:52 +0200
 Subject: [PATCH] Fix unmounting image in proxy mode.
@@ -16,10 +16,10 @@ Signed-off-by: Alicja Rybak <alicja.rybak@intel.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/nbd_proxy.hpp b/include/nbd_proxy.hpp
-index 7b90e90..fa7f647 100644
+index 3b28823..897bcf2 100644
 --- a/include/nbd_proxy.hpp
 +++ b/include/nbd_proxy.hpp
-@@ -428,9 +428,9 @@ inline void requestRoutes(App& app)
+@@ -439,9 +439,9 @@ inline void requestRoutes(App& app)
                      BMCWEB_LOG_DEBUG << "No session to close";
                      return;
                  }
@@ -30,3 +30,6 @@ index 7b90e90..fa7f647 100644
              })
          .onmessage([](crow::websocket::Connection& conn,
                        const std::string& data, bool) {
+-- 
+2.17.1
+

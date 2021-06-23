@@ -1,4 +1,4 @@
-From 5ca28a9259d084440879be48ef4b4d6716794281 Mon Sep 17 00:00:00 2001
+From 438ff3a8db6718bb137dccaafa707f8275407742 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Mon, 22 Feb 2021 17:22:16 +0530
 Subject: [PATCH] ast2600-PFR-platform-EXTRST-reset-mask-selection
@@ -12,11 +12,11 @@ to be reset so that Host functionality would be intact.
 Signed-off-by: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
- arch/arm/mach-aspeed/ast2600/platform.S | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ arch/arm/mach-aspeed/ast2600/platform.S | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index ecc9fd33d1..8c40515b76 100644
+index bdc0884de1bd..d7115c96f117 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
 @@ -39,6 +39,8 @@
@@ -28,14 +28,15 @@ index ecc9fd33d1..8c40515b76 100644
  #define AST_SCU_DEBUG_CTRL              (AST_SCU_BASE + 0x0C8)
  #define AST_SCU_DEBUG_CTRL2             (AST_SCU_BASE + 0x0D8)
  #define AST_SCU_HPLL_PARAM		(AST_SCU_BASE + 0x200)
-@@ -285,6 +287,15 @@ wait_lock:
+@@ -303,6 +305,16 @@ wait_lock:
  	str	r1, [r0]
  
- 1:
+ 2:
 +	/* SCU060:EXTRST1# reset mask selection */
 +	ldr 	r0, =AST_SCU_EXTRST_SEL1
 +	ldr 	r1, =0x6FF1FF5
 +	str 	r1, [r0]
++
 +	/* SCU070:EXTRST2# reset mask selection */
 +	ldr 	r0, =AST_SCU_EXTRST_SEL2
 +	ldr 	r1, =0x3FFFFF7

@@ -3,8 +3,8 @@ Until change is integrated they will be manually merged here to enable feature i
 
 Current revisions:
 - Add support for MetricDefinition scheme
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/60
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/72
 
 - Sync Telmetry service with EventService
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/38798/26
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/38798/30
 

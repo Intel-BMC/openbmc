@@ -1,4 +1,4 @@
-From c645c011bb3ea2a2aaf52560cb9fcc461d048cae Mon Sep 17 00:00:00 2001
+From 72c273ae74bb6add062b89f59ebeee4d4eb7e523 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Fri, 4 Sep 2020 19:24:25 +0800
 Subject: [PATCH] Define Redfish interface "/Registries/Bios" and enable
@@ -228,16 +228,16 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
  redfish-core/include/redfish.hpp              |   2 +
  .../include/registries/bios_registry.hpp      |  31 ++
- redfish-core/lib/bios.hpp                     | 503 ++++++++++++++++++
+ redfish-core/lib/bios.hpp                     | 501 ++++++++++++++++++
  redfish-core/lib/message_registries.hpp       |   9 +-
- 4 files changed, 544 insertions(+), 1 deletion(-)
+ 4 files changed, 542 insertions(+), 1 deletion(-)
  create mode 100644 redfish-core/include/registries/bios_registry.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index 5d5eb7b..a8e5cf2 100644
+index db58d60..298ebb8 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
-@@ -157,6 +157,8 @@ class RedfishService
+@@ -156,6 +156,8 @@ class RedfishService
          nodes.emplace_back(std::make_unique<SystemActionsReset>(app));
          nodes.emplace_back(std::make_unique<SystemResetActionInfo>(app));
          nodes.emplace_back(std::make_unique<BiosService>(app));
@@ -285,7 +285,7 @@ index 0000000..88ef782
 +} // namespace redfish::message_registries::bios
 \ No newline at end of file
 diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
-index 2c31077..5f8c91b 100644
+index 0917cc7..cb2b74d 100644
 --- a/redfish-core/lib/bios.hpp
 +++ b/redfish-core/lib/bios.hpp
 @@ -3,8 +3,140 @@
@@ -429,7 +429,7 @@ index 2c31077..5f8c91b 100644
  /**
   * BiosService class supports handle get method for bios.
   */
-@@ -35,6 +167,377 @@ class BiosService : public Node
+@@ -33,6 +165,375 @@ class BiosService : public Node
          // Get the ActiveSoftwareImage and SoftwareImages
          fw_util::populateFirmwareInformation(asyncResp, fw_util::biosPurpose,
                                               "", true);
@@ -532,10 +532,9 @@ index 2c31077..5f8c91b 100644
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request&,
-+               const std::vector<std::string>&) override
++    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const crow::Request&, const std::vector<std::string>&) override
 +    {
-+        auto asyncResp = std::make_shared<AsyncResp>(res);
 +        asyncResp->res.jsonValue["@odata.id"] =
 +            "/redfish/v1/Systems/system/Bios/Settings";
 +        asyncResp->res.jsonValue["@odata.type"] = "#Bios.v1_1_0.Bios";
@@ -641,10 +640,9 @@ index 2c31077..5f8c91b 100644
 +    }
 +
 +  private:
-+    void doGet(crow::Response& res, const crow::Request&,
-+               const std::vector<std::string>&) override
++    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const crow::Request&, const std::vector<std::string>&) override
 +    {
-+        auto asyncResp = std::make_shared<AsyncResp>(res);
 +        asyncResp->res.jsonValue["@odata.id"] =
 +            "/redfish/v1/Registries/BiosAttributeRegistry/"
 +            "BiosAttributeRegistry";
@@ -808,7 +806,7 @@ index 2c31077..5f8c91b 100644
  };
  /**
 diff --git a/redfish-core/lib/message_registries.hpp b/redfish-core/lib/message_registries.hpp
-index 77fc10e..0caf01c 100644
+index 455bf70..7afbfc2 100644
 --- a/redfish-core/lib/message_registries.hpp
 +++ b/redfish-core/lib/message_registries.hpp
 @@ -18,6 +18,7 @@
@@ -831,9 +829,9 @@ index 77fc10e..0caf01c 100644
                {{"@odata.id", "/redfish/v1/Registries/ResourceEvent"}},
 +              {{"@odata.id", "/redfish/v1/Registries/BiosAttributeRegistry"}},
                {{"@odata.id", "/redfish/v1/Registries/OpenBMC"}}}}};
- 
-         res.end();
-@@ -118,6 +120,11 @@ class MessageRegistryFile : public Node
+     }
+ };
+@@ -116,6 +118,11 @@ class MessageRegistryFile : public Node
              header = &message_registries::resource_event::header;
              url = message_registries::resource_event::url;
          }

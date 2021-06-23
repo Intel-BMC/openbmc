@@ -1,7 +1,7 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "6b6891c52e550c42507d4b413cbc4c6a09235535"
+SRCREV = "13b63f8f597d396db8b5bd182ac2e5814d599e2f"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 SRC_URI += "\
@@ -11,6 +11,7 @@ SRC_URI += "\
     file://0003-Fix-missing-threshold-de-assert-event-when-threshold.patch \
     file://0004-Fan-Tach-Sensor-Threshold-Ignore-Zero.patch \
     file://0005-Fix-PECI-ioctl-number.patch \
+    file://0006-CPUSensor-create-RequirediTempSensor-if-defined.patch \
     "
 
 DEPENDS_append = " libgpiod libmctp"

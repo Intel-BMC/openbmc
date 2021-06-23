@@ -1,4 +1,4 @@
-From dab4adbf211b6867f86fcf6080b34a0e41f6f4a1 Mon Sep 17 00:00:00 2001
+From 89ca38dbc3433b3b734a20068e599809f3bd7b90 Mon Sep 17 00:00:00 2001
 From: Karol Wachowski <karol.wachowski@intel.com>
 Date: Tue, 23 Feb 2021 15:53:16 +0000
 Subject: [PATCH] Set Inserted redfish property for not inserted resources
@@ -11,10 +11,10 @@ Signed-off-by: Karol Wachowski <karol.wachowski@intel.com>
  1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index 188248a..f477f63 100644
+index 3e28164..4c475b7 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
-@@ -95,6 +95,7 @@ static void vmParseInterfaceObject(const DbusInterfaceType& interface,
+@@ -96,6 +96,7 @@ static void
          BMCWEB_LOG_DEBUG << "Value Active not found";
          return;
      }
@@ -22,7 +22,7 @@ index 188248a..f477f63 100644
  
      const std::string* endpointIdValue =
          std::get_if<std::string>(&endpointIdProperty->second);
-@@ -106,7 +107,6 @@ static void vmParseInterfaceObject(const DbusInterfaceType& interface,
+@@ -107,7 +108,6 @@ static void
              aResp->res.jsonValue["Oem"]["OpenBMC"]["WebSocketEndpoint"] =
                  *endpointIdValue;
              aResp->res.jsonValue["TransferProtocolType"] = "OEM";
@@ -30,7 +30,7 @@ index 188248a..f477f63 100644
              if (*activeValue == true)
              {
                  aResp->res.jsonValue["ConnectedVia"] = "Applet";
-@@ -137,7 +137,6 @@ static void vmParseInterfaceObject(const DbusInterfaceType& interface,
+@@ -138,7 +138,6 @@ static void
                          }
  
                          aResp->res.jsonValue["Image"] = *imageUrlValue;
@@ -38,3 +38,6 @@ index 188248a..f477f63 100644
                          aResp->res.jsonValue["TransferProtocolType"] =
                              getTransferProtocolTypeFromUri(*imageUrlValue);
  
+-- 
+2.17.1
+

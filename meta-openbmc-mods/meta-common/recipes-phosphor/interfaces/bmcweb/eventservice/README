@@ -4,16 +4,16 @@ thee gets merged upstream.
 
 Upstream revision information:
  - EventService : Fix retry handling for http-client
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/40731/18
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/40731/20
 
  - EventService: https client support
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31735/38
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31735/39
 
  - Add Server-Sent-Events support
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41258/5
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41258/6
 
  - Add SSE style subscription support to eventservice
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41319/5
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41319/6
 
  - Add EventService SSE filter support
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41349/2
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41349/3

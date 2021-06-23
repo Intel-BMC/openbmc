@@ -1,4 +1,4 @@
-From c1561193296d04dd8bd06adca43edac814058367 Mon Sep 17 00:00:00 2001
+From 0732dd21869418b4d437b8d1aef239d5348fc94d Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Fri, 3 Jan 2020 12:52:29 +0800
 Subject: [PATCH] Enable interrupt in u-boot.
@@ -14,18 +14,18 @@ Testedby:
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- Kconfig                               |  14 +++
+ Kconfig                               |  14 ++
  arch/arm/lib/stack.c                  |   9 ++
- arch/arm/lib/vectors.S                |  30 +++++-
+ arch/arm/lib/vectors.S                |  30 ++++-
  board/aspeed/ast2600_intel/ast-espi.c |   3 +-
- board/aspeed/ast2600_intel/ast-irq.c  | 185 +++++++++++++++++-----------------
+ board/aspeed/ast2600_intel/ast-irq.c  | 185 +++++++++++++-------------
  board/aspeed/ast2600_intel/ast-irq.h  |   8 --
  board/aspeed/ast2600_intel/intel.c    |   1 -
  7 files changed, 145 insertions(+), 105 deletions(-)
  delete mode 100644 board/aspeed/ast2600_intel/ast-irq.h
 
 diff --git a/Kconfig b/Kconfig
-index 305b265ed713..a6f68cd13d54 100644
+index c3dfa8de47c8..b62bcdbccf1e 100644
 --- a/Kconfig
 +++ b/Kconfig
 @@ -239,6 +239,20 @@ config BUILD_TARGET
@@ -551,10 +551,10 @@ index 9957f2baa7ff..000000000000
 -
 -#endif
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index ac108c3a066c..22a377d2cb77 100644
+index 14a20b27e178..d03a446846bc 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -209,7 +209,6 @@ static void timer_handler(void *regs)
+@@ -239,7 +239,6 @@ static void timer_handler(void *regs)
  	printf("+");
  }
  
@@ -563,5 +563,5 @@ index ac108c3a066c..22a377d2cb77 100644
  {
  	/* This is called before relocation; beware! */
 -- 
-2.7.4
+2.17.1
 

@@ -2,7 +2,7 @@ SUMMARY = "HSBP Manager"
 DESCRIPTION = "HSBP Manager monitors HSBPs through SMBUS"
 
 SRC_URI = "git://github.com/openbmc/s2600wf-misc.git"
-SRCREV = "291d6388e0b770e89091935bc4edc7f371874666"
+SRCREV = "52639bebada24990c3514786d65598dc5557477a"
 PV = "0.1+git${SRCPV}"
 
 LICENSE = "Apache-2.0"
@@ -12,7 +12,8 @@ SYSTEMD_SERVICE_${PN} = "hsbp-manager.service"
 
 DEPENDS = "boost \
            i2c-tools \
-           sdbusplus"
+           sdbusplus \
+           libgpiod"
 
 S = "${WORKDIR}/git/hsbp-manager"
 inherit cmake systemd

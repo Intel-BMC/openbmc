@@ -1,4 +1,4 @@
-From 81f2c022b22ef75990f30e5ba5bfd4ba5bd41754 Mon Sep 17 00:00:00 2001
+From e7018ea9e3ad1a17e096aec3717a4764c3feac2e Mon Sep 17 00:00:00 2001
 From: Alicja Rybak <alicja.rybak@intel.com>
 Date: Wed, 14 Apr 2021 16:26:59 +0200
 Subject: [PATCH] Bmcweb handle permission denied exception
@@ -17,10 +17,10 @@ Signed-off-by: Alicja Rybak <alicja.rybak@intel.com>
  1 file changed, 8 insertions(+)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index 365290b..bbdc91b 100644
+index 4c475b7..8151ac0 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
-@@ -900,6 +900,10 @@ class VirtualMediaActionInsertMedia : public Node
+@@ -1073,6 +1073,10 @@ class VirtualMediaActionInsertMedia : public Node
                              {
                                  messages::resourceInUse(asyncResp->res);
                              }
@@ -31,7 +31,7 @@ index 365290b..bbdc91b 100644
                              else
                              {
                                  messages::internalError(asyncResp->res);
-@@ -1092,6 +1096,10 @@ class VirtualMediaActionEjectMedia : public Node
+@@ -1267,6 +1271,10 @@ class VirtualMediaActionEjectMedia : public Node
                              {
                                  messages::resourceInUse(asyncResp->res);
                              }
@@ -42,3 +42,6 @@ index 365290b..bbdc91b 100644
                              else
                              {
                                  messages::internalError(asyncResp->res);
+-- 
+2.17.1
+

@@ -1,4 +1,4 @@
-From 6f9d529b616ce84271ccd2584b9bcd8d13ab57de Mon Sep 17 00:00:00 2001
+From 844e425a503c56bd84dbfe5396c5f8f9b4284e6d Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 29 Jan 2020 14:55:44 -0800
 Subject: [PATCH] ast2600: Override OTP strap settings
@@ -8,11 +8,11 @@ Also, this commit disables SoC debug interface.
 
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- arch/arm/mach-aspeed/ast2600/platform.S | 26 ++++++++++++++++++++++---
- 1 file changed, 23 insertions(+), 3 deletions(-)
+ arch/arm/mach-aspeed/ast2600/platform.S | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index f193c66cd04b..997670b66bdc 100644
+index f96ef1f0dac4..3b6f91a60c3d 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
 @@ -44,7 +44,9 @@
@@ -25,7 +25,7 @@ index f193c66cd04b..997670b66bdc 100644
  #define AST_SCU_CA7_PARITY_CHK		(AST_SCU_BASE + 0x820)
  #define AST_SCU_CA7_PARITY_CLR		(AST_SCU_BASE + 0x824)
  #define AST_SCU_MMIO_DEC_SET		(AST_SCU_BASE + 0xC24)
-@@ -173,6 +175,26 @@ do_primary_core_setup:
+@@ -175,6 +177,26 @@ do_primary_core_setup:
  	/* unlock system control unit */
  	scu_unlock
  
@@ -52,7 +52,7 @@ index f193c66cd04b..997670b66bdc 100644
  	/* identify AST2600 A0/A1 */
  	ldr	r0, =AST_SCU_REV_ID
  	ldr	r0, [r0]
-@@ -262,19 +284,17 @@ skip_fill_wip_bit:
+@@ -277,7 +299,6 @@ skip_fill_wip_bit:
  	ldr	r1, =AST_FMC_WDT1_CTRL_MODE
  	str	r0, [r1]
  
@@ -60,12 +60,7 @@ index f193c66cd04b..997670b66bdc 100644
  	/* disable UART-based SoC Debug Interface UART5 and P2A bridge*/
  	ldr     r0, =AST_SCU_DEBUG_CTRL
  	ldr     r1, [r0]
- 	orr     r1, #0x03
- 	str     r1, [r0]
--	
-+
- 	/* disable UART-based SoC Debug Interface UART1 and LPC2AHB bridge */
- 	ldr     r0, =AST_SCU_DEBUG_CTRL2
+@@ -289,7 +310,6 @@ skip_fill_wip_bit:
  	ldr     r1, [r0]
  	orr     r1, #0x0A
  	str     r1, [r0]

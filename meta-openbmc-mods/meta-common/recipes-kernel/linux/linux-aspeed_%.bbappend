@@ -1,10 +1,12 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 
+LINUX_VERSION = "5.10.30"
+
 KBRANCH = "dev-5.10-intel"
 KSRC = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=${KBRANCH}"
 # Include this as a comment only for downstream auto-bump
 # SRC_URI = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=dev-5.10-intel"
-SRCREV="faadf371d041eb0d2c8b1d4cc729f19cf53e6a92"
+SRCREV="0785121bf4894ebecd9a6efc82331894fefd6c82"
 
 do_compile_prepend(){
    # device tree compiler flags
@@ -17,6 +19,8 @@ SRC_URI += " \
         file://0002-soc-aspeed-add-AST2600-A0-specific-fix-into-mbox-dri.patch \
         file://0003-Fix-libmctp-build-error.patch \
         file://0004-Add-a-quick-fix-to-resolve-USB-gadget-DMA-issue.patch \
+        file://1003-Die_CPU-filter-first-zero-from-GetTemp.patch \
+        file://1004-DTS_CPU-filter-first-zero-from-RdPkgConfig-10.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"

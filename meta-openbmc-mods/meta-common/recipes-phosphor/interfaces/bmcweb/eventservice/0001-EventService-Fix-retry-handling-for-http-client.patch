@@ -1,7 +1,7 @@
-From ae55e89c14ea5abef0895409c956f5f4c38f330f Mon Sep 17 00:00:00 2001
+From 3d6c3b3e91c04ff8f10bff49bcf2a7d7206c53df Mon Sep 17 00:00:00 2001
 From: Sunitha Harish <sunithaharish04@gmail.com>
 Date: Fri, 19 Feb 2021 13:38:31 +0530
-Subject: [PATCH 1/2] EventService : Fix retry handling for http-client
+Subject: [PATCH] EventService : Fix retry handling for http-client
 
 When the event send/receive is failed, the bmcweb does not handle
 the failure to tear-down the complete connection and start a fresh
@@ -23,17 +23,22 @@ Tested by:
   - Generate an event and see the same is received at the listener's console
   - Update the listner to change the keep-alive to true/false and
     observe the http-client connection states at bmcweb
+  - Changed listener client to return non success HTTP status code
+    and observed retry logic gets trigrred in http-client.
+  - Gave wrong fqdn and observed async resolve failure and retry logc.
+  - Stopped listener after connect and verified timeouts on http-client
+    side.
 
 Change-Id: Ibb45691f139916ba2954da37beda9d4f91c7cef3
 Signed-off-by: Sunitha Harish <sunithaharish04@gmail.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- http/http_client.hpp                          | 289 ++++++++++--------
+ http/http_client.hpp                          | 288 ++++++++++--------
  .../include/event_service_manager.hpp         |   2 +-
- 2 files changed, 163 insertions(+), 128 deletions(-)
+ 2 files changed, 162 insertions(+), 128 deletions(-)
 
 diff --git a/http/http_client.hpp b/http/http_client.hpp
-index 992ac2b..d116f6d 100644
+index 992ac2b..feabbba 100644
 --- a/http/http_client.hpp
 +++ b/http/http_client.hpp
 @@ -34,22 +34,28 @@ namespace crow
@@ -67,7 +72,7 @@ index 992ac2b..d116f6d 100644
  };
  
  class HttpClient : public std::enable_shared_from_this<HttpClient>
-@@ -58,11 +64,14 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -58,11 +64,13 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
      crow::async_resolve::Resolver resolver;
      boost::beast::tcp_stream conn;
      boost::asio::steady_timer timer;
@@ -80,13 +85,12 @@ index 992ac2b..d116f6d 100644
 +    std::optional<
 +        boost::beast::http::response_parser<boost::beast::http::string_body>>
 +        parser;
-+    boost::asio::ip::tcp::endpoint endpoint;
 +    boost::circular_buffer_space_optimized<std::string> requestDataQueue{};
 +    std::vector<boost::asio::ip::tcp::endpoint> endPoints;
      ConnState state;
      std::string subId;
      std::string host;
-@@ -76,12 +85,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -76,12 +84,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
  
      void doResolve()
      {
@@ -99,7 +103,7 @@ index 992ac2b..d116f6d 100644
          BMCWEB_LOG_DEBUG << "Trying to resolve: " << host << ":" << port;
  
          auto respHandler =
-@@ -89,78 +93,56 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -89,78 +92,56 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                  const boost::beast::error_code ec,
                  const std::vector<boost::asio::ip::tcp::endpoint>&
                      endpointList) {
@@ -191,7 +195,7 @@ index 992ac2b..d116f6d 100644
          // Send the HTTP request to the remote host
          boost::beast::http::async_write(
              conn, req,
-@@ -171,7 +153,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -171,7 +152,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                      BMCWEB_LOG_ERROR << "sendMessage() failed: "
                                       << ec.message();
                      self->state = ConnState::sendFailed;
@@ -200,7 +204,7 @@ index 992ac2b..d116f6d 100644
                      return;
                  }
                  BMCWEB_LOG_DEBUG << "sendMessage() bytes transferred: "
-@@ -184,9 +166,18 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -184,9 +165,17 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
  
      void recvMessage()
      {
@@ -208,8 +212,7 @@ index 992ac2b..d116f6d 100644
 +
 +        parser.emplace(std::piecewise_construct, std::make_tuple());
 +        parser->body_limit(httpReadBodyLimit);
-+        // Since these are all push style eventing, we are not
-+        // bothered about response body parsing.
++
 +        // Check only for the response header
 +        parser->skip(true);
 +
@@ -220,7 +223,7 @@ index 992ac2b..d116f6d 100644
              [self(shared_from_this())](const boost::beast::error_code& ec,
                                         const std::size_t& bytesTransferred) {
                  if (ec)
-@@ -194,30 +185,46 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -194,30 +183,47 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                      BMCWEB_LOG_ERROR << "recvMessage() failed: "
                                       << ec.message();
                      self->state = ConnState::recvFailed;
@@ -257,7 +260,8 @@ index 992ac2b..d116f6d 100644
 +                    // enabled
 +                    self->state = ConnState::abortConnection;
 +                }
-+                // Transfer ownership of the response
++
++                // Returns ownership of the parsed message
 +                self->parser->release();
 +
 +                self->handleConnState();
@@ -275,7 +279,7 @@ index 992ac2b..d116f6d 100644
          // not_connected happens sometimes so don't bother reporting it.
          if (ec && ec != boost::beast::errc::not_connected)
          {
-@@ -225,112 +232,139 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -225,112 +231,139 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              return;
          }
          BMCWEB_LOG_DEBUG << "Connection closed gracefully";
@@ -369,7 +373,7 @@ index 992ac2b..d116f6d 100644
 -        retryCount = 0;
 -        connStateCheck();
 +        runningTimer = true;
- 
++
 +        retryCount++;
 +
 +        BMCWEB_LOG_DEBUG << "Attempt retry after " << retryIntervalSecs
@@ -384,7 +388,7 @@ index 992ac2b..d116f6d 100644
 +                    // sending the event as per the retry policy
 +                }
 +                self->runningTimer = false;
-+
+ 
 +                // Lets close connection and start from resolve.
 +                self->doClose();
 +            });
@@ -469,7 +473,7 @@ index 992ac2b..d116f6d 100644
          }
      }
  
-@@ -339,37 +373,38 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -339,37 +372,38 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                          const std::string& destIP, const std::string& destPort,
                          const std::string& destUri) :
          conn(ioc),
@@ -526,10 +530,10 @@ index 992ac2b..d116f6d 100644
  
      void setRetryConfig(const uint32_t retryAttempts,
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 148c703..bffa68f 100644
+index fa4e41a..c999121 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -412,7 +412,7 @@ class Subscription
+@@ -423,7 +423,7 @@ class Subscription
                      reqHeaders.emplace_back(std::pair(key, val));
                  }
              }

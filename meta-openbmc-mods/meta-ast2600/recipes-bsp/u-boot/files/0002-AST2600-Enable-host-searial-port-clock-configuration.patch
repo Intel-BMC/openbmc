@@ -1,4 +1,4 @@
-From c2e2496dfd8cde56e32274b11968185a77f40736 Mon Sep 17 00:00:00 2001
+From 816ae827f387922e31281c8b10988870ce9e0294 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Tue, 10 Dec 2019 14:58:10 +0800
 Subject: [PATCH] AST2600: Enable host searial port clock configuration in
@@ -14,14 +14,14 @@ by default is 24Mhz.
 
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
- board/aspeed/ast2600_intel/intel.c | 35 +++++++++++++++++++++++++++++++++++
+ board/aspeed/ast2600_intel/intel.c | 35 ++++++++++++++++++++++++++++++
  1 file changed, 35 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index a02e246d0d81..eb9b3959625e 100644
+index 4a40a050c3da..d1ac8651ac6c 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -36,9 +36,44 @@ int gpio_abort(void)
+@@ -39,9 +39,44 @@ int gpio_abort(void)
  }
  
  #define SCU_BASE 0x1E6E2000
@@ -67,5 +67,5 @@ index a02e246d0d81..eb9b3959625e 100644
  	return 0;
  }
 -- 
-2.7.4
+2.17.1
 
