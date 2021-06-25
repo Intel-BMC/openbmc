@@ -1,0 +1,234 @@
+From f516fc884fcbc03bf560b4ef975ad236232bd1e6 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 11 May 2021 11:14:55 -0700
+Subject: [PATCH] CPUSensor: create RequiredTempSensor if defined
+
+When BMC fails to talk to CPU through PECI, no
+CPU sensors are created. Fan speed control only boost
+fan when input sensor is not available. It does not
+have the knowledge of which sensors are expected to
+be present and can't treat "missing" sensor as failed one.
+The failure on PECI goes unnoticed and we can have a thermal
+run away.
+
+Query sensor config for RequiredTempSensor for any present
+CPUs. Create a CPU sensor that is not available.
+This sensor will be replaced by a normal CPU sensor when
+peci detect the CPU and associated hwmon file is discovered.
+
+This is an initial patch that target to address the particular
+failure case. More work will follow to support a more generic
+"Required" sensor config.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ include/CPUSensor.hpp |  9 ++++++
+ src/CPUSensor.cpp     | 69 +++++++++++++++++++++++++++++++++++++++++++
+ src/CPUSensorMain.cpp | 54 ++++++++++++++++++++++++++++-----
+ 3 files changed, 124 insertions(+), 8 deletions(-)
+
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 29b8209..5d09e4e 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -26,6 +26,15 @@ class CPUSensor : public Sensor
+               std::vector<thresholds::Threshold>&& thresholds,
+               const std::string& configuration, int cpuId, bool show,
+               double dtsOffset);
++
++    // Create a CPUSensor without a path to sensor value
++    CPUSensor(const std::string& objectType,
++              sdbusplus::asio::object_server& objectServer,
++              std::shared_ptr<sdbusplus::asio::connection>& conn,
++              boost::asio::io_service& io, const std::string& sensorName,
++              std::vector<thresholds::Threshold>&& thresholdsIn,
++              const std::string& sensorConfiguration);
++
+     ~CPUSensor() override;
+     static constexpr unsigned int sensorScaleFactor = 1000;
+     static constexpr unsigned int sensorPollMs = 1000;
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 7f9a2c5..7c29cf0 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -99,6 +99,75 @@ CPUSensor::CPUSensor(const std::string& path, const std::string& objectType,
+     setupRead();
+ }
+ 
++// Create a  dummy "not available" CPUSensor
++// This is used to indicate a missing required sensor for
++// other services like fan control
++CPUSensor::CPUSensor(const std::string& objectType,
++                     sdbusplus::asio::object_server& objectServer,
++                     std::shared_ptr<sdbusplus::asio::connection>& conn,
++                     boost::asio::io_service& io, const std::string& sensorName,
++                     std::vector<thresholds::Threshold>&& thresholdsIn,
++                     const std::string& sensorConfiguration) :
++    Sensor(boost::replace_all_copy(sensorName, " ", "_"),
++           std::move(thresholdsIn), sensorConfiguration, objectType, 0, 0, conn,
++           PowerState::on),
++    objServer(objectServer), inputDev(io), waitTimer(io),
++    privTcontrol(std::numeric_limits<double>::quiet_NaN()), dtsOffset(0),
++    show(true), pollTime(CPUSensor::sensorPollMs), minMaxReadCounter(0)
++{
++    // assume it is a temperature sensor for now
++    // support for other type can be added later
++    std::string interfacePath =
++        "/xyz/openbmc_project/sensors/temperature/" + name;
++    const char* units = sensor_paths::unitDegreesC;
++    minValue = -128;
++    maxValue = 127;
++
++    sensorInterface = objectServer.add_interface(
++        interfacePath, "xyz.openbmc_project.Sensor.Value");
++
++    sensorInterface->register_property("Unit", units);
++    sensorInterface->register_property("MaxValue", maxValue);
++    sensorInterface->register_property("MinValue", minValue);
++    sensorInterface->register_property(
++        "Value", value, [&](const double& newValue, double& oldValue) {
++            return setSensorValue(newValue, oldValue);
++        });
++    if (!sensorInterface->initialize())
++    {
++        std::cerr << "error initializing value interface\n";
++    }
++
++    if (!availableInterface)
++    {
++        availableInterface = std::make_shared<sdbusplus::asio::dbus_interface>(
++            conn, sensorInterface->get_object_path(), availableInterfaceName);
++        availableInterface->register_property(
++            "Available", false, [this](const bool propIn, bool& old) {
++                if (propIn == old)
++                {
++                    return 1;
++                }
++                old = propIn;
++                if (!propIn)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                return 1;
++            });
++        availableInterface->initialize();
++    }
++    if (!operationalInterface)
++    {
++        operationalInterface =
++            std::make_shared<sdbusplus::asio::dbus_interface>(
++                conn, sensorInterface->get_object_path(),
++                operationalInterfaceName);
++        operationalInterface->register_property("Functional", true);
++        operationalInterface->initialize();
++    }
++}
++
+ CPUSensor::~CPUSensor()
+ {
+     // close the input dev to cancel async operations
+diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
+index 92c1716..4c00551 100644
+--- a/src/CPUSensorMain.cpp
++++ b/src/CPUSensorMain.cpp
+@@ -332,10 +332,9 @@ bool createSensors(boost::asio::io_service& io,
+             {
+                 if (debug)
+                 {
+-                    std::cout << "Skipped: " << inputPath << ": " << sensorName
+-                              << " is already created\n";
++                    std::cout << "Will be replaced: " << inputPath << ": "
++                              << sensorName << " is already created\n";
+                 }
+-                continue;
+             }
+ 
+             // check hidden properties
+@@ -636,9 +635,9 @@ void detectCpuAsync(
+     });
+ }
+ 
+-bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
++bool getCpuConfig(std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+                   boost::container::flat_set<CPUConfig>& cpuConfigs,
+-                  ManagedObjectType& sensorConfigs,
++                  ManagedObjectType& sensorConfigs, boost::asio::io_service& io,
+                   sdbusplus::asio::object_server& objectServer)
+ {
+     bool useCache = false;
+@@ -700,6 +699,45 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+                     iface->register_property("Present", *present);
+                     iface->initialize();
+                     inventoryIfaces[name] = std::move(iface);
++                    if (*present)
++                    {
++                        // create required CPU sensors here in unavailable state
++                        auto findRequiredTempSensor =
++                            config.second.find("RequiredTempSensor");
++                        auto findCpuId = config.second.find("CpuID");
++                        if (findRequiredTempSensor != config.second.end() &&
++                            findCpuId != config.second.end())
++                        {
++                            std::string label =
++                                std::visit(VariantToStringVisitor(),
++                                           findRequiredTempSensor->second);
++                            // for temp sensor hwmon sysfs use input
++                            std::string item{"input"};
++                            int cpuId =
++                                std::visit(VariantToUnsignedIntVisitor(),
++                                           findCpuId->second);
++                            std::string requiredSensorName =
++                                createSensorName(label, item, cpuId);
++
++                            auto& sensorPtr = gCpuSensors[requiredSensorName];
++                            if (sensorPtr == nullptr)
++                            {
++                                // created a dummy sensor for required sensor,
++                                // will be replaced with a real one if it is
++                                // detected
++                                std::string objectType{};
++                                std::vector<thresholds::Threshold>
++                                    emptyThreshold{};
++                                std::string emptyConfig{};
++                                sensorPtr = std::make_unique<CPUSensor>(
++                                    objectType, objectServer, systemBus, io,
++                                    requiredSensorName,
++                                    std::move(emptyThreshold), emptyConfig);
++                                std::cout << "created required CPU sensor "
++                                          << requiredSensorName << "\n";
++                            }
++                        }
++                    }
+                 }
+ 
+                 auto findBus = config.second.find("Bus");
+@@ -728,7 +766,6 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+                     std::cout << "name: " << name << "\n";
+                     std::cout << "type: " << type << "\n";
+                 }
+-
+                 cpuConfigs.emplace(bus, addr, name, State::OFF);
+             }
+         }
+@@ -764,7 +801,8 @@ int main()
+             return; // we're being canceled
+         }
+ 
+-        if (getCpuConfig(systemBus, cpuConfigs, sensorConfigs, objectServer))
++        if (getCpuConfig(systemBus, cpuConfigs, sensorConfigs, io,
++                         objectServer))
+         {
+             detectCpuAsync(pingTimer, creationTimer, io, objectServer,
+                            systemBus, cpuConfigs, sensorConfigs);
+@@ -792,7 +830,7 @@ int main()
+                     return; // we're being canceled
+                 }
+ 
+-                if (getCpuConfig(systemBus, cpuConfigs, sensorConfigs,
++                if (getCpuConfig(systemBus, cpuConfigs, sensorConfigs, io,
+                                  objectServer))
+                 {
+                     detectCpuAsync(pingTimer, creationTimer, io, objectServer,
+-- 
+2.17.1
+

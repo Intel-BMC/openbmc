@@ -1,4 +1,4 @@
-From a56e138569ce7b37285d4c2f2b4ef4082ab2a283 Mon Sep 17 00:00:00 2001
+From 783ef5212c5efc0561361fd779f1be3b047aee74 Mon Sep 17 00:00:00 2001
 From: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
 Date: Thu, 18 Jun 2020 05:32:48 +0530
 Subject: [PATCH] Apply WDT1-2 reset mask to reset needed controller
@@ -61,7 +61,7 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
  1 file changed, 22 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index 55b867ff1b17..cd8a57edd76b 100644
+index cf709aaa5d98..027265593f03 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
 @@ -63,6 +63,14 @@
@@ -79,10 +79,10 @@ index 55b867ff1b17..cd8a57edd76b 100644
  #define AST_GPIO_BASE		(0x1E780000)
  #define AST_GPIOYZ_DATA_VALUE	(AST_GPIO_BASE + 0x1E0)
  
-@@ -277,6 +285,20 @@ wait_lock:
+@@ -292,6 +300,20 @@ wait_lock:
  	str	r1, [r0]
  
- 1:
+ 2:
 +	/* disable eSPI, LPC and PWM resets on WDT1 reset */
 +	ldr	r0, =AST_WDT1_RESET_MASK2
 +	ldr	r1, [r0]

@@ -1,4 +1,4 @@
-From df1281792f6886b41c99919e8197c2c2d369d0ca Mon Sep 17 00:00:00 2001
+From 6ce336adafd723319befc4ce918ba67a0ad3492c Mon Sep 17 00:00:00 2001
 From: Jennifer Lee <jennifer1.lee@intel.com>
 Date: Mon, 10 Dec 2018 10:36:44 -0800
 Subject: [PATCH] Modified firmware activation to launch fwupd.sh through
@@ -12,19 +12,19 @@ Signed-off-by: Jennifer Lee <jennifer1.lee@intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
  activation.cpp    | 45 ++++++++++++++++++++++++++++++++++++++++++++-
- meson.build       |  1 +
+ meson.build       |  2 ++
  meson_options.txt |  3 +++
  static/flash.cpp  | 42 ++++++++++++++++++++++++++++++++++++++++--
  ubi/flash.cpp     |  9 +++------
- 5 files changed, 91 insertions(+), 9 deletions(-)
+ 5 files changed, 92 insertions(+), 9 deletions(-)
 
 diff --git a/activation.cpp b/activation.cpp
-index eb57587..901caf3 100644
+index c82e297..d690a39 100644
 --- a/activation.cpp
 +++ b/activation.cpp
-@@ -92,7 +92,50 @@ auto Activation::activation(Activations value) -> Activations
-         value ==
-             softwareServer::Activation::Activations::ActivatingAsStandbySpare)
+@@ -88,7 +88,50 @@ auto Activation::activation(Activations value) -> Activations
+
+     if (value == softwareServer::Activation::Activations::Activating)
      {
 +#ifdef FWUPD_SCRIPT
 +        if (!activationProgress)
@@ -53,7 +53,7 @@ index eb57587..901caf3 100644
 +        }
 +        else if (activationProgress->progress() == 100)
 +        {
-+            log<level::ERR>("[Jennifer] progress == 100...");
++            log<level::ERR>("progress == 100...");
 +            if (!redundancyPriority)
 +            {
 +                redundancyPriority =
@@ -73,7 +73,7 @@ index eb57587..901caf3 100644
  #ifdef HOST_BIOS_UPGRADE
          auto purpose = parent.versions.find(versionId)->second->purpose();
          if (purpose == VersionPurpose::Host)
-@@ -115,7 +158,6 @@ auto Activation::activation(Activations value) -> Activations
+@@ -111,7 +154,6 @@ auto Activation::activation(Activations value) -> Activations
              return softwareServer::Activation::activation(value);
          }
  #endif
@@ -81,7 +81,7 @@ index eb57587..901caf3 100644
          auto versionStr = parent.versions.find(versionId)->second->version();
  
          if (!minimum_ship_level::verify(versionStr))
-@@ -179,6 +221,7 @@ auto Activation::activation(Activations value) -> Activations
+@@ -175,6 +217,7 @@ auto Activation::activation(Activations value) -> Activations
          return softwareServer::Activation::activation(
              softwareServer::Activation::Activations::Active);
  #endif
@@ -90,19 +90,20 @@ index eb57587..901caf3 100644
      else
      {
 diff --git a/meson.build b/meson.build
-index 0a7a6a6..5990168 100644
+index a6ebcc4..5c79009 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -57,6 +57,7 @@ conf.set('WANT_SIGNATURE_VERIFY', \
-     get_option('verify-signature').enabled() or \
+@@ -59,6 +59,8 @@ conf.set('WANT_SIGNATURE_VERIFY', \
      get_option('verify-full-signature').enabled())
  conf.set('WANT_SIGNATURE_FULL_VERIFY', get_option('verify-full-signature').enabled())
-+conf.set('FWUPD_SCRIPT', get_option('fwupd-script').enabled())
  
++conf.set('FWUPD_SCRIPT', get_option('fwupd-script').enabled())
++
  # Configurable variables
  conf.set('ACTIVE_BMC_MAX_ALLOWED', get_option('active-bmc-max-allowed'))
+ conf.set_quoted('HASH_FILE_NAME', get_option('hash-file-name'))
 diff --git a/meson_options.txt b/meson_options.txt
-index 355773c..f0c8730 100644
+index 0877798..da257b7 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
 @@ -25,6 +25,9 @@ option('verify-signature', type: 'feature',

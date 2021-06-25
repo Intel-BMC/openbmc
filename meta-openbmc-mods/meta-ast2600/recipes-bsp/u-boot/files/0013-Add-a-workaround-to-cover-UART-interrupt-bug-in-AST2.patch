@@ -1,4 +1,4 @@
-From 2d0a3aff4c4aa3a764958579ed10a3aab43a7d8a Mon Sep 17 00:00:00 2001
+From e027384b44aff330375477556eed10c326ad1c48 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 27 Apr 2020 12:40:01 -0700
 Subject: [PATCH] Add a workaround to cover UART interrupt bug in AST2600 A0
@@ -13,10 +13,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 19 insertions(+), 3 deletions(-)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index 6ac24beb930b..ad5ab7632447 100644
+index b3d2fb313561..0d1ce69b6e53 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -221,7 +221,19 @@ void enable_onboard_tpm(void)
+@@ -251,7 +251,19 @@ void enable_onboard_tpm(void)
  
  static void timer_callback(void *cookie)
  {
@@ -37,7 +37,7 @@ index 6ac24beb930b..ad5ab7632447 100644
  }
  
  int board_early_init_f(void)
-@@ -256,9 +268,13 @@ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
+@@ -286,9 +298,13 @@ extern void timer_enable(int n, u32 interval_us, interrupt_handler_t *handler,
  			 void *cookie);
  int board_late_init(void)
  {
@@ -54,5 +54,5 @@ index 6ac24beb930b..ad5ab7632447 100644
  
  	if (read_ffuj())
 -- 
-2.7.4
+2.17.1
 

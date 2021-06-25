@@ -7,14 +7,14 @@ nbdkit is a toolkit for creating NBD servers."
 
 HOMEPAGE = "https://github.com/libguestfs/nbdkit"
 LICENSE = "BSD"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=4332a97808994cf2133a65b6c6f33eaf"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=f9dcc2d8acdde215fa4bd6ac12bb14f0"
 
 SRC_URI = "git://github.com/libguestfs/nbdkit.git;protocol=https"
 SRC_URI += "file://0001-Force-nbdkit-to-send-PATCH-as-upload-method.patch"
 SRC_URI += "file://0002-Add-support-for-ssl-config.patch"
 
-PV = "1.17.5+git${SRCPV}"
-SRCREV = "c8406880c6603bb617dae131dd0a8826c05869ca"
+PV = "1.25.5+git${SRCPV}"
+SRCREV = "c828c6d48ff6b69454cad98054a1920d03c4b4c7"
 
 S = "${WORKDIR}/git"
 

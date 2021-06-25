@@ -1,4 +1,4 @@
-From 3195e1ec2d772d5e4c16ae5b60c294086cfc17be Mon Sep 17 00:00:00 2001
+From fdb55afe15fdbba33782d01a77bbf994470f40b4 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Thu, 12 Dec 2019 12:54:18 +0800
 Subject: [PATCH] ast2600: intel-layout-environment-addr
@@ -9,12 +9,12 @@ Both kernel and u-boot work at the area /dev/mtd/u-boot-env
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 ---
- common/board_r.c                | 13 ++++++++++---
+ common/board_r.c                | 11 +++++++++--
  include/configs/aspeed-common.h | 11 ++++++++++-
- 2 files changed, 20 insertions(+), 4 deletions(-)
+ 2 files changed, 19 insertions(+), 3 deletions(-)
 
 diff --git a/common/board_r.c b/common/board_r.c
-index 472987d5d52f..b665d0e30262 100644
+index 472987d5d52f..434c0df45c85 100644
 --- a/common/board_r.c
 +++ b/common/board_r.c
 @@ -433,10 +433,17 @@ static int should_load_env(void)
@@ -22,8 +22,6 @@ index 472987d5d52f..b665d0e30262 100644
  {
  	/* initialize environment */
 -	if (should_load_env())
--		env_relocate();
--	else
 +	if (should_load_env()) {
 +		/*
 +		 * try again, in case the environment failed to load the first
@@ -31,7 +29,8 @@ index 472987d5d52f..b665d0e30262 100644
 +		 */
 +		if (!gd->env_valid)
 +			env_init();
-+ 		env_relocate();
+ 		env_relocate();
+-	else
 +	} else {
  		set_default_env(NULL, 0);
 +	}
@@ -39,10 +38,10 @@ index 472987d5d52f..b665d0e30262 100644
  	env_set_hex("fdtcontroladdr",
  		    (unsigned long)map_to_sysmem(gd->fdt_blob));
 diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
-index cdbffc97a223..6065ec58db0a 100644
+index 8718b50f9ebe..70590067dbcf 100644
 --- a/include/configs/aspeed-common.h
 +++ b/include/configs/aspeed-common.h
-@@ -65,9 +65,18 @@
+@@ -73,9 +73,18 @@
  #endif
  
  #ifndef CONFIG_ENV_OFFSET
@@ -63,5 +62,5 @@ index cdbffc97a223..6065ec58db0a 100644
  
  /*
 -- 
-2.7.4
+2.17.1
 

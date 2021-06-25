@@ -1,0 +1,32 @@
+From 58ed1cb4ac3229b484c983a2e4982fad13da0e06 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 21 May 2021 17:24:13 -0700
+Subject: [PATCH] Add a workaround to fix AST2600 A0 booting issue
+
+AST2600 A0 doesn't boot with 88KB SRAM setting so this commit adds
+a workaround which pins SRAM size to 64KB to make A0 able to boot.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ arch/arm/include/asm/arch-aspeed/platform.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
+index f016bdaba3e7..192e3b977a34 100644
+--- a/arch/arm/include/asm/arch-aspeed/platform.h
++++ b/arch/arm/include/asm/arch-aspeed/platform.h
+@@ -53,7 +53,11 @@
+ #define ASPEED_MAC_COUNT	4
+ #define ASPEED_DRAM_BASE	0x80000000
+ #define ASPEED_SRAM_BASE	0x10000000
++#if 1 /* AST2600 A0 doesn't boot with 88K setting so pin SRAM size to 64K */
++#define ASPEED_SRAM_SIZE	0x10000
++#else
+ #define ASPEED_SRAM_SIZE	0x16000
++#endif
+ #define ASPEED_FMC_CS0_BASE	0x20000000
+ #else
+ #err "No define for platform.h"
+-- 
+2.17.1
+

@@ -1,4 +1,4 @@
-From ff5dbca96d12b1c2aaaec0bb891125990af3f218 Mon Sep 17 00:00:00 2001
+From 7ae5ebc43755631c1756bbc1e89b41f2a1da138c Mon Sep 17 00:00:00 2001
 From: mansijos <mansi.joshi@intel.com>
 Date: Tue, 6 Apr 2021 02:12:56 +0530
 Subject: [PATCH] Entity-manager: Add support to update assetTag
@@ -15,14 +15,14 @@ The new value is preserved after BMC resets.
 Change-Id: If7fbfd8325488280f500ab0e2c8b38475813cc3f
 Signed-off-by: mansijos <mansi.joshi@intel.com>
 ---
- src/EntityManager.cpp | 92 +++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 88 insertions(+), 4 deletions(-)
+ src/EntityManager.cpp | 93 +++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 89 insertions(+), 4 deletions(-)
 
 diff --git a/src/EntityManager.cpp b/src/EntityManager.cpp
-index 932b6f9..67b8f95 100644
+index 7cfcc6e..bf5e175 100644
 --- a/src/EntityManager.cpp
 +++ b/src/EntityManager.cpp
-@@ -47,9 +47,17 @@ constexpr const char* lastConfiguration = "/tmp/configuration/last.json";
+@@ -48,9 +48,17 @@ constexpr const char* lastConfiguration = "/tmp/configuration/last.json";
  constexpr const char* currentConfiguration = "/var/configuration/system.json";
  constexpr const char* globalSchema = "global.json";
  constexpr const int32_t MAX_MAPPER_DEPTH = 0;
@@ -40,7 +40,7 @@ index 932b6f9..67b8f95 100644
  struct cmp_str
  {
      bool operator()(const char* a, const char* b) const
-@@ -575,6 +583,43 @@ void addArrayToDbus(const std::string& name, const nlohmann::json& array,
+@@ -576,6 +584,43 @@ void addArrayToDbus(const std::string& name, const nlohmann::json& array,
      }
  }
  
@@ -84,7 +84,7 @@ index 932b6f9..67b8f95 100644
  template <typename PropertyType>
  void addProperty(const std::string& propertyName, const PropertyType& value,
                   sdbusplus::asio::dbus_interface* iface,
-@@ -589,9 +634,18 @@ void addProperty(const std::string& propertyName, const PropertyType& value,
+@@ -590,9 +635,18 @@ void addProperty(const std::string& propertyName, const PropertyType& value,
      }
      iface->register_property(
          propertyName, value,
@@ -104,7 +104,7 @@ index 932b6f9..67b8f95 100644
              val = newVal;
              if (!setJsonFromPointer(jsonPointerString, val,
                                      systemConfiguration))
-@@ -989,6 +1043,9 @@ void postToDbus(const nlohmann::json& newConfiguration,
+@@ -990,6 +1044,9 @@ void postToDbus(const nlohmann::json& newConfiguration,
          populateInterfaceFromJson(systemConfiguration, jsonPointerPath,
                                    boardIface, boardValues, objServer);
          jsonPointerPath += "/";
@@ -114,7 +114,7 @@ index 932b6f9..67b8f95 100644
          // iterate through board properties
          for (auto& boardField : boardValues.items())
          {
-@@ -998,9 +1055,28 @@ void postToDbus(const nlohmann::json& newConfiguration,
+@@ -999,9 +1056,28 @@ void postToDbus(const nlohmann::json& newConfiguration,
                      createInterface(objServer, boardName, boardField.key(),
                                      boardKeyOrig);
  
@@ -146,18 +146,19 @@ index 932b6f9..67b8f95 100644
              }
          }
  
-@@ -1349,6 +1425,10 @@ void PerformScan::run()
-                                 continue;
+@@ -1357,6 +1433,11 @@ void PerformScan::run()
+                             {
+                                 continue; // non-numeric replacement
                              }
- 
++
 +                            nlohmann::json recordVal = *recordPtr;
 +                            // Save the dbus path info of the device
 +                            recordVal[foundObject]["Path"] = std::get<1>(*itr);
 +
-                             int index = std::stoi(
-                                 nameIt->get<std::string>().substr(indexIdx),
-                                 nullptr, 0);
-@@ -1421,6 +1501,10 @@ void PerformScan::run()
+                             usedNames.insert(nameIt.value());
+                             auto usedIt = std::find(indexes.begin(),
+                                                     indexes.end(), index);
+@@ -1434,6 +1515,10 @@ void PerformScan::run()
                          }
                      }
  
@@ -169,5 +170,5 @@ index 932b6f9..67b8f95 100644
                      {
                          std::cerr << "Duplicates found, replacing "
 -- 
-2.17.1
+2.30.2
 

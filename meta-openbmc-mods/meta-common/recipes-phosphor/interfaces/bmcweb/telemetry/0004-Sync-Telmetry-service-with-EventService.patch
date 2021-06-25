@@ -1,7 +1,7 @@
-From efcd128a3d66fce33200fd4211ba5abf13a81375 Mon Sep 17 00:00:00 2001
+From 0ed9ff4f37e7d3ea81073ad35acd530730104033 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Tue, 15 Dec 2020 12:30:31 +0100
-Subject: [PATCH 4/4] Sync Telmetry service with EventService
+Subject: [PATCH] Sync Telmetry service with EventService
 
 Synced the latest changes in Telemetry service with Event Service
 code. Now assembling MetricReport is covered in single place in
@@ -22,7 +22,7 @@ Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
  2 files changed, 69 insertions(+), 115 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 148c703..27e41e3 100644
+index c3c110a..dc99cda 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -14,6 +14,7 @@
@@ -33,7 +33,7 @@ index 148c703..27e41e3 100644
  #include "node.hpp"
  #include "registries.hpp"
  #include "registries/base_message_registry.hpp"
-@@ -512,47 +513,32 @@ class Subscription
+@@ -529,47 +530,32 @@ class Subscription
      }
  #endif
  
@@ -92,7 +92,7 @@ index 148c703..27e41e3 100644
          this->sendEvent(
              msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
      }
-@@ -1348,75 +1334,6 @@ class EventServiceManager
+@@ -1421,75 +1407,6 @@ class EventServiceManager
      }
  
  #endif
@@ -168,7 +168,7 @@ index 148c703..27e41e3 100644
      void unregisterMetricReportSignal()
      {
          if (matchTelemetryMonitor)
-@@ -1436,9 +1353,11 @@ class EventServiceManager
+@@ -1509,9 +1426,11 @@ class EventServiceManager
          }
  
          BMCWEB_LOG_DEBUG << "Metrics report signal - Register";
@@ -183,7 +183,7 @@ index 148c703..27e41e3 100644
  
          matchTelemetryMonitor = std::make_shared<sdbusplus::bus::match::match>(
              *crow::connections::systemBus, matchStr,
-@@ -1449,10 +1368,43 @@ class EventServiceManager
+@@ -1522,10 +1441,43 @@ class EventServiceManager
                      return;
                  }
  
@@ -232,14 +232,14 @@ index 148c703..27e41e3 100644
      }
  
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
-index 9caf4a3..e79a41c 100644
+index ad15a05..18a6dcc 100644
 --- a/redfish-core/lib/metric_report.hpp
 +++ b/redfish-core/lib/metric_report.hpp
 @@ -31,16 +31,14 @@ inline nlohmann::json toMetricValues(const Readings& readings)
      return metricValues;
  }
  
--inline void fillReport(const std::shared_ptr<AsyncResp>& asyncResp,
+-inline void fillReport(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 -                       const std::string& id,
 +inline bool fillReport(nlohmann::json& json, const std::string& id,
                         const std::variant<TimestampReadings>& var)
@@ -258,7 +258,7 @@ index 9caf4a3..e79a41c 100644
          telemetry::metricReportDefinitionUri + id;
  
      const TimestampReadings* timestampReadings =
-@@ -48,14 +46,14 @@ inline void fillReport(const std::shared_ptr<AsyncResp>& asyncResp,
+@@ -48,14 +46,14 @@ inline void fillReport(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
      if (!timestampReadings)
      {
          BMCWEB_LOG_ERROR << "Property type mismatch or property is missing";
@@ -277,7 +277,7 @@ index 9caf4a3..e79a41c 100644
  }
  } // namespace telemetry
  
-@@ -146,7 +144,11 @@ class MetricReport : public Node
+@@ -145,7 +143,11 @@ class MetricReport : public Node
                              return;
                          }
  

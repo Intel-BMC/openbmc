@@ -34,6 +34,16 @@
             "Type": "ADC"
         },
         {
+            "BusConfig": [
+                {
+                    "BusNum": 9,
+                    "BusType": "BUS_CONFIG_I2C"
+                }
+            ],
+            "Name": "ASD",
+            "Type": "ASD"
+        },
+        {
             "Index": 3,
             "Name": "P105_PCH_AUX",
             "Thresholds": [

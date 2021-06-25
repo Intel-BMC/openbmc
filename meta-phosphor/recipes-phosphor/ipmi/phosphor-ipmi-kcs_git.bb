@@ -5,7 +5,7 @@ PR = "r1"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=b1beb00e508e89da1ed2a541934f28c0"
 
-inherit autotools pkgconfig
+inherit meson pkgconfig
 inherit systemd
 
 PV = "1.0+git${SRCPV}"
@@ -20,7 +20,6 @@ RPROVIDES_${PN} += "virtual-obmc-host-ipmi-hw"
 RRECOMMENDS_${PN} += "phosphor-ipmi-host"
 
 DEPENDS += " \
-        autoconf-archive-native \
         systemd \
         sdbusplus \
         boost \
@@ -30,4 +29,4 @@ DEPENDS += " \
 
 S = "${WORKDIR}/git"
 SRC_URI = "git://github.com/openbmc/kcsbridge.git"
-SRCREV = "4a4d1d03d99fabe089e649aa226ad4c61e71684e"
+SRCREV = "4f5ba642295ab2d215e4d2e11e177edacd4a7ff5"

@@ -1,7 +1,7 @@
-From 82185c52ae6e27cc1e086654a3b7d10e63ecc783 Mon Sep 17 00:00:00 2001
+From dda3c7a46391ef88e7c6a6f61fba7fe9133336bf Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 17 Mar 2021 01:16:50 +0000
-Subject: [PATCH 6/6] Add EventService SSE filter support
+Subject: [PATCH] Add EventService SSE filter support
 
 This commit implements the Event Service SSE stream
 filters support. As per redfish specification:
@@ -35,9 +35,9 @@ Change-Id: I55c6f53bb5e57aa1f2d1601f1a16525a33b13bd2
  include/eventservice_sse.hpp                  | 94 ++++++++++++++++++-
  redfish-core/include/error_messages.hpp       |  9 ++
  .../include/event_service_manager.hpp         |  5 +
- redfish-core/lib/event_service.hpp            |  4 -
+ redfish-core/lib/event_service.hpp            |  5 -
  redfish-core/src/error_messages.cpp           | 26 +++++
- 5 files changed, 130 insertions(+), 8 deletions(-)
+ 5 files changed, 130 insertions(+), 9 deletions(-)
 
 diff --git a/include/eventservice_sse.hpp b/include/eventservice_sse.hpp
 index 6c98e6e..ff72c4d 100644
@@ -171,7 +171,7 @@ index 7dfdc80..922dae9 100644
  
  } // namespace redfish
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index f4d57c2..567fb9c 100644
+index ac644c1..3661fed 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -55,6 +55,11 @@ static constexpr const char* eventServiceFile =
@@ -180,24 +180,25 @@ index f4d57c2..567fb9c 100644
  
 +static constexpr const std::array<const char*, 2> supportedEvtFormatTypes = {
 +    eventFormatType, metricReportFormatType};
-+static constexpr const std::array<const char*, 3> supportedRegPrefixes = {
-+    "Base", "OpenBMC", "Task"};
++static constexpr const std::array<const char*, 2> supportedRegPrefixes = {
++    "OpenBMC", "TaskEvent"};
 +
  #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
  static std::optional<boost::asio::posix::stream_descriptor> inotifyConn;
  static constexpr const char* redfishEventLogDir = "/var/log";
 diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
-index 1875ec9..4d1ac9f 100644
+index 7c9bb7a..297a4ea 100644
 --- a/redfish-core/lib/event_service.hpp
 +++ b/redfish-core/lib/event_service.hpp
-@@ -19,10 +19,6 @@
+@@ -18,11 +18,6 @@
+ 
  namespace redfish
  {
- 
+-
 -static constexpr const std::array<const char*, 2> supportedEvtFormatTypes = {
 -    eventFormatType, metricReportFormatType};
 -static constexpr const std::array<const char*, 3> supportedRegPrefixes = {
--    "Base", "OpenBMC", "Task"};
+-    "Base", "OpenBMC", "TaskEvent"};
  static constexpr const std::array<const char*, 3> supportedRetryPolicies = {
      "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
  

@@ -1,7 +1,7 @@
-From 579fda953ec991b4e7f9d7194b08f6aa103fa0ec Mon Sep 17 00:00:00 2001
+From 5f19e5c8ebc5cb0ce331e4ef841526995b6bdb2e Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Mon, 22 Feb 2021 17:07:47 +0000
-Subject: [PATCH 2/2] EventService: https client support
+Subject: [PATCH] EventService: https client support
 
 Add https client support for push style
 eventing. Using this BMC can push the event
@@ -17,12 +17,12 @@ Tested:
 Change-Id: I44c3918b39baa2eb5fddda9d635f99aa280a422a
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- http/http_client.hpp                          | 255 ++++++++++++------
+ http/http_client.hpp                          | 257 ++++++++++++------
  .../include/event_service_manager.hpp         |   2 +-
- 2 files changed, 175 insertions(+), 82 deletions(-)
+ 2 files changed, 176 insertions(+), 83 deletions(-)
 
 diff --git a/http/http_client.hpp b/http/http_client.hpp
-index d116f6d..cebc857 100644
+index feabbba..aaf1b2d 100644
 --- a/http/http_client.hpp
 +++ b/http/http_client.hpp
 @@ -20,6 +20,7 @@
@@ -52,7 +52,7 @@ index d116f6d..cebc857 100644
      boost::asio::steady_timer timer;
      boost::beast::flat_static_buffer<httpReadBodyLimit> buffer;
      boost::beast::http::request<boost::beast::http::string_body> req;
-@@ -112,23 +117,52 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -111,23 +116,52 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
      void doConnect()
      {
          state = ConnState::connectInProgress;
@@ -113,7 +113,7 @@ index d116f6d..cebc857 100644
                  self->state = ConnState::connected;
                  self->handleConnState();
              });
-@@ -136,106 +170,159 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -135,106 +169,159 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
  
      void sendMessage(const std::string& data)
      {
@@ -207,15 +207,15 @@ index d116f6d..cebc857 100644
 +                // Abort the connection since server is not keep-alive enabled
 +                self->state = ConnState::abortConnection;
 +            }
-+            // Transfer ownership of the response
++
++            // Returns ownership of the parsed message
 +            self->parser->release();
 +
 +            self->handleConnState();
 +        };
          parser.emplace(std::piecewise_construct, std::make_tuple());
          parser->body_limit(httpReadBodyLimit);
-         // Since these are all push style eventing, we are not
-         // bothered about response body parsing.
+ 
          // Check only for the response header
          parser->skip(true);
 +        conn.expires_after(std::chrono::seconds(30));
@@ -296,7 +296,8 @@ index d116f6d..cebc857 100644
 +                    self->state = ConnState::closed;
 +                    self->handleConnState();
                  }
--                // Transfer ownership of the response
+-
+-                // Returns ownership of the parsed message
 -                self->parser->release();
 -
 -                self->handleConnState();
@@ -344,7 +345,7 @@ index d116f6d..cebc857 100644
          }
      }
  
-@@ -302,6 +389,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -301,6 +388,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
          {
              case ConnState::resolveInProgress:
              case ConnState::connectInProgress:
@@ -352,7 +353,7 @@ index d116f6d..cebc857 100644
              case ConnState::sendInProgress:
              case ConnState::recvInProgress:
              case ConnState::closeInProgress:
-@@ -333,6 +421,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -332,6 +420,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              }
              case ConnState::resolveFailed:
              case ConnState::connectFailed:
@@ -360,7 +361,7 @@ index d116f6d..cebc857 100644
              case ConnState::sendFailed:
              case ConnState::recvFailed:
              case ConnState::retry:
-@@ -371,7 +460,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -370,7 +459,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
    public:
      explicit HttpClient(boost::asio::io_context& ioc, const std::string& id,
                          const std::string& destIP, const std::string& destPort,
@@ -370,7 +371,7 @@ index d116f6d..cebc857 100644
          conn(ioc),
          timer(ioc), req(boost::beast::http::verb::post, destUri, 11),
          state(ConnState::initialized), subId(id), host(destIP), port(destPort),
-@@ -384,8 +474,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -383,8 +473,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
          req.keep_alive(true);
  
          requestDataQueue.set_capacity(maxRequestQueueSize);
@@ -384,10 +385,10 @@ index d116f6d..cebc857 100644
      {
          if ((state == ConnState::suspended) || (state == ConnState::terminated))
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index bffa68f..1e6f496 100644
+index c999121..267c857 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -387,7 +387,7 @@ class Subscription
+@@ -398,7 +398,7 @@ class Subscription
      {
          conn = std::make_shared<crow::HttpClient>(
              crow::connections::systemBus->get_io_context(), id, host, port,

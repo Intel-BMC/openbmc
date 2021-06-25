@@ -2,7 +2,7 @@ SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
 SRC_URI = "git://github.com/openbmc/smbios-mdr.git"
-SRCREV = "2285be4fd22709c1dcfba10c2c604528353b428a"
+SRCREV = "d23b84a7eb2be944b12e6539cf627f595b299fda"
 
 S = "${WORKDIR}/git"
 
@@ -28,7 +28,7 @@ DEPENDS += " \
     i2c-tools \
     "
 
-EXTRA_OECMAKE="-DYOCTO=1"
+EXTRA_OECMAKE="-DYOCTO=1 -DIPMI_BLOB=0"
 
 PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'smbios-no-dimm', d)}"
 PACKAGECONFIG[smbios-no-dimm] = "-DDIMM_DBUS=OFF, -DDIMM_DBUS=ON"

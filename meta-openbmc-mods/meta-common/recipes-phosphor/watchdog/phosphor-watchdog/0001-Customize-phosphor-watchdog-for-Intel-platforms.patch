@@ -1,4 +1,4 @@
-From 67797d726b6eb6fa8e1dad063c7d2021cec47ab3 Mon Sep 17 00:00:00 2001
+From 5760937ef1ae9a4610b47ba64fdebe594fc2c9df Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Mon, 17 Jun 2019 12:00:58 -0700
 Subject: [PATCH] Customize phosphor-watchdog for Intel platforms
@@ -22,14 +22,14 @@ Signed-off-by: Sunita Kumari <sunitax.kumari@intel.com>
 
 %% original patch: 0001-Customize-phosphor-watchdog-for-Intel-platforms.patch
 ---
- watchdog.cpp | 230 ++++++++++++++++++++++++++++++++++++++++++++++++---
- watchdog.hpp |  23 +++++-
+ src/watchdog.cpp | 230 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/watchdog.hpp |  23 ++++-
  2 files changed, 242 insertions(+), 11 deletions(-)
 
-diff --git a/watchdog.cpp b/watchdog.cpp
-index 57e9050..1204db4 100644
---- a/watchdog.cpp
-+++ b/watchdog.cpp
+diff --git a/src/watchdog.cpp b/src/watchdog.cpp
+index 57e905059153..1204db4cab0f 100644
+--- a/src/watchdog.cpp
++++ b/src/watchdog.cpp
 @@ -1,11 +1,14 @@
  #include "watchdog.hpp"
  
@@ -300,10 +300,10 @@ index 57e9050..1204db4 100644
          }
          catch (const SdBusError& e)
          {
-diff --git a/watchdog.hpp b/watchdog.hpp
-index 7de9bb3..b004b7a 100644
---- a/watchdog.hpp
-+++ b/watchdog.hpp
+diff --git a/src/watchdog.hpp b/src/watchdog.hpp
+index 7de9bb38419c..b004b7ab4e3f 100644
+--- a/src/watchdog.hpp
++++ b/src/watchdog.hpp
 @@ -68,7 +68,18 @@ class Watchdog : public WatchdogInherits
          WatchdogInherits(bus, objPath),
          bus(bus), actionTargetMap(std::move(actionTargetMap)),

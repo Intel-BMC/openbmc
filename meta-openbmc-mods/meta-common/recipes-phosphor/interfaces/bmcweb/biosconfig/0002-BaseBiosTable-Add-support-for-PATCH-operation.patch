@@ -1,0 +1,152 @@
+From 9c498d683be59ce25dd0124ba7ec5e026c59bbbf Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 23 Dec 2020 16:50:45 +0800
+Subject: [PATCH] BaseBiosTable: Add support for PATCH operation
+
+This commit brings in support for PATCH operation of the
+bios variables that updates the BaseBiosTable.
+
+Tested-By:
+* Passed Redfish validator
+
+* Single Attribute:
+PATCH https://${bmc}/redfish/v1/Systems/system/Bios/Settings -d
+'{"data":[{"AttributeName": <attribute name>, "AttributeType":
+<attribute type>, "AttributeValue": <attribute value>}]}'
+
+* Multiple Attributes:
+PATCH https://${bmc}/redfish/v1/Systems/system/Bios/Settings -d
+'{"data":[{"AttributeName": <attribute name>, "AttributeType":
+<attribute type>, "AttributeValue": <attribute value>},
+{"AttributeName": <attribute name>, "AttributeType":
+<attribute type>, "AttributeValue": <attribute value>}]}'
+
+This makes use of the "Set" of "PendingAttributes" in the
+backend and that updates the BaseBiosTable.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+---
+ redfish-core/lib/bios.hpp | 93 ++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 92 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
+index cb2b74d..860a643 100644
+--- a/redfish-core/lib/bios.hpp
++++ b/redfish-core/lib/bios.hpp
+@@ -96,6 +96,29 @@ static std::string mapAttrTypeToRedfish(const std::string_view typeDbus)
+ 
+     return ret;
+ }
++static std::string mapRedfishToAttrType(const std::string_view type)
++{
++    std::string ret;
++    if (type == "string")
++    {
++        ret = "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.String";
++    }
++    else if (type == "int")
++    {
++        ret = "xyz.openbmc_project.BIOSConfig.Manager.AttributeType.Integer";
++    }
++    else if (type == "enum")
++    {
++        ret = "xyz.openbmc_project.BIOSConfig.Manager.AttributeType."
++              "Enumeration";
++    }
++    else
++    {
++        ret = "UNKNOWN";
++    }
++
++    return ret;
++}
+ static std::string mapBoundTypeToRedfish(const std::string_view typeDbus)
+ {
+     std::string ret;
+@@ -260,7 +283,9 @@ class BiosSettings : public Node
+     BiosSettings(App& app) :
+         Node(app, "/redfish/v1/Systems/system/Bios/Settings")
+     {
+-        entityPrivileges = {{boost::beast::http::verb::get, {{"Login"}}}};
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureComponents"}}}};
+     }
+ 
+   private:
+@@ -356,6 +381,72 @@ class BiosSettings : public Node
+             "/xyz/openbmc_project/bios_config/manager",
+             std::array<const char*, 0>());
+     }
++
++    void doPatch(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                 const crow::Request& req,
++                 const std::vector<std::string>&) override
++    {
++        nlohmann::json inpJson;
++
++        if (!redfish::json_util::readJson(req, asyncResp->res, "data", inpJson))
++        {
++            return;
++        }
++
++        for (auto& attrInfo : inpJson)
++        {
++            std::optional<std::string> attrName;
++            std::optional<std::string> attrType;
++            std::optional<std::string> attrValue;
++            if (!json_util::getValueFromJsonObject(attrInfo, "AttributeName",
++                                                   attrName))
++            {
++                messages::propertyMissing(asyncResp->res, "AttributeName");
++                return;
++            }
++            if (!json_util::getValueFromJsonObject(attrInfo, "AttributeType",
++                                                   attrType))
++            {
++                messages::propertyMissing(asyncResp->res, "AttributeType");
++                return;
++            }
++            if (!json_util::getValueFromJsonObject(attrInfo, "AttributeValue",
++                                                   attrValue))
++            {
++                messages::propertyMissing(asyncResp->res, "AttributeValue");
++                return;
++            }
++            std::string biosAttrType = mapRedfishToAttrType(*attrType);
++
++            if (biosAttrType == "UNKNOWN")
++            {
++                BMCWEB_LOG_ERROR << "Invalid attribute type";
++                messages::propertyValueNotInList(asyncResp->res,
++                                                 "AttributeType", *attrType);
++                return;
++            }
++
++            PendingAttributesType pendingAttributes;
++            pendingAttributes.emplace_back(std::make_pair(
++                *attrName, std::make_tuple(biosAttrType, *attrValue)));
++
++            crow::connections::systemBus->async_method_call(
++                [asyncResp](const boost::system::error_code ec) {
++                    if (ec)
++                    {
++                        BMCWEB_LOG_ERROR << "doPatch resp_handler got error "
++                                         << ec;
++                        messages::internalError(asyncResp->res);
++                        return;
++                    }
++                },
++                "xyz.openbmc_project.BIOSConfigManager",
++                "/xyz/openbmc_project/bios_config/manager",
++                "org.freedesktop.DBus.Properties", "Set",
++                "xyz.openbmc_project.BIOSConfig.Manager", "PendingAttributes",
++                std::variant<PendingAttributesType>(pendingAttributes));
++        }
++    }
+ };
+ /**
+  * BiosAttributeRegistry class supports handle get method for BIOS attribute
+-- 
+2.17.1
+

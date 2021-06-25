@@ -1,0 +1,47 @@
+From e7018ea9e3ad1a17e096aec3717a4764c3feac2e Mon Sep 17 00:00:00 2001
+From: Alicja Rybak <alicja.rybak@intel.com>
+Date: Wed, 14 Apr 2021 16:26:59 +0200
+Subject: [PATCH] Bmcweb handle permission denied exception
+
+Add handling of permission denied exception (EPERM) that
+can be thrown by VirtualMedia service during Mount/Unmount dbus operations.
+
+Tested:
+Verified that after mounting/unmounting HTTPS resource twice in a row in legacy mode,
+VirtualMedia returns EPERM, which bmcweb handles as 403 status code.
+
+Change-Id: Ibc18d5ec822c5072605b1fc4651389982002798b
+Signed-off-by: Alicja Rybak <alicja.rybak@intel.com>
+---
+ redfish-core/lib/virtual_media.hpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index 4c475b7..8151ac0 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -1073,6 +1073,10 @@ class VirtualMediaActionInsertMedia : public Node
+                             {
+                                 messages::resourceInUse(asyncResp->res);
+                             }
++                            else if (ec == boost::system::errc::permission_denied)
++                            {
++                                messages::accessDenied(asyncResp->res, "VirtualMedia.Insert");
++                            }
+                             else
+                             {
+                                 messages::internalError(asyncResp->res);
+@@ -1267,6 +1271,10 @@ class VirtualMediaActionEjectMedia : public Node
+                             {
+                                 messages::resourceInUse(asyncResp->res);
+                             }
++                            else if (ec == boost::system::errc::permission_denied)
++                            {
++                                messages::accessDenied(asyncResp->res, "VirtualMedia.Eject");
++                            }
+                             else
+                             {
+                                 messages::internalError(asyncResp->res);
+-- 
+2.17.1
+

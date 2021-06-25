@@ -1,0 +1,44 @@
+From fedcdb7887b4d934ee763d75f7988825300c5cef Mon Sep 17 00:00:00 2001
+From: Ayushi Smriti <smriti.ayushi@intel.com>
+Date: Thu, 6 May 2021 11:56:38 +0530
+Subject: [PATCH] Fix:remove bios user pwd change option via Redfish
+
+BMC should not provide user bios setup password change option via
+Redfish as per bios security requirements. Only Admin BIOS setup
+password is supported.
+
+Added check for the password name action parameter and
+do not allow if it has User Password value from redfish side.
+
+Tested: sent POST query in redfish on URI:
+https://<ip>/redfish/v1/Systems/system/Bios/Actions/Bios.ChangePassword
+error occurs for UserPassword parameter and allows for AdminPassword.
+
+Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
+---
+ redfish-core/lib/bios.hpp | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
+index 12ec472..0416934 100644
+--- a/redfish-core/lib/bios.hpp
++++ b/redfish-core/lib/bios.hpp
+@@ -722,6 +722,15 @@ class BiosChangePassword : public Node
+                                              "PasswordName");
+             return;
+         }
++
++        // In Intel BIOS, we are not supporting user password in BIOS setup
++        if (userName == "UserPassword")
++        {
++            messages::actionParameterUnknown(asyncResp->res, "ChangePassword",
++                                             "PasswordName");
++            return;
++        }
++
+         crow::connections::systemBus->async_method_call(
+             [asyncResp](const boost::system::error_code ec) {
+                 if (ec)
+-- 
+2.17.1
+

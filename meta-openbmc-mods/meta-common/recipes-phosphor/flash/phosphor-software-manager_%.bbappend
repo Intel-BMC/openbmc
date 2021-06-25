@@ -13,7 +13,6 @@ SRC_URI += " \
     file://0007-Adding-StandBySpare-for-firmware-activation.patch \
     file://0008-item_updater-update-the-bmc_active-objectPath.patch \
     file://0009-Add-ApplyOptions-D-bus-property-under-Software.patch \
-    file://0011-Fix-for-RedudancyPriority-in-item_updater.patch \
     file://0013-remove-image-file-on-pre-script-failures.patch \
     "
 

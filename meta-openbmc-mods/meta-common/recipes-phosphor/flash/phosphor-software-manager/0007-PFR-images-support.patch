@@ -1,4 +1,4 @@
-From 030f918b90ea45104bccf68082c2d634c6694238 Mon Sep 17 00:00:00 2001
+From 51fd06346ff492d5d4862886cb34e024d05edb45 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Tue, 13 Aug 2019 22:43:12 +0530
 Subject: [PATCH] PFR images support in phosphor-software-manager
@@ -12,34 +12,20 @@ tested PFR image uploads and updates
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 
 ---
- activation.cpp        |   2 +-
  item_updater.cpp      |   7 +-
- meson.build           |   7 +-
+ meson.build           |   8 +-
  meson_options.txt     |   3 +
- pfr_image_manager.cpp | 217 ++++++++++++++++++++++++++++++++++++++++++
- pfr_image_manager.hpp |  75 +++++++++++++++
- 6 files changed, 306 insertions(+), 5 deletions(-)
+ pfr_image_manager.cpp | 218 ++++++++++++++++++++++++++++++++++++++++++
+ pfr_image_manager.hpp |  76 +++++++++++++++
+ 5 files changed, 308 insertions(+), 4 deletions(-)
  create mode 100644 pfr_image_manager.cpp
  create mode 100644 pfr_image_manager.hpp
 
-diff --git a/activation.cpp b/activation.cpp
-index bad17b8..3363230 100644
---- a/activation.cpp
-+++ b/activation.cpp
-@@ -119,7 +119,7 @@ auto Activation::activation(Activations value) -> Activations
-         }
-         else if (activationProgress->progress() == 100)
-         {
--            log<level::ERR>("[Jennifer] progress == 100...");
-+            log<level::INFO>("progress == 100...");
-             if (!redundancyPriority)
-             {
-                 redundancyPriority =
 diff --git a/item_updater.cpp b/item_updater.cpp
-index df8595c..694975f 100644
+index 81fc01f..60e7d23 100644
 --- a/item_updater.cpp
 +++ b/item_updater.cpp
-@@ -64,10 +64,10 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
+@@ -65,10 +65,10 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
                      auto value = SVersion::convertVersionPurposeFromString(
                          std::get<std::string>(property.second));
                      if (value == VersionPurpose::BMC ||
@@ -52,7 +38,7 @@ index df8595c..694975f 100644
                      {
                          purpose = value;
                      }
-@@ -399,6 +399,7 @@ void ItemUpdater::deleteAll()
+@@ -414,6 +414,7 @@ void ItemUpdater::deleteAll()
  ItemUpdater::ActivationStatus
      ItemUpdater::validateSquashFSImage(const std::string& filePath)
  {
@@ -60,7 +46,7 @@ index df8595c..694975f 100644
      bool valid = true;
  
      // Record the images which are being updated
-@@ -416,7 +417,7 @@ ItemUpdater::ActivationStatus
+@@ -431,7 +432,7 @@ ItemUpdater::ActivationStatus
              return ItemUpdater::ActivationStatus::invalid;
          }
      }
@@ -69,37 +55,27 @@ index df8595c..694975f 100644
      return ItemUpdater::ActivationStatus::ready;
  }
  
-@@ -690,8 +691,8 @@ void ItemUpdater::freeSpace(Activation& caller)
-             // Failed activations don't have priority, assign them a large value
-             // for sorting purposes.
-             auto priority = 999;
--             if ((iter.second.get()->activation() ==
--                server::Activation::Activations::Active)&&
-+            if ((iter.second.get()->activation() ==
-+                 server::Activation::Activations::Active) &&
-                 iter.second->redundancyPriority.get())
-             {
-                 priority = iter.second->redundancyPriority.get()->priority();
 diff --git a/meson.build b/meson.build
-index 08d6f71..c61d59f 100644
+index 5c79009..e33998d 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -55,6 +55,7 @@ conf.set('MMC_LAYOUT', get_option('bmc-layout').contains('mmc'))
- conf.set('HOST_BIOS_UPGRADE', get_option('host-bios-upgrade').enabled())
- conf.set('WANT_SIGNATURE_VERIFY', get_option('verify-signature').enabled())
+@@ -60,6 +60,7 @@ conf.set('WANT_SIGNATURE_VERIFY', \
+ conf.set('WANT_SIGNATURE_FULL_VERIFY', get_option('verify-full-signature').enabled())
+
  conf.set('FWUPD_SCRIPT', get_option('fwupd-script').enabled())
 +conf.set('PFR_UPDATE', get_option('pfr-update').enabled())
- 
+
  # Configurable variables
  conf.set('ACTIVE_BMC_MAX_ALLOWED', get_option('active-bmc-max-allowed'))
-@@ -195,12 +196,16 @@ executable(
+@@ -205,12 +206,17 @@ executable(
      install: true
  )
- 
+
 +image_manager_source = files('image_manager.cpp')
 +if get_option('pfr-update').enabled()
 +    image_manager_source = files('pfr_image_manager.cpp')
 +endif
++
  executable(
      'phosphor-version-software-manager',
      image_error_cpp,
@@ -111,22 +87,22 @@ index 08d6f71..c61d59f 100644
      'watch.cpp',
      dependencies: [deps, ssl],
 diff --git a/meson_options.txt b/meson_options.txt
-index 4f7e62a..1593502 100644
+index da257b7..2204e04 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
-@@ -25,6 +25,9 @@ option('verify-signature', type: 'feature',
+@@ -28,6 +28,9 @@ option('verify-full-signature', type: 'feature',
  option('fwupd-script', type: 'feature',
      description: 'Enable fwupd script support.')
- 
+
 +option('pfr-update', type: 'feature',
-+    description: 'Enable fwupd script support.')
++    description: 'Enable PFR image support.')
 +
  # Variables
  option(
      'active-bmc-max-allowed', type: 'integer',
 diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
 new file mode 100644
-index 0000000..242a6ca
+index 0000000..fec1e94
 --- /dev/null
 +++ b/pfr_image_manager.cpp
 @@ -0,0 +1,218 @@
@@ -350,7 +326,7 @@ index 0000000..242a6ca
 +} // namespace phosphor
 diff --git a/pfr_image_manager.hpp b/pfr_image_manager.hpp
 new file mode 100644
-index 0000000..c6ee6a4
+index 0000000..b9a5822
 --- /dev/null
 +++ b/pfr_image_manager.hpp
 @@ -0,0 +1,76 @@

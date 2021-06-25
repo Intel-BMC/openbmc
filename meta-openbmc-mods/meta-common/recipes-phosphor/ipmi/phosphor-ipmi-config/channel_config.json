@@ -36,6 +36,7 @@
     "name" : "eth0",
     "is_valid" : true,
     "active_sessions" : 0,
+    "is_management_nic" : true,
     "channel_info" : {
       "medium_type" : "lan-802.3",
       "protocol_type" : "ipmb-1.0",

@@ -1,4 +1,4 @@
-From 1333a1ff082cbaec4a44cefaf84d1bcc03ba1510 Mon Sep 17 00:00:00 2001
+From 2f4d7260a4ab0eb33d1145cd640019aa1fa1414a Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Thu, 18 Jun 2020 15:08:57 -0700
 Subject: [PATCH] Add a workaround to cover VGA memory size bug in A0
@@ -13,10 +13,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 17 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index 6b447845fe26..55b867ff1b17 100644
+index eac52db538b0..cf709aaa5d98 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
-@@ -210,6 +210,12 @@ do_primary_core_setup:
+@@ -212,6 +212,12 @@ do_primary_core_setup:
  
  	bne	0f
  
@@ -29,10 +29,10 @@ index 6b447845fe26..55b867ff1b17 100644
  	/* tune up CPU clocks (A0 only) */
  	ldr	r0, =AST_SCU_HW_STRAP1
  	ldr	r1, [r0]
-@@ -235,6 +241,17 @@ wait_lock:
- 	b 1f
+@@ -250,6 +256,17 @@ wait_lock:
+ 	bne	2f
  
- 0:
+ 1:
 +	/* set VGA memory size to 16MB (A1 only) */
 +	ldr	r0, =AST_SCU_HW_STRAP1_CLR
 +	movw	r1, #0x4000

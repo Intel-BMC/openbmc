@@ -1,7 +1,7 @@
-From e93a6a02b0fba3371144d474422fadacc3f25fde Mon Sep 17 00:00:00 2001
+From 0c531d959364192697290c1489d5f7b1bdd7a665 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Fri, 12 Mar 2021 18:53:25 +0000
-Subject: [PATCH 4/6] Add Server-Sent-Events support
+Subject: [PATCH] Add Server-Sent-Events support
 
 Server-Sent Events is a standard describing how servers can
 initiate data transmission towards clients once an initial
@@ -24,13 +24,13 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
  http/http_connection.hpp   |  14 +-
  http/http_response.hpp     |   7 +-
- http/routing.hpp           |  70 ++++++++++
+ http/routing.hpp           |  71 ++++++++++
  http/server_sent_event.hpp | 279 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 364 insertions(+), 6 deletions(-)
+ 4 files changed, 365 insertions(+), 6 deletions(-)
  create mode 100644 http/server_sent_event.hpp
 
 diff --git a/http/http_connection.hpp b/http/http_connection.hpp
-index 4482f8d..2c8bf40 100644
+index 6172b3a..fc9fc60 100644
 --- a/http/http_connection.hpp
 +++ b/http/http_connection.hpp
 @@ -326,7 +326,7 @@ class Connection :
@@ -63,7 +63,7 @@ index 4482f8d..2c8bf40 100644
                      // delete lambda with self shared_ptr
                      // to enable connection destruction
 diff --git a/http/http_response.hpp b/http/http_response.hpp
-index cd00ec8..ffd6dda 100644
+index 7965704..29c56e1 100644
 --- a/http/http_response.hpp
 +++ b/http/http_response.hpp
 @@ -13,10 +13,15 @@ namespace crow
@@ -93,7 +93,7 @@ index cd00ec8..ffd6dda 100644
      // In case of a JSON object, set the Content-Type header
      void jsonMode()
 diff --git a/http/routing.hpp b/http/routing.hpp
-index 65c7b70..0824939 100644
+index dd07523..7ddc6b0 100644
 --- a/http/routing.hpp
 +++ b/http/routing.hpp
 @@ -6,6 +6,7 @@
@@ -104,7 +104,7 @@ index 65c7b70..0824939 100644
  #include "sessions.hpp"
  #include "utility.hpp"
  #include "websocket.hpp"
-@@ -390,6 +391,67 @@ class WebSocketRule : public BaseRule
+@@ -398,6 +399,68 @@ class WebSocketRule : public BaseRule
      std::function<void(crow::websocket::Connection&)> errorHandler;
  };
  
@@ -119,10 +119,11 @@ index 65c7b70..0824939 100644
 +    void validate() override
 +    {}
 +
-+    void handle(const Request&, Response& res, const RoutingParams&) override
++    void handle(const Request&,
++                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                const RoutingParams&) override
 +    {
-+        res.result(boost::beast::http::status::not_found);
-+        res.end();
++        asyncResp->res.result(boost::beast::http::status::not_found);
 +    }
 +
 +    void handleUpgrade(const Request& req, Response&,
@@ -172,7 +173,7 @@ index 65c7b70..0824939 100644
  template <typename T>
  struct RuleParameterTraits
  {
-@@ -402,6 +464,14 @@ struct RuleParameterTraits
+@@ -410,6 +473,14 @@ struct RuleParameterTraits
          return *p;
      }
  
