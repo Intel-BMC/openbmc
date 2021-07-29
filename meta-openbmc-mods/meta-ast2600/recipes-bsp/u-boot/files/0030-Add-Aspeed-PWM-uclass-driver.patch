@@ -1,4 +1,4 @@
-From b68b7c30fa3331642e321d150017d431d8cf6f6d Mon Sep 17 00:00:00 2001
+From a772d7bdde659d689fda47accc0f50bb6ce047d1 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 17 May 2021 13:11:24 -0700
 Subject: [PATCH] Add Aspeed PWM uclass driver
@@ -14,15 +14,15 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  drivers/pinctrl/aspeed/pinctrl_ast2600.c | 130 ++++++++++++++++-
  drivers/pwm/Kconfig                      |   8 ++
  drivers/pwm/Makefile                     |   1 +
- drivers/pwm/aspeed_pwm.c                 | 175 +++++++++++++++++++++++
- 7 files changed, 461 insertions(+), 1 deletion(-)
+ drivers/pwm/aspeed_pwm.c                 | 172 +++++++++++++++++++++++
+ 7 files changed, 458 insertions(+), 1 deletion(-)
  create mode 100644 drivers/pwm/aspeed_pwm.c
 
 diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
-index 5243d1a0afc3..79356d8b7a64 100644
+index 7cae636554b6..a76193716d34 100644
 --- a/arch/arm/dts/ast2600-intel.dts
 +++ b/arch/arm/dts/ast2600-intel.dts
-@@ -53,6 +53,17 @@
+@@ -64,6 +64,17 @@
  	};
  };
  
@@ -41,7 +41,7 @@ index 5243d1a0afc3..79356d8b7a64 100644
  	status = "okay";
  };
 diff --git a/arch/arm/dts/ast2600.dtsi b/arch/arm/dts/ast2600.dtsi
-index e619f7118886..44ec6655fee7 100644
+index 9c4282515d55..3ff5bf2e16e1 100644
 --- a/arch/arm/dts/ast2600.dtsi
 +++ b/arch/arm/dts/ast2600.dtsi
 @@ -265,6 +265,14 @@
@@ -59,7 +59,7 @@ index e619f7118886..44ec6655fee7 100644
  			syscon: syscon@1e6e2000 {
  				compatible = "aspeed,g6-scu", "syscon", "simple-mfd";
  				reg = <0x1e6e2000 0x1000>;
-@@ -1589,6 +1597,86 @@
+@@ -1598,6 +1606,86 @@
  		groups = "PWM7";
  	};
  
@@ -147,7 +147,7 @@ index e619f7118886..44ec6655fee7 100644
  		function = "RGMII1";
  		groups = "RGMII1";
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index ec6b70ae6659..11b8d4dd8360 100644
+index 82df0ac6137e..f1136eec9ab9 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
 @@ -8,6 +8,7 @@
@@ -212,7 +212,7 @@ index ec6b70ae6659..11b8d4dd8360 100644
  int board_early_init_f(void)
  {
  	/* This is called before relocation; beware! */
-@@ -613,6 +661,7 @@ int board_late_init(void)
+@@ -576,6 +624,7 @@ int board_late_init(void)
  		     timer_callback, (void *)1);
  #endif
  
@@ -395,7 +395,7 @@ index a837c35ed2e3..770b054c3f3b 100644
 +obj-$(CONFIG_PWM_ASPEED)	+= aspeed_pwm.o
 diff --git a/drivers/pwm/aspeed_pwm.c b/drivers/pwm/aspeed_pwm.c
 new file mode 100644
-index 000000000000..111e2971d226
+index 000000000000..bd9a911b4fe2
 --- /dev/null
 +++ b/drivers/pwm/aspeed_pwm.c
 @@ -0,0 +1,172 @@

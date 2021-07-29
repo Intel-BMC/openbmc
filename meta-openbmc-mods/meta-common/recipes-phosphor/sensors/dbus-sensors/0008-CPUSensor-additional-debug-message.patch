@@ -1,0 +1,69 @@
+From c045d0ace218a8f0c9e9af0b04aed24ec733fc79 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 22 Jun 2021 14:49:44 -0700
+Subject: [PATCH] CPUSensor: additional debug message
+
+Add debug message to capture more information on threshold changes.
+
+Example output - DTS threshold changes when Tcontrol was first read
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: Core_16_CPU1: Tcontrol changed from nan to 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: Core_22_CPU1: Tcontrol changed from nan to 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: Core_24_CPU1: Tcontrol changed from nan to 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: DTS_CPU1: Tcontrol changed from nan to 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: Threshold: /sys/bus/peci/devices/peci-0/0-30/peci-cputemp.0/hwmon/hwmon12/temp2_max: 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: Threshold: /sys/bus/peci/devices/peci-0/0-30/peci-cputemp.0/hwmon/hwmon12/temp2_crit: 100
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: DTS_CPU1: new threshold value 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: DTS_CPU1: new threshold value 100
+
+The above message will be logged when BMC reset or host resets.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/CPUSensor.cpp  | 5 +++++
+ src/Thresholds.cpp | 7 ++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 0621e04..65acdac 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -300,6 +300,7 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+                                    : std::numeric_limits<double>::quiet_NaN();
+             if (gTcontrol != privTcontrol)
+             {
++                std::cout << name << ": Tcontrol changed from " << privTcontrol << " to " << gTcontrol << "\n";
+                 privTcontrol = gTcontrol;
+ 
+                 if (!thresholds.empty())
+@@ -318,6 +319,10 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+                                 thresholds::updateThresholds(this);
+                             }
+                         }
++                        for (auto& threshold : thresholds)
++                        {
++                            std::cout << name << ": new threshold value " << threshold.value << "\n";
++                        }
+                     }
+                     else
+                     {
+diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
+index 78ded55..283dacf 100644
+--- a/src/Thresholds.cpp
++++ b/src/Thresholds.cpp
+@@ -583,11 +583,8 @@ bool parseThresholdsFromAttr(
+                 if (auto val = readFile(attrPath, scaleFactor))
+                 {
+                     *val += offset;
+-                    if (debug)
+-                    {
+-                        std::cout << "Threshold: " << attrPath << ": " << *val
+-                                  << "\n";
+-                    }
++                    std::cout << "Threshold: " << attrPath << ": " << *val
++                              << "\n";
+                     thresholdVector.emplace_back(level, direction, *val);
+                 }
+             }
+-- 
+2.17.1
+

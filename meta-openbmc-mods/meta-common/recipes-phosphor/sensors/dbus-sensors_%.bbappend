@@ -1,7 +1,7 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "13b63f8f597d396db8b5bd182ac2e5814d599e2f"
+SRCREV = "8685b17ab14a187eae08399153b9ec6bace2ab9b"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 SRC_URI += "\
@@ -12,6 +12,8 @@ SRC_URI += "\
     file://0004-Fan-Tach-Sensor-Threshold-Ignore-Zero.patch \
     file://0005-Fix-PECI-ioctl-number.patch \
     file://0006-CPUSensor-create-RequirediTempSensor-if-defined.patch \
+    file://0007-Add-support-for-the-energy-hwmon-type.patch \
+    file://0008-CPUSensor-additional-debug-message.patch \
     "
 
 DEPENDS_append = " libgpiod libmctp"

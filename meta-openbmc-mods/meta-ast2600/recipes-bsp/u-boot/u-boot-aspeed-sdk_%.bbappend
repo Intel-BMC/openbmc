@@ -1,6 +1,8 @@
 COMPATIBLE_MACHINE = "intel-ast2600"
 FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files:"
 
+SRCREV = "e1417368fdc3ba45ffde51a4b13290114a643be4"
+
 # the meta-phosphor layer adds this patch, which conflicts
 # with the intel layout for environment
 
@@ -36,6 +38,9 @@ SRC_URI_append_intel-ast2600 = " \
     file://0029-Set-UART-routing-in-lowlevel_init.patch \
     file://0030-Add-Aspeed-PWM-uclass-driver.patch \
     file://0031-Add-a-workaround-to-fix-AST2600-A0-booting-issue.patch \
+    file://0032-Disable-eSPI-initialization-in-u-boot-for-normal-boo.patch \
+    file://0033-Disable-debug-interfaces.patch \
+    file://0034-Implement-the-IPMI-commands-in-FFUJ-mode-in-u-boot.patch \
     "
 
 # CVE-2020-10648 vulnerability fix

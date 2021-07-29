@@ -1,0 +1,491 @@
+From 6acffea563905c00f4b6d00c738fe7516e03c724 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 13 Apr 2021 13:00:18 +0000
+Subject: [PATCH] Add support for MetricDefinition scheme
+
+Added MetricDefinition node to Redfish code. Now user is able to list
+all available metrics in OpenBMC that are supported by Telemetry
+service. Metrics are grouped by following categories: temperature,
+power, voltage, current, fan_tach, fan_pwm, utilization.
+
+Tested:
+ - MetricDefinitions response is filled with existing sensors, it works
+   with and without Telemetry service
+ - Validated a presence of MetricDefinition members and its attributes
+ - Successfully passed RedfishServiceValidator.py using witherspoon image
+   on QEMU
+
+Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Change-Id: I3086e1302e1ba2e5442d1367939fd5507a0cbc00
+---
+ redfish-core/include/redfish.hpp              |   3 +
+ .../include/utils/get_chassis_names.hpp       |  58 ++++
+ .../include/utils/telemetry_utils.hpp         |   2 +
+ redfish-core/lib/metric_definition.hpp        | 264 ++++++++++++++++++
+ redfish-core/lib/sensors.hpp                  |  25 +-
+ redfish-core/lib/telemetry_service.hpp        |   2 +
+ 6 files changed, 342 insertions(+), 12 deletions(-)
+ create mode 100644 redfish-core/include/utils/get_chassis_names.hpp
+ create mode 100644 redfish-core/lib/metric_definition.hpp
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index 4418c3d..594520d 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -25,6 +25,7 @@
+ #include "../lib/managers.hpp"
+ #include "../lib/memory.hpp"
+ #include "../lib/message_registries.hpp"
++#include "../lib/metric_definition.hpp"
+ #include "../lib/metric_report.hpp"
+ #include "../lib/metric_report_definition.hpp"
+ #include "../lib/network_protocol.hpp"
+@@ -215,6 +216,8 @@ class RedfishService
+         nodes.emplace_back(std::make_unique<HypervisorResetActionInfo>(app));
+ 
+         nodes.emplace_back(std::make_unique<TelemetryService>(app));
++        nodes.emplace_back(std::make_unique<MetricDefinitionCollection>(app));
++        nodes.emplace_back(std::make_unique<MetricDefinition>(app));
+         nodes.emplace_back(
+             std::make_unique<MetricReportDefinitionCollection>(app));
+         nodes.emplace_back(std::make_unique<MetricReportDefinition>(app));
+diff --git a/redfish-core/include/utils/get_chassis_names.hpp b/redfish-core/include/utils/get_chassis_names.hpp
+new file mode 100644
+index 0000000..0276b6f
+--- /dev/null
++++ b/redfish-core/include/utils/get_chassis_names.hpp
+@@ -0,0 +1,58 @@
++#pragma once
++
++#include <include/dbus_singleton.hpp>
++
++#include <array>
++#include <string>
++#include <vector>
++
++namespace redfish
++{
++
++namespace utils
++{
++
++template <typename F>
++inline void getChassisNames(F&& cb)
++{
++    const std::array<const char*, 2> interfaces = {
++        "xyz.openbmc_project.Inventory.Item.Board",
++        "xyz.openbmc_project.Inventory.Item.Chassis"};
++
++    crow::connections::systemBus->async_method_call(
++        [callback = std::move(cb)](const boost::system::error_code ec,
++                                   const std::vector<std::string>& chassis) {
++            std::vector<std::string> chassisNames;
++
++            if (ec)
++            {
++                callback(ec, chassisNames);
++                return;
++            }
++
++            chassisNames.reserve(chassis.size());
++            for (const std::string& path : chassis)
++            {
++                sdbusplus::message::object_path dbusPath = path;
++                std::string name = dbusPath.filename();
++                if (name.empty())
++                {
++                    callback(boost::system::errc::make_error_code(
++                                 boost::system::errc::invalid_argument),
++                             chassisNames);
++                    return;
++                }
++                chassisNames.emplace_back(std::move(name));
++            }
++
++            callback(ec, chassisNames);
++        },
++        "xyz.openbmc_project.ObjectMapper",
++        "/xyz/openbmc_project/object_mapper",
++        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
++        "/xyz/openbmc_project/inventory", 0, interfaces);
++}
++
++} // namespace utils
++
++} // namespace redfish
+diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
+index 5872350..1b4f75d 100644
+--- a/redfish-core/include/utils/telemetry_utils.hpp
++++ b/redfish-core/include/utils/telemetry_utils.hpp
+@@ -10,6 +10,8 @@ namespace telemetry
+ 
+ constexpr const char* service = "xyz.openbmc_project.Telemetry";
+ constexpr const char* reportInterface = "xyz.openbmc_project.Telemetry.Report";
++constexpr const char* metricDefinitionUri =
++    "/redfish/v1/TelemetryService/MetricDefinitions/";
+ constexpr const char* metricReportDefinitionUri =
+     "/redfish/v1/TelemetryService/MetricReportDefinitions/";
+ constexpr const char* metricReportUri =
+diff --git a/redfish-core/lib/metric_definition.hpp b/redfish-core/lib/metric_definition.hpp
+new file mode 100644
+index 0000000..072fe20
+--- /dev/null
++++ b/redfish-core/lib/metric_definition.hpp
+@@ -0,0 +1,264 @@
++#pragma once
++
++#include "async_resp.hpp"
++#include "node.hpp"
++#include "sensors.hpp"
++#include "utils/get_chassis_names.hpp"
++#include "utils/telemetry_utils.hpp"
++
++namespace redfish
++{
++
++namespace telemetry
++{
++
++void addMembers(crow::Response& res,
++                const boost::container::flat_map<std::string, std::string>& el)
++{
++    for (const auto& [_, dbusSensor] : el)
++    {
++        sdbusplus::message::object_path path(dbusSensor);
++        sdbusplus::message::object_path parentPath = path.parent_path();
++        const std::string type = parentPath.filename();
++
++        if (type.empty())
++        {
++            BMCWEB_LOG_ERROR << "Received invalid DBus Sensor Path = "
++                             << dbusSensor;
++            continue;
++        }
++
++        nlohmann::json& members = res.jsonValue["Members"];
++
++        const std::string odataId =
++            std::string(telemetry::metricDefinitionUri) +
++            sensors::toReadingType(type);
++
++        const auto it = std::find_if(members.begin(), members.end(),
++                                     [&odataId](const nlohmann::json& item) {
++                                         auto kt = item.find("@odata.id");
++                                         if (kt == item.end())
++                                         {
++                                             return false;
++                                         }
++                                         const std::string* value =
++                                             kt->get_ptr<const std::string*>();
++                                         if (!value)
++                                         {
++                                             return false;
++                                         }
++                                         return *value == odataId;
++                                     });
++
++        if (it == members.end())
++        {
++            members.push_back({{"@odata.id", odataId}});
++        }
++
++        res.jsonValue["Members@odata.count"] = members.size();
++    }
++}
++
++} // namespace telemetry
++
++class MetricDefinitionCollection : public Node
++{
++  public:
++    MetricDefinitionCollection(App& app) :
++        Node(app, "/redfish/v1/TelemetryService/MetricDefinitions/")
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++    }
++
++  private:
++    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const crow::Request&, const std::vector<std::string>&) override
++    {
++        asyncResp->res.jsonValue["@odata.type"] = "#MetricDefinitionCollection."
++                                                  "MetricDefinitionCollection";
++        asyncResp->res.jsonValue["@odata.id"] =
++            "/redfish/v1/TelemetryService/MetricDefinitions";
++        asyncResp->res.jsonValue["Name"] = "Metric Definition Collection";
++        asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
++        asyncResp->res.jsonValue["Members@odata.count"] = 0;
++
++        utils::getChassisNames(
++            [asyncResp](boost::system::error_code ec,
++                        const std::vector<std::string>& chassisNames) {
++                if (ec)
++                {
++                    messages::internalError(asyncResp->res);
++                    BMCWEB_LOG_ERROR << "getChassisNames error: " << ec.value();
++                    return;
++                }
++
++                auto handleRetrieveUriToDbusMap =
++                    [asyncResp](const boost::beast::http::status status,
++                                const boost::container::flat_map<
++                                    std::string, std::string>& uriToDbus) {
++                        if (status != boost::beast::http::status::ok)
++                        {
++                            BMCWEB_LOG_ERROR
++                                << "Failed to retrieve URI to dbus "
++                                   "sensors map with err "
++                                << static_cast<unsigned>(status);
++                            messages::internalError(asyncResp->res);
++                            return;
++                        }
++                        telemetry::addMembers(asyncResp->res, uriToDbus);
++                    };
++
++                for (const std::string& chassisName : chassisNames)
++                {
++                    for (const auto& [sensorNode, _] : sensors::dbus::paths)
++                    {
++                        BMCWEB_LOG_DEBUG << "Chassis: " << chassisName
++                                         << " sensor: " << sensorNode;
++                        retrieveUriToDbusMap(chassisName, sensorNode.data(),
++                                             handleRetrieveUriToDbusMap);
++                    }
++                }
++            });
++    }
++};
++
++namespace telemetry
++{
++
++bool isSensorIdSupported(std::string_view readingType)
++{
++    for (const std::pair<std::string_view, std::vector<const char*>>&
++             typeToPaths : sensors::dbus::paths)
++    {
++        for (const char* supportedPath : typeToPaths.second)
++        {
++            if (readingType ==
++                sensors::toReadingType(
++                    sdbusplus::message::object_path(supportedPath).filename()))
++            {
++                return true;
++            }
++        }
++    }
++    return false;
++}
++
++void addMetricProperty(
++    bmcweb::AsyncResp& asyncResp, const std::string& readingType,
++    const boost::container::flat_map<std::string, std::string>& el)
++{
++    nlohmann::json& metricProperties =
++        asyncResp.res.jsonValue["MetricProperties"];
++
++    for (const auto& [redfishSensor, dbusSensor] : el)
++    {
++        std::string sensorId;
++        if (dbus::utility::getNthStringFromPath(dbusSensor, 3, sensorId))
++        {
++            if (sensors::toReadingType(sensorId) == readingType)
++            {
++                metricProperties.push_back(redfishSensor);
++            }
++        }
++    }
++}
++
++} // namespace telemetry
++
++class MetricDefinition : public Node
++{
++  public:
++    MetricDefinition(App& app) :
++        Node(app, "/redfish/v1/TelemetryService/MetricDefinitions/<str>/",
++             std::string())
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::put, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureManager"}}},
++            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
++    }
++
++  private:
++    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const crow::Request&,
++               const std::vector<std::string>& params) override
++    {
++        if (params.size() != 1)
++        {
++            messages::internalError(asyncResp->res);
++            return;
++        }
++
++        const std::string& readingType = params[0];
++
++        if (!telemetry::isSensorIdSupported(readingType))
++        {
++            messages::resourceNotFound(asyncResp->res, "MetricDefinition",
++                                       readingType);
++            return;
++        }
++
++        asyncResp->res.jsonValue["MetricProperties"] = nlohmann::json::array();
++        asyncResp->res.jsonValue["Id"] = readingType;
++        asyncResp->res.jsonValue["Name"] = readingType;
++        asyncResp->res.jsonValue["@odata.id"] =
++            telemetry::metricDefinitionUri + readingType;
++        asyncResp->res.jsonValue["@odata.type"] =
++            "#MetricDefinition.v1_0_3.MetricDefinition";
++        asyncResp->res.jsonValue["MetricDataType"] = "Decimal";
++        asyncResp->res.jsonValue["MetricType"] = "Numeric";
++        asyncResp->res.jsonValue["IsLinear"] = true;
++        asyncResp->res.jsonValue["Implementation"] = "PhysicalSensor";
++        asyncResp->res.jsonValue["Units"] =
++            sensors::toReadingUnits(readingType);
++
++        utils::getChassisNames([asyncResp,
++                                readingType](boost::system::error_code ec,
++                                             const std::vector<std::string>&
++                                                 chassisNames) {
++            if (ec)
++            {
++                messages::internalError(asyncResp->res);
++                BMCWEB_LOG_ERROR << "getChassisNames error: " << ec.value();
++                return;
++            }
++
++            auto handleRetrieveUriToDbusMap =
++                [asyncResp, readingType](
++                    const boost::beast::http::status status,
++                    const boost::container::flat_map<std::string, std::string>&
++                        uriToDbus) {
++                    if (status != boost::beast::http::status::ok)
++                    {
++                        BMCWEB_LOG_ERROR << "Failed to retrieve URI to dbus "
++                                            "sensors map with err "
++                                         << static_cast<unsigned>(status);
++                        messages::internalError(asyncResp->res);
++                        return;
++                    }
++                    telemetry::addMetricProperty(*asyncResp, readingType,
++                                                 uriToDbus);
++                };
++
++            for (const std::string& chassisName : chassisNames)
++            {
++                for (const auto& [sensorNode, dbusPaths] : sensors::dbus::paths)
++                {
++                    retrieveUriToDbusMap(chassisName, sensorNode.data(),
++                                         handleRetrieveUriToDbusMap);
++                }
++            }
++        });
++    }
++};
++
++} // namespace redfish
+diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
+index e7f4cde..b16b014 100644
+--- a/redfish-core/lib/sensors.hpp
++++ b/redfish-core/lib/sensors.hpp
+@@ -111,46 +111,47 @@ inline const char* toReadingType(const std::string& sensorType)
+     return "";
+ }
+ 
+-inline const char* toReadingUnits(const std::string& sensorType)
++inline const char* toReadingUnits(const std::string& readingType)
+ {
+-    if (sensorType == "voltage")
++    if (readingType == "Voltage")
+     {
+         return "V";
+     }
+-    if (sensorType == "power")
++    if (readingType == "Power")
+     {
+         return "W";
+     }
+-    if (sensorType == "current")
++    if (readingType == "Current")
+     {
+         return "A";
+     }
+-    if (sensorType == "fan_tach")
++    if (readingType == "Rotational")
+     {
+         return "RPM";
+     }
+-    if (sensorType == "temperature")
++    if (readingType == "Temperature")
+     {
+         return "Cel";
+     }
+-    if (sensorType == "fan_pwm" || sensorType == "utilization")
++    if (readingType == "Percent")
+     {
+         return "%";
+     }
+-    if (sensorType == "altitude")
++    if (readingType == "Altitude")
+     {
+         return "m";
+     }
+-    if (sensorType == "airflow")
++    if (readingType == "AirFlow")
+     {
+         return "cft_i/min";
+     }
+-    if (sensorType == "energy")
++    if (readingType == "EnergyJoules")
+     {
+         return "J";
+     }
+     return "";
+ }
++
+ } // namespace sensors
+ 
+ /**
+@@ -953,11 +954,11 @@ inline void objectInterfacesToJson(
+             sensorJson["ReadingType"] = readingType;
+         }
+ 
+-        const std::string& readingUnits = sensors::toReadingUnits(sensorType);
++        const std::string& readingUnits = sensors::toReadingUnits(readingType);
+         if (readingUnits.empty())
+         {
+             BMCWEB_LOG_ERROR << "Redfish cannot map reading unit for "
+-                             << sensorType;
++                             << readingType;
+         }
+         else
+         {
+diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
+index 9ec0737..de9c800 100644
+--- a/redfish-core/lib/telemetry_service.hpp
++++ b/redfish-core/lib/telemetry_service.hpp
+@@ -32,6 +32,8 @@ class TelemetryService : public Node
+         asyncResp->res.jsonValue["Id"] = "TelemetryService";
+         asyncResp->res.jsonValue["Name"] = "Telemetry Service";
+ 
++        asyncResp->res.jsonValue["MetricDefinitions"]["@odata.id"] =
++            "/redfish/v1/TelemetryService/MetricDefinitions";
+         asyncResp->res.jsonValue["MetricReportDefinitions"]["@odata.id"] =
+             "/redfish/v1/TelemetryService/MetricReportDefinitions";
+         asyncResp->res.jsonValue["MetricReports"]["@odata.id"] =
+-- 
+2.17.1
+

@@ -1,4 +1,4 @@
-From fdb55afe15fdbba33782d01a77bbf994470f40b4 Mon Sep 17 00:00:00 2001
+From 665675336251d1daac56ce80d0490a8f71d13411 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Thu, 12 Dec 2019 12:54:18 +0800
 Subject: [PATCH] ast2600: intel-layout-environment-addr
@@ -38,10 +38,10 @@ index 472987d5d52f..434c0df45c85 100644
  	env_set_hex("fdtcontroladdr",
  		    (unsigned long)map_to_sysmem(gd->fdt_blob));
 diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
-index 8718b50f9ebe..70590067dbcf 100644
+index 8f404570b1fb..183a7a502e9c 100644
 --- a/include/configs/aspeed-common.h
 +++ b/include/configs/aspeed-common.h
-@@ -73,9 +73,18 @@
+@@ -67,9 +67,18 @@
  #endif
  
  #ifndef CONFIG_ENV_OFFSET

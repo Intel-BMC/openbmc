@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "2ebb9683287cf6b1a2f2cc3c077bd99aceefa8dd"
+SRCREV = "eb75770c6c4369984cb150ded4f5ace410ed24a9"
 
 DEPENDS += "boost-url"
 RDEPENDS_${PN} += "phosphor-nslcd-authority-cert-config"
@@ -22,6 +22,8 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0015-Add-state-sensor-messages-to-the-registry.patch \
             file://0016-Fix-bmcweb-crashes-if-socket-directory-not-present.patch \
             file://0017-Add-msg-registry-for-subscription-related-actions.patch \
+            file://0018-bmcweb-Add-BMC-Time-update-log-to-the-registry.patch \
+            file://0019-Add-generic-message-PropertySizeExceeded.patch \
 "
 
 # OOB Bios Config:
@@ -50,11 +52,14 @@ SRC_URI += "file://eventservice/0001-EventService-Fix-retry-handling-for-http-cl
             file://eventservice/0005-Add-SSE-style-subscription-support-to-eventservice.patch \
             file://eventservice/0006-Add-EventService-SSE-filter-support.patch \
             file://eventservice/0007-EventService-Log-events-for-subscription-actions.patch \
+            file://eventservice/0008-Add-checks-on-Event-Subscription-input-parameters.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
-SRC_URI += " file://telemetry/0003-Add-support-for-MetricDefinition-scheme.patch \
-             file://telemetry/0004-Sync-Telmetry-service-with-EventService.patch  \
+SRC_URI += " file://telemetry/0001-Add-support-for-MetricDefinition-scheme.patch \
+             file://telemetry/0002-Sync-Telmetry-service-with-EventService.patch \
+             file://telemetry/0003-Revert-Remove-LogService-from-TelemetryService.patch \
+             file://telemetry/0004-event-service-fix-added-Context-field-to-response.patch \
 "
 
 # Temporary fix: Move it to service file

@@ -1,4 +1,4 @@
-From 144b845cd597cb93e4a6143a194e5018f2176f23 Mon Sep 17 00:00:00 2001
+From cb1d9b2cb8a3afbbdcc0b5ee81f48c4b185da2bd Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 5 Jun 2020 14:08:20 -0700
 Subject: [PATCH] net: phy: realtek: Change LED configuration
@@ -14,10 +14,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/net/phy/realtek.c b/drivers/net/phy/realtek.c
-index dd45e11b3ad9..167b34b2b2c9 100644
+index 6976ff7c0846..5bd620f67b6a 100644
 --- a/drivers/net/phy/realtek.c
 +++ b/drivers/net/phy/realtek.c
-@@ -169,10 +169,15 @@ static int rtl8211f_config(struct phy_device *phydev)
+@@ -180,10 +180,15 @@ static int rtl8211f_config(struct phy_device *phydev)
  	phy_write(phydev, MDIO_DEVAD_NONE,
  		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
  
@@ -36,5 +36,5 @@ index dd45e11b3ad9..167b34b2b2c9 100644
  		  MIIM_RTL8211F_PAGE_SELECT, 0x0);
  
 -- 
-2.7.4
+2.17.1
 

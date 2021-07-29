@@ -1,0 +1,26 @@
+From dc7e43c70285596195efd9d328b303091794278c Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Mon, 31 May 2021 10:08:57 +0000
+Subject: [PATCH] Revert "Remove LogService from TelemetryService"
+
+This reverts commit 2b3da45876aac57a36d3093379a992d699e7e396.
+---
+ redfish-core/lib/telemetry_service.hpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
+index de9c800..f05bf6d 100644
+--- a/redfish-core/lib/telemetry_service.hpp
++++ b/redfish-core/lib/telemetry_service.hpp
+@@ -38,6 +38,8 @@ class TelemetryService : public Node
+             "/redfish/v1/TelemetryService/MetricReportDefinitions";
+         asyncResp->res.jsonValue["MetricReports"]["@odata.id"] =
+             "/redfish/v1/TelemetryService/MetricReports";
++        asyncResp->res.jsonValue["LogService"]["@odata.id"] =
++            "/redfish/v1/Managers/bmc/LogServices/Journal";
+ 
+         crow::connections::systemBus->async_method_call(
+             [asyncResp](
+-- 
+2.25.1
+

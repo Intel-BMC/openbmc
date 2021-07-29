@@ -63,6 +63,11 @@ EXTRA_OECONF = " \
     --disable-curldebug \
 "
 
+# Move to ssl as TLS backend for cipher suite limitation support.
+# It does not work with gnutls backend.
+PACKAGECONFIG_remove = "gnutls"
+PACKAGECONFIG += "ssl"
+
 do_install_append_class-target() {
 	# cleanup buildpaths from curl-config
 	sed -i \

@@ -13,6 +13,7 @@
  *  limitations under the License.
  */
 
+#include <systemd/sd-journal.h>
 #include <time.h>
 
 #include <boost/asio/io_service.hpp>
@@ -323,9 +324,22 @@ class PCHSync
             {
                 return false;
             }
-            phosphor::logging::log<phosphor::logging::level::INFO>(
-                "Update BMC time to: ",
-                phosphor::logging::entry("TIME=%s", dateString.c_str()));
+            char newDateString[32] = {0};
+            strftime(newDateString, sizeof(newDateString), "%F %T",
+                     gmtime(&PCHTimeSeconds));
+
+            struct tm* timeinfo;
+            char oldDateString[32] = {0};
+            timeinfo = gmtime(&BMCTimeSeconds);
+            strftime(oldDateString, sizeof(oldDateString), "%F %T", timeinfo);
+
+            // Log event about BMC time update via PCH
+            sd_journal_send(
+                "MESSAGE=BMC time updated via PCH: New time=%s, Old time=%s",
+                newDateString, oldDateString, "PRIORITY=%i", LOG_INFO,
+                "REDFISH_MESSAGE_ID=%s", "OpenBMC.0.1.BMCTimeUpdatedViaHost",
+                "REDFISH_MESSAGE_ARGS=%s,%s", newDateString, oldDateString,
+                NULL);
         }
 
         // During the boot time, systemd-timesyncd.service checks

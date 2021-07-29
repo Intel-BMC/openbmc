@@ -1,0 +1,211 @@
+From 8b0d9f83aeb6e58c271ffe2d07c79397fe813a78 Mon Sep 17 00:00:00 2001
+From: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+Date: Wed, 23 Jun 2021 18:10:08 +0000
+Subject: [PATCH] Implement the IPMI commands in FFUJ mode in u-boot
+
+Implemented the following IPMI commands in force firmware update
+jumper (FFUJ) mode in u-boot.
+
+1. Get BMC execution context (0x23)
+2. Get Security mode (0xb3)
+3. Set security mode (0xb4)
+4. Get buffer size (0x66)
+
+Tested:
+Used ipmitool from Host OS to verify each individual commands
+
+Positive test cases:
+
+get execution context
+ipmitool raw 8 0x23
+11 01
+get buffer size
+ipmitool raw 0x30 0x66
+ff ff
+set security mode 
+ipmitool raw 0x30 0xb4 5
+get security mode
+ipmitool raw 0x30 0xb3
+05 00
+set security mode
+ipmitool raw 0x30 0xb4 4
+get security mode
+ipmitool raw 0x30 0xb3
+04 00
+set security mode
+ipmitool raw 0x30 0xb4 3
+get security mode
+ipmitool raw 0x30 0xb3
+03 00
+
+Negative test cases:
+
+set security mode
+ipmitool raw 0x30 0xb4 1
+Unable to send RAW command: Invalid data field in request
+ipmitool raw 0x30 0xb4 2
+Unable to send RAW command: Invalid data field in request
+ipmitool raw 0x30 0xb4 6
+Unable to send RAW command: Invalid data field in request
+ipmitool raw 0x30 0xb4 7
+Unable to send RAW command: Invalid data field in request
+
+Change-Id: I515cec5ff6019aa3ea30a9a38886130e354252a8
+Signed-off-by: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+---
+ board/aspeed/ast2600_intel/ipmi-handler.c | 120 +++++++++++++++++++++-
+ 1 file changed, 117 insertions(+), 3 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/ipmi-handler.c b/board/aspeed/ast2600_intel/ipmi-handler.c
+index 04732846ac..5319f986a7 100644
+--- a/board/aspeed/ast2600_intel/ipmi-handler.c
++++ b/board/aspeed/ast2600_intel/ipmi-handler.c
+@@ -4,11 +4,28 @@
+ #include "ipmi-handler.h"
+ 
+ /* IPMI network function codes */
+-#define NETFN_APP			0x06
++#define NETFN_APP		0x06
++#define NETFN_FIRMWARE		0x08
++#define NETFN_INTEL_OEM	0x30
+ 
+ /* IPMI command codes */
+ #define CMD_GET_DEV_ID			0x01
+ #define CMD_GET_SELF_TEST_RESULTS	0x04
++#define CMD_FWUPD_GET_EXECUTION_CTX 	0x23
++#define CMD_INTL_OEM_GET_BUFFER_SIZE	0x66
++#define CMD_INTL_OEM_GET_SEC_MODE	0xB3
++#define CMD_INTL_OEM_SET_SEC_MODE	0xB4
++
++#define MAX_KCS_BUF_SIZE	1020	/* (0xFF * 4) */
++#define MAX_IPMB_BUF_SIZE	1020	/* (0xFF * 4) */
++
++/* Restriction mode values */
++#define RESTRICTION_MODE_MIN_VALUE	3	/*Provisioning*/
++#define RESTRICION_MODE_MAX_VALUE	5	/*Provisioned host disabled */
++
++#define STR_ENV_PROVISION	"provision"
++
++#define PRIMARY_IMAGE	0x01
+ 
+ typedef u16 (*fun_handler)(u8 *req, u16 req_len, u8 *res);
+ 
+@@ -28,6 +45,21 @@ struct self_test_res {
+ 	u8 completion_code;
+ 	u8 res_byte[2];
+ };
++struct fwupd_get_exe_ctx_res {
++	u8 completion_code;
++	u8 execution_ctx;
++	u8 partition_ptr;
++};
++struct intc_get_buf_size_res {
++	u8 completion_code;
++	u8 kcs_size;
++	u8 ipmb_size;
++};
++struct intc_get_secuirty_mode_res {
++	u8 completion_code;
++	u8 restriction_mode;
++	u8 special_mode;
++};
+ 
+ struct ipmi_cmd_table {
+ 	u8 net_fun;
+@@ -84,9 +116,91 @@ static u16 get_self_test_result(u8 *req, u16 req_len, u8 *res)
+ 	return sizeof(struct self_test_res);
+ }
+ 
++u16 fwupd_get_execution_ctx(u8 *req, u16 req_len, u8 *res) {
++
++	/* Get firmware update execution context */
++	struct fwupd_get_exe_ctx_res *result = (struct fwupd_get_exe_ctx_res *)res;
++
++	/* For PFR platforms, only primary/active image always */
++	result->partition_ptr = PRIMARY_IMAGE;
++	result->execution_ctx = 0x11; /* Forced Firmware Update mode */
++	result->completion_code = IPMI_CC_OK;
++
++	return sizeof(struct fwupd_get_exe_ctx_res);
++}
++
++static u16 intel_get_buffer_size(u8 *req, u16 req_len, u8 *res) {
++
++	/* Get buffer size */
++	struct intc_get_buf_size_res *result = (struct intc_get_buf_size_res *)res;
++
++	if (req_len != 0) {
++		result->completion_code = IPMI_CC_INVALID_DATA_LENGTH;
++		return sizeof(result->completion_code);
++	}
++
++	/* Size is multiples of four bytes */
++	result->completion_code = IPMI_CC_OK;
++	result->kcs_size = MAX_KCS_BUF_SIZE / 4;
++	result->ipmb_size = MAX_IPMB_BUF_SIZE / 4;
++
++	return sizeof(struct intc_get_buf_size_res);
++}
++
++static u16 intel_get_security_mode(u8 *req, u16 req_len, u8 *res) {
++
++	char *cmdline = NULL;
++	/* Get security mode */
++	struct intc_get_secuirty_mode_res *result =
++		(struct intc_get_secuirty_mode_res *)res;
++
++	if (req_len != 0) {
++		result->completion_code = IPMI_CC_INVALID_DATA_LENGTH;
++		return sizeof(result->completion_code);
++	}
++
++	cmdline = env_get(STR_ENV_PROVISION);
++
++	if (!cmdline) {
++		/* Default provision must be set only by linux */
++		result->completion_code = IPMI_CC_UNSPECIFIED;
++		return sizeof(result->completion_code);
++	}
++
++	result->restriction_mode = simple_strtol(cmdline, NULL, 10);
++	/* special mode is non-volatile and not applicable in U-Boot */
++	result->special_mode = 0;
++	result->completion_code = IPMI_CC_OK;
++
++	return sizeof(*result);
++}
++
++static u16 intel_set_security_mode(u8 *req, u16 req_len, u8 *res) {
++
++	if (req_len != sizeof(*req)) {
++		*res = IPMI_CC_INVALID_DATA_LENGTH;
++		return sizeof(*res);
++	}
++
++	if (*req > RESTRICION_MODE_MAX_VALUE || *req < RESTRICTION_MODE_MIN_VALUE) {
++		*res = IPMI_CC_INVALID_DATA_FIELD;
++		return sizeof(*res);
++	}
++
++	env_set_ulong(STR_ENV_PROVISION, *req);
++	env_save();
++	*res = IPMI_CC_OK;
++
++	return sizeof(*res);
++}
++
+ const struct ipmi_cmd_table cmd_info[] = {
+-	{ NETFN_APP,	CMD_GET_DEV_ID,			get_device_id },
+-	{ NETFN_APP,	CMD_GET_SELF_TEST_RESULTS,	get_self_test_result }
++	{ NETFN_APP, CMD_GET_DEV_ID, get_device_id},
++	{ NETFN_APP, CMD_GET_SELF_TEST_RESULTS, get_self_test_result},
++	{ NETFN_FIRMWARE, CMD_FWUPD_GET_EXECUTION_CTX, fwupd_get_execution_ctx},
++	{ NETFN_INTEL_OEM, CMD_INTL_OEM_GET_BUFFER_SIZE, intel_get_buffer_size},
++	{ NETFN_INTEL_OEM, CMD_INTL_OEM_GET_SEC_MODE, intel_get_security_mode},
++	{ NETFN_INTEL_OEM, CMD_INTL_OEM_SET_SEC_MODE, intel_set_security_mode}
+ };
+ 
+ #define CMD_TABLE_SIZE ARRAY_SIZE(cmd_info)
+-- 
+2.17.1
+

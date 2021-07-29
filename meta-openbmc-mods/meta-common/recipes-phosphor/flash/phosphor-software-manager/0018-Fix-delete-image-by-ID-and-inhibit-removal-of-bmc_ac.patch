@@ -13,8 +13,8 @@ Also, there was a logic error in deleting images that would delete the
 active BMC image. This fixes up that error.
 
 Tested: run multiple back-to back updates and see that when the fwupd
-        script calls delete on the seamless images, the interfaces are
-        deleted and that the bmc_active interface is not deleted.
+        script calls delete, the interfaces are deleted and that the
+        bmc_active interface is not deleted.
 
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>

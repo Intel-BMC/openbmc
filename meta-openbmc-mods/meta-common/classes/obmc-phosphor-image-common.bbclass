@@ -78,6 +78,7 @@ IMAGE_INSTALL_append = " \
         telemetry \
         i3c-tools \
         configure-usb-c \
+        zip \
         "
 
 IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"

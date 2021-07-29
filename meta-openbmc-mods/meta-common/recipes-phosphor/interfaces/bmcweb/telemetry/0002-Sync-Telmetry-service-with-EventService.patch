@@ -1,4 +1,4 @@
-From 0ed9ff4f37e7d3ea81073ad35acd530730104033 Mon Sep 17 00:00:00 2001
+From 206411b4c9b603e7b0edf63e03c0ef7bf10b09b2 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Tue, 15 Dec 2020 12:30:31 +0100
 Subject: [PATCH] Sync Telmetry service with EventService
@@ -22,7 +22,7 @@ Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
  2 files changed, 69 insertions(+), 115 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index c3c110a..dc99cda 100644
+index a1761bb..0e2ebfd 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -14,6 +14,7 @@
@@ -33,7 +33,7 @@ index c3c110a..dc99cda 100644
  #include "node.hpp"
  #include "registries.hpp"
  #include "registries/base_message_registry.hpp"
-@@ -529,47 +530,32 @@ class Subscription
+@@ -523,47 +524,32 @@ class Subscription
      }
  #endif
  
@@ -92,7 +92,7 @@ index c3c110a..dc99cda 100644
          this->sendEvent(
              msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
      }
-@@ -1421,75 +1407,6 @@ class EventServiceManager
+@@ -1359,75 +1345,6 @@ class EventServiceManager
      }
  
  #endif
@@ -168,7 +168,7 @@ index c3c110a..dc99cda 100644
      void unregisterMetricReportSignal()
      {
          if (matchTelemetryMonitor)
-@@ -1509,9 +1426,11 @@ class EventServiceManager
+@@ -1447,9 +1364,11 @@ class EventServiceManager
          }
  
          BMCWEB_LOG_DEBUG << "Metrics report signal - Register";
@@ -183,7 +183,7 @@ index c3c110a..dc99cda 100644
  
          matchTelemetryMonitor = std::make_shared<sdbusplus::bus::match::match>(
              *crow::connections::systemBus, matchStr,
-@@ -1522,10 +1441,43 @@ class EventServiceManager
+@@ -1460,10 +1379,43 @@ class EventServiceManager
                      return;
                  }
  
@@ -291,5 +291,4 @@ index ad15a05..18a6dcc 100644
                      telemetry::service, reportPath,
                      "org.freedesktop.DBus.Properties", "Get",
 -- 
-2.17.1
-
+2.25.1

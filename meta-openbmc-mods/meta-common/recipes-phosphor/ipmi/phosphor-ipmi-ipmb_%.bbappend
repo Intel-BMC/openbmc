@@ -2,6 +2,7 @@ SRC_URI = "git://github.com/openbmc/ipmbbridge.git"
 SRCREV = "8fe0abe6d9f69f735e93d7055687fce4b56e80bf"
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 SRC_URI += "file://0001-Add-dbus-method-SlotIpmbRequest.patch \
+           file://0002-Add-log-count-limitation-to-requestAdd.patch \
            file://ipmb-channels.json \
            "
 

@@ -1,0 +1,62 @@
+From e152d718da6bfdf71d309b7ec885d2050fc19d01 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 2 Jun 2021 13:03:47 -0700
+Subject: [PATCH] Disable eSPI initialization in u-boot for normal booting
+ cases
+
+Initializing eSPI in u-boot introduces a small blind window of
+handshaking when BMC jumps from boot loader to kernel and it causes
+an infinite PCH waiting issue in ME recovery mode. During the power
+on handshaking, PCH keeps waiting for OOB_FREE to continue its
+booting so the OOB_FREE actually means that BMC is fully ready for
+the power on handshake. To prevent the small blind window, this
+commit removes eSPI initialization in u-boot for normal booting
+cases and makes the kernel eSPI driver responsible for full
+eSPI initialization.
+
+eSPI will be initialized in u-boot only in these specific cases:
+1. When FFUJ (Force Firmware Update Jumper) is populated.
+2. When BMC booting is stopped at u-boot by typing a key.
+3. When BMC goes to u-boot due to the boot failure condition.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ board/aspeed/ast2600_intel/intel.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index aff0c8593759..fc2f3c8feea7 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -201,7 +201,11 @@ static void gpio_passthru_init(void)
+ 
+ void board_pre_abort_autoboot(void)
+ {
+-	gpio_passthru_init();
++	if (!read_ffuj()) {
++		espi_init();
++		gpio_passthru_init();
++		kcs_init();
++	}
+ }
+ 
+ #define AST_LPC_BASE 0x1e789000
+@@ -662,7 +666,6 @@ int board_late_init(void)
+ #endif
+ 
+ 	pwm_init();
+-	espi_init();
+ 
+ 	/* Add reset reason to bootargs */
+ 	snprintf(value, sizeof(value), "0x%x", gd->reset_reason);
+@@ -684,6 +687,7 @@ int board_late_init(void)
+ 		update_bootargs_cmd("special", "mfg");
+ 
+ 	if (read_ffuj()) {
++		espi_init();
+ 		gpio_passthru_init();
+ 		kcs_init();
+ 	}
+-- 
+2.17.1
+

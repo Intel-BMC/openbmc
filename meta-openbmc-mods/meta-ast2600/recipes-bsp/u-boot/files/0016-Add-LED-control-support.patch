@@ -1,4 +1,4 @@
-From d7befc37ba40a248899b5dc8e99bef2746a957d2 Mon Sep 17 00:00:00 2001
+From d88bb32a5c33f356926a309289497f1b1e7c9aa1 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Fri, 2 Apr 2021 09:48:38 -0700
 Subject: [PATCH] Add LED control support
@@ -24,10 +24,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  6 files changed, 226 insertions(+), 8 deletions(-)
 
 diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
-index 1f14753056ee..5243d1a0afc3 100644
+index c7970c16a474..7cae636554b6 100644
 --- a/arch/arm/dts/ast2600-intel.dts
 +++ b/arch/arm/dts/ast2600-intel.dts
-@@ -47,8 +47,8 @@
+@@ -58,8 +58,8 @@
  		};
  		hb-led {
  			label = "hb";
@@ -39,7 +39,7 @@ index 1f14753056ee..5243d1a0afc3 100644
  	};
  };
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index 849e81ff3fef..fb9075f93945 100644
+index 6e442cf01472..46f169589915 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
 @@ -5,6 +5,7 @@
@@ -388,7 +388,7 @@ index 93f6b913c647..a88efde71a69 100644
  
  static const struct udevice_id led_gpio_ids[] = {
 diff --git a/include/led.h b/include/led.h
-index 7bfdddfd6fab..fb072c8b9f1a 100644
+index 7bfdddfd6fab..583dbd2f8f0e 100644
 --- a/include/led.h
 +++ b/include/led.h
 @@ -32,7 +32,6 @@ enum led_state_t {

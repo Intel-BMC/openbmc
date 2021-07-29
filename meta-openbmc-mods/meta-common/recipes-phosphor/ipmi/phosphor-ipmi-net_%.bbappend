@@ -3,7 +3,7 @@ inherit useradd
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 SRC_URI += "git://github.com/openbmc/phosphor-net-ipmid"
-SRCREV = "7b645018775b85a0c61148e592d951841809eef9"
+SRCREV = "ecc8efad10bc2101a434a0c1fbd253eeaa1a3a99"
 
 USERADD_PACKAGES = "${PN}"
 # add a group called ipmi
@@ -22,6 +22,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 SRC_URI += " file://10-nice-rules.conf \
              file://0006-Modify-dbus-namespace-of-chassis-control-for-guid.patch \
              file://0011-Remove-Get-SOL-Config-Command-from-Netipmid.patch \
+             file://0012-rakp12-Add-username-to-SessionInfo-interface.patch \
            "
 
 do_install_append() {

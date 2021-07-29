@@ -1,4 +1,4 @@
-From ddd0ebfaf667f2fd36ed2f8d2d8456dbc6acdaa8 Mon Sep 17 00:00:00 2001
+From 6fe262f07e116ee185d3acf7967b2ea0d6cc3f3d Mon Sep 17 00:00:00 2001
 From: arun-pm <arun.p.m@linux.intel.com>
 Date: Fri, 29 Nov 2019 00:19:09 +0530
 Subject: [PATCH] SPI Quad IO Mode
@@ -14,10 +14,10 @@ Note:- Removed n25q00 Quad I/O support for the time being due to clock issue
  3 files changed, 25 insertions(+), 6 deletions(-)
 
 diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
-index 9a15e204f83b..1f14753056ee 100644
+index e6197831cf02..c7970c16a474 100644
 --- a/arch/arm/dts/ast2600-intel.dts
 +++ b/arch/arm/dts/ast2600-intel.dts
-@@ -120,16 +120,14 @@
+@@ -133,16 +133,14 @@
  
  &fmc {
  	status = "okay";
@@ -55,7 +55,7 @@ index 5882eab2e3fc..42546f4d222a 100644
  	{ INFO("n25q00a",     0x20bb21, 0, 64 * 1024, 2048, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
  	{ INFO("mt25qu02g",   0x20bb22, 0, 64 * 1024, 4096, SECT_4K | USE_FSR | SPI_NOR_QUAD_READ | NO_CHIP_ERASE) },
 diff --git a/drivers/spi/aspeed_spi.c b/drivers/spi/aspeed_spi.c
-index f93200f8f67e..8ac6e40524fe 100644
+index f93200f8f67e..6db64079ae72 100644
 --- a/drivers/spi/aspeed_spi.c
 +++ b/drivers/spi/aspeed_spi.c
 @@ -17,6 +17,9 @@
