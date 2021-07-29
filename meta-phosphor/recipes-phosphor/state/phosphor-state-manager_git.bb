@@ -57,6 +57,8 @@ DEPENDS += "cli11"
 
 RDEPENDS_${PN}-chassis += "bash"
 
+EXTRA_OEMESON += "-Dtests=disabled"
+
 FILES_${PN}-host = "${bindir}/phosphor-host-state-manager"
 DBUS_SERVICE_${PN}-host += "xyz.openbmc_project.State.Host.service"
 DBUS_SERVICE_${PN}-host += "phosphor-reboot-host@.service"
@@ -182,6 +184,6 @@ SYSTEMD_LINK_${PN}-obmc-targets += "${@compose_list(d, 'FAN_LINK_FMT', 'OBMC_CHA
 SYSTEMD_LINK_${PN}-obmc-targets += "${@compose_list(d, 'QUIESCE_FMT', 'HOST_ERROR_TARGETS', 'OBMC_HOST_INSTANCES')}"
 
 SRC_URI += "git://github.com/openbmc/phosphor-state-manager"
-SRCREV = "cd0ebe867b0592e9386650abc44696161da7bc8a"
+SRCREV = "3ac78dfd6e3c6bf1c673e6acc8e6dc2deb6bd98b"
 
 S = "${WORKDIR}/git"

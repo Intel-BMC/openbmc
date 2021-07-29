@@ -36,7 +36,7 @@ particular working environment and set of practices.
     equipment together and set up your development environment's
     hardware topology.
 
-    The following roles exist:
+    Here are possible roles:
 
     -  *Application Developer:* This type of developer does application
        level work on top of an existing software stack.
@@ -99,8 +99,7 @@ particular working environment and set of practices.
     .. note::
 
        The setup of these services is beyond the scope of this manual.
-       However, sites such as the following exist that describe how to
-       perform setup:
+       However, here are sites describing how to perform setup:
 
        -  `Gitolite <https://gitolite.com>`__: Information for
           ``gitolite``.
@@ -190,7 +189,7 @@ particular working environment and set of practices.
     develop locally using their primary development system.
 
 9.  *Document Policies and Change Flow:* The Yocto Project uses a
-    hierarchical structure and a pull model. Scripts exist to create and
+    hierarchical structure and a pull model. There are scripts to create and
     send pull requests (i.e. ``create-pull-request`` and
     ``send-pull-request``). This model is in line with other open source
     projects where maintainers are responsible for specific areas of the
@@ -215,8 +214,8 @@ particular working environment and set of practices.
     someone else in the community needs them also.
 
 10. *Development Environment Summary:* Aside from the previous steps,
-    some best practices exist within the Yocto Project development
-    environment. Consider the following:
+    here are best practices within the Yocto Project development
+    environment:
 
     -  Use :ref:`overview-manual/development-environment:git` as the source control
        system.
@@ -387,36 +386,28 @@ as your Yocto Project build host:
    software. Follow the instructions for your specific machine and the
    type of the software you need to install:
 
-   -  Install `Docker CE for
+   -  Install `Docker Desktop on
       Windows <https://docs.docker.com/docker-for-windows/install/#install-docker-desktop-on-windows>`__
       for Windows build hosts that meet requirements.
 
-   -  Install `Docker CE for
+   -  Install `Docker Desktop on
       MacOs <https://docs.docker.com/docker-for-mac/install/#install-and-run-docker-desktop-on-mac>`__
       for Mac build hosts that meet requirements.
 
-   -  Install `Docker Toolbox for
-      Windows <https://docs.docker.com/toolbox/toolbox_install_windows/>`__
-      for Windows build hosts that do not meet Docker requirements.
-
-   -  Install `Docker Toolbox for
-      MacOS <https://docs.docker.com/toolbox/toolbox_install_mac/>`__
-      for Mac build hosts that do not meet Docker requirements.
-
-   -  Install `Docker CE for
-      CentOS <https://docs.docker.com/install/linux/docker-ce/centos/>`__
+   -  Install `Docker Engine on
+      CentOS <https://docs.docker.com/engine/install/centos/>`__
       for Linux build hosts running the CentOS distribution.
 
-   -  Install `Docker CE for
-      Debian <https://docs.docker.com/install/linux/docker-ce/debian/>`__
+   -  Install `Docker Engine on
+      Debian <https://docs.docker.com/engine/install/debian/>`__
       for Linux build hosts running the Debian distribution.
 
-   -  Install `Docker CE for
-      Fedora <https://docs.docker.com/install/linux/docker-ce/fedora/>`__
+   -  Install `Docker Engine for
+      Fedora <https://docs.docker.com/engine/install/fedora/>`__
       for Linux build hosts running the Fedora distribution.
 
-   -  Install `Docker CE for
-      Ubuntu <https://docs.docker.com/install/linux/docker-ce/ubuntu/>`__
+   -  Install `Docker Engine for
+      Ubuntu <https://docs.docker.com/engine/install/ubuntu/>`__
       for Linux build hosts running the Ubuntu distribution.
 
 5. *Optionally Orient Yourself With Docker:* If you are unfamiliar with
@@ -486,8 +477,7 @@ your Yocto Project build host:
    distribution.
 
 3. *Check your Linux distribution is using WSLv2:* Open a Windows
-   PowerShell and run:
-   ::
+   PowerShell and run::
 
       C:\WINDOWS\system32> wsl -l -v
       NAME    STATE   VERSION
@@ -514,8 +504,7 @@ your Yocto Project build host:
 
    1. *Find the location of your VHDX file:* First you need to find the
       distro app package directory, to achieve this open a Windows
-      Powershell as Administrator and run:
-      ::
+      Powershell as Administrator and run::
 
          C:\WINDOWS\system32> Get-AppxPackage -Name "*Ubuntu*" | Select PackageFamilyName
          PackageFamilyName
@@ -525,8 +514,7 @@ your Yocto Project build host:
 
       You should now
       replace the PackageFamilyName and your user on the following path
-      to find your VHDX file:
-      ::
+      to find your VHDX file::
 
           ls C:\Users\myuser\AppData\Local\Packages\CanonicalGroupLimited.UbuntuonWindows_79abcdefgh\LocalState\
           Mode                 LastWriteTime         Length Name
@@ -536,8 +524,7 @@ your Yocto Project build host:
       ``C:\Users\myuser\AppData\Local\Packages\CanonicalGroupLimited.UbuntuonWindows_79abcdefgh\LocalState\ext4.vhdx``
 
    2. *Optimize your VHDX file:* Open a Windows Powershell as
-      Administrator to optimize your VHDX file, shutting down WSL first:
-      ::
+      Administrator to optimize your VHDX file, shutting down WSL first::
 
          C:\WINDOWS\system32> wsl --shutdown
          C:\WINDOWS\system32> optimize-vhd -Path C:\Users\myuser\AppData\Local\Packages\CanonicalGroupLimited.UbuntuonWindows_79abcdefgh\LocalState\ext4.vhdx -Mode full
@@ -619,8 +606,8 @@ of a given component.
 
    The recommended method for accessing Yocto Project components is to
    use Git to clone the upstream repository and work from within that
-   locally cloned repository. The procedure in this section exists
-   should you desire a tarball snapshot of any given component.
+   locally cloned repository. However, this section documents how to
+   use a tarball snapshot of any given component.
 
 Follow these steps to locate and download a particular tarball:
 
@@ -656,13 +643,6 @@ from which you can locate and download tarballs of any Yocto Project
 release. Rather than Git repositories, these files represent snapshot
 tarballs similar to the tarballs located in the Index of Releases
 described in the ":ref:`dev-manual/start:accessing index of releases`" section.
-
-.. note::
-
-   The recommended method for accessing Yocto Project components is to
-   use Git to clone a repository and work from within that local
-   repository. The procedure in this section exists should you desire a
-   tarball snapshot of any given component.
 
 1. *Go to the Yocto Project Website:* Open The
    :yocto_home:`Yocto Project Website <>` in your browser.
@@ -741,8 +721,7 @@ Follow these steps to create a local version of the upstream
 
 2. *Clone the Repository:* The following example command clones the
    ``poky`` repository and uses the default name "poky" for your local
-   repository:
-   ::
+   repository::
 
       $ git clone git://git.yoctoproject.org/poky
       Cloning into 'poky'...
@@ -763,9 +742,8 @@ Follow these steps to create a local version of the upstream
    ":ref:`dev-manual/start:checking out by tag in poky`" sections, respectively.
 
    Once the local repository is created, you can change to that
-   directory and check its status. Here, the single "master" branch
-   exists on your system and by default, it is checked out:
-   ::
+   directory and check its status. The ``master`` branch is checked out
+   by default::
 
       $ cd poky
       $ git status
@@ -826,8 +804,7 @@ and then specifically check out that development branch.
 
 3. *Check out the Branch:* Check out the development branch in which you
    want to work. For example, to access the files for the Yocto Project
-   &DISTRO; Release (&DISTRO_NAME;), use the following command:
-   ::
+   &DISTRO; Release (&DISTRO_NAME;), use the following command::
 
       $ git checkout -b &DISTRO_NAME_NO_CAP; origin/&DISTRO_NAME_NO_CAP;
       Branch &DISTRO_NAME_NO_CAP; set up to track remote branch &DISTRO_NAME_NO_CAP; from origin.
@@ -839,8 +816,7 @@ and then specifically check out that development branch.
 
    The following command displays the branches that are now part of your
    local poky repository. The asterisk character indicates the branch
-   that is currently checked out for work:
-   ::
+   that is currently checked out for work::
 
       $ git branch
         master
@@ -867,14 +843,12 @@ similar to checking out by branch name except you use tag names.
    section.
 
 2. *Fetch the Tag Names:* To checkout the branch based on a tag name,
-   you need to fetch the upstream tags into your local repository:
-   ::
+   you need to fetch the upstream tags into your local repository::
 
       $ git fetch --tags
       $
 
-3. *List the Tag Names:* You can list the tag names now:
-   ::
+3. *List the Tag Names:* You can list the tag names now::
 
       $ git tag
       1.1_M1.final

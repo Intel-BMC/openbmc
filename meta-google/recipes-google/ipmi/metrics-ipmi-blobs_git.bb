@@ -13,15 +13,6 @@ DEPENDS += " \
   protobuf \
   "
 
-FILES_${PN} += " \
-  ${libdir}/ipmid-providers/libmetricsblob.so* \
-  ${libdir}/blob-ipmid/libmetricsblob.so* \
-  "
-BLOBIPMI_PROVIDER_LIBRARY += "libmetricsblob.so"
+FILES_${PN} += "${libdir}/blob-ipmid"
 
-INSANE_SKIP_${PN} += "dev-so"
-
-do_install_append() {
-  install -d ${D}/${libdir}/blob-ipmid
-  ln -s ../ipmid-providers/libmetricsblob.so ${D}/${libdir}/blob-ipmid/libmetricsblob.so.0
-}
+EXTRA_OEMESON += "-Dtests=disabled"

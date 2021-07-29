@@ -1,7 +1,6 @@
 FILESEXTRAPATHS_prepend_gbs := "${THISDIR}/${PN}:"
 
-SRC_URI_append_gbs = " file://0002-Add-power-on-monitor-mechanism.patch \
-                     "
+DEPENDS += "boost"
 
 GBS_NAMES = " \
         i2c@82000/sbtsi@4c \

@@ -27,7 +27,7 @@ SRC_URI[archive.sha256sum] = "23bde87d33b8981358831cec8915bb5ff1eaf9c1de74c90cd1
 SRC_URI += "file://0001-EGL-Include-EGL-eglmesaext.h.patch"
 
 # x11 is still manadatory - see meson.build
-REQUIRED_DISTRO_FEATURES = "x11"
+REQUIRED_DISTRO_FEATURES = "x11 polkit"
 
 # systemd can be replaced by libelogind (not available atow - make systemd
 # mandatory distro feature)
@@ -57,7 +57,7 @@ PACKAGECONFIG[remote-desktop] = "-Dremote_desktop=true, -Dremote_desktop=false, 
 PACKAGECONFIG[sm] = "-Dsm=true, -Dsm=false, libsm"
 PACKAGECONFIG[profiler] = "-Dprofiler=true,-Dprofiler=false,sysprof"
 PACKAGECONFIG[startup-notification] = "-Dstartup_notification=true, -Dstartup_notification=false, startup-notification, startup-notification"
-PACKAGECONFIG[wayland] = "-Dwayland=true,-Dwayland=false,wayland wayland-native, xserver-xorg-xwayland"
+PACKAGECONFIG[wayland] = "-Dwayland=true,-Dwayland=false,wayland wayland-native, xwayland"
 PACKAGECONFIG[wayland-eglstream] = "-Dwayland_eglstream=true,-Dwayland_eglstream=false"
 
 # yes they changed from mutter-4 -> mutter-5 recently so be perpared

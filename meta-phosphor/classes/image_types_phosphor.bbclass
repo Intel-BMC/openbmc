@@ -41,11 +41,14 @@ FLASH_NOR_UBI_OVERHEAD ?= "64"
 FLASH_UBOOT_SPL_SIZE ?= "64"
 FLASH_UBOOT_OFFSET ?= "0"
 FLASH_KERNEL_OFFSET ?= "512"
+FLASH_KERNEL_OFFSET_flash-65536 ?= "1024"
 FLASH_KERNEL_OFFSET_flash-131072 ?= "1024"
 FLASH_UBI_OFFSET ?= "${FLASH_KERNEL_OFFSET}"
 FLASH_ROFS_OFFSET ?= "4864"
+FLASH_ROFS_OFFSET_flash-65536 ?= "10240"
 FLASH_ROFS_OFFSET_flash-131072 ?= "10240"
 FLASH_RWFS_OFFSET ?= "28672"
+FLASH_RWFS_OFFSET_flash-65536 ?= "43008"
 FLASH_RWFS_OFFSET_flash-131072 ?= "98304"
 
 # UBI volume sizes in KB unless otherwise noted.
@@ -338,7 +341,6 @@ make_signatures() {
 		cat $sort_signature_files > image-full
 		openssl dgst -sha256 -sign ${SIGNING_KEY} -out image-full.sig image-full
 		signature_files="${signature_files} image-full.sig"
-		rm -rf image-full
 	fi
 }
 

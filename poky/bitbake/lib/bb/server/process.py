@@ -367,7 +367,12 @@ class ProcessServer():
                 self.next_heartbeat = now + self.heartbeat_seconds
             if hasattr(self.cooker, "data"):
                 heartbeat = bb.event.HeartbeatEvent(now)
-                bb.event.fire(heartbeat, self.cooker.data)
+                try:
+                    bb.event.fire(heartbeat, self.cooker.data)
+                except Exception as exc:
+                    if not isinstance(exc, bb.BBHandledException):
+                        logger.exception('Running heartbeat function')
+                    self.quit = True
         if nextsleep and now + nextsleep > self.next_heartbeat:
             # Shorten timeout so that we we wake up in time for
             # the heartbeat.
@@ -509,7 +514,7 @@ class BitBakeServer(object):
         os.set_inheritable(self.bitbake_lock.fileno(), True)
         os.set_inheritable(self.readypipein, True)
         serverscript = os.path.realpath(os.path.dirname(__file__) + "/../../../bin/bitbake-server")
-        os.execl(sys.executable, "bitbake-server", serverscript, "decafbad", str(self.bitbake_lock.fileno()), str(self.readypipein), self.logfile, self.bitbake_lock.name, self.sockname,  str(self.server_timeout), str(self.xmlrpcinterface[0]), str(self.xmlrpcinterface[1]))
+        os.execl(sys.executable, "bitbake-server", serverscript, "decafbad", str(self.bitbake_lock.fileno()), str(self.readypipein), self.logfile, self.bitbake_lock.name, self.sockname,  str(self.server_timeout or 0), str(self.xmlrpcinterface[0]), str(self.xmlrpcinterface[1]))
 
 def execServer(lockfd, readypipeinfd, lockname, sockname, server_timeout, xmlrpcinterface):
 

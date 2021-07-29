@@ -68,18 +68,6 @@ class ImageFeatures(OESelftestTestCase):
                     self.assertEqual(status, 0, 'ssh to user tester failed with %s' % output)
 
 
-    def test_clutter_image_can_be_built(self):
-        """
-        Summary:     Check if clutter image can be built
-        Expected:    1. core-image-clutter can be built
-        Product:     oe-core
-        Author:      Ionut Chisanovici <ionutx.chisanovici@intel.com>
-        AutomatedBy: Daniel Istrate <daniel.alexandrux.istrate@intel.com>
-        """
-
-        # Build a core-image-clutter
-        bitbake('core-image-clutter')
-
     def test_wayland_support_in_image(self):
         """
         Summary:     Check Wayland support in image
@@ -240,8 +228,8 @@ USERADD_GID_TABLES += "files/static-group"
 
     def test_no_busybox_base_utils(self):
         config = """
-# Enable x11
-DISTRO_FEATURES_append += "x11"
+# Enable wayland
+DISTRO_FEATURES_append += "pam opengl wayland"
 
 # Switch to systemd
 DISTRO_FEATURES += "systemd"
@@ -262,7 +250,7 @@ PNBLACKLIST[busybox] = "Don't build this"
 """
         self.write_config(config)
 
-        bitbake("--graphviz core-image-sato")
+        bitbake("--graphviz core-image-weston")
 
     def test_image_gen_debugfs(self):
         """

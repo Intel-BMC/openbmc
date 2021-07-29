@@ -41,7 +41,7 @@ distributions:
 
 -  Ubuntu 18.04 (LTS)
 
--  Ubuntu 20.04
+-  Ubuntu 20.04 (LTS)
 
 -  Fedora 30
 
@@ -66,9 +66,8 @@ distributions:
 
    -  While the Yocto Project Team attempts to ensure all Yocto Project
       releases are one hundred percent compatible with each officially
-      supported Linux distribution, instances might exist where you
-      encounter a problem while using the Yocto Project on a specific
-      distribution.
+      supported Linux distribution, you may still encounter problems
+      that happen only with a specific distribution.
 
    -  Yocto Project releases are tested against the stable Linux
       distributions in the above list. The Yocto Project should work
@@ -111,7 +110,7 @@ function.
 Ubuntu and Debian
 -----------------
 
-The following list shows the required packages by function given a
+Here are the required packages by function given a
 supported Ubuntu or Debian Linux distribution:
 
 .. note::
@@ -119,9 +118,7 @@ supported Ubuntu or Debian Linux distribution:
    -  If your build system has the ``oss4-dev`` package installed, you
       might experience QEMU build failures due to the package installing
       its own custom ``/usr/include/linux/soundcard.h`` on the Debian
-      system. If you run into this situation, either of the following
-      solutions exist:
-      ::
+      system. If you run into this situation, try either of these solutions::
 
          $ sudo apt-get build-dep qemu
          $ sudo apt-get remove oss4-dev
@@ -132,14 +129,12 @@ supported Ubuntu or Debian Linux distribution:
 
          $ sudo pip3 install GitPython pylint==1.9.5
 
--  *Essentials:* Packages needed to build an image on a headless system:
-   ::
+-  *Essentials:* Packages needed to build an image on a headless system::
 
       $ sudo apt-get install &UBUNTU_HOST_PACKAGES_ESSENTIAL;
 
 -  *Documentation:* Packages needed if you are going to build out the
-   Yocto Project documentation manuals:
-   ::
+   Yocto Project documentation manuals::
 
       $ sudo apt-get install make python3-pip
       &PIP3_HOST_PACKAGES_DOC;
@@ -153,18 +148,16 @@ supported Ubuntu or Debian Linux distribution:
 Fedora Packages
 ---------------
 
-The following list shows the required packages by function given a
+Here are the required packages by function given a
 supported Fedora Linux distribution:
 
 -  *Essentials:* Packages needed to build an image for a headless
-   system:
-   ::
+   system::
 
       $ sudo dnf install &FEDORA_HOST_PACKAGES_ESSENTIAL;
 
 -  *Documentation:* Packages needed if you are going to build out the
-   Yocto Project documentation manuals:
-   ::
+   Yocto Project documentation manuals::
 
       $ sudo dnf install make python3-pip which
       &PIP3_HOST_PACKAGES_DOC;
@@ -172,18 +165,16 @@ supported Fedora Linux distribution:
 openSUSE Packages
 -----------------
 
-The following list shows the required packages by function given a
+Here are the required packages by function given a
 supported openSUSE Linux distribution:
 
 -  *Essentials:* Packages needed to build an image for a headless
-   system:
-   ::
+   system::
 
       $ sudo zypper install &OPENSUSE_HOST_PACKAGES_ESSENTIAL;
 
 -  *Documentation:* Packages needed if you are going to build out the
-   Yocto Project documentation manuals:
-   ::
+   Yocto Project documentation manuals::
 
       $ sudo zypper install make python3-pip which
       &PIP3_HOST_PACKAGES_DOC;
@@ -192,12 +183,11 @@ supported openSUSE Linux distribution:
 CentOS-7 Packages
 -----------------
 
-The following list shows the required packages by function given a
+Here are the required packages by function given a
 supported CentOS-7 Linux distribution:
 
 -  *Essentials:* Packages needed to build an image for a headless
-   system:
-   ::
+   system::
 
       $ sudo yum install &CENTOS7_HOST_PACKAGES_ESSENTIAL;
 
@@ -212,8 +202,7 @@ supported CentOS-7 Linux distribution:
          ``epel-release``.
 
 -  *Documentation:* Packages needed if you are going to build out the
-   Yocto Project documentation manuals:
-   ::
+   Yocto Project documentation manuals::
 
       $ sudo yum install make python3-pip which
       &PIP3_HOST_PACKAGES_DOC;
@@ -221,12 +210,11 @@ supported CentOS-7 Linux distribution:
 CentOS-8 Packages
 -----------------
 
-The following list shows the required packages by function given a
+Here are the required packages by function given a
 supported CentOS-8 Linux distribution:
 
 -  *Essentials:* Packages needed to build an image for a headless
-   system:
-   ::
+   system::
 
       $ sudo dnf install &CENTOS8_HOST_PACKAGES_ESSENTIAL;
 
@@ -244,8 +232,7 @@ supported CentOS-8 Linux distribution:
          ``epel-release``.
 
 -  *Documentation:* Packages needed if you are going to build out the
-   Yocto Project documentation manuals:
-   ::
+   Yocto Project documentation manuals::
 
       $ sudo dnf install make python3-pip which
       &PIP3_HOST_PACKAGES_DOC;
@@ -287,8 +274,7 @@ The ``install-buildtools`` script is the easiest of the three methods by
 which you can get these tools. It downloads a pre-built buildtools
 installer and automatically installs the tools for you:
 
-1. Execute the ``install-buildtools`` script. Here is an example:
-   ::
+1. Execute the ``install-buildtools`` script. Here is an example::
 
       $ cd poky
       $ scripts/install-buildtools --without-extended-buildtools \
@@ -302,22 +288,19 @@ installer and automatically installs the tools for you:
    installation is functional.
 
    To avoid the need of ``sudo`` privileges, the ``install-buildtools``
-   script will by default tell the installer to install in:
-   ::
+   script will by default tell the installer to install in::
 
       /path/to/poky/buildtools
 
    If your host development system needs the additional tools provided
    in the ``buildtools-extended`` tarball, you can instead execute the
-   ``install-buildtools`` script with the default parameters:
-   ::
+   ``install-buildtools`` script with the default parameters::
 
       $ cd poky
       $ scripts/install-buildtools
 
 2. Source the tools environment setup script by using a command like the
-   following:
-   ::
+   following::
 
       $ source /path/to/poky/buildtools/environment-setup-x86_64-pokysdk-linux
 
@@ -342,13 +325,11 @@ steps:
 1. Locate and download the ``*.sh`` at &YOCTO_RELEASE_DL_URL;/buildtools/
 
 2. Execute the installation script. Here is an example for the
-   traditional installer:
-   ::
+   traditional installer::
 
       $ sh ~/Downloads/x86_64-buildtools-nativesdk-standalone-&DISTRO;.sh
 
-   Here is an example for the extended installer:
-   ::
+   Here is an example for the extended installer::
 
       $ sh ~/Downloads/x86_64-buildtools-extended-nativesdk-standalone-&DISTRO;.sh
 
@@ -357,8 +338,7 @@ steps:
    ``/home/your-username/buildtools``
 
 3. Source the tools environment setup script by using a command like the
-   following:
-   ::
+   following::
 
       $ source /home/your_username/buildtools/environment-setup-i586-poky-linux
 
@@ -390,13 +370,11 @@ installer:
    your build environment with the setup script
    (:ref:`structure-core-script`).
 
-2. Run the BitBake command to build the tarball:
-   ::
+2. Run the BitBake command to build the tarball::
 
       $ bitbake buildtools-tarball
 
-   or run the BitBake command to build the extended tarball:
-   ::
+   or run the BitBake command to build the extended tarball::
 
       $ bitbake buildtools-extended-tarball
 
@@ -415,13 +393,11 @@ installer:
 
 4. On the machine that does not meet the requirements, run the ``.sh``
    file to install the tools. Here is an example for the traditional
-   installer:
-   ::
+   installer::
 
       $ sh ~/Downloads/x86_64-buildtools-nativesdk-standalone-&DISTRO;.sh
 
-   Here is an example for the extended installer:
-   ::
+   Here is an example for the extended installer::
 
       $ sh ~/Downloads/x86_64-buildtools-extended-nativesdk-standalone-&DISTRO;.sh
 
@@ -430,8 +406,7 @@ installer:
    ``/home/your_username/buildtools``
 
 5. Source the tools environment setup script by using a command like the
-   following:
-   ::
+   following::
 
       $ source /home/your_username/buildtools/environment-setup-x86_64-poky-linux
 

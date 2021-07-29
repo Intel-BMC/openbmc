@@ -26,7 +26,7 @@ A BSP consists of a file structure inside a base directory.
 Collectively, you can think of the base directory, its file structure,
 and the contents as a BSP layer. Although not a strict requirement, BSP
 layers in the Yocto Project use the following well-established naming
-convention: ::
+convention::
 
    meta-bsp_root_name
 
@@ -58,7 +58,7 @@ Each repository is a BSP layer supported by the Yocto Project (e.g.
 ``meta-raspberrypi`` and ``meta-intel``). Each of these layers is a
 repository unto itself and clicking on the layer name displays two URLs
 from which you can clone the layer's repository to your local system.
-Here is an example that clones the Raspberry Pi BSP layer: ::
+Here is an example that clones the Raspberry Pi BSP layer::
 
    $ git clone git://git.yoctoproject.org/meta-raspberrypi
 
@@ -84,7 +84,7 @@ established after you run the OpenEmbedded build environment setup
 script (i.e. :ref:`ref-manual/structure:\`\`oe-init-build-env\`\``).
 Adding the root directory allows the :term:`OpenEmbedded Build System`
 to recognize the BSP
-layer and from it build an image. Here is an example: ::
+layer and from it build an image. Here is an example::
 
    BBLAYERS ?= " \
       /usr/local/src/yocto/meta \
@@ -95,11 +95,11 @@ layer and from it build an image. Here is an example: ::
 
 .. note::
 
-   Ordering and :term:`BBFILE_PRIORITY` for the layers listed in ``BBLAYERS``
+   Ordering and :term:`BBFILE_PRIORITY` for the layers listed in :term:`BBLAYERS`
    matter. For example, if multiple layers define a machine configuration, the
    OpenEmbedded build system uses the last layer searched given similar layer
    priorities. The build system works from the top-down through the layers
-   listed in ``BBLAYERS``.
+   listed in :term:`BBLAYERS`.
 
 Some BSPs require or depend on additional layers beyond the BSP's root
 layer in order to be functional. In this case, you need to specify these
@@ -113,7 +113,7 @@ this type of layer is OpenEmbedded's
 `meta-openembedded <https://github.com/openembedded/meta-openembedded>`__
 layer. The ``meta-openembedded`` layer contains many ``meta-*`` layers.
 In cases like this, you need to include the names of the actual layers
-you want to work with, such as: ::
+you want to work with, such as::
 
    BBLAYERS ?= " \
      /usr/local/src/yocto/meta \
@@ -193,7 +193,7 @@ section.
 
    #. *Check Out the Proper Branch:* The branch you check out for
       ``meta-intel`` must match the same branch you are using for the
-      Yocto Project release (e.g. ``&DISTRO_NAME_NO_CAP;``): ::
+      Yocto Project release (e.g. ``&DISTRO_NAME_NO_CAP;``)::
 
          $ cd meta-intel
          $ git checkout -b &DISTRO_NAME_NO_CAP; remotes/origin/&DISTRO_NAME_NO_CAP;
@@ -216,7 +216,7 @@ section.
    The process is identical to the process used for the ``meta-intel``
    layer except for the layer's name. For example, if you determine that
    your hardware most closely matches the ``meta-raspberrypi``, clone
-   that layer: ::
+   that layer::
 
       $ git clone git://git.yoctoproject.org/meta-raspberrypi
       Cloning into 'meta-raspberrypi'...
@@ -267,7 +267,7 @@ maintain the distinction that the BSP layer, a build system, and tools
 are separate components that could be combined in certain end products.
 
 Before looking at the recommended form for the directory structure
-inside a BSP layer, you should be aware that some requirements do exist
+inside a BSP layer, you should be aware that there are some requirements
 in order for a BSP layer to be considered compliant with the Yocto
 Project. For that list of requirements, see the
 ":ref:`bsp-guide/bsp:released bsp requirements`" section.
@@ -451,7 +451,7 @@ The following sections describe each part of the proposed BSP format.
 License Files
 -------------
 
-You can find these files in the BSP Layer at: ::
+You can find these files in the BSP Layer at::
 
    meta-bsp_root_name/bsp_license_file
 
@@ -469,7 +469,7 @@ section in the Yocto Project Development Tasks Manual.
 README File
 -----------
 
-You can find this file in the BSP Layer at: ::
+You can find this file in the BSP Layer at::
 
    meta-bsp_root_name/README
 
@@ -484,7 +484,7 @@ name of the BSP maintainer with his or her contact information.
 README.sources File
 -------------------
 
-You can find this file in the BSP Layer at: ::
+You can find this file in the BSP Layer at::
 
    meta-bsp_root_name/README.sources
 
@@ -503,7 +503,7 @@ used to generate the images that ship with the BSP.
 Pre-built User Binaries
 -----------------------
 
-You can find these files in the BSP Layer at: ::
+You can find these files in the BSP Layer at::
 
    meta-bsp_root_name/binary/bootable_images
 
@@ -526,7 +526,7 @@ information on the Metadata.
 Layer Configuration File
 ------------------------
 
-You can find this file in the BSP Layer at: ::
+You can find this file in the BSP Layer at::
 
    meta-bsp_root_name/conf/layer.conf
 
@@ -550,7 +550,7 @@ template). ::
    LAYERDEPENDS_bsp = "intel"
 
 To illustrate the string substitutions, here are the corresponding
-statements from the Raspberry Pi ``conf/layer.conf`` file: ::
+statements from the Raspberry Pi ``conf/layer.conf`` file::
 
    # We have a conf and classes directory, append to BBPATH
    BBPATH .= ":${LAYERDIR}"
@@ -576,7 +576,7 @@ recognize the BSP.
 Hardware Configuration Options
 ------------------------------
 
-You can find these files in the BSP Layer at: ::
+You can find these files in the BSP Layer at::
 
    meta-bsp_root_name/conf/machine/*.conf
 
@@ -607,14 +607,14 @@ For example, many ``tune-*`` files (e.g. ``tune-arm1136jf-s.inc``,
 
 To use an include file, you simply include them in the machine
 configuration file. For example, the Raspberry Pi BSP
-``raspberrypi3.conf`` contains the following statement: ::
+``raspberrypi3.conf`` contains the following statement::
 
    include conf/machine/include/rpi-base.inc
 
 Miscellaneous BSP-Specific Recipe Files
 ---------------------------------------
 
-You can find these files in the BSP Layer at: ::
+You can find these files in the BSP Layer at::
 
    meta-bsp_root_name/recipes-bsp/*
 
@@ -624,7 +624,7 @@ Raspberry Pi BSP, there is the ``formfactor_0.0.bbappend`` file, which
 is an append file used to augment the recipe that starts the build.
 Furthermore, there are machine-specific settings used during the build
 that are defined by the ``machconfig`` file further down in the
-directory. Here is the ``machconfig`` file for the Raspberry Pi BSP: ::
+directory. Here is the ``machconfig`` file for the Raspberry Pi BSP::
 
    HAVE_TOUCHSCREEN=0
    HAVE_KEYBOARD=1
@@ -644,7 +644,7 @@ directory. Here is the ``machconfig`` file for the Raspberry Pi BSP: ::
 Display Support Files
 ---------------------
 
-You can find these files in the BSP Layer at: ::
+You can find these files in the BSP Layer at::
 
    meta-bsp_root_name/recipes-graphics/*
 
@@ -655,7 +655,7 @@ to support a display are kept here.
 Linux Kernel Configuration
 --------------------------
 
-You can find these files in the BSP Layer at: ::
+You can find these files in the BSP Layer at::
 
    meta-bsp_root_name/recipes-kernel/linux/linux*.bbappend
    meta-bsp_root_name/recipes-kernel/linux/*.bb
@@ -678,14 +678,14 @@ Suppose you are using the ``linux-yocto_4.4.bb`` recipe to build the
 kernel. In other words, you have selected the kernel in your
 ``"bsp_root_name".conf`` file by adding
 :term:`PREFERRED_PROVIDER` and :term:`PREFERRED_VERSION`
-statements as follows: ::
+statements as follows::
 
    PREFERRED_PROVIDER_virtual/kernel ?= "linux-yocto"
    PREFERRED_VERSION_linux-yocto ?= "4.4%"
 
 .. note::
 
-   When the preferred provider is assumed by default, the ``PREFERRED_PROVIDER``
+   When the preferred provider is assumed by default, the :term:`PREFERRED_PROVIDER`
    statement does not appear in the ``"bsp_root_name".conf`` file.
 
 You would use the ``linux-yocto_4.4.bbappend`` file to append specific
@@ -698,7 +698,7 @@ in the Yocto Project Linux Kernel Development Manual.
 
 An alternate scenario is when you create your own kernel recipe for the
 BSP. A good example of this is the Raspberry Pi BSP. If you examine the
-``recipes-kernel/linux`` directory you see the following: ::
+``recipes-kernel/linux`` directory you see the following::
 
    linux-raspberrypi-dev.bb
    linux-raspberrypi.inc
@@ -763,8 +763,8 @@ workflow.
 
    .. note::
 
-      -  Four hardware reference BSPs exist that are part of the Yocto
-         Project release and are located in the ``poky/meta-yocto-bsp``
+      -  There are four hardware reference BSPs in the Yocto
+         Project release, located in the ``poky/meta-yocto-bsp``
          BSP layer:
 
          -  Texas Instruments Beaglebone (``beaglebone-yocto``)
@@ -773,8 +773,8 @@ workflow.
 
          -  Two general IA platforms (``genericx86`` and ``genericx86-64``)
 
-      -  Three core Intel BSPs exist as part of the Yocto Project
-         release in the ``meta-intel`` layer:
+      -  There are three core Intel BSPs in the Yocto Project
+         release, in the ``meta-intel`` layer:
 
          -  ``intel-core2-32``, which is a BSP optimized for the Core2
             family of CPUs as well as all CPUs prior to the Silvermont
@@ -832,10 +832,8 @@ workflow.
 Requirements and Recommendations for Released BSPs
 ==================================================
 
-Certain requirements exist for a released BSP to be considered compliant
-with the Yocto Project. Additionally, recommendations also exist. This
-section describes the requirements and recommendations for released
-BSPs.
+This section describes requirements and recommendations for a released
+BSP to be considered compliant with the Yocto Project.
 
 Released BSP Requirements
 -------------------------
@@ -864,7 +862,7 @@ Before looking at BSP requirements, you should consider the following:
 
 -  It is not required that specific packages or package modifications
    exist in the BSP layer, beyond the requirements for general
-   compliance with the Yocto Project. For example, no requirement exists
+   compliance with the Yocto Project. For example, there is no requirement
    dictating that a specific kernel or kernel version be used in a given
    BSP.
 
@@ -900,7 +898,7 @@ Yocto Project:
 -  *License File:* You must include a license file in the
    ``meta-bsp_root_name`` directory. This license covers the BSP
    Metadata as a whole. You must specify which license to use since no
-   default license exists when one is not specified. See the
+   default license exists. See the
    :yocto_git:`COPYING.MIT </meta-raspberrypi/tree/COPYING.MIT>`
    file for the Raspberry Pi BSP in the ``meta-raspberrypi`` BSP layer
    as an example.
@@ -1042,7 +1040,7 @@ BSP-specific configuration file named ``interfaces`` to the
 also supports several other machines:
 
 #. Edit the ``init-ifupdown_1.0.bbappend`` file so that it contains the
-   following: ::
+   following::
 
       FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
@@ -1050,14 +1048,14 @@ also supports several other machines:
    directory.
 
 #. Create and place the new ``interfaces`` configuration file in the
-   BSP's layer here: ::
+   BSP's layer here::
 
       meta-xyz/recipes-core/init-ifupdown/files/xyz-machine-one/interfaces
 
    .. note::
 
       If the ``meta-xyz`` layer did not support multiple machines, you would place
-      the interfaces configuration file in the layer here: ::
+      the interfaces configuration file in the layer here::
 
          meta-xyz/recipes-core/init-ifupdown/files/interfaces
 
@@ -1107,7 +1105,7 @@ system requirements.
    unsuitable functionality or quality, you can use an encumbered
    version.
 
-A couple different methods exist within the OpenEmbedded build system to
+There are two different methods within the OpenEmbedded build system to
 satisfy the licensing requirements for an encumbered BSP. The following
 list describes them in order of preference:
 
@@ -1123,15 +1121,15 @@ list describes them in order of preference:
    how to use these variables.
 
    If you build as you normally would, without specifying any recipes in
-   the ``LICENSE_FLAGS_WHITELIST``, the build stops and provides you
+   the :term:`LICENSE_FLAGS_WHITELIST`, the build stops and provides you
    with the list of recipes that you have tried to include in the image
-   that need entries in the ``LICENSE_FLAGS_WHITELIST``. Once you enter
+   that need entries in the :term:`LICENSE_FLAGS_WHITELIST`. Once you enter
    the appropriate license flags into the whitelist, restart the build
    to continue where it left off. During the build, the prompt will not
    appear again since you have satisfied the requirement.
 
    Once the appropriate license flags are on the white list in the
-   ``LICENSE_FLAGS_WHITELIST`` variable, you can build the encumbered
+   :term:`LICENSE_FLAGS_WHITELIST` variable, you can build the encumbered
    image with no change at all to the normal build process.
 
 #. *Get a Pre-Built Version of the BSP:* You can get this type of BSP by
@@ -1144,7 +1142,7 @@ list describes them in order of preference:
    click-through license agreements presented by the website. If you
    want to build the image yourself using the recipes contained within
    the BSP tarball, you will still need to create an appropriate
-   ``LICENSE_FLAGS_WHITELIST`` to match the encumbered recipes in the
+   :term:`LICENSE_FLAGS_WHITELIST` to match the encumbered recipes in the
    BSP.
 
 .. note::
@@ -1186,11 +1184,11 @@ Use these steps to create a BSP layer:
 -  *Create a Machine Configuration File:* Create a
    ``conf/machine/bsp_root_name.conf`` file. See
    :yocto_git:`meta-yocto-bsp/conf/machine </poky/tree/meta-yocto-bsp/conf/machine>`
-   for sample ``bsp_root_name.conf`` files. Other samples such as
+   for sample ``bsp_root_name.conf`` files. There are other samples such as
    :yocto_git:`meta-ti </meta-ti/tree/conf/machine>`
    and
    :yocto_git:`meta-freescale </meta-freescale/tree/conf/machine>`
-   exist from other vendors that have more specific machine and tuning
+   from other vendors that have more specific machine and tuning
    examples.
 
 -  *Create a Kernel Recipe:* Create a kernel recipe in
@@ -1210,7 +1208,7 @@ BSP Layer Configuration Example
 -------------------------------
 
 The layer's ``conf`` directory contains the ``layer.conf`` configuration
-file. In this example, the ``conf/layer.conf`` is the following: ::
+file. In this example, the ``conf/layer.conf`` is the following::
 
    # We have a conf and classes directory, add to BBPATH
    BBPATH .= ":${LAYERDIR}"
@@ -1241,8 +1239,8 @@ As mentioned earlier in this section, the existence of a machine
 configuration file is what makes a layer a BSP layer as compared to a
 general or kernel layer.
 
-One or more machine configuration files exist in the
-``bsp_layer/conf/machine/`` directory of the layer: ::
+There are one or more machine configuration files in the
+``bsp_layer/conf/machine/`` directory of the layer::
 
    bsp_layer/conf/machine/machine1\.conf
    bsp_layer/conf/machine/machine2\.conf
@@ -1252,7 +1250,7 @@ One or more machine configuration files exist in the
 For example, the machine configuration file for the `BeagleBone and
 BeagleBone Black development boards <https://beagleboard.org/bone>`__ is
 located in the layer ``poky/meta-yocto-bsp/conf/machine`` and is named
-``beaglebone-yocto.conf``: ::
+``beaglebone-yocto.conf``::
 
    #@TYPE: Machine
    #@NAME: Beaglebone-yocto machine
@@ -1311,7 +1309,7 @@ Project Reference Manual.
 -  :term:`PREFERRED_PROVIDER_virtual/xserver <PREFERRED_PROVIDER>`:
    The recipe that provides "virtual/xserver" when more than one
    provider is found. In this case, the recipe that provides
-   "virtual/xserver" is "xserver-xorg", which exists in
+   "virtual/xserver" is "xserver-xorg", available in
    ``poky/meta/recipes-graphics/xorg-xserver``.
 
 -  :term:`XSERVER`: The packages that
@@ -1326,7 +1324,7 @@ Project Reference Manual.
 
    .. tip::
 
-      Many ``MACHINE*`` variables exist that help you configure a particular piece
+      There are many ``MACHINE*`` variables that help you configure a particular piece
       of hardware.
 
 -  :term:`EXTRA_IMAGEDEPENDS`:
@@ -1339,9 +1337,9 @@ Project Reference Manual.
 -  :term:`DEFAULTTUNE`: Machines
    use tunings to optimize machine, CPU, and application performance.
    These features, which are collectively known as "tuning features",
-   exist in the :term:`OpenEmbedded-Core (OE-Core)` layer (e.g.
+   are set in the :term:`OpenEmbedded-Core (OE-Core)` layer (e.g.
    ``poky/meta/conf/machine/include``). In this example, the default
-   tuning file is "cortexa8hf-neon".
+   tuning file is ``cortexa8hf-neon``.
 
    .. note::
 
@@ -1407,7 +1405,7 @@ Project Reference Manual.
 
    The BeagleBone development board requires an SPL to boot and that SPL
    file type must be MLO. Consequently, the machine configuration needs
-   to define ``SPL_BINARY`` as ``MLO``.
+   to define :term:`SPL_BINARY` as ``MLO``.
 
    .. note::
 
@@ -1447,7 +1445,7 @@ BSP Kernel Recipe Example
 -------------------------
 
 The kernel recipe used to build the kernel image for the BeagleBone
-device was established in the machine configuration: ::
+device was established in the machine configuration::
 
    PREFERRED_PROVIDER_virtual/kernel ?= "linux-yocto"
    PREFERRED_VERSION_linux-yocto ?= "5.0%"
@@ -1458,7 +1456,7 @@ metadata used to build the kernel. In this case, a kernel append file
 kernel recipe (i.e. ``linux-yocto_5.0.bb``), which is located in
 :yocto_git:`/poky/tree/meta/recipes-kernel/linux`.
 
-Following is the contents of the append file: ::
+Following is the contents of the append file::
 
    KBRANCH_genericx86 = "v5.0/standard/base"
    KBRANCH_genericx86-64 = "v5.0/standard/base"

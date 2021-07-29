@@ -31,6 +31,7 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     overlays/justboom-digi.dtbo \
     overlays/i2c-rtc.dtbo \
     overlays/imx219.dtbo \
+    overlays/imx477.dtbo \
     overlays/iqaudio-dac.dtbo \
     overlays/iqaudio-dacplus.dtbo \
     overlays/mcp2515-can0.dtbo \
@@ -49,6 +50,7 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     overlays/vc4-kms-dsi-7inch.dtbo \
     overlays/w1-gpio.dtbo \
     overlays/w1-gpio-pullup.dtbo \
+    overlays/wm8960-soundcard.dtbo \
     "
 
 RPI_KERNEL_DEVICETREE ?= " \
@@ -102,7 +104,7 @@ SERIAL_CONSOLES_CHECK ??= "${SERIAL_CONSOLES}"
 BOOTFILES_DIR_NAME ?= "bootfiles"
 
 # Set Raspberrypi splash image
-SPLASH = "psplash-raspberrypi"
+SPLASH ?= "psplash-raspberrypi"
 
 def make_dtb_boot_files(d):
     # Generate IMAGE_BOOT_FILES entries for device tree files listed in
