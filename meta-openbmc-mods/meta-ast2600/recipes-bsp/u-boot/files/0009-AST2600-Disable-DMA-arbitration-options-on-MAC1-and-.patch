@@ -1,4 +1,4 @@
-From f545610f26089e78e71469e9006e3337670af0f4 Mon Sep 17 00:00:00 2001
+From 970a7c3b21e7264bb6ada434652795b5ce947ac7 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Tue, 31 Mar 2020 13:28:31 -0700
 Subject: [PATCH] AST2600: Disable DMA arbitration options on MAC1 and MAC2
@@ -17,10 +17,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 18 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index 3b6f91a60c3d..eac52db538b0 100644
+index e479d0276d39..aaacb61a1f8b 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
-@@ -57,6 +57,12 @@
+@@ -58,6 +58,12 @@
  #define AST_FMC_WDT1_CTRL_MODE	(AST_FMC_BASE + 0x060)
  #define AST_FMC_WDT2_CTRL_MODE	(AST_FMC_BASE + 0x064)
  
@@ -33,7 +33,7 @@ index 3b6f91a60c3d..eac52db538b0 100644
  #define AST_GPIO_BASE		(0x1E780000)
  #define AST_GPIOYZ_DATA_VALUE	(AST_GPIO_BASE + 0x1E0)
  
-@@ -244,6 +250,18 @@ wait_lock:
+@@ -245,6 +251,18 @@ wait_lock:
  	bne	2f
  
  1:

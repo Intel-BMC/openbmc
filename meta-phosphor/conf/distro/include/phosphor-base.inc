@@ -12,7 +12,7 @@ DISTROOVERRIDES .= ":openbmc-phosphor"
 
 TCLIBCAPPEND = ""
 
-QEMU_TARGETS ?= "arm aarch64 i386 mips mipsel mips64 mips64el nios2 ppc x86_64"
+QEMU_TARGETS ?= "arm aarch64 i386 riscv32 riscv64 x86_64"
 
 PREMIRRORS ??= "\
 bzr://.*/.*   http://downloads.yoctoproject.org/mirror/sources/ \n \
@@ -69,7 +69,6 @@ require conf/distro/include/no-static-libs.inc
 require conf/distro/include/yocto-uninative.inc
 
 DISTRO_NAME = "Phosphor OpenBMC (Phosphor OpenBMC Project Reference Distro)"
-DISTRO_VERSION = "0.1.0"
 TARGET_VENDOR="-openbmc"
 
 VIRTUAL-RUNTIME_keymaps = ""

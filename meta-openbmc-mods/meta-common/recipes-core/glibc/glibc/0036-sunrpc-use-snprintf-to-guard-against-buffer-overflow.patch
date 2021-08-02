@@ -1,0 +1,35 @@
+From 174f4391195960b0b728fb5ee4959fcb9e12d59a Mon Sep 17 00:00:00 2001
+From: Philipp Tomsich <philipp.tomsich@vrull.eu>
+Date: Wed, 2 Dec 2020 20:04:11 +0100
+Subject: [PATCH] sunrpc: use snprintf to guard against buffer overflow
+
+GCC11 has improved detection of buffer overflows detectable through the analysis
+of format strings and parameters, which identifies the following issue:
+   netname.c:52:28: error: '%s' directive writing up to 255 bytes into a region
+                           of size between 239 and 249 [-Werror=format-overflow=]
+
+This rewrites user2netname() to use snprintf to guard against overflows.
+---
+ sunrpc/netname.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/sunrpc/netname.c b/sunrpc/netname.c
+index ceed23b1a72d..1a18b7a39453 100644
+--- a/sunrpc/netname.c
++++ b/sunrpc/netname.c
+@@ -49,8 +49,10 @@ user2netname (char netname[MAXNETNAMELEN + 1], const uid_t uid,
+   if ((strlen (dfltdom) + OPSYS_LEN + 3 + MAXIPRINT) > (size_t) MAXNETNAMELEN)
+     return 0;
+ 
+-  sprintf (netname, "%s.%d@%s", OPSYS, uid, dfltdom);
+-  i = strlen (netname);
++  i = snprintf (netname, MAXNETNAMELEN + 1, "%s.%d@%s", OPSYS, uid, dfltdom);
++  if (i > (size_t) MAXNETNAMELEN)
++    return 0;
++
+   if (netname[i - 1] == '.')
+     netname[i - 1] = '\0';
+   return 1;
+-- 
+2.17.1
+

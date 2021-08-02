@@ -9,7 +9,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 SRC_URI = "git://github.com/Intel-BMC/special-mode-manager.git;protocol=ssh"
-SRCREV = "4f4f122790b999dc7db973a80727dbc1ca785e57"
+SRCREV = "5f413eec673f3e6e5e754e2c55048abf0a146e5b"
 
 EXTRA_OECMAKE += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-DBMC_VALIDATION_UNSECURE_FEATURE=ON', '', d)}"
 

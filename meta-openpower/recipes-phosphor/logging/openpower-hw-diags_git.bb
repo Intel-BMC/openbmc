@@ -1,4 +1,3 @@
-HOMEPAGE = "https://github.com/openbmc/openpower-hw-diags"
 SUMMARY = "Hardware Diagnostics for POWER Systems"
 
 DESCRIPTION = \
@@ -7,16 +6,20 @@ DESCRIPTION = \
     POWER Systems have the ability to diagnose the root cause of the failure \
     and perform any service action needed to avoid repeated system failures."
 
-PV = "0.1+git${SRCPV}"
+HOMEPAGE = "https://github.com/openbmc/openpower-hw-diags"
+
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
-inherit meson systemd
+PR = "r1"
+PV = "0.1+git${SRCPV}"
+
+SRC_URI = "git://github.com/openbmc/openpower-hw-diags"
+SRCREV = "324234b4b560ce1d136d96a6950daeb1da1469a5"
 
 S = "${WORKDIR}/git"
 
-SRC_URI = "git://github.com/openbmc/openpower-hw-diags"
-SRCREV = "5c5db65a37d953cb9393f257aab90a0a209d4861"
+inherit meson systemd
 
 SYSTEMD_SERVICE_${PN} = "attn_handler.service"
 

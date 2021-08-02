@@ -1,4 +1,4 @@
-From 6ce336adafd723319befc4ce918ba67a0ad3492c Mon Sep 17 00:00:00 2001
+From 6e95f4a761021e3204912e3a7c5b80a18d9f16cf Mon Sep 17 00:00:00 2001
 From: Jennifer Lee <jennifer1.lee@intel.com>
 Date: Mon, 10 Dec 2018 10:36:44 -0800
 Subject: [PATCH] Modified firmware activation to launch fwupd.sh through
@@ -11,35 +11,43 @@ Subject: [PATCH] Modified firmware activation to launch fwupd.sh through
 Signed-off-by: Jennifer Lee <jennifer1.lee@intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 ---
- activation.cpp    | 45 ++++++++++++++++++++++++++++++++++++++++++++-
+ activation.cpp    | 50 +++++++++++++++++++++++++++++++++++++----------
  meson.build       |  2 ++
  meson_options.txt |  3 +++
- static/flash.cpp  | 42 ++++++++++++++++++++++++++++++++++++++++--
+ static/flash.cpp  | 42 +++++++++++++++++++++++++++++++++++++--
  ubi/flash.cpp     |  9 +++------
- 5 files changed, 92 insertions(+), 9 deletions(-)
+ 5 files changed, 88 insertions(+), 18 deletions(-)
 
 diff --git a/activation.cpp b/activation.cpp
-index c82e297..d690a39 100644
+index 5490cd9974b3..e43959d78ed2 100644
 --- a/activation.cpp
 +++ b/activation.cpp
-@@ -88,7 +88,50 @@ auto Activation::activation(Activations value) -> Activations
-
+@@ -88,20 +88,50 @@ auto Activation::activation(Activations value) -> Activations
+ 
      if (value == softwareServer::Activation::Activations::Activating)
      {
+-#ifdef WANT_SIGNATURE_VERIFY
+-        fs::path uploadDir(IMG_UPLOAD_DIR);
+-        if (!verifySignature(uploadDir / versionId, SIGNED_IMAGE_CONF_PATH))
 +#ifdef FWUPD_SCRIPT
 +        if (!activationProgress)
-+        {
+         {
+-            onVerifyFailed();
+-            // Stop the activation process, if fieldMode is enabled.
+-            if (parent.control::FieldMode::fieldModeEnabled())
 +            // Enable systemd signals
 +            Activation::subscribeToSystemdSignals();
 +            parent.freeSpace(*this);
 +
 +            activationProgress =
 +                std::make_unique<ActivationProgress>(bus, path);
- 
++
 +#ifdef WANT_SIGNATURE_VERIFY
 +            fs::path uploadDir(IMG_UPLOAD_DIR);
 +            if (!verifySignature(uploadDir / versionId, SIGNED_IMAGE_CONF_PATH))
-+            {
+             {
+-                return softwareServer::Activation::activation(
+-                    softwareServer::Activation::Activations::Failed);
 +                onVerifyFailed();
 +                // Stop the activation process, if fieldMode is enabled.
 +                if (parent.control::FieldMode::fieldModeEnabled())
@@ -47,8 +55,9 @@ index c82e297..d690a39 100644
 +                    return softwareServer::Activation::activation(
 +                        softwareServer::Activation::Activations::Failed);
 +                }
-+            }
-+#endif
+             }
+-        }
+ #endif
 +            flashWrite();
 +        }
 +        else if (activationProgress->progress() == 100)
@@ -62,7 +71,7 @@ index c82e297..d690a39 100644
 +
 +            // Remove version object from image manager
 +            Activation::deleteImageManagerObject();
-+
+ 
 +            // Create active association
 +            parent.createActiveAssociation(path);
 +
@@ -73,7 +82,7 @@ index c82e297..d690a39 100644
  #ifdef HOST_BIOS_UPGRADE
          auto purpose = parent.versions.find(versionId)->second->purpose();
          if (purpose == VersionPurpose::Host)
-@@ -111,7 +154,6 @@ auto Activation::activation(Activations value) -> Activations
+@@ -124,7 +154,6 @@ auto Activation::activation(Activations value) -> Activations
              return softwareServer::Activation::activation(value);
          }
  #endif
@@ -81,7 +90,7 @@ index c82e297..d690a39 100644
          auto versionStr = parent.versions.find(versionId)->second->version();
  
          if (!minimum_ship_level::verify(versionStr))
-@@ -175,6 +217,7 @@ auto Activation::activation(Activations value) -> Activations
+@@ -174,6 +203,7 @@ auto Activation::activation(Activations value) -> Activations
          return softwareServer::Activation::activation(
              softwareServer::Activation::Activations::Active);
  #endif
@@ -90,7 +99,7 @@ index c82e297..d690a39 100644
      else
      {
 diff --git a/meson.build b/meson.build
-index a6ebcc4..5c79009 100644
+index a6ebcc43c0ec..5c7900924959 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -59,6 +59,8 @@ conf.set('WANT_SIGNATURE_VERIFY', \
@@ -103,7 +112,7 @@ index a6ebcc4..5c79009 100644
  conf.set('ACTIVE_BMC_MAX_ALLOWED', get_option('active-bmc-max-allowed'))
  conf.set_quoted('HASH_FILE_NAME', get_option('hash-file-name'))
 diff --git a/meson_options.txt b/meson_options.txt
-index 0877798..da257b7 100644
+index 4def7f982809..74e757b75f01 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
 @@ -25,6 +25,9 @@ option('verify-signature', type: 'feature',
@@ -117,7 +126,7 @@ index 0877798..da257b7 100644
  option(
      'active-bmc-max-allowed', type: 'integer',
 diff --git a/static/flash.cpp b/static/flash.cpp
-index 101828b..5506a59 100644
+index 101828b1ade5..5506a59ac499 100644
 --- a/static/flash.cpp
 +++ b/static/flash.cpp
 @@ -22,9 +22,11 @@ namespace updater
@@ -183,7 +192,7 @@ index 101828b..5506a59 100644
  
  } // namespace updater
 diff --git a/ubi/flash.cpp b/ubi/flash.cpp
-index a263bfb..c58eefc 100644
+index a263bfb81116..c58eefc4ec48 100644
 --- a/ubi/flash.cpp
 +++ b/ubi/flash.cpp
 @@ -15,13 +15,10 @@ void Activation::flashWrite()

@@ -13,11 +13,24 @@ usage() {
         echo "Usage: $0 <count>"
 }
 
+TIMEOUT=15
+
 if [ $# -ne 1 ]; then
         usage
         exit 1
 fi
 
 uptime
-/usr/bin/time -f "%e" dd if=/dev/zero of=foo bs=1024 count=$1 conv=fsync
-top -b -n 1 | grep -v "0      0      0" | grep -E ' [RSD] ' | cut -c 46-47 | sort | uniq -c
+timeout ${TIMEOUT} dd if=/dev/zero of=oe-time-dd-test.dat bs=1024 count=$1 conv=fsync
+if [ $? -ne 0 ]; then
+	echo "Timeout used: ${TIMEOUT}"
+	echo "start: top output"
+	top -c -b -n1 -w 512
+	echo "end: top output"
+	echo "start: iostat"
+	iostat -y -z -x 5 1
+	echo "end: iostat"
+	echo "start: cooker log"
+	tail -30 tmp*/log/cooker/*/console-latest.log
+	echo "end: cooker log"
+fi

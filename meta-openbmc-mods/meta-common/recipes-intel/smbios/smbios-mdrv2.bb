@@ -2,7 +2,7 @@ SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
 SRC_URI = "git://github.com/openbmc/smbios-mdr.git"
-SRCREV = "d23b84a7eb2be944b12e6539cf627f595b299fda"
+SRCREV = "5b285892fe22bc5ed9ddf5a5f1322b58a55cfca8"
 
 S = "${WORKDIR}/git"
 
@@ -26,6 +26,7 @@ DEPENDS += " \
     phosphor-logging \
     libpeci \
     i2c-tools \
+    nlohmann-json \
     "
 
 EXTRA_OECMAKE="-DYOCTO=1 -DIPMI_BLOB=0"

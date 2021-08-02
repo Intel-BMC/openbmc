@@ -1,4 +1,4 @@
-From ec8377bb77dd560b3f03f02361d268b362e28e7f Mon Sep 17 00:00:00 2001
+From a3b27074feba66aaf63930197b4aa507abdcc983 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 25 Mar 2020 15:04:26 -0700
 Subject: [PATCH] AST2600: Add TPM pulse trigger
@@ -11,7 +11,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 17 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index d03a446846bc..ebf883144418 100644
+index 634b8ce20e7d..e8165694c312 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
 @@ -234,6 +234,21 @@ static void set_gpio_default_state(void)

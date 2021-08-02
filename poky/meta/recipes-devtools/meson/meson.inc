@@ -12,21 +12,12 @@ SRC_URI = "https://github.com/mesonbuild/meson/releases/download/${PV}/meson-${P
            file://0003-native_bindir.patch \
            file://0001-python-module-do-not-manipulate-the-environment-when.patch \
            file://disable-rpath-handling.patch \
-           file://cross-prop-default.patch \
            file://0001-modules-python.py-do-not-substitute-python-s-install.patch \
-           file://0001-minstall-Correctly-set-uid-gid-of-installed-files.patch \
            file://gi-target-dep.patch \
+           file://0001-Make-CPU-family-warnings-fatal.patch \
+           file://0002-Support-building-allarch-recipes-again.patch \
            "
-SRC_URI[sha256sum] = "72e1c782ba9bda204f4a1ed57f98d027d7b6eb9414c723eebbd6ec7f1955c8a6"
-
-SRC_URI_append_class-native = " \
-    file://0001-Make-CPU-family-warnings-fatal.patch \
-    file://0002-Support-building-allarch-recipes-again.patch \
-"
-
-# remove at next version upgrade or when output changes
-PR = "r1"
-HASHEQUIV_HASH_VERSION .= ".1"
+SRC_URI[sha256sum] = "3144a3da662fcf79f1e5602fa929f2821cba4eba28c2c923fe0a7d3e3db04d5d"
 
 UPSTREAM_CHECK_URI = "https://github.com/mesonbuild/meson/releases"
 UPSTREAM_CHECK_REGEX = "meson-(?P<pver>\d+(\.\d+)+)\.tar"

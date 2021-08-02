@@ -1,4 +1,4 @@
-From 783ef5212c5efc0561361fd779f1be3b047aee74 Mon Sep 17 00:00:00 2001
+From f7671739c0d48994c3b6b90d08a75f0ba9e9a2ca Mon Sep 17 00:00:00 2001
 From: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
 Date: Thu, 18 Jun 2020 05:32:48 +0530
 Subject: [PATCH] Apply WDT1-2 reset mask to reset needed controller
@@ -61,10 +61,10 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
  1 file changed, 22 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index cf709aaa5d98..027265593f03 100644
+index 7e6787e5c6db..937ea0d7b9a0 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
-@@ -63,6 +63,14 @@
+@@ -64,6 +64,14 @@
  #define AST_MAC2_BASE		(0x1E680000)
  #define AST_MAC2_CTRL2		(AST_MAC2_BASE + 0x058)
  
@@ -79,7 +79,7 @@ index cf709aaa5d98..027265593f03 100644
  #define AST_GPIO_BASE		(0x1E780000)
  #define AST_GPIOYZ_DATA_VALUE	(AST_GPIO_BASE + 0x1E0)
  
-@@ -292,6 +300,20 @@ wait_lock:
+@@ -293,6 +301,20 @@ wait_lock:
  	str	r1, [r0]
  
  2:
@@ -97,9 +97,9 @@ index cf709aaa5d98..027265593f03 100644
 +	bic	r1, r2
 +	str	r1, [r0]
 +
- 	/* MMIO decode setting */
- 	ldr	r0, =AST_SCU_MMIO_DEC_SET
- 	mov	r1, #0x2000
+ 	/* PCIeRC/E2M8 power-on reset comes from SCU040
+ 	But SCU04018 default value is 0x0.
+ 	It should be 0x1 to reset PCIeRC/E2M8.*/
 -- 
 2.17.1
 

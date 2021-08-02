@@ -248,13 +248,24 @@ class SignatureGeneratorOEBasicHashMixIn(object):
                 f.write('    "\n')
             f.write('SIGGEN_LOCKEDSIGS_TYPES_%s = "%s"' % (self.machine, " ".join(l)))
 
-    def dump_siglist(self, sigfile):
+    def dump_siglist(self, sigfile, path_prefix_strip=None):
+        def strip_fn(fn):
+            nonlocal path_prefix_strip
+            if not path_prefix_strip:
+                return fn
+
+            fn_exp = fn.split(":")
+            if fn_exp[-1].startswith(path_prefix_strip):
+                fn_exp[-1] = fn_exp[-1][len(path_prefix_strip):]
+
+            return ":".join(fn_exp)
+
         with open(sigfile, "w") as f:
             tasks = []
             for taskitem in self.taskhash:
                 (fn, task) = taskitem.rsplit(":", 1)
                 pn = self.lockedpnmap[fn]
-                tasks.append((pn, task, fn, self.taskhash[taskitem]))
+                tasks.append((pn, task, strip_fn(fn), self.taskhash[taskitem]))
             for (pn, task, fn, taskhash) in sorted(tasks):
                 f.write('%s:%s %s %s\n' % (pn, task, fn, taskhash))
 
@@ -453,7 +464,7 @@ def find_sstate_manifest(taskdata, taskdata2, taskname, d, multilibcache):
         manifest = d2.expand("${SSTATE_MANIFESTS}/manifest-%s-%s.%s" % (pkgarch, taskdata, taskname))
         if os.path.exists(manifest):
             return manifest, d2
-    bb.error("Manifest %s not found in %s (variant '%s')?" % (manifest, d2.expand(" ".join(pkgarchs)), variant))
+    bb.fatal("Manifest %s not found in %s (variant '%s')?" % (manifest, d2.expand(" ".join(pkgarchs)), variant))
     return None, d2
 
 def OEOuthashBasic(path, sigfile, task, d):

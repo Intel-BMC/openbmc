@@ -3,8 +3,13 @@ Until change is integrated they will be manually merged here to enable feature i
 
 Current revisions:
 - Add support for MetricDefinition scheme
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/72
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/33363/80
 
 - Sync Telmetry service with EventService
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/38798/30
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/38798/31
 
+- LogService field, actual implementation will be upstreamed with triggers feature
+  file://telemetry/0003-Revert-Remove-LogService-from-TelemetryService.patch
+
+- Event service fix for Context field
+  file://telemetry/0004-event-service-fix-added-Context-field-to-response.patch

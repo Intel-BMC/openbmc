@@ -13,7 +13,7 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
 
 CVE_PRODUCT = "grub2"
 
-SRC_URI = "https://alpha.gnu.org/gnu/grub/grub-${REALPV}.tar.xz \
+SRC_URI = "${GNU_MIRROR}/grub/grub-${PV}.tar.gz \
            file://0001-Disable-mfpmath-sse-as-well-when-SSE-is-disabled.patch \
            file://autogen.sh-exclude-pc.patch \
            file://grub-module-explicitly-keeps-symbole-.module_license.patch \
@@ -22,15 +22,10 @@ SRC_URI = "https://alpha.gnu.org/gnu/grub/grub-${REALPV}.tar.xz \
            file://0001-RISC-V-Restore-the-typcast-to-long.patch \
 "
 
-SRC_URI[sha256sum] = "2c87f1f21e2ab50043e6cd9163c08f1b6c3a6171556bf23ff9ed65b074145484"
+SRC_URI[sha256sum] = "23b64b4c741569f9426ed2e3d0e6780796fca081bee4c99f62aa3f53ae803f5f"
 
-REALPV = "2.06~rc1"
-PV = "2.04+${REALPV}"
-
-S = "${WORKDIR}/grub-${REALPV}"
-
-UPSTREAM_CHECK_URI = "${GNU_MIRROR}/grub"
-UPSTREAM_CHECK_REGEX = "grub-(?P<pver>\d+(\.\d+)+)\.tar\.(gz|xz)"
+# Applies only to RHEL
+CVE_CHECK_WHITELIST += "CVE-2019-14865"
 
 DEPENDS = "flex-native bison-native gettext-native"
 
@@ -48,6 +43,8 @@ GRUBPLATFORM_riscv64 = "efi"
 GRUBPLATFORM ??= "pc"
 
 inherit autotools gettext texinfo pkgconfig
+
+CFLAGS_remove = "-O2"
 
 EXTRA_OECONF = "--with-platform=${GRUBPLATFORM} \
                 --disable-grub-mkfont \

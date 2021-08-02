@@ -24,16 +24,20 @@ SRC_URI = "https://github.com/lathiat/avahi/releases/download/v${PV}/avahi-${PV}
            file://99avahi-autoipd \
            file://initscript.patch \
            file://0001-Fix-opening-etc-resolv.conf-error.patch \
+           file://handle-hup.patch \
            "
 
 UPSTREAM_CHECK_URI = "https://github.com/lathiat/avahi/releases/"
 SRC_URI[md5sum] = "229c6aa30674fc43c202b22c5f8c2be7"
 SRC_URI[sha256sum] = "060309d7a333d38d951bc27598c677af1796934dbd98e1024e7ad8de798fedda"
 
+# Issue only affects Debian/SUSE, not us
+CVE_CHECK_WHITELIST += "CVE-2021-26720"
+
 DEPENDS = "expat libcap libdaemon glib-2.0 intltool-native"
 
 # For gtk related PACKAGECONFIGs: gtk, gtk3
-AVAHI_GTK ?= "gtk3"
+AVAHI_GTK ?= ""
 
 PACKAGECONFIG ??= "dbus ${@bb.utils.contains_any('DISTRO_FEATURES','x11 wayland','${AVAHI_GTK}','',d)}"
 PACKAGECONFIG[dbus] = "--enable-dbus,--disable-dbus,dbus"

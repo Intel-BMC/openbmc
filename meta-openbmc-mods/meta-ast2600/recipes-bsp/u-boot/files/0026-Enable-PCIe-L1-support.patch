@@ -1,4 +1,4 @@
-From 8534fb50dfe7c4e1c042843ded54c4ed23ee7bc2 Mon Sep 17 00:00:00 2001
+From cd13ae4e64d57af84dc98ff6c8d5b31661bc450d Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Tue, 8 Jan 2019 13:33:15 -0800
 Subject: [PATCH] Enable PCIe L1 support
@@ -11,12 +11,12 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 14 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index d7115c96f117..803ff94c4fc0 100644
+index 3db7d993d3ca..e2fcb732b6a6 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
-@@ -329,6 +329,20 @@ wait_lock:
- 	bic	r1, r2
- 	str	r1, [r0]
+@@ -349,6 +349,20 @@ wait_lock:
+ 	movt    r1, #0x0000
+ 	str     r1, [r0]
  
 +	/* enable PCIe L1 support */
 +	ldr	r0, =0x1e6ed07c

@@ -57,7 +57,7 @@ the current working directory set to ``${``\ :term:`B`\ ``}``.
 The default behavior of this task is to run ``oe_runmake clean`` if a
 makefile (``Makefile``, ``makefile``, or ``GNUmakefile``) is found and
 :term:`CLEANBROKEN` is not set to "1". If no such
-file is found or the ``CLEANBROKEN`` variable is set to "1", the
+file is found or the :term:`CLEANBROKEN` variable is set to "1", the
 ``do_configure`` task does nothing.
 
 .. _ref-tasks-configure_ptest_base:
@@ -93,8 +93,7 @@ output from ``${DEPLOYDIR}`` to ``${DEPLOY_DIR_IMAGE}``.
 The ``do_deploy`` task is not added as a task by default and
 consequently needs to be added manually. If you want the task to run
 after :ref:`ref-tasks-compile`, you can add it by doing
-the following:
-::
+the following::
 
       addtask deploy after do_compile
 
@@ -103,8 +102,7 @@ Adding ``do_deploy`` after other tasks works the same way.
 .. note::
 
    You do not need to add ``before do_build`` to the ``addtask`` command
-   (though it is harmless), because the ``base`` class contains the following:
-   ::
+   (though it is harmless), because the ``base`` class contains the following::
 
            do_build[recrdeptask] += "do_deploy"
 
@@ -302,29 +300,26 @@ Patch files, by default, are ``*.patch`` and ``*.diff`` files created
 and kept in a subdirectory of the directory holding the recipe file. For
 example, consider the
 :yocto_git:`bluez5 </poky/tree/meta/recipes-connectivity/bluez5>`
-recipe from the OE-Core layer (i.e. ``poky/meta``):
-::
+recipe from the OE-Core layer (i.e. ``poky/meta``)::
 
    poky/meta/recipes-connectivity/bluez5
 
-This recipe has two patch files located here:
-::
+This recipe has two patch files located here::
 
    poky/meta/recipes-connectivity/bluez5/bluez5
 
-In the ``bluez5`` recipe, the ``SRC_URI`` statements point to the source
+In the ``bluez5`` recipe, the :term:`SRC_URI` statements point to the source
 and patch files needed to build the package.
 
 .. note::
 
-   In the case for the ``bluez5_5.48.bb`` recipe, the ``SRC_URI`` statements
+   In the case for the ``bluez5_5.48.bb`` recipe, the :term:`SRC_URI` statements
    are from an include file ``bluez5.inc``.
 
 As mentioned earlier, the build system treats files whose file types are
 ``.patch`` and ``.diff`` as patch files. However, you can use the
-"apply=yes" parameter with the ``SRC_URI`` statement to indicate any
-file as a patch file:
-::
+"apply=yes" parameter with the :term:`SRC_URI` statement to indicate any
+file as a patch file::
 
    SRC_URI = " \
        git://path_to_repo/some_package \
@@ -334,8 +329,7 @@ file as a patch file:
 Conversely, if you have a directory full of patch files and you want to
 exclude some so that the ``do_patch`` task does not apply them during
 the patch phase, you can use the "apply=no" parameter with the
-``SRC_URI`` statement:
-::
+:term:`SRC_URI` statement::
 
    SRC_URI = " \
        git://path_to_repo/some_package \
@@ -436,7 +430,7 @@ variable also plays a role in where unpacked source files ultimately
 reside. For more information on how source files are unpacked, see the
 ":ref:`overview-manual/concepts:source fetching`"
 section in the Yocto Project Overview and Concepts Manual and also see
-the ``WORKDIR`` and ``S`` variable descriptions.
+the :term:`WORKDIR` and :term:`S` variable descriptions.
 
 Manually Called Tasks
 =====================
@@ -455,8 +449,7 @@ of the recipe exists upstream and a status of not updated, updated, or
 unknown.
 
 To check the upstream version and status of a recipe, use the following
-devtool commands:
-::
+devtool commands::
 
    $ devtool latest-version
    $ devtool check-upgrade-status
@@ -467,8 +460,7 @@ chapter for more information on
 section for information on checking the upgrade status of a recipe.
 
 To build the ``checkpkg`` task, use the ``bitbake`` command with the
-"-c" option and task name:
-::
+"-c" option and task name::
 
    $ bitbake core-image-minimal -c checkpkg
 
@@ -494,8 +486,7 @@ Removes all output files for a target from the
 :ref:`ref-tasks-install`, and
 :ref:`ref-tasks-package`).
 
-You can run this task using BitBake as follows:
-::
+You can run this task using BitBake as follows::
 
    $ bitbake -c clean recipe
 
@@ -519,8 +510,7 @@ downloaded source files for a target (i.e. the contents of
 identical to the :ref:`ref-tasks-cleansstate` task
 with the added removal of downloaded source files.
 
-You can run this task using BitBake as follows:
-::
+You can run this task using BitBake as follows::
 
    $ bitbake -c cleanall recipe
 
@@ -540,8 +530,7 @@ target. Essentially, the ``do_cleansstate`` task is identical to the
 shared state (:ref:`sstate <overview-manual/concepts:shared state cache>`)
 cache.
 
-You can run this task using BitBake as follows:
-::
+You can run this task using BitBake as follows::
 
    $ bitbake -c cleansstate recipe
 
@@ -553,8 +542,7 @@ scratch is guaranteed.
 
    The ``do_cleansstate`` task cannot remove sstate from a remote sstate
    mirror. If you need to build a target from scratch using remote mirrors, use
-   the "-f" option as follows:
-   ::
+   the "-f" option as follows::
 
       $ bitbake -f -c do_cleansstate target
 
@@ -687,8 +675,7 @@ changes made by the user with other methods (i.e. using
 (:ref:`ref-tasks-kernel_menuconfig`). Once the
 file of differences is created, it can be used to create a config
 fragment that only contains the differences. You can invoke this task
-from the command line as follows:
-::
+from the command line as follows::
 
    $ bitbake linux-yocto -c diffconfig
 
@@ -718,8 +705,7 @@ Validates the configuration produced by the
 configuration does not appear in the final ``.config`` file or when you
 override a policy configuration in a hardware configuration fragment.
 You can run this task explicitly and view the output by using the
-following command:
-::
+following command::
 
    $ bitbake linux-yocto -c kernel_configcheck -f
 
@@ -750,8 +736,7 @@ tool, which you then use to modify the kernel configuration.
 
 .. note::
 
-   You can also invoke this tool from the command line as follows:
-   ::
+   You can also invoke this tool from the command line as follows::
 
            $ bitbake linux-yocto -c menuconfig
 
@@ -793,8 +778,7 @@ instead of the default defconfig. The saved defconfig contains the
 differences between the default defconfig and the changes made by the
 user using other methods (i.e. the
 :ref:`ref-tasks-kernel_menuconfig` task. You
-can invoke the task using the following command:
-::
+can invoke the task using the following command::
 
    $ bitbake linux-yocto -c savedefconfig
 
@@ -839,6 +823,5 @@ sections from a size-sensitive configuration.
 After the kernel is unpacked but before it is patched, this task makes
 sure that the machine and metadata branches as specified by the
 :term:`SRCREV` variables actually exist on the specified
-branches. If these branches do not exist and
-:term:`AUTOREV` is not being used, the
+branches. Otherwise, if :term:`AUTOREV` is not being used, the
 ``do_validate_branches`` task fails during the build.

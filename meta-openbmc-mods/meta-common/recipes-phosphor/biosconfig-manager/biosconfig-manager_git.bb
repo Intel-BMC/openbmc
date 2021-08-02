@@ -10,7 +10,7 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 inherit meson systemd
 
 SRC_URI = "git://github.com/openbmc/bios-settings-mgr.git"
-SRCREV = "c0f926d6cbf9636a42f4bc3d33b9602e4633c478"
+SRCREV = "5e2cb7206e695662f09c7cb4e0c73ba11686acaa"
 
 SYSTEMD_SERVICE_${PN} += " \
         xyz.openbmc_project.biosconfig_manager.service \

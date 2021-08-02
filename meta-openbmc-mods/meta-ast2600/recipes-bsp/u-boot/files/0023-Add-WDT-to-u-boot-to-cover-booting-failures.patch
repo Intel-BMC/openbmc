@@ -1,4 +1,4 @@
-From 385629a99a8d07182812264f2868d5f85fb711e0 Mon Sep 17 00:00:00 2001
+From d1acf70afd376b45a73b325ee30c0532a142c4f2 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Wed, 16 Sep 2020 13:25:36 -0700
 Subject: [PATCH] Add WDT to u-boot to cover booting failures
@@ -20,10 +20,10 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  7 files changed, 116 insertions(+), 38 deletions(-)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index 027265593f03..e57bd325277f 100644
+index 937ea0d7b9a0..c65adff0d69a 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
-@@ -64,6 +64,9 @@
+@@ -65,6 +65,9 @@
  #define AST_MAC2_CTRL2		(AST_MAC2_BASE + 0x058)
  
  #define AST_WDT1_BASE		0x1E785000
@@ -33,7 +33,7 @@ index 027265593f03..e57bd325277f 100644
  #define AST_WDT1_RESET_MASK1	(AST_WDT1_BASE + 0x01C)
  #define AST_WDT1_RESET_MASK2	(AST_WDT1_BASE + 0x020)
  
-@@ -328,6 +331,18 @@ wait_lock:
+@@ -348,6 +351,18 @@ wait_lock:
  	ldr	r1, =AST_SCU_CA7_PARITY_CHK
  	str	r0, [r1]
  
@@ -53,7 +53,7 @@ index 027265593f03..e57bd325277f 100644
  	ldr	r1, =AST_FMC_WDT2_CTRL_MODE
  	str	r0, [r1]
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index 948f8a01f868..1a95893631c8 100644
+index 03eff62ce04b..88d9384faf2d 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
 @@ -7,6 +7,7 @@
@@ -150,7 +150,7 @@ index 4d4248f234fb..90687092e1ae 100644
  		from += len;
  		to += len;
 diff --git a/drivers/mtd/spi/spi-nor-core.c b/drivers/mtd/spi/spi-nor-core.c
-index a8f5b6158241..69dfc7f21698 100644
+index e1fe91712e24..13f499a90272 100644
 --- a/drivers/mtd/spi/spi-nor-core.c
 +++ b/drivers/mtd/spi/spi-nor-core.c
 @@ -20,6 +20,7 @@
@@ -300,7 +300,7 @@ index c2dc3cf548d2..811ead41bb95 100644
  	return 0;
  }
 diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
-index 70590067dbcf..0eaf76b50b39 100644
+index 183a7a502e9c..d5befb185b6a 100644
 --- a/include/configs/aspeed-common.h
 +++ b/include/configs/aspeed-common.h
 @@ -20,6 +20,8 @@

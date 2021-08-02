@@ -6,21 +6,21 @@ PV = "0.1+git${SRCPV}"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
-inherit autotools pkgconfig
-inherit obmc-phosphor-ipmiprovider-symlink
+inherit meson pkgconfig
 
-DEPENDS += "autoconf-archive-native"
-DEPENDS += "phosphor-ipmi-host"
-DEPENDS += "phosphor-logging"
-DEPENDS += "ipmi-blob-tool"
+DEPENDS += " \
+  ipmi-blob-tool \
+  phosphor-ipmi-host \
+  phosphor-logging \
+  "
 
 S = "${WORKDIR}/git"
 SRC_URI = "git://github.com/openbmc/phosphor-ipmi-blobs"
-SRCREV = "52b75fb3927d46b75e75fd6040577c914476e6f1"
+SRCREV = "f39e668c2b87c9453e0e28d5a8886b81ed80c50e"
 
-FILES_${PN}_append = " ${libdir}/ipmid-providers/lib*${SOLIBS}"
-FILES_${PN}_append = " ${libdir}/host-ipmid/lib*${SOLIBS}"
-FILES_${PN}_append = " ${libdir}/net-ipmid/lib*${SOLIBS}"
-FILES_${PN}-dev_append = " ${libdir}/ipmid-providers/lib*${SOLIBSDEV} ${libdir}/ipmid-providers/*.la"
+FILES_${PN} += "${libdir}/ipmid-providers"
 
-HOSTIPMI_PROVIDER_LIBRARY += "libblobcmds.so"
+EXTRA_OEMESON += " \
+  -Dtests=disabled \
+  -Dexamples=false \
+  "

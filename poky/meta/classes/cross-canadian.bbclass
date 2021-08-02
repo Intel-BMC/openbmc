@@ -36,7 +36,7 @@ python () {
         return
 
     tos = d.getVar("TARGET_OS")
-    whitelist = []
+    whitelist = ["mingw32"]
     extralibcs = [""]
     if "musl" in d.getVar("BASECANADIANEXTRAOS"):
         extralibcs.append("musl")
@@ -155,7 +155,7 @@ libexecdir = "${exec_prefix}/libexec/${TARGET_ARCH}${TARGET_VENDOR}-${TARGET_OS}
 
 FILES_${PN} = "${prefix}"
 
-export PKG_CONFIG_DIR = "${STAGING_DIR_HOST}${layout_libdir}/pkgconfig"
+export PKG_CONFIG_DIR = "${STAGING_DIR_HOST}${exec_prefix}/lib/pkgconfig"
 export PKG_CONFIG_SYSROOT_DIR = "${STAGING_DIR_HOST}"
 
 do_populate_sysroot[stamp-extra-info] = ""

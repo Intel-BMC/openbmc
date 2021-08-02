@@ -38,7 +38,7 @@ usually matches the current stable BitBake release from the BitBake
 project. BitBake, a :term:`Metadata` interpreter, reads the
 Yocto Project Metadata and runs the tasks defined by that data. Failures
 are usually caused by errors in your Metadata and not from BitBake
-itself; consequently, most users do not need to worry about BitBake.
+itself.
 
 When you run the ``bitbake`` command, the main BitBake executable (which
 resides in the ``bitbake/bin/`` directory) starts. Sourcing the
@@ -153,8 +153,7 @@ When you run this script, your Yocto Project environment is set up, a
 :term:`Build Directory` is created, your working
 directory becomes the Build Directory, and you are presented with some
 simple suggestions as to what to do next, including a list of some
-possible targets to build. Here is an example:
-::
+possible targets to build. Here is an example::
 
    $ source oe-init-build-env
 
@@ -185,8 +184,7 @@ creates the ``build/`` directory in your current working directory. If
 you provide a Build Directory argument when you ``source`` the script,
 you direct the OpenEmbedded build system to create a Build Directory of
 your choice. For example, the following command creates a Build
-Directory named ``mybuilds/`` that is outside of the :term:`Source Directory`:
-::
+Directory named ``mybuilds/`` that is outside of the :term:`Source Directory`::
 
    $ source oe-init-build-env ~/mybuilds
 
@@ -253,9 +251,9 @@ variables are hard-coded for various reasons but such variables are
 relatively rare.
 
 At a minimum, you would normally edit this file to select the target
-``MACHINE``, which package types you wish to use
+:term:`MACHINE`, which package types you wish to use
 (:term:`PACKAGE_CLASSES`), and the location from
-which you want to access downloaded files (``DL_DIR``).
+which you want to access downloaded files (:term:`DL_DIR`).
 
 If ``local.conf`` is not present when you start the build, the
 OpenEmbedded build system creates it from ``local.conf.sample`` when you
@@ -269,8 +267,7 @@ and to ``meta/conf/`` when you are building from the OpenEmbedded-Core
 environment. Because the script variable points to the source of the
 ``local.conf.sample`` file, this implies that you can configure your
 build environment from any layer by setting the variable in the
-top-level build environment setup script as follows:
-::
+top-level build environment setup script as follows::
 
    TEMPLATECONF=your_layer/conf
 
@@ -282,7 +279,7 @@ file, it uses ``sed`` to substitute final
 .. note::
 
    You can see how the ``TEMPLATECONF`` variable is used by looking at the
-   ``scripts/oe-setup-builddir``` script in the :term:`Source Directory`.
+   ``scripts/oe-setup-builddir`` script in the :term:`Source Directory`.
    You can find the Yocto Project version of the ``local.conf.sample`` file in
    the ``meta-poky/conf`` directory.
 
@@ -309,8 +306,7 @@ Project development environment, and to ``meta/conf/`` when you are
 building from the OpenEmbedded-Core environment. Because the script
 variable points to the source of the ``bblayers.conf.sample`` file, this
 implies that you can base your build from any layer by setting the
-variable in the top-level build environment setup script as follows:
-::
+variable in the top-level build environment setup script as follows::
 
    TEMPLATECONF=your_layer/conf
 
@@ -340,7 +336,7 @@ the build.
 This directory contains downloaded upstream source tarballs. You can
 reuse the directory for multiple builds or move the directory to another
 location. You can control the location of this directory through the
-``DL_DIR`` variable.
+:term:`DL_DIR` variable.
 
 .. _structure-build-sstate-cache:
 
@@ -350,7 +346,7 @@ location. You can control the location of this directory through the
 This directory contains the shared state cache. You can reuse the
 directory for multiple builds or move the directory to another location.
 You can control the location of this directory through the
-``SSTATE_DIR`` variable.
+:term:`SSTATE_DIR` variable.
 
 .. _structure-build-tmp:
 
@@ -463,8 +459,7 @@ image again.
 If you do accidentally delete files here, you will need to force them to
 be re-created. In order to do that, you will need to know the target
 that produced them. For example, these commands rebuild and re-create
-the kernel files:
-::
+the kernel files::
 
    $ bitbake -c clean virtual/kernel
    $ bitbake virtual/kernel
@@ -515,8 +510,8 @@ should be automatic, and recipes should not directly reference
 -----------------------
 
 Previous versions of the OpenEmbedded build system used to create a
-global shared sysroot per machine along with a native sysroot. Beginning
-with the 2.3 version of the Yocto Project, sysroots exist in
+global shared sysroot per machine along with a native sysroot. Since
+the 2.3 version of the Yocto Project, there are sysroots in
 recipe-specific :term:`WORKDIR` directories. Thus, the
 ``build/tmp/sysroots/`` directory is unused.
 
@@ -535,8 +530,7 @@ recipe-specific :term:`WORKDIR` directories. Thus, the
 This directory holds information that BitBake uses for accounting
 purposes to track what tasks have run and when they have run. The
 directory is sub-divided by architecture, package name, and version.
-Following is an example:
-::
+Following is an example::
 
       stamps/all-poky-linux/distcc-config/1.0-r0.do_build-2fdd....2do
 
@@ -554,7 +548,7 @@ section in the Yocto Project Overview and Concepts Manual.
 ------------------
 
 This directory contains general logs that are not otherwise placed using
-the package's ``WORKDIR``. Examples of logs are the output from the
+the package's :term:`WORKDIR`. Examples of logs are the output from the
 ``do_check_pkg`` or ``do_distro_check`` tasks. Running a build does not
 necessarily mean this directory is created.
 
@@ -575,7 +569,7 @@ It is worth considering the structure of a typical work directory. As an
 example, consider ``linux-yocto-kernel-3.0`` on the machine ``qemux86``
 built within the Yocto Project. For this package, a work directory of
 ``tmp/work/qemux86-poky-linux/linux-yocto/3.0+git1+<.....>``, referred
-to as the ``WORKDIR``, is created. Within this directory, the source is
+to as the :term:`WORKDIR`, is created. Within this directory, the source is
 unpacked to ``linux-qemux86-standard-build`` and then patched by Quilt.
 (See the ":ref:`dev-manual/common-tasks:using quilt in your workflow`" section in
 the Yocto Project Development Tasks Manual for more information.) Within
@@ -583,7 +577,7 @@ the ``linux-qemux86-standard-build`` directory, standard Quilt
 directories ``linux-3.0/patches`` and ``linux-3.0/.pc`` are created, and
 standard Quilt commands can be used.
 
-There are other directories generated within ``WORKDIR``. The most
+There are other directories generated within :term:`WORKDIR`. The most
 important directory is ``WORKDIR/temp/``, which has log files for each
 task (``log.do_*.pid``) and contains the scripts BitBake runs for each
 task (``run.do_*.pid``). The ``WORKDIR/image/`` directory is where "make
@@ -607,7 +601,7 @@ constructed using the architecture of the given build (e.g.
 name, and the version of the recipe (i.e.
 :term:`PE`\ ``:``\ :term:`PV`\ ``-``\ :term:`PR`).
 
-A number of key subdirectories exist within each recipe work directory:
+Here are key subdirectories within each recipe work directory:
 
 -  ``${WORKDIR}/temp``: Contains the log files of each task executed for
    this recipe, the "run" files for each executed task, which contain
@@ -630,7 +624,7 @@ A number of key subdirectories exist within each recipe work directory:
 
 -  ``${WORKDIR}/packages-split``: Contains the output of the
    ``do_package`` task after the output has been split into individual
-   packages. Subdirectories exist for each individual package created by
+   packages. There are subdirectories for each individual package created by
    the recipe.
 
 -  ``${WORKDIR}/recipe-sysroot``: A directory populated with the target
@@ -715,7 +709,7 @@ support for a new machine to the Yocto Project, look in this directory.
 
 The contents of this directory controls any distribution-specific
 configurations. For the Yocto Project, the ``defaultsetup.conf`` is the
-main file here. This directory includes the versions and the ``SRCDATE``
+main file here. This directory includes the versions and the :term:`SRCDATE`
 definitions for applications that are configured here. An example of an
 alternative configuration might be ``poky-bleeding.conf``. Although this
 file mainly inherits its configuration from Poky.
@@ -789,7 +783,7 @@ system. The tools, however, can also be used on targets.
 
 This directory contains non-essential applications that add features
 compared to the alternatives in core. You might need this directory for
-full tool functionality or for Linux Standard Base (LSB) compliance.
+full tool functionality.
 
 .. _structure-meta-recipes-gnome:
 
@@ -814,14 +808,6 @@ libraries.
 
 This directory contains the kernel and generic applications and
 libraries that have strong kernel dependencies.
-
-.. _structure-meta-recipes-lsb4:
-
-``meta/recipes-lsb4/``
-----------------------
-
-This directory contains recipes specifically added to support the Linux
-Standard Base (LSB) version 4.x.
 
 .. _structure-meta-recipes-multimedia:
 

@@ -108,10 +108,10 @@ the team can place sources there so builds continue to work.
 but the package is being marked as machine-specific in all cases, how do
 I prevent this?
 
-**A:** Set ``SRC_URI_OVERRIDES_PACKAGE_ARCH`` = "0" in the ``.bb`` file
+**A:** Set :term:`SRC_URI_OVERRIDES_PACKAGE_ARCH` = "0" in the ``.bb`` file
 but make sure the package is manually marked as machine-specific for the
 case that needs it. The code that handles
-``SRC_URI_OVERRIDES_PACKAGE_ARCH`` is in the
+:term:`SRC_URI_OVERRIDES_PACKAGE_ARCH` is in the
 ``meta/classes/base.bbclass`` file.
 
 **Q:** I'm behind a firewall and need to use a proxy server. How do I do
@@ -125,7 +125,7 @@ file.
 
 Following is the applicable code for setting various proxy types in the
 ``.wgetrc`` file. By default, these settings are disabled with comments.
-To use them, remove the comments: ::
+To use them, remove the comments::
 
    # You can set the default proxies for Wget to use for http, https, and ftp.
    # They will override the value in the environment.
@@ -209,8 +209,7 @@ section in the Yocto Project Development Tasks Manual.
 **A:** You need to create a form factor file as described in the
 ":ref:`bsp-guide/bsp:miscellaneous bsp-specific recipe files`" section in
 the Yocto Project Board Support Packages (BSP) Developer's Guide. Set
-the ``HAVE_TOUCHSCREEN`` variable equal to one as follows:
-::
+the ``HAVE_TOUCHSCREEN`` variable equal to one as follows::
 
    HAVE_TOUCHSCREEN=1
 
@@ -224,7 +223,7 @@ to add a BSP-specific netbase that includes an interfaces file. See the
 the Yocto Project Board Support Packages (BSP) Developer's Guide for
 information on creating these types of miscellaneous recipe files.
 
-For example, add the following files to your layer: ::
+For example, add the following files to your layer::
 
    meta-MACHINE/recipes-bsp/netbase/netbase/MACHINE/interfaces
    meta-MACHINE/recipes-bsp/netbase/netbase_5.0.bbappend
@@ -251,7 +250,7 @@ size, you need to set various configurations:
    :term:`IMAGE_ROOTFS_EXTRA_SPACE`
    variable to add additional free space to the image. The build system
    adds this space to the image after it determines its
-   ``IMAGE_ROOTFS_SIZE``.
+   :term:`IMAGE_ROOTFS_SIZE`.
 
 **Q:** Why don't you support directories with spaces in the pathnames?
 
@@ -263,11 +262,11 @@ situation changes, the team will not support spaces in pathnames.
 **Q:** How do I use an external toolchain?
 
 **A:** The toolchain configuration is very flexible and customizable. It
-is primarily controlled with the ``TCMODE`` variable. This variable
+is primarily controlled with the :term:`TCMODE` variable. This variable
 controls which ``tcmode-*.inc`` file to include from the
 ``meta/conf/distro/include`` directory within the :term:`Source Directory`.
 
-The default value of ``TCMODE`` is "default", which tells the
+The default value of :term:`TCMODE` is "default", which tells the
 OpenEmbedded build system to use its internally built toolchain (i.e.
 ``tcmode-default.inc``). However, other patterns are accepted. In
 particular, "external-\*" refers to external toolchains. One example is
@@ -300,7 +299,7 @@ fail.
 
 As an example, you could add a specific server for the build system to
 attempt before any others by adding something like the following to the
-``local.conf`` configuration file: ::
+``local.conf`` configuration file::
 
    PREMIRRORS_prepend = "\
        git://.*/.* http://www.yoctoproject.org/sources/ \n \
@@ -313,8 +312,7 @@ HTTPS requests and direct them to the ``http://`` sources mirror. You
 can use ``file://`` URLs to point to local directories or network shares
 as well.
 
-Aside from the previous technique, these options also exist:
-::
+Here are other options::
 
    BB_NO_NETWORK = "1"
 
@@ -322,17 +320,15 @@ This statement tells BitBake to issue an error
 instead of trying to access the Internet. This technique is useful if
 you want to ensure code builds only from local sources.
 
-Here is another technique:
-::
+Here is another technique::
 
    BB_FETCH_PREMIRRORONLY = "1"
 
 This statement
-limits the build system to pulling source from the ``PREMIRRORS`` only.
+limits the build system to pulling source from the :term:`PREMIRRORS` only.
 Again, this technique is useful for reproducing builds.
 
-Here is another technique:
-::
+Here is another technique::
 
    BB_GENERATE_MIRROR_TARBALLS = "1"
 
@@ -343,7 +339,7 @@ however, the technique can simply waste time during the build.
 
 Finally, consider an example where you are behind an HTTP-only firewall.
 You could make the following changes to the ``local.conf`` configuration
-file as long as the ``PREMIRRORS`` server is current: ::
+file as long as the :term:`PREMIRRORS` server is current::
 
    PREMIRRORS_prepend = "\
        ftp://.*/.* http://www.yoctoproject.org/sources/ \n \
@@ -353,7 +349,7 @@ file as long as the ``PREMIRRORS`` server is current: ::
 
 These changes would cause the build system to successfully fetch source
 over HTTP and any network accesses to anything other than the
-``PREMIRRORS`` would fail.
+:term:`PREMIRRORS` would fail.
 
 The build system also honors the standard shell environment variables
 ``http_proxy``, ``ftp_proxy``, ``https_proxy``, and ``all_proxy`` to

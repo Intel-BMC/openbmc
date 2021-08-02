@@ -1,0 +1,64 @@
+From 3a507873ed733ed0e313f6efb89f7a491577e015 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Tue, 1 Jun 2021 12:27:50 +0000
+Subject: [PATCH] Add username property to SessionInfo interface
+
+Add username property to SessionInfo interface to get username info on
+individual IPMI session Id's on Redfish
+
+Tested:
+Verified on SessionInfo D-bus interface.
+
+busctl introspect xyz.openbmc_project.Ipmi.Channel.eth0
+                  /xyz/openbmc_project/ipmi/session/eth0/0
+NAME               TYPE      SIGNATURE RESULT/VALUE FLAGS
+......
+xyz.openbmc_project.Ipmi.SessionInfo interface -         -            -
+.ChannelNum        property  y      0            emits-change writable
+.CurrentPrivilege  property  y      0            emits-change writable
+.RemoteIPAddr      property  u      2225389066   emits-change writable
+.RemoteMACAddress  property  ay     0            emits-change writable
+.RemotePort        property  q      35749        emits-change writable
+.SessionHandle     property  y      0            emits-change writable
+.State             property  y      0            emits-change writable
+.UserID            property  y      0            emits-change writable
+.Username          property  s      ""           emits-change writable
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ xyz/openbmc_project/Ipmi/SESSION_README.md          | 1 +
+ xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml | 6 ++++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/xyz/openbmc_project/Ipmi/SESSION_README.md b/xyz/openbmc_project/Ipmi/SESSION_README.md
+index c59b251..18ae66a 100644
+--- a/xyz/openbmc_project/Ipmi/SESSION_README.md
++++ b/xyz/openbmc_project/Ipmi/SESSION_README.md
+@@ -16,6 +16,7 @@ so that both phosphor-ipmi-host & phosphr-ipmi-net will be in sync.
+ * RemotePort   - Remote port address.
+ * RemoteMACAddress -Remote MAC Address.
+ * UserID  - Session created by given user id.
++* Username - Session created by given username.
+ 
+ 
+ 
+diff --git a/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml b/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
+index 0ddc025..a7c3a90 100644
+--- a/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
++++ b/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
+@@ -46,6 +46,12 @@ properties:
+            Session created by given user ID.
+       errors:
+           - xyz.openbmc_project.Common.Error.InternalFailure
++    - name: Username
++      type: string
++      description: >
++           Session created by given username.
++      errors:
++          - xyz.openbmc_project.Common.Error.InternalFailure
+     - name: State
+       type: byte
+       default: 0
+-- 
+2.17.1
+

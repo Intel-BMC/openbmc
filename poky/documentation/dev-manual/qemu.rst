@@ -55,16 +55,14 @@ available. Follow these general steps to run QEMU:
 
    -  If you cloned the ``poky`` repository or you downloaded and
       unpacked a Yocto Project release tarball, you can source the build
-      environment script (i.e. :ref:`structure-core-script`):
-      ::
+      environment script (i.e. :ref:`structure-core-script`)::
 
          $ cd poky
          $ source oe-init-build-env
 
    -  If you installed a cross-toolchain, you can run the script that
       initializes the toolchain. For example, the following commands run
-      the initialization script from the default ``poky_sdk`` directory:
-      ::
+      the initialization script from the default ``poky_sdk`` directory::
 
          . poky_sdk/environment-setup-core2-64-poky-linux
 
@@ -86,8 +84,7 @@ available. Follow these general steps to run QEMU:
    Extensible Software Development Kit (eSDK) manual for information on
    how to extract a root filesystem.
 
-4. *Run QEMU:* The basic ``runqemu`` command syntax is as follows:
-   ::
+4. *Run QEMU:* The basic ``runqemu`` command syntax is as follows::
 
       $ runqemu [option ] [...]
 
@@ -222,18 +219,15 @@ using an NFS server.
    Should you need to start, stop, or restart the NFS share, you can use
    the following commands:
 
-   -  The following command starts the NFS share:
-      ::
+   -  To start the NFS share::
 
          runqemu-export-rootfs start file-system-location
 
-   -  The following command stops the NFS share:
-      ::
+   -  To stop the NFS share::
 
          runqemu-export-rootfs stop file-system-location
 
-   -  The following command restarts the NFS share:
-      ::
+   -  To restart the NFS share::
 
          runqemu-export-rootfs restart file-system-location
 
@@ -281,7 +275,7 @@ present, the toolchain is also automatically used.
 
 .. note::
 
-   Several mechanisms exist that let you connect to the system running
+   There are several mechanisms to connect to the system running
    on the QEMU emulator:
 
    -  QEMU provides a framebuffer interface that makes standard consoles
@@ -292,7 +286,7 @@ present, the toolchain is also automatically used.
       that port to run a console. The connection uses standard IP
       networking.
 
-   -  SSH servers exist in some QEMU images. The ``core-image-sato``
+   -  SSH servers are available in some QEMU images. The ``core-image-sato``
       QEMU image has a Dropbear secure shell (SSH) server that runs with
       the root password disabled. The ``core-image-full-cmdline`` and
       ``core-image-lsb`` QEMU images have OpenSSH instead of Dropbear.
@@ -313,8 +307,7 @@ present, the toolchain is also automatically used.
 QEMU Command-Line Syntax
 ========================
 
-The basic ``runqemu`` command syntax is as follows:
-::
+The basic ``runqemu`` command syntax is as follows::
 
    $ runqemu [option ] [...]
 
@@ -325,8 +318,7 @@ timestamp when it needs to look for an image. Minimally, through the use
 of options, you must provide either a machine name, a virtual machine
 image (``*wic.vmdk``), or a kernel image (``*.bin``).
 
-Following is the command-line help output for the ``runqemu`` command:
-::
+Following is the command-line help output for the ``runqemu`` command::
 
    $ runqemu --help
 

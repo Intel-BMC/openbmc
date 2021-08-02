@@ -1,4 +1,4 @@
-From 438ff3a8db6718bb137dccaafa707f8275407742 Mon Sep 17 00:00:00 2001
+From fc01155d6f78ab9940f1d1482b0df44addc5f313 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Mon, 22 Feb 2021 17:22:16 +0530
 Subject: [PATCH] ast2600-PFR-platform-EXTRST-reset-mask-selection
@@ -16,7 +16,7 @@ Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
  1 file changed, 12 insertions(+)
 
 diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
-index bdc0884de1bd..d7115c96f117 100644
+index c65adff0d69a..3db7d993d3ca 100644
 --- a/arch/arm/mach-aspeed/ast2600/platform.S
 +++ b/arch/arm/mach-aspeed/ast2600/platform.S
 @@ -39,6 +39,8 @@
@@ -28,18 +28,18 @@ index bdc0884de1bd..d7115c96f117 100644
  #define AST_SCU_DEBUG_CTRL              (AST_SCU_BASE + 0x0C8)
  #define AST_SCU_DEBUG_CTRL2             (AST_SCU_BASE + 0x0D8)
  #define AST_SCU_HPLL_PARAM		(AST_SCU_BASE + 0x200)
-@@ -303,6 +305,16 @@ wait_lock:
+@@ -304,6 +306,16 @@ wait_lock:
  	str	r1, [r0]
  
  2:
 +	/* SCU060:EXTRST1# reset mask selection */
 +	ldr 	r0, =AST_SCU_EXTRST_SEL1
-+	ldr 	r1, =0x6FF1FF5
++	ldr 	r1, =0x6FF1FF1
 +	str 	r1, [r0]
 +
 +	/* SCU070:EXTRST2# reset mask selection */
 +	ldr 	r0, =AST_SCU_EXTRST_SEL2
-+	ldr 	r1, =0x3FFFFF7
++	ldr 	r1, =0x3FFFFF3
 +	str 	r1, [r0]
 +
  	/* disable eSPI, LPC and PWM resets on WDT1 reset */

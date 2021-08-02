@@ -55,8 +55,7 @@ This section briefly introduces BitBake. If you want more information on
 BitBake, see the :doc:`BitBake User Manual <bitbake:index>`.
 
 To see a list of the options BitBake supports, use either of the
-following commands:
-::
+following commands::
 
    $ bitbake -h
    $ bitbake --help
@@ -66,8 +65,7 @@ The most common usage for BitBake is ``bitbake recipename``, where
 to as the "target"). The target often equates to the first part of a
 recipe's filename (e.g. "foo" for a recipe named ``foo_1.3.0-r0.bb``).
 So, to process the ``matchbox-desktop_1.2.3.bb`` recipe file, you might
-type the following:
-::
+type the following::
 
    $ bitbake matchbox-desktop
 
@@ -141,7 +139,7 @@ hardware-specific configurations allows you to share other metadata by
 using a different layer where that metadata might be common across
 several pieces of hardware.
 
-Many layers exist that work in the Yocto Project development environment. The
+There are many layers working in the Yocto Project development environment. The
 :yocto_home:`Yocto Project Curated Layer Index </software-overview/layers/>`
 and :oe_layerindex:`OpenEmbedded Layer Index <>` both contain layers from
 which you can use or leverage.
@@ -334,7 +332,7 @@ created by an autobuilder:
    One useful scenario for using the ``conf/site.conf`` file is to
    extend your :term:`BBPATH` variable
    to include the path to a ``conf/site.conf``. Then, when BitBake looks
-   for Metadata using ``BBPATH``, it finds the ``conf/site.conf`` file
+   for Metadata using :term:`BBPATH`, it finds the ``conf/site.conf`` file
    and applies your common configurations found in the file. To override
    configurations in a particular build directory, alter the similar
    configurations within that build directory's ``conf/local.conf``
@@ -372,7 +370,7 @@ BitBake's global behavior. This section takes a closer look at the
 layers the build system uses to further control the build. These layers
 provide Metadata for the software, machine, and policies.
 
-In general, three types of layer input exists. You can see them below
+In general, there are three types of layer input. You can see them below
 the "User Configuration" box in the `general workflow
 figure <overview-manual/concepts:openembedded build system concepts>`:
 
@@ -429,8 +427,8 @@ Repositories <>` also shows layers categorized under "Yocto Metadata Layers."
 
 .. note::
 
-   Layers exist in the Yocto Project Source Repositories that cannot be
-   found in the OpenEmbedded Layer Index. These layers are either
+   There are layers in the Yocto Project Source Repositories that cannot be
+   found in the OpenEmbedded Layer Index. Such layers are either
    deprecated or experimental in nature.
 
 BitBake uses the ``conf/bblayers.conf`` file, which is part of the user
@@ -491,7 +489,7 @@ the machine (``conf/machine/machine.conf``) and, of course, the layer
 
 The remainder of the layer is dedicated to specific recipes by function:
 ``recipes-bsp``, ``recipes-core``, ``recipes-graphics``,
-``recipes-kernel``, and so forth. Metadata can exist for multiple
+``recipes-kernel``, and so forth. There can be metadata for multiple
 formfactors, graphics support systems, and so forth.
 
 .. note::
@@ -530,13 +528,11 @@ project that is more dynamic or experimental in nature, a project might
 keep source files in a repository controlled by a Source Control Manager
 (SCM) such as Git. Pulling source from a repository allows you to
 control the point in the repository (the revision) from which you want
-to build software. Finally, a combination of the two might exist, which
-would give the consumer a choice when deciding where to get source
-files.
+to build software. A combination of the two is also possible.
 
 BitBake uses the :term:`SRC_URI`
 variable to point to source files regardless of their location. Each
-recipe must have a ``SRC_URI`` variable that points to the source.
+recipe must have a :term:`SRC_URI` variable that points to the source.
 
 Another area that plays a significant role in where source files come
 from is pointed to by the
@@ -544,13 +540,13 @@ from is pointed to by the
 a cache that can hold previously downloaded source. You can also
 instruct the OpenEmbedded build system to create tarballs from Git
 repositories, which is not the default behavior, and store them in the
-``DL_DIR`` by using the
+:term:`DL_DIR` by using the
 :term:`BB_GENERATE_MIRROR_TARBALLS`
 variable.
 
-Judicious use of a ``DL_DIR`` directory can save the build system a trip
+Judicious use of a :term:`DL_DIR` directory can save the build system a trip
 across the Internet when looking for files. A good method for using a
-download directory is to have ``DL_DIR`` point to an area outside of
+download directory is to have :term:`DL_DIR` point to an area outside of
 your Build Directory. Doing so allows you to safely delete the Build
 Directory if needed without fear of removing any downloaded source file.
 
@@ -611,7 +607,7 @@ the specific revision from which to build.
 Source Mirror(s)
 ~~~~~~~~~~~~~~~~
 
-Two kinds of mirrors exist: pre-mirrors and regular mirrors. The
+There are two kinds of mirrors: pre-mirrors and regular mirrors. The
 :term:`PREMIRRORS` and
 :term:`MIRRORS` variables point to
 these, respectively. BitBake checks pre-mirrors before looking upstream
@@ -669,8 +665,8 @@ package files are kept:
    variables are used, respectively.
 
 -  :term:`PACKAGE_ARCH`: Defines
-   architecture-specific sub-folders. For example, packages could exist
-   for the i586 or qemux86 architectures.
+   architecture-specific sub-folders. For example, packages could be
+   available for the i586 or qemux86 architectures.
 
 BitBake uses the
 :ref:`do_package_write_* <ref-tasks-package_write_deb>`
@@ -683,8 +679,8 @@ and
 ":ref:`ref-tasks-package_write_tar`"
 sections in the Yocto Project Reference Manual for additional
 information. As an example, consider a scenario where an IPK packaging
-manager is being used and package architecture support for both i586 and
-qemux86 exist. Packages for the i586 architecture are placed in
+manager is being used and there is package architecture support for both
+i586 and qemux86. Packages for the i586 architecture are placed in
 ``build/tmp/deploy/ipk/i586``, while packages for the qemux86
 architecture are placed in ``build/tmp/deploy/ipk/qemux86``.
 
@@ -700,7 +696,7 @@ closer look at each of those areas.
 
 .. note::
 
-   Separate documentation exists for the BitBake tool. See the
+   Documentation for the BitBake tool is available separately. See the
    BitBake User Manual
    for reference material on BitBake.
 
@@ -751,7 +747,7 @@ Build Directory's hierarchy:
    architecture of the built package or packages. Depending on the
    eventual destination of the package or packages (i.e. machine
    architecture, :term:`Build Host`, SDK, or
-   specific machine), ``PACKAGE_ARCH`` varies. See the variable's
+   specific machine), :term:`PACKAGE_ARCH` varies. See the variable's
    description for details.
 
 -  :term:`TARGET_OS`: The operating
@@ -760,7 +756,7 @@ Build Directory's hierarchy:
 
 -  :term:`PN`: The name of the recipe used
    to build the package. This variable can have multiple meanings.
-   However, when used in the context of input files, ``PN`` represents
+   However, when used in the context of input files, :term:`PN` represents
    the name of the recipe.
 
 -  :term:`WORKDIR`: The location
@@ -777,7 +773,7 @@ Build Directory's hierarchy:
    files for a given recipe.
 
    -  :term:`BPN`: The name of the recipe
-      used to build the package. The ``BPN`` variable is a version of
+      used to build the package. The :term:`BPN` variable is a version of
       the ``PN`` variable but with common prefixes and suffixes removed.
 
    -  :term:`PV`: The version of the
@@ -785,12 +781,10 @@ Build Directory's hierarchy:
 
 .. note::
 
-   In the previous figure, notice that two sample hierarchies exist: one
-   based on package architecture (i.e.
-   PACKAGE_ARCH
-   ) and one based on a machine (i.e.
-   MACHINE
-   ). The underlying structures are identical. The differentiator being
+   In the previous figure, notice that there are two sample hierarchies:
+   one based on package architecture (i.e. :term:`PACKAGE_ARCH`)
+   and one based on a machine (i.e. :term:`MACHINE`).
+   The underlying structures are identical. The differentiator being
    what the OpenEmbedded build system is using as a build target (e.g.
    general architecture, a build host, an SDK, or a specific machine).
 
@@ -809,13 +803,13 @@ and the :term:`FILESPATH` variable
 to locate applicable patch files.
 
 Default processing for patch files assumes the files have either
-``*.patch`` or ``*.diff`` file types. You can use ``SRC_URI`` parameters
+``*.patch`` or ``*.diff`` file types. You can use :term:`SRC_URI` parameters
 to change the way the build system recognizes patch files. See the
 :ref:`ref-tasks-patch` task for more
 information.
 
 BitBake finds and applies multiple patches for a single recipe in the
-order in which it locates the patches. The ``FILESPATH`` variable
+order in which it locates the patches. The :term:`FILESPATH` variable
 defines the default set of directories that the build system uses to
 search for patch files. Once found, patches are applied to the recipe's
 source files, which are located in the
@@ -883,12 +877,12 @@ This step in the build process consists of the following tasks:
    :ref:`ref-tasks-compile` task.
    Compilation occurs in the directory pointed to by the
    :term:`B` variable. Realize that the
-   ``B`` directory is, by default, the same as the
+   :term:`B` directory is, by default, the same as the
    :term:`S` directory.
 
 -  *do_install*: After compilation completes, BitBake executes the
    :ref:`ref-tasks-install` task.
-   This task copies files from the ``B`` directory and places them in a
+   This task copies files from the :term:`B` directory and places them in a
    holding area pointed to by the :term:`D`
    variable. Packaging occurs later using files from this holding
    directory.
@@ -934,7 +928,7 @@ the analysis and package splitting process use several areas:
 -  :term:`PKGDATA_DIR`: A shared,
    global-state directory that holds packaging metadata generated during
    the packaging process. The packaging process copies metadata from
-   ``PKGDESTWORK`` to the ``PKGDATA_DIR`` area where it becomes globally
+   :term:`PKGDESTWORK` to the :term:`PKGDATA_DIR` area where it becomes globally
    available.
 
 -  :term:`STAGING_DIR_HOST`:
@@ -965,8 +959,7 @@ that part of the build process.
 
 .. note::
 
-   Support for creating feeds directly from the
-   deploy/\*
+   Support for creating feeds directly from the ``deploy/*``
    directories does not exist. Creating such feeds usually requires some
    kind of feed maintenance mechanism that would upload the new packages
    into an official package feed (e.g. the Ångström distribution). This
@@ -1015,7 +1008,7 @@ actually install:
 
 With :term:`IMAGE_ROOTFS`
 pointing to the location of the filesystem under construction and the
-``PACKAGE_INSTALL`` variable providing the final list of packages to
+:term:`PACKAGE_INSTALL` variable providing the final list of packages to
 install, the root file system is created.
 
 Package installation is under control of the package manager (e.g.
@@ -1064,19 +1057,17 @@ based on the image types specified in the
 The process turns everything into an image file or a set of image files
 and can compress the root filesystem image to reduce the overall size of
 the image. The formats used for the root filesystem depend on the
-``IMAGE_FSTYPES`` variable. Compression depends on whether the formats
+:term:`IMAGE_FSTYPES` variable. Compression depends on whether the formats
 support compression.
 
 As an example, a dynamically created task when creating a particular
-image type would take the following form:
-::
+image type would take the following form::
 
    do_image_type
 
 So, if the type
-as specified by the ``IMAGE_FSTYPES`` were ``ext4``, the dynamically
-generated task would be as follows:
-::
+as specified by the :term:`IMAGE_FSTYPES` were ``ext4``, the dynamically
+generated task would be as follows::
 
    do_image_ext4
 
@@ -1160,9 +1151,9 @@ checksum <overview-manual/concepts:checksums (signatures)>`.
    OpenEmbedded.
 
 To determine if a task needs to be rerun, BitBake checks if a stamp file
-with a matching input checksum exists for the task. If such a stamp file
-exists, the task's output is assumed to exist and still be valid. If the
-file does not exist, the task is rerun.
+with a matching input checksum exists for the task. In this case,
+the task's output is assumed to exist and still be valid. Otherwise,
+the task is rerun.
 
 .. note::
 
@@ -1180,9 +1171,9 @@ file does not exist, the task is rerun.
    the sstate cache mechanism adds is a way to cache task output that
    can then be shared between build machines.
 
-Since ``STAMPS_DIR`` is usually a subdirectory of ``TMPDIR``, removing
-``TMPDIR`` will also remove ``STAMPS_DIR``, which means tasks will
-properly be rerun to repopulate ``TMPDIR``.
+Since :term:`STAMPS_DIR` is usually a subdirectory of :term:`TMPDIR`, removing
+:term:`TMPDIR` will also remove :term:`STAMPS_DIR`, which means tasks will
+properly be rerun to repopulate :term:`TMPDIR`.
 
 If you want some task to always be considered "out of date", you can
 mark it with the :ref:`nostamp <bitbake:bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`
@@ -1238,14 +1229,14 @@ to run any of the ``do_fetch``, ``do_unpack``, ``do_patch``,
 
 It becomes more complicated if everything can come from an sstate cache
 because some objects are simply not required at all. For example, you do
-not need a compiler or native tools, such as quilt, if nothing exists to
-compile or patch. If the ``do_package_write_*`` packages are available
+not need a compiler or native tools, such as quilt, if there isn't anything
+to compile or patch. If the ``do_package_write_*`` packages are available
 from sstate, BitBake does not need the ``do_package`` task data.
 
 To handle all these complexities, BitBake runs in two phases. The first
 is the "setscene" stage. During this stage, BitBake first checks the
 sstate cache for any targets it is planning to build. BitBake does a
-fast check to see if the object exists rather than a complete download.
+fast check to see if the object exists rather than doing a complete download.
 If nothing exists, the second phase, which is the setscene stage,
 completes and the main build proceeds.
 
@@ -1370,9 +1361,9 @@ can initialize the environment before using the tools.
 
 All the output files for an SDK are written to the ``deploy/sdk`` folder
 inside the :term:`Build Directory` as
-shown in the previous figure. Depending on the type of SDK, several
-variables exist that help configure these files. The following list
-shows the variables associated with an extensible SDK:
+shown in the previous figure. Depending on the type of SDK, there are
+several variables to configure these files. Here are the variables
+associated with an extensible SDK:
 
 -  :term:`DEPLOY_DIR`: Points to
    the ``deploy`` directory.
@@ -1417,7 +1408,7 @@ This next list, shows the variables associated with a standard SDK:
 
 -  :term:`TOOLCHAIN_HOST_TASK`:
    Lists packages that make up the host part of the SDK (i.e. the part
-   that runs on the ``SDKMACHINE``). When you use
+   that runs on the :term:`SDKMACHINE`). When you use
    ``bitbake -c populate_sdk imagename`` to create the SDK, a set of
    default packages apply. This variable allows you to add more
    packages.
@@ -1471,15 +1462,11 @@ cross-compiler that is used internally within BitBake only.
 
 .. note::
 
-   The extensible SDK does not use
-   gcc-cross-canadian
+   The extensible SDK does not use ``gcc-cross-canadian``
    since this SDK ships a copy of the OpenEmbedded build system and the
-   sysroot within it contains
-   gcc-cross
-   .
+   sysroot within it contains ``gcc-cross``.
 
-The chain of events that occurs when the standard toolchain is bootstrapped:
-::
+The chain of events that occurs when the standard toolchain is bootstrapped::
 
    binutils-cross -> linux-libc-headers -> gcc-cross -> libgcc-initial -> glibc -> libgcc -> gcc-runtime
 
@@ -1528,8 +1515,7 @@ might not be the same machine as the Build Host.
    can take advantage of pre-built images that ship with the Yocto
    Project and already contain cross-development toolchain installers.
 
-Here is the bootstrap process for the relocatable toolchain:
-::
+Here is the bootstrap process for the relocatable toolchain::
 
    gcc -> binutils-crosssdk -> gcc-crosssdk-initial -> linux-libc-headers -> glibc-initial -> nativesdk-glibc -> gcc-crosssdk -> gcc-cross-canadian
 
@@ -1583,8 +1569,8 @@ Shared State Cache
 By design, the OpenEmbedded build system builds everything from scratch
 unless :term:`BitBake` can determine
 that parts do not need to be rebuilt. Fundamentally, building from
-scratch is attractive as it means all parts are built fresh and no
-possibility of stale data exists that can cause problems. When
+scratch is attractive as it means all parts are built fresh and there is
+no possibility of stale data that can cause problems. When
 developers hit problems, they typically default back to building from
 scratch so they have a know state from the start.
 
@@ -1623,9 +1609,9 @@ them if they are deemed to be valid.
 
    -  The build system does not maintain
       :term:`PR` information as part of
-      the shared state packages. Consequently, considerations exist that
+      the shared state packages. Consequently, there are considerations that
       affect maintaining shared state feeds. For information on how the
-      build system works with packages and can track incrementing ``PR``
+      build system works with packages and can track incrementing :term:`PR`
       information, see the ":ref:`dev-manual/common-tasks:automatically incrementing a package version number`"
       section in the Yocto Project Development Tasks Manual.
 
@@ -1682,8 +1668,8 @@ objective of making native or cross packages relocatable.
    build host. However, cross packages generate output for the target
    architecture.
 
-The checksum therefore needs to exclude ``WORKDIR``. The simplistic
-approach for excluding the work directory is to set ``WORKDIR`` to some
+The checksum therefore needs to exclude :term:`WORKDIR`. The simplistic
+approach for excluding the work directory is to set :term:`WORKDIR` to some
 fixed value and create the checksum for the "run" script.
 
 Another problem results from the "run" scripts containing functions that
@@ -1693,7 +1679,7 @@ used to prune the "run" scripts down to the minimum set, thereby
 alleviating this problem and making the "run" scripts much more readable
 as a bonus.
 
-So far, solutions for shell scripts exist. What about Python tasks? The
+So far, there are solutions for shell scripts. What about Python tasks? The
 same approach applies even though these tasks are more difficult. The
 process needs to figure out what variables a Python function accesses
 and what functions it calls. Again, the incremental build solution
@@ -1701,10 +1687,9 @@ contains code that first figures out the variable and function
 dependencies, and then creates a checksum for the data used as the input
 to the task.
 
-Like the ``WORKDIR`` case, situations exist where dependencies should be
+Like the :term:`WORKDIR` case, there can be situations where dependencies should be
 ignored. For these situations, you can instruct the build process to
-ignore a dependency by using a line like the following:
-::
+ignore a dependency by using a line like the following::
 
    PACKAGE_ARCHS[vardepsexclude] = "MACHINE"
 
@@ -1714,13 +1699,12 @@ reference it.
 
 Equally, there are cases where you need to add dependencies BitBake is
 not able to find. You can accomplish this by using a line like the
-following:
-::
+following::
 
    PACKAGE_ARCHS[vardeps] = "MACHINE"
 
 This example explicitly
-adds the ``MACHINE`` variable as a dependency for ``PACKAGE_ARCHS``.
+adds the :term:`MACHINE` variable as a dependency for :term:`PACKAGE_ARCHS`.
 
 As an example, consider a case with in-line Python where BitBake is not
 able to figure out dependencies. When running in debug mode (i.e. using
@@ -1740,13 +1724,12 @@ to add is a policy decision. However, the effect is to generate a master
 checksum that combines the basehash and the hashes of the task's
 dependencies.
 
-At the code level, a variety of ways exist by which both the basehash
+At the code level, there are multiple ways by which both the basehash
 and the dependent task hashes can be influenced. Within the BitBake
 configuration file, you can give BitBake some extra information to help
 it construct the basehash. The following statement effectively results
 in a list of global variable dependency excludes (i.e. variables never
-included in any checksum):
-::
+included in any checksum)::
 
    BB_HASHBASE_WHITELIST ?= "TMPDIR FILE PATH PWD BB_TASKHASH BBPATH DL_DIR \\
        SSTATE_DIR THISDIR FILESEXTRAPATHS FILE_DIRNAME HOME LOGNAME SHELL TERM \\
@@ -1771,12 +1754,11 @@ desired. This file defines the two basic signature generators
 "OEBasicHash". By default, a dummy "noop" signature handler is enabled
 in BitBake. This means that behavior is unchanged from previous
 versions. OE-Core uses the "OEBasicHash" signature handler by default
-through this setting in the ``bitbake.conf`` file:
-::
+through this setting in the ``bitbake.conf`` file::
 
    BB_SIGNATURE_HANDLER ?= "OEBasicHash"
 
-The "OEBasicHash" ``BB_SIGNATURE_HANDLER`` is the same
+The "OEBasicHash" :term:`BB_SIGNATURE_HANDLER` is the same
 as the "OEBasic" version but adds the task hash to the :ref:`stamp
 files <overview-manual/concepts:stamp files and the rerunning of tasks>`. This
 results in any metadata change that changes the task hash, automatically causing
@@ -1797,7 +1779,7 @@ the build. This information includes:
 -  ``BBHASHDEPS_``\ filename\ ``:``\ taskname: The task dependencies for
    each task.
 
--  ``BB_TASKHASH``: The hash of the currently running task.
+-  :term:`BB_TASKHASH`: The hash of the currently running task.
 
 Shared State
 ------------
@@ -1826,8 +1808,7 @@ The Yocto Project team has tried to keep the details of the
 implementation hidden in ``sstate`` class. From a user's perspective,
 adding shared state wrapping to a task is as simple as this
 :ref:`ref-tasks-deploy` example taken
-from the :ref:`deploy <ref-classes-deploy>` class:
-::
+from the :ref:`deploy <ref-classes-deploy>` class::
 
    DEPLOYDIR = "${WORKDIR}/deploy-${PN}"
    SSTATETASKS += "do_deploy"
@@ -1867,12 +1848,11 @@ The following list explains the previous example:
       ``do_deploy`` is in the shared state cache and its signature indicates
       that the cached output is still valid (i.e. if no relevant task inputs
       have changed), then the contents of the shared state cache copies
-      directly to ${``DEPLOY_DIR_IMAGE``} by the ``do_deploy_setscene`` task
+      directly to ${:term:`DEPLOY_DIR_IMAGE`} by the ``do_deploy_setscene`` task
       instead, skipping the ``do_deploy`` task.
 
 -  The following task definition is glue logic needed to make the
-   previous settings effective:
-   ::
+   previous settings effective::
 
       python do_deploy_setscene () {
           sstate_setscene(d)
@@ -1898,8 +1878,7 @@ The following list explains the previous example:
       In cases where ``sstate-inputdirs`` and ``sstate-outputdirs`` would be
       the same, you can use ``sstate-plaindirs``. For example, to preserve the
       ${:term:`PKGD`} and ${:term:`PKGDEST`} output from the ``do_package``
-      task, use the following:
-      ::
+      task, use the following::
 
               do_package[sstate-plaindirs] = "${PKGD} ${PKGDEST}"
 
@@ -1915,26 +1894,23 @@ The following list explains the previous example:
 
 -  ``sstate-inputdirs`` and ``sstate-outputdirs`` can also be used with
    multiple directories. For example, the following declares
-   ``PKGDESTWORK`` and ``SHLIBWORK`` as shared state input directories,
-   which populates the shared state cache, and ``PKGDATA_DIR`` and
-   ``SHLIBSDIR`` as the corresponding shared state output directories:
-   ::
+   :term:`PKGDESTWORK` and ``SHLIBWORK`` as shared state input directories,
+   which populates the shared state cache, and :term:`PKGDATA_DIR` and
+   ``SHLIBSDIR`` as the corresponding shared state output directories::
 
       do_package[sstate-inputdirs] = "${PKGDESTWORK} ${SHLIBSWORKDIR}"
       do_package[sstate-outputdirs] = "${PKGDATA_DIR} ${SHLIBSDIR}"
 
 -  These methods also include the ability to take a lockfile when
    manipulating shared state directory structures, for cases where file
-   additions or removals are sensitive:
-   ::
+   additions or removals are sensitive::
 
       do_package[sstate-lockfile] = "${PACKAGELOCK}"
 
 Behind the scenes, the shared state code works by looking in
 :term:`SSTATE_DIR` and
 :term:`SSTATE_MIRRORS` for
-shared state files. Here is an example:
-::
+shared state files. Here is an example::
 
    SSTATE_MIRRORS ?= "\
        file://.\* http://someserver.tld/share/sstate/PATH;downloadfilename=PATH \n \
@@ -1946,7 +1922,7 @@ shared state files. Here is an example:
    subdirectories, where the subdirectory names are based on the first two
    characters of the hash.
    If the shared state directory structure for a mirror has the same structure
-   as ``SSTATE_DIR``, you must specify "PATH" as part of the URI to enable the build
+   as :term:`SSTATE_DIR`, you must specify "PATH" as part of the URI to enable the build
    system to map to the appropriate subdirectory.
 
 The shared state package validity can be detected just by looking at the
@@ -1977,8 +1953,8 @@ Automatically Added Runtime Dependencies
 The OpenEmbedded build system automatically adds common types of runtime
 dependencies between packages, which means that you do not need to
 explicitly declare the packages using
-:term:`RDEPENDS`. Three automatic
-mechanisms exist (``shlibdeps``, ``pcdeps``, and ``depchains``) that
+:term:`RDEPENDS`. There are three automatic
+mechanisms (``shlibdeps``, ``pcdeps``, and ``depchains``) that
 handle shared libraries, package configuration (pkg-config) modules, and
 ``-dev`` and ``-dbg`` packages, respectively. For other types of runtime
 dependencies, you must manually declare the dependencies.
@@ -1997,7 +1973,7 @@ dependencies, you must manually declare the dependencies.
 
    Simultaneously, all executables and shared libraries installed by the
    recipe are inspected to see what shared libraries they link against.
-   For each shared library dependency that is found, ``PKGDATA_DIR`` is
+   For each shared library dependency that is found, :term:`PKGDATA_DIR` is
    queried to see if some package (likely from a different recipe)
    contains the shared library. If such a package is found, a runtime
    dependency is added from the package that depends on the shared
@@ -2006,7 +1982,7 @@ dependencies, you must manually declare the dependencies.
    The automatically added runtime dependency also includes a version
    restriction. This version restriction specifies that at least the
    current version of the package that provides the shared library must
-   be used, as if "package (>= version)" had been added to ``RDEPENDS``.
+   be used, as if "package (>= version)" had been added to :term:`RDEPENDS`.
    This forces an upgrade of the package containing the shared library
    when installing the package that depends on the library, if needed.
 
@@ -2020,14 +1996,14 @@ dependencies, you must manually declare the dependencies.
    pkg-config modules (``*.pc`` files) installed by the recipe are
    located. For each module, the package that contains the module is
    registered as providing the module. The resulting module-to-package
-   mapping is saved globally in ``PKGDATA_DIR`` by the
+   mapping is saved globally in :term:`PKGDATA_DIR` by the
    ``do_packagedata`` task.
 
    Simultaneously, all pkg-config modules installed by the recipe are
    inspected to see what other pkg-config modules they depend on. A
    module is seen as depending on another module if it contains a
    "Requires:" line that specifies the other module. For each module
-   dependency, ``PKGDATA_DIR`` is queried to see if some package
+   dependency, :term:`PKGDATA_DIR` is queried to see if some package
    contains the module. If such a package is found, a runtime dependency
    is added from the package that depends on the module to the package
    that contains the module.
@@ -2067,7 +2043,7 @@ recipe in :term:`DEPENDS` through use
 of a ``[``\ :ref:`deptask <bitbake:bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`\ ``]``
 declaration, which guarantees that the required
 shared-library/module-to-package mapping information will be available
-when needed as long as ``DEPENDS`` has been correctly set.
+when needed as long as :term:`DEPENDS` has been correctly set.
 
 Fakeroot and Pseudo
 ===================
@@ -2116,8 +2092,7 @@ accomplished using fakeroot.
    under fakeroot. Otherwise, the task cannot run root-only operations,
    and cannot see the fake file ownership and permissions set by the
    other task. You need to also add a dependency on
-   ``virtual/fakeroot-native:do_populate_sysroot``, giving the following:
-   ::
+   ``virtual/fakeroot-native:do_populate_sysroot``, giving the following::
 
       fakeroot do_mytask () {
           ...

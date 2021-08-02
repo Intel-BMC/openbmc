@@ -19,16 +19,16 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- ethernet_interface.cpp | 124 +++++++++++++++++++++++++++++++++++++++++
- ethernet_interface.hpp |  37 +++++++++++-
- network_manager.cpp    | 102 +++++++++++++++++++++++++++++++++
- network_manager.hpp    |   9 +++
+ src/ethernet_interface.cpp | 124 +++++++++++++++++++++++++++++++++++++++++
+ src/ethernet_interface.hpp |  37 +++++++++++-
+ src/network_manager.cpp    | 102 +++++++++++++++++++++++++++++++++
+ src/network_manager.hpp    |   9 +++
  4 files changed, 271 insertions(+), 1 deletion(-)
 
-diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
+diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
 index 607e658..e2b2da9 100644
---- a/ethernet_interface.cpp
-+++ b/ethernet_interface.cpp
+--- a/src/ethernet_interface.cpp
++++ b/src/ethernet_interface.cpp
 @@ -45,6 +45,10 @@ constexpr auto PROPERTY_INTERFACE = "org.freedesktop.DBus.Properties";
  constexpr auto RESOLVED_SERVICE_PATH = "/org/freedesktop/resolve1/link/";
  constexpr auto METHOD_GET = "Get";
@@ -173,10 +173,10 @@ index 607e658..e2b2da9 100644
 +
  } // namespace network
  } // namespace phosphor
-diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
+diff --git a/src/ethernet_interface.hpp b/src/ethernet_interface.hpp
 index 8e28b51..ebba151 100644
---- a/ethernet_interface.hpp
-+++ b/ethernet_interface.hpp
+--- a/src/ethernet_interface.hpp
++++ b/src/ethernet_interface.hpp
 @@ -2,11 +2,14 @@
  
  #include "types.hpp"
@@ -259,10 +259,10 @@ index 8e28b51..ebba151 100644
  };
  
  } // namespace network
-diff --git a/network_manager.cpp b/network_manager.cpp
+diff --git a/src/network_manager.cpp b/src/network_manager.cpp
 index 881b767..847852f 100644
---- a/network_manager.cpp
-+++ b/network_manager.cpp
+--- a/src/network_manager.cpp
++++ b/src/network_manager.cpp
 @@ -36,6 +36,13 @@ extern std::unique_ptr<Timer> restartTimer;
  using namespace phosphor::logging;
  using namespace sdbusplus::xyz::openbmc_project::Common::Error;
@@ -379,10 +379,10 @@ index 881b767..847852f 100644
  }
  
  bool Manager::createDefaultNetworkFiles(bool force)
-diff --git a/network_manager.hpp b/network_manager.hpp
+diff --git a/src/network_manager.hpp b/src/network_manager.hpp
 index 227955c..9f5b7a9 100644
---- a/network_manager.hpp
-+++ b/network_manager.hpp
+--- a/src/network_manager.hpp
++++ b/src/network_manager.hpp
 @@ -155,6 +155,12 @@ class Manager : public details::VLANCreateIface
          return (interfaces.find(intf) != interfaces.end());
      }

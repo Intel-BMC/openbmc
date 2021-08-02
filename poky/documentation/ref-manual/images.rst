@@ -18,8 +18,7 @@ image you want.
    are going to build an image using non-GPLv3 and similarly licensed
    components, you must make the following changes in the ``local.conf``
    file before using the BitBake command to build the minimal or base
-   image:
-   ::
+   image::
 
            1. Comment out the EXTRA_IMAGE_FEATURES line
            2. Set INCOMPATIBLE_LICENSE = "GPL-3.0 LGPL-3.0 AGPL-3.0"
@@ -27,7 +26,7 @@ image you want.
 
 From within the ``poky`` Git repository, you can use the following
 command to display the list of directories within the :term:`Source Directory`
-that contain image recipe files: ::
+that contain image recipe files::
 
    $ ls meta*/recipes*/images/*.bb
 
@@ -46,10 +45,6 @@ Following is a list of supported recipes:
 
 -  ``core-image-base``: A console-only image that fully supports the
    target device hardware.
-
--  ``core-image-clutter``: An image with support for the Open GL-based
-   toolkit Clutter, which enables development of rich and animated
-   graphical user interfaces.
 
 -  ``core-image-full-cmdline``: A console-only image with more
    full-featured Linux system functionality installed.

@@ -32,7 +32,7 @@ these instances.
 Manual Organization
 ===================
 
-Folders exist for individual manuals as follows:
+Here the folders corresponding to individual manuals:
 
 * sdk-manual           - The Yocto Project Software Development Kit (SDK) Developer's Guide.
 * bsp-guide            - The Yocto Project Board Support Package (BSP) Developer's Guide
@@ -88,8 +88,8 @@ documentation.
 Yocto Project documentation website
 ===================================
 
-A new website has been created to host the Yocto Project
-documentation, it can be found at: https://docs.yoctoproject.org/.
+The website hosting the Yocto Project documentation, can be found
+at: https://docs.yoctoproject.org/.
 
 The entire Yocto Project documentation, as well as the BitBake manual,
 is published on this website, including all previously released
@@ -167,7 +167,7 @@ The layout of the Yocto Project manuals is organized as follows
           Section
             Section
 
-The following headings styles are defined in Sphinx:
+Here are the heading styles defined in Sphinx:
 
     Book              => overline ===
       Chapter         => overline ***

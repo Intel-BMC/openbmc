@@ -1,13 +1,14 @@
-From 6fd1c797ec7440551052e8fc638d06313c9d6836 Mon Sep 17 00:00:00 2001
+From 75971b8faf7ef7af7285ba7d5207be71c66e5d11 Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Mon, 2 Jul 2018 19:23:25 -0700
-Subject: [PATCH 1/2] Added suport for multiple user manager services
+Subject: [PATCH] Added suport for multiple user manager services
 
 Support added for SSSD service implementation
 
 Signed-off-by: Alberto Salazar Perez <alberto.salazar.perez@intel.com>
 Signed-off-by: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
 ---
  Makefile.am      |   5 +-
  mainapp.cpp      |  90 +++++-
@@ -20,7 +21,7 @@ Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.co
  create mode 100644 user_service.hpp
 
 diff --git a/Makefile.am b/Makefile.am
-index 7c7271e..58916b0 100644
+index 1dbd594..fe47aaf 100644
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -1,11 +1,12 @@
@@ -151,7 +152,7 @@ index e08da61..f4b7f8c 100644
      // Claim the bus now
      bus.request_name(USER_MANAGER_BUSNAME);
 diff --git a/user_mgr.cpp b/user_mgr.cpp
-index c65a822..eed81aa 100644
+index 1b14e8e..f6f2fdb 100644
 --- a/user_mgr.cpp
 +++ b/user_mgr.cpp
 @@ -18,43 +18,34 @@
@@ -285,7 +286,7 @@ index c65a822..eed81aa 100644
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
 -    // All user management lock has to be based on /etc/shadow
--    phosphor::user::shadow::Lock lock();
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
      throwForUserExists(userName);
      throwForUserNameConstraints(userName, groupNames);
      throwForMaxGrpUserCount(groupNames);
@@ -328,7 +329,7 @@ index c65a822..eed81aa 100644
  void UserMgr::deleteUser(std::string userName)
  {
 -    // All user management lock has to be based on /etc/shadow
--    phosphor::user::shadow::Lock lock();
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
      throwForUserDoesNotExist(userName);
 -    try
 -    {
@@ -352,7 +353,7 @@ index c65a822..eed81aa 100644
  void UserMgr::renameUser(std::string userName, std::string newUserName)
  {
 -    // All user management lock has to be based on /etc/shadow
--    phosphor::user::shadow::Lock lock();
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
      throwForUserDoesNotExist(userName);
      throwForUserExists(newUserName);
      throwForUserNameConstraints(newUserName,
@@ -380,7 +381,7 @@ index c65a822..eed81aa 100644
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
 -    // All user management lock has to be based on /etc/shadow
--    phosphor::user::shadow::Lock lock();
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
      throwForUserDoesNotExist(userName);
      const std::vector<std::string>& oldGroupNames =
          usersList[userName].get()->userGroups();
@@ -421,7 +422,7 @@ index c65a822..eed81aa 100644
  void UserMgr::userEnable(const std::string& userName, bool enabled)
  {
 -    // All user management lock has to be based on /etc/shadow
--    phosphor::user::shadow::Lock lock();
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
      throwForUserDoesNotExist(userName);
 -    try
 -    {
@@ -443,7 +444,7 @@ index c65a822..eed81aa 100644
  UserSSHLists UserMgr::getUserAndSshGrpList()
  {
 -    // All user management lock has to be based on /etc/shadow
--    phosphor::user::shadow::Lock lock();
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 -
 -    std::vector<std::string> userList;
 -    std::vector<std::string> sshUsersList;
@@ -500,7 +501,7 @@ index c65a822..eed81aa 100644
  bool UserMgr::isUserEnabled(const std::string& userName)
  {
 -    // All user management lock has to be based on /etc/shadow
--    phosphor::user::shadow::Lock lock();
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 -    std::array<char, 4096> buffer{};
 -    struct spwd spwd;
 -    struct spwd* resultPtr = nullptr;
@@ -552,7 +553,7 @@ index c65a822..eed81aa 100644
 @@ -1106,11 +866,9 @@ void UserMgr::initUserObjects(void)
  {
      // All user management lock has to be based on /etc/shadow
-     phosphor::user::shadow::Lock lock();
+     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 -    std::vector<std::string> userNameList;
 -    std::vector<std::string> sshGrpUsersList;
      UserSSHLists userSSHLists = getUserAndSshGrpList();
@@ -628,7 +629,7 @@ index f5aac22..5d5ca99 100644
                                          "priv-user", "priv-noaccess"};
 diff --git a/user_service.cpp b/user_service.cpp
 new file mode 100644
-index 0000000..ad4e510
+index 0000000..6e11755
 --- /dev/null
 +++ b/user_service.cpp
 @@ -0,0 +1,789 @@
@@ -726,7 +727,7 @@ index 0000000..ad4e510
 +    phosphor::user::UserSSHLists getUserAndSshGrpList() const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
-+        phosphor::user::shadow::Lock lock();
++        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +
 +        std::vector<std::string> userList;
 +        std::vector<std::string> sshUsersList;
@@ -812,7 +813,7 @@ index 0000000..ad4e510
 +                    const std::string& priv, const bool& enabled) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
-+        phosphor::user::shadow::Lock lock();
++        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +
 +        std::string groups = getCSVFromVector(groupNames);
 +        bool sshRequested = removeStringFromCSV(groups, phosphor::user::grpSsh);
@@ -847,7 +848,7 @@ index 0000000..ad4e510
 +                    const std::string& newUserName) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
-+        phosphor::user::shadow::Lock lock();
++        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +        try
 +        {
 +            std::string newHomeDir = "/home/" + newUserName;
@@ -867,7 +868,7 @@ index 0000000..ad4e510
 +    void deleteUser(const std::string& userName) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
-+        phosphor::user::shadow::Lock lock();
++        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +
 +        try
 +        {
@@ -888,7 +889,7 @@ index 0000000..ad4e510
 +                             const std::string& priv) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
-+        phosphor::user::shadow::Lock lock();
++        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +
 +        std::string groups = getCSVFromVector(groupNames);
 +        bool sshRequested = removeStringFromCSV(groups, phosphor::user::grpSsh);
@@ -922,7 +923,7 @@ index 0000000..ad4e510
 +                          const bool& enabled) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
-+        phosphor::user::shadow::Lock lock();
++        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +        try
 +        {
 +            phosphor::user::executeCmd("/usr/sbin/usermod", userName.c_str(),
@@ -939,7 +940,7 @@ index 0000000..ad4e510
 +    bool isUserEnabled(const std::string& userName) const override
 +    {
 +        // All user management lock has to be based on /etc/shadow
-+        phosphor::user::shadow::Lock lock();
++        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +        std::array<char, 4096> buffer{};
 +        struct spwd spwd;
 +        struct spwd* resultPtr = nullptr;

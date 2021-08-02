@@ -1,0 +1,114 @@
+From 5be7b53e598faa7605add3f9856d3b3eb4b50fe1 Mon Sep 17 00:00:00 2001
+From: Joshi-Mansi <mansi.joshi@linux.intel.com>
+Date: Thu, 13 May 2021 03:09:24 +0530
+Subject: [PATCH] Add event log for time synchronization
+
+Adding time synchronization event logs can be helpful in distinguishing
+older date and newly synced date with the first initialization
+(from 1970) or any later syncs either done via NTP or Manually.
+
+Tested:
+Confirmed that the event is getting logged correctly in Redfish.
+
+Signed-off-by: Joshi-Mansi <mansi.joshi@linux.intel.com>
+Change-Id: I8901227990ee7bc41de30af13c775cc45016a626
+---
+ src/timedate/timedated.c         | 14 ++++++++++++++
+ src/timesync/timesyncd-manager.c | 14 ++++++++++++++
+ 2 files changed, 28 insertions(+)
+
+diff --git a/src/timedate/timedated.c b/src/timedate/timedated.c
+index 8149facb34..5da7158c0d 100644
+--- a/src/timedate/timedated.c
++++ b/src/timedate/timedated.c
+@@ -8,6 +8,7 @@
+ #include "sd-bus.h"
+ #include "sd-event.h"
+ #include "sd-messages.h"
++#include "sd-journal.h"
+ 
+ #include "alloc-util.h"
+ #include "bus-common-errors.h"
+@@ -805,6 +806,8 @@ static int method_set_time(sd_bus_message *m, void *userdata, sd_bus_error *erro
+         struct timespec ts;
+         usec_t start;
+         struct tm tm;
++        char olddate[FORMAT_TIMESTAMP_MAX];
++        char newdate[FORMAT_TIMESTAMP_MAX];
+ 
+         assert(m);
+         assert(c);
+@@ -819,6 +822,9 @@ static int method_set_time(sd_bus_message *m, void *userdata, sd_bus_error *erro
+         if (context_ntp_service_is_active(c) > 0)
+                 return sd_bus_error_set(error, BUS_ERROR_AUTOMATIC_TIME_SYNC_ENABLED, "Automatic time synchronization is enabled");
+ 
++        usec_t oldtime = now(CLOCK_REALTIME);
++        format_timestamp(olddate, sizeof(olddate), oldtime);
++
+         /* this only gets used if dbus does not provide a timestamp */
+         start = now(CLOCK_MONOTONIC);
+ 
+@@ -886,6 +892,14 @@ static int method_set_time(sd_bus_message *m, void *userdata, sd_bus_error *erro
+                    "REALTIME="USEC_FMT, timespec_load(&ts),
+                    LOG_MESSAGE("Changed local time to %s", ctime(&ts.tv_sec)));
+ 
++        // Log an event when the system time is set manually
++        usec_t newtime = now(CLOCK_REALTIME);
++        format_timestamp(newdate, sizeof(newdate), newtime);
++        sd_journal_send("MESSAGE=BMC time updated Manually: New time=%s, Old time=%s",
++                         newdate, olddate, "PRIORITY=%i", LOG_INFO,
++                         "REDFISH_MESSAGE_ID=%s", "OpenBMC.0.1.BMCTimeUpdatedManually",
++                         "REDFISH_MESSAGE_ARGS=%s,%s", newdate, olddate, NULL);
++
+         return sd_bus_reply_method_return(m, NULL);
+ }
+ 
+diff --git a/src/timesync/timesyncd-manager.c b/src/timesync/timesyncd-manager.c
+index 93ba4ef87d..d46097da07 100644
+--- a/src/timesync/timesyncd-manager.c
++++ b/src/timesync/timesyncd-manager.c
+@@ -11,6 +11,7 @@
+ #include <sys/types.h>
+ 
+ #include "sd-daemon.h"
++#include "sd-journal.h"
+ 
+ #include "alloc-util.h"
+ #include "dns-domain.h"
+@@ -425,6 +426,8 @@ static int manager_receive_response(sd_event_source *source, int fd, uint32_t re
+         bool spike;
+         int leap_sec;
+         int r;
++        char olddate[FORMAT_TIMESTAMP_MAX];
++        char newdate[FORMAT_TIMESTAMP_MAX];
+ 
+         assert(source);
+         assert(m);
+@@ -513,6 +516,9 @@ static int manager_receive_response(sd_event_source *source, int fd, uint32_t re
+                 return manager_connect(m);
+         }
+ 
++        usec_t oldtime = now(CLOCK_REALTIME);
++        format_timestamp(olddate, sizeof(olddate), oldtime);
++
+         /* valid packet */
+         m->pending = false;
+         m->retry_interval = 0;
+@@ -610,6 +616,14 @@ static int manager_receive_response(sd_event_source *source, int fd, uint32_t re
+ 
+                 server_address_pretty(m->current_server_address, &pretty);
+                 /* "Initial", as further successful syncs will not be logged. */
++                /* Log an event for NTP Synchronization from older date to newly synced date. */
++                usec_t newtime = now(CLOCK_REALTIME);
++                format_timestamp(newdate, sizeof(newdate), newtime);
++                sd_journal_send("MESSAGE=BMC time updated via NTP: New time=%s, Old time=%s",
++                                 newdate, olddate, "PRIORITY=%i", LOG_INFO,
++                                "REDFISH_MESSAGE_ID=%s", "OpenBMC.0.1.BMCTimeUpdatedViaNTP",
++                                "REDFISH_MESSAGE_ARGS=%s,%s", newdate, olddate, NULL);
++
+                 log_info("Initial synchronization to time server %s (%s).", strna(pretty), m->current_server_name->string);
+                 sd_notifyf(false, "STATUS=Initial synchronization to time server %s (%s).", strna(pretty), m->current_server_name->string);
+         }
+-- 
+2.17.1
+

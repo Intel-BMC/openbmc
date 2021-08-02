@@ -4,7 +4,7 @@
 require musl.inc
 inherit linuxloader
 
-SRCREV = "e5d2823631bbfebacf48e1a34ed28f28d7cb2570"
+SRCREV = "aad50fcd791e009961621ddfbe3d4c245fd689a3"
 
 BASEVER = "1.2.2"
 
@@ -15,6 +15,7 @@ PV = "${BASEVER}+git${SRCPV}"
 SRC_URI = "git://git.musl-libc.org/musl \
            file://0001-Make-dynamic-linker-a-relative-symlink-to-libc.patch \
            file://0002-ldso-Use-syslibdir-and-libdir-as-default-pathes-to-l.patch \
+           file://0001-riscv-Rename-__NR_fstatat-__NR_newfstatat.patch \
           "
 
 S = "${WORKDIR}/git"
@@ -67,13 +68,9 @@ do_install() {
         echo "${libdir}" >> ${D}${sysconfdir}/ld-musl-${MUSL_LDSO_ARCH}.path
 	rm -f ${D}${bindir}/ldd ${D}${GLIBC_LDSO}
 	lnr ${D}${libdir}/libc.so ${D}${bindir}/ldd
-	lnr ${D}${libdir}/libc.so ${D}${GLIBC_LDSO}
 }
 
-PACKAGES =+ "${PN}-glibc-compat"
-
 FILES_${PN} += "/lib/ld-musl-${MUSL_LDSO_ARCH}.so.1 ${sysconfdir}/ld-musl-${MUSL_LDSO_ARCH}.path"
-FILES_${PN}-glibc-compat += "${GLIBC_LDSO}"
 FILES_${PN}-staticdev = "${libdir}/libc.a"
 FILES_${PN}-dev =+ "${libdir}/libcrypt.a ${libdir}/libdl.a ${libdir}/libm.a \
                     ${libdir}/libpthread.a ${libdir}/libresolv.a \
@@ -87,3 +84,5 @@ RPROVIDES_${PN} += "ldd libsegfault rtld(GNU_HASH)"
 LEAD_SONAME = "libc.so"
 INSANE_SKIP_${PN}-dev = "staticdev"
 INSANE_SKIP_${PN} = "libdir"
+
+UPSTREAM_CHECK_COMMITS = "1"

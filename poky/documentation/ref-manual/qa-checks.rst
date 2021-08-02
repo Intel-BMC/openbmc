@@ -88,7 +88,7 @@ Errors and Warnings
    A file-level dependency has been identified from the specified
    package on the specified files, but there is no explicit
    corresponding entry in :term:`RDEPENDS`. If
-   particular files are required at runtime then ``RDEPENDS`` should be
+   particular files are required at runtime then :term:`RDEPENDS` should be
    declared in the recipe to ensure the packages providing them are
    built.
 
@@ -97,14 +97,14 @@ Errors and Warnings
 
 -  ``<packagename1> rdepends on <packagename2>, but it isn't a build dependency? [build-deps]``
 
-   A runtime dependency exists between the two specified packages, but
+   There is a runtime dependency between the two specified packages, but
    there is nothing explicit within the recipe to enable the
    OpenEmbedded build system to ensure that dependency is satisfied.
    This condition is usually triggered by an
    :term:`RDEPENDS` value being added at the packaging
    stage rather than up front, which is usually automatic based on the
    contents of the package. In most cases, you should change the recipe
-   to add an explicit ``RDEPENDS`` for the dependency.
+   to add an explicit :term:`RDEPENDS` for the dependency.
 
     
 .. _qa-check-dev-so:
@@ -152,7 +152,7 @@ Errors and Warnings
    not explicitly add the ``.debug`` directory to the ``-dbg`` package.
    If this is the case, add the ``.debug`` directory explicitly to
    ``FILES_${PN}-dbg``. See :term:`FILES` for additional
-   information on ``FILES``.
+   information on :term:`FILES`.
 
     
 .. _qa-check-arch:
@@ -221,8 +221,7 @@ Errors and Warnings
    Typically, the way to solve this performance issue is to add "-fPIC"
    or "-fpic" to the compiler command-line options. For example, given
    software that reads :term:`CFLAGS` when you build it,
-   you could add the following to your recipe:
-   ::
+   you could add the following to your recipe::
 
       CFLAGS_append = " -fPIC "
 
@@ -236,12 +235,11 @@ Errors and Warnings
 
    This indicates that binaries produced when building the recipe have
    not been linked with the :term:`LDFLAGS` options
-   provided by the build system. Check to be sure that the ``LDFLAGS``
+   provided by the build system. Check to be sure that the :term:`LDFLAGS`
    variable is being passed to the linker command. A common workaround
-   for this situation is to pass in ``LDFLAGS`` using
+   for this situation is to pass in :term:`LDFLAGS` using
    :term:`TARGET_CC_ARCH` within the recipe as
-   follows:
-   ::
+   follows::
 
       TARGET_CC_ARCH += "${LDFLAGS}"
 
@@ -265,8 +263,7 @@ Errors and Warnings
 
    The ``/usr/share/info/dir`` should not be packaged. Add the following
    line to your :ref:`ref-tasks-install` task or to your
-   ``do_install_append`` within the recipe as follows:
-   ::
+   ``do_install_append`` within the recipe as follows::
 
       rm ${D}${infodir}/dir
    
@@ -306,7 +303,7 @@ Errors and Warnings
 
 -  ``<packagename> rdepends on <debug_packagename> [debug-deps]``
 
-   A dependency exists between the specified non-dbg package (i.e. a
+   There is a dependency between the specified non-dbg package (i.e. a
    package whose name does not end in ``-dbg``) and a package that is a
    ``dbg`` package. The ``dbg`` packages contain debug symbols and are
    brought in using several different methods:
@@ -329,7 +326,7 @@ Errors and Warnings
 
 -  ``<packagename> rdepends on <dev_packagename> [dev-deps]``
 
-   A dependency exists between the specified non-dev package (a package
+   There is a dependency between the specified non-dev package (a package
    whose name does not end in ``-dev``) and a package that is a ``dev``
    package. The ``dev`` packages contain development headers and are
    usually brought in using several different methods:
@@ -406,7 +403,7 @@ Errors and Warnings
    If your recipe name does not match this, or you add packages to
    :term:`PACKAGES` that do not conform to the
    convention, then you will receive this error. Rename your recipe. Or,
-   if you have added a non-conforming package name to ``PACKAGES``,
+   if you have added a non-conforming package name to :term:`PACKAGES`,
    change the package name appropriately.
 
     
@@ -434,13 +431,13 @@ Errors and Warnings
 
    The specified recipe has a name (:term:`PN`) value that
    appears in :term:`OVERRIDES`. If a recipe is named
-   such that its ``PN`` value matches something already in ``OVERRIDES``
-   (e.g. ``PN`` happens to be the same as :term:`MACHINE`
+   such that its :term:`PN` value matches something already in :term:`OVERRIDES`
+   (e.g. :term:`PN` happens to be the same as :term:`MACHINE`
    or :term:`DISTRO`), it can have unexpected
    consequences. For example, assignments such as
    ``FILES_${PN} = "xyz"`` effectively turn into ``FILES = "xyz"``.
-   Rename your recipe (or if ``PN`` is being set explicitly, change the
-   ``PN`` value) so that the conflict does not occur. See
+   Rename your recipe (or if :term:`PN` is being set explicitly, change the
+   :term:`PN` value) so that the conflict does not occur. See
    :term:`FILES` for additional information.
 
     
@@ -467,7 +464,7 @@ Errors and Warnings
    This check looks for instances of setting ``DEPENDS_${PN}``
    which is erroneous (:term:`DEPENDS` is a recipe-wide variable and thus
    it is not correct to specify it for a particular package, nor will such
-   an assignment actually work.) Set ``DEPENDS`` instead.
+   an assignment actually work.) Set :term:`DEPENDS` instead.
 
 
 .. _qa-check-already-stripped:
@@ -502,7 +499,7 @@ Errors and Warnings
 
    Package names must appear only once in the
    :term:`PACKAGES` variable. You might receive this
-   error if you are attempting to add a package to ``PACKAGES`` that is
+   error if you are attempting to add a package to :term:`PACKAGES` that is
    already in the variable's value.
 
     
@@ -526,7 +523,7 @@ Errors and Warnings
    in an image later on in the build process. You need to do one of the
    following:
 
-   -  Add the files to ``FILES`` for the package you want them to appear
+   -  Add the files to :term:`FILES` for the package you want them to appear
       in (e.g. ``FILES_${``\ :term:`PN`\ ``}`` for the main
       package).
 
@@ -675,7 +672,7 @@ Errors and Warnings
     task. Patch fuzz is a situation when the ``patch`` tool ignores some of the context
     lines in order to apply the patch. Consider this example:
 
-    Patch to be applied: ::
+    Patch to be applied::
 
         --- filename
         +++ filename
@@ -687,7 +684,7 @@ Errors and Warnings
          context line 5
          context line 6
 
-    Original source code: ::
+    Original source code::
 
         different context line 1
         different context line 2
@@ -696,7 +693,7 @@ Errors and Warnings
         different context line 5
         different context line 6
 
-    Outcome (after applying patch with fuzz): ::
+    Outcome (after applying patch with fuzz)::
 
         different context line 1
         different context line 2
@@ -716,14 +713,14 @@ Errors and Warnings
     *How to eliminate patch fuzz warnings*
 
     Use the ``devtool`` command as explained by the warning. First, unpack the
-    source into devtool workspace: ::
+    source into devtool workspace::
 
             devtool modify <recipe>
 
     This will apply all of the patches, and create new commits out of them in
     the workspace - with the patch context updated.
 
-    Then, replace the patches in the recipe layer: ::
+    Then, replace the patches in the recipe layer::
 
             devtool finish --force-patch-refresh <recipe> <layer_path>
 
@@ -756,6 +753,6 @@ how to work with the QA checks, see the
 
 .. note::
 
-   Please keep in mind that the QA checks exist in order to detect real
+   Please keep in mind that the QA checks are meant to detect real
    or potential problems in the packaged output. So exercise caution
    when disabling these checks.
