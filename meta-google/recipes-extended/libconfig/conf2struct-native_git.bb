@@ -1,9 +1,9 @@
 LICENSE = "BSD"
-LIC_FILES_CHKSUM = "file://COPYING;md5=1b886630cdc9a17c26250934beda407d"
+LIC_FILES_CHKSUM = "file://COPYING;md5=667d4ad55f5fbf4c3e853e8acd0f74de"
 
 PV = "0.1+git${SRCPV}"
 SRC_URI = "git://github.com/yrutschle/conf2struct"
-SRCREV = "e8468017b27211b1c452f8df0afe6f19e97035a4"
+SRCREV = "6bc9eed1eb50175e5fda791f27d85e72f5a6ac78"
 S = "${WORKDIR}/git"
 
 SRC_URI += " \

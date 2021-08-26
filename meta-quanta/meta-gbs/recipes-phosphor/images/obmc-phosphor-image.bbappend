@@ -38,7 +38,8 @@ OBMC_IMAGE_EXTRA_INSTALL_append_gbs = " ${VIRTUAL-RUNTIME_obmc-led-monitor}"
 # Required for the front port. Part of obmc-console
 OBMC_IMAGE_EXTRA_INSTALL_append_gbs = " obmc-console"
 # Required from packagegroup-gbs-apps
-OBMC_IMAGE_EXTRA_INSTALL_append_gbs = " gbs-bmc-update"
 OBMC_IMAGE_EXTRA_INSTALL_append_gbs = " virtual/bios-update"
 OBMC_IMAGE_EXTRA_INSTALL_append_gbs = " x86-power-control"
 OBMC_IMAGE_EXTRA_INSTALL_append_gbs = " phosphor-pid-control"
+# Required for phosphor-ipmi-kcs
+OBMC_IMAGE_EXTRA_INSTALL_append_gbs = " virtual-obmc-host-ipmi-hw"

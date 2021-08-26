@@ -8,12 +8,12 @@ USERADD_PARAM_${PN} = "-r -s /usr/sbin/nologin bmcweb"
 GROUPADD_PARAM_${PN} = "web; redfish"
 
 LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://LICENCE;md5=a6a4edad4aed50f39a66d098d74b265b"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=175792518e4ac015ab6696d16c4f607e"
 
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
 
 PV = "1.0+git${SRCPV}"
-SRCREV = "1981771bbd8aac1d689a9c5e258a99e655a76b29"
+SRCREV = "ff3f835ad47f7a4f61d5fe9345dccdd3e496c47c"
 
 S = "${WORKDIR}/git"
 
