@@ -7,7 +7,7 @@ Phosphor-isolation isolates too much and seems to
 make KCS not work. This removes the lines from that
 patch that seem to be of question.
 
-Tested: AC/Cycled, cmdtool.efi 20 18 1 works
+Tested: AC/Cycled, ipmitool raw 6 1 works
 
 Signed-off-by: James Feist <james.feist@linux.intel.com>
 

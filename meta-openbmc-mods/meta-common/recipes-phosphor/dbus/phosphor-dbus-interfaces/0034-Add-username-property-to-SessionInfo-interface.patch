@@ -1,4 +1,4 @@
-From 3a507873ed733ed0e313f6efb89f7a491577e015 Mon Sep 17 00:00:00 2001
+From ee72d92baf3d64d066e0ec64cbd8723177219182 Mon Sep 17 00:00:00 2001
 From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 Date: Tue, 1 Jun 2021 12:27:50 +0000
 Subject: [PATCH] Add username property to SessionInfo interface
@@ -26,14 +26,14 @@ xyz.openbmc_project.Ipmi.SessionInfo interface -         -            -
 
 Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 ---
- xyz/openbmc_project/Ipmi/SESSION_README.md          | 1 +
- xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml | 6 ++++++
+ yaml/xyz/openbmc_project/Ipmi/SESSION_README.md          | 1 +
+ yaml/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml | 6 ++++++
  2 files changed, 7 insertions(+)
 
-diff --git a/xyz/openbmc_project/Ipmi/SESSION_README.md b/xyz/openbmc_project/Ipmi/SESSION_README.md
-index c59b251..18ae66a 100644
---- a/xyz/openbmc_project/Ipmi/SESSION_README.md
-+++ b/xyz/openbmc_project/Ipmi/SESSION_README.md
+diff --git a/yaml/xyz/openbmc_project/Ipmi/SESSION_README.md b/yaml/xyz/openbmc_project/Ipmi/SESSION_README.md
+index c59b251bb88d..ed41c3bf181d 100644
+--- a/yaml/xyz/openbmc_project/Ipmi/SESSION_README.md
++++ b/yaml/xyz/openbmc_project/Ipmi/SESSION_README.md
 @@ -16,6 +16,7 @@ so that both phosphor-ipmi-host & phosphr-ipmi-net will be in sync.
  * RemotePort   - Remote port address.
  * RemoteMACAddress -Remote MAC Address.
@@ -42,10 +42,10 @@ index c59b251..18ae66a 100644
  
  
  
-diff --git a/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml b/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
-index 0ddc025..a7c3a90 100644
---- a/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
-+++ b/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml b/yaml/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
+index 0ddc0250db50..50aff5c26072 100644
+--- a/yaml/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
++++ b/yaml/xyz/openbmc_project/Ipmi/SessionInfo.interface.yaml
 @@ -46,6 +46,12 @@ properties:
             Session created by given user ID.
        errors:

@@ -1,0 +1,110 @@
+From c139e292d43bdc9484f77ef2f75df5dc9ff14e15 Mon Sep 17 00:00:00 2001
+From: sunitakx <sunitax.kumari@linux.intel.com>
+Date: Tue, 13 Jul 2021 12:54:01 +0000
+Subject: [PATCH] Fix for updating MAC address from RedFish
+
+Issue: When IP address source for an interface is DHCP and its MAC
+address is patched using RedFish, response code is not reaching the
+RedFish request initiator (client).
+
+RootCause: After bmcweb patches the MAC address, immediately IP address
+of that interface also changes to new value (because of DHCP).
+Due to this, success response from bmcweb is not reaching the client as
+expected.
+
+Fix: Do MAC-ADDR patching after validating the request and responding
+"200 OK" to RedFish client. i.e Start a timer which will modify the
+MAC-ADDR at the end of its expiry.
+
+Tested:
+Update the MAC address from RedFish.
+PATCH: https://<bmc_ip>/redfish/v1/Managers/bmc/EthernetInterfaces/eth0
+Body:
+  {"MACAddress": "xx:xx:xx:xx:xx:xx"}
+
+Response code: {"200 OK"} received.
+
+Signed-off-by: sunitakx <sunitax.kumari@linux.intel.com>
+---
+ src/ethernet_interface.cpp | 19 +++++++++++++------
+ src/ethernet_interface.hpp |  4 ++++
+ 2 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
+index 9a4d95a..95cd70b 100644
+--- a/src/ethernet_interface.cpp
++++ b/src/ethernet_interface.cpp
+@@ -139,6 +139,8 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+     {
+         this->emit_object_added();
+     }
++    macUpdateTimer = std::make_unique<phosphor::Timer>(
++        [this](void) { macAddressTimeoutHandler(); });
+ }
+ 
+ static IP::Protocol convertFamily(int family)
+@@ -1069,8 +1071,18 @@ void EthernetInterface::writeDHCPSection(std::fstream& stream)
+     }
+ }
+ 
++void EthernetInterface::macAddressTimeoutHandler()
++{
++    macUpdateTimer->stop();
++    // TODO: would remove the call below and
++    // just restart systemd-netwokd
++    // through https://github.com/systemd/systemd/issues/6696
++    execute("/sbin/ip", "ip", "link", "set", "dev", interfaceName().c_str(),
++            "down");
++}
+ std::string EthernetInterface::macAddress(std::string value)
+ {
++    std::chrono::seconds usec(defaultTimeout);
+     ether_addr newMAC;
+     try
+     {
+@@ -1104,12 +1116,7 @@ std::string EthernetInterface::macAddress(std::string value)
+             intf->MacAddressIntf::macAddress(validMAC);
+         }
+         MacAddressIntf::macAddress(validMAC);
+-
+-        // TODO: would remove the call below and
+-        //      just restart systemd-netwokd
+-        //      through https://github.com/systemd/systemd/issues/6696
+-        execute("/sbin/ip", "ip", "link", "set", "dev", interface.c_str(),
+-                "down");
++        macUpdateTimer->start(usec);
+         manager.writeToConfigurationFile();
+     }
+ 
+diff --git a/src/ethernet_interface.hpp b/src/ethernet_interface.hpp
+index ebba151..ebe72a1 100644
+--- a/src/ethernet_interface.hpp
++++ b/src/ethernet_interface.hpp
+@@ -11,6 +11,7 @@
+ #include <sdbusplus/bus.hpp>
+ #include <sdbusplus/bus/match.hpp>
+ #include <sdbusplus/server/object.hpp>
++#include <sdbusplus/timer.hpp>
+ #include <string>
+ #include <xyz/openbmc_project/Collection/DeleteAll/server.hpp>
+ #include <xyz/openbmc_project/Network/EthernetInterface/server.hpp>
+@@ -25,6 +26,7 @@
+ #define nicEnabled nICEnabled
+ #define ntpServers nTPServers
+ #endif
++static constexpr const uint32_t defaultTimeout = 1;
+
+ namespace phosphor
+ {
+@@ -93,6 +95,8 @@ class EthernetInterface : public Ifaces
+     EthernetInterface& operator=(EthernetInterface&&) = delete;
+     virtual ~EthernetInterface() = default;
+
++    std::unique_ptr<phosphor::Timer> macUpdateTimer;
++    void macAddressTimeoutHandler();
+     /** @brief Constructor to put object onto bus at a dbus path.
+      *  @param[in] bus - Bus to attach to.
+      *  @param[in] objPath - Path to attach at.
+--
+2.17.1
+

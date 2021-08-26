@@ -3,9 +3,10 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 DEPENDS += "nlohmann-json boost"
 
 SRC_URI = "git://github.com/openbmc/phosphor-networkd"
-SRCREV = "d49c5c650bd6b13f267d59be452ac2b4493e8201"
+SRCREV = "1ea359943afbd59168f490778a528c858903b74d"
 
 SRC_URI += " file://0003-Adding-channel-specific-privilege-to-network.patch \
+             file://0004-Fix-for-updating-MAC-address-from-RedFish.patch \
            "
 
 EXTRA_OECONF_append = " --enable-nic-ethtool=yes"

@@ -1,4 +1,4 @@
-From 7260c24b201759f3a5168eebfee215072c13e641 Mon Sep 17 00:00:00 2001
+From 571ab872be4b486b98bfbed159630b5e21d9a586 Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Thu, 30 Aug 2018 16:22:43 +0800
 Subject: [PATCH] Add ErrConfig.yaml interface for processor error
@@ -40,13 +40,13 @@ Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
  .../Processor/ErrConfig.interface.yaml        | 33 +++++++++++++++++++
  1 file changed, 33 insertions(+)
- create mode 100644 xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
 
-diff --git a/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml b/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml b/yaml/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
 new file mode 100644
-index 0000000..2304263
+index 000000000000..23042633ca13
 --- /dev/null
-+++ b/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
++++ b/yaml/xyz/openbmc_project/Control/Processor/ErrConfig.interface.yaml
 @@ -0,0 +1,33 @@
 +description: >
 +    This defines processor error configuration.
@@ -82,5 +82,5 @@ index 0000000..2304263
 +                      01b: Enabled
 +                      11b: Not Present
 -- 
-2.17.0
+2.17.1
 

@@ -1,7 +1,7 @@
-From 72c273ae74bb6add062b89f59ebeee4d4eb7e523 Mon Sep 17 00:00:00 2001
+From 501003876765f51799152bace657d97b7fa2b60e Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Fri, 4 Sep 2020 19:24:25 +0800
-Subject: [PATCH] Define Redfish interface "/Registries/Bios" and enable
+Subject: [PATCH 1/5] Define Redfish interface "/Registries/Bios" and enable
  Attributes property
 
 1. Define Redfish interface "/Registries/Bios" for BIOS Attribute Registry
@@ -227,25 +227,25 @@ Change-Id: Iecc61018c350f0b8c89df59b2864b941508b1916
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
  redfish-core/include/redfish.hpp              |   2 +
- .../include/registries/bios_registry.hpp      |  31 ++
- redfish-core/lib/bios.hpp                     | 501 ++++++++++++++++++
- redfish-core/lib/message_registries.hpp       |   9 +-
- 4 files changed, 542 insertions(+), 1 deletion(-)
+ .../include/registries/bios_registry.hpp      |  31 +
+ redfish-core/lib/bios.hpp                     | 528 ++++++++++++++++++
+ redfish-core/lib/message_registries.hpp       |   6 +
+ 4 files changed, 567 insertions(+)
  create mode 100644 redfish-core/include/registries/bios_registry.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index db58d60..298ebb8 100644
+index c15062d..3388498 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
-@@ -156,6 +156,8 @@ class RedfishService
-         nodes.emplace_back(std::make_unique<SystemActionsReset>(app));
-         nodes.emplace_back(std::make_unique<SystemResetActionInfo>(app));
-         nodes.emplace_back(std::make_unique<BiosService>(app));
-+        nodes.emplace_back(std::make_unique<BiosSettings>(app));
-+        nodes.emplace_back(std::make_unique<BiosAttributeRegistry>(app));
-         nodes.emplace_back(std::make_unique<BiosReset>(app));
+@@ -152,6 +152,8 @@ class RedfishService
+         requestRoutesSystemActionsReset(app);
+         requestRoutesSystemResetActionInfo(app);
+         requestRoutesBiosService(app);
++        requestRoutesBiosSettings(app);
++        requestRoutesBiosAttributeRegistry(app);
+         requestRoutesBiosReset(app);
+ 
  #ifdef BMCWEB_ENABLE_VM_NBDPROXY
-         nodes.emplace_back(std::make_unique<VirtualMedia>(app));
 diff --git a/redfish-core/include/registries/bios_registry.hpp b/redfish-core/include/registries/bios_registry.hpp
 new file mode 100644
 index 0000000..88ef782
@@ -285,12 +285,12 @@ index 0000000..88ef782
 +} // namespace redfish::message_registries::bios
 \ No newline at end of file
 diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
-index 0917cc7..cb2b74d 100644
+index 604b8e7..c1a5c56 100644
 --- a/redfish-core/lib/bios.hpp
 +++ b/redfish-core/lib/bios.hpp
 @@ -3,8 +3,140 @@
- #include "node.hpp"
- 
+ #include <app.hpp>
+ #include <registries/privilege_registry.hpp>
  #include <utils/fw_utils.hpp>
 +
  namespace redfish
@@ -429,420 +429,435 @@ index 0917cc7..cb2b74d 100644
  /**
   * BiosService class supports handle get method for bios.
   */
-@@ -33,6 +165,375 @@ class BiosService : public Node
-         // Get the ActiveSoftwareImage and SoftwareImages
-         fw_util::populateFirmwareInformation(asyncResp, fw_util::biosPurpose,
-                                              "", true);
-+        asyncResp->res.jsonValue["@Redfish.Settings"] = {
-+            {"@odata.type", "#Settings.v1_3_0.Settings"},
-+            {"SettingsObject",
-+             {{"@odata.id", "/redfish/v1/Systems/system/Bios/Settings"}}}};
-+        asyncResp->res.jsonValue["AttributeRegistry"] = "BiosAttributeRegistry";
-+        asyncResp->res.jsonValue["Attributes"] = {};
-+
-+        crow::connections::systemBus->async_method_call(
-+            [asyncResp](const boost::system::error_code ec,
-+                        const GetObjectType& getObjectType) {
-+                if (ec)
-+                {
-+                    BMCWEB_LOG_ERROR << "ObjectMapper::GetObject call failed: "
-+                                     << ec;
-+                    messages::internalError(asyncResp->res);
-+
-+                    return;
-+                }
-+                const std::string& service = getObjectType.begin()->first;
+@@ -29,8 +161,404 @@ inline void requestRoutesBiosService(App& app)
+                 // Get the ActiveSoftwareImage and SoftwareImages
+                 fw_util::populateFirmwareInformation(
+                     asyncResp, fw_util::biosPurpose, "", true);
++                asyncResp->res.jsonValue["@Redfish.Settings"] = {
++                    {"@odata.type", "#Settings.v1_3_0.Settings"},
++                    {"SettingsObject",
++                     {{"@odata.id",
++                       "/redfish/v1/Systems/system/Bios/Settings"}}}};
++                asyncResp->res.jsonValue["AttributeRegistry"] =
++                    "BiosAttributeRegistry";
++                asyncResp->res.jsonValue["Attributes"] = {};
 +
 +                crow::connections::systemBus->async_method_call(
-+                    [asyncResp](
-+                        const boost::system::error_code ec,
-+                        const std::variant<BiosBaseTableType>& retBiosTable) {
++                    [asyncResp](const boost::system::error_code ec,
++                                const GetObjectType& getObjectType) {
 +                        if (ec)
 +                        {
-+                            BMCWEB_LOG_ERROR << "getBiosAttributes DBUS error: "
-+                                             << ec;
++                            BMCWEB_LOG_ERROR
++                                << "ObjectMapper::GetObject call failed: "
++                                << ec;
 +                            messages::internalError(asyncResp->res);
++
 +                            return;
 +                        }
-+                        const BiosBaseTableType* baseBiosTable =
-+                            std::get_if<BiosBaseTableType>(&retBiosTable);
-+                        nlohmann::json& attributesJson =
-+                            asyncResp->res.jsonValue["Attributes"];
-+                        if (baseBiosTable == nullptr)
-+                        {
-+                            BMCWEB_LOG_ERROR << "baseBiosTable == nullptr ";
-+                            messages::internalError(asyncResp->res);
-+                            return;
-+                        }
-+                        for (const BiosBaseTableItemType& item : *baseBiosTable)
-+                        {
-+                            const std::string& key = item.first;
-+                            const std::string& itemType =
-+                                std::get<biosBaseAttrType>(item.second);
-+                            std::string attrType =
-+                                mapAttrTypeToRedfish(itemType);
-+                            if (attrType == "String")
-+                            {
-+                                const std::string* currValue =
-+                                    std::get_if<std::string>(
-+                                        &std::get<biosBaseCurrValue>(
-+                                            item.second));
-+                                attributesJson.emplace(key, currValue != nullptr
-+                                                                ? *currValue
-+                                                                : "");
-+                            }
-+                            else if (attrType == "Integer")
-+                            {
-+                                const int64_t* currValue = std::get_if<int64_t>(
-+                                    &std::get<biosBaseCurrValue>(item.second));
-+                                attributesJson.emplace(
-+                                    key, currValue != nullptr ? *currValue : 0);
-+                            }
-+                            else
-+                            {
-+                                BMCWEB_LOG_ERROR
-+                                    << "Unsupported attribute type.";
-+                                messages::internalError(asyncResp->res);
-+                            }
-+                        }
++                        const std::string& service =
++                            getObjectType.begin()->first;
++
++                        crow::connections::systemBus->async_method_call(
++                            [asyncResp](const boost::system::error_code ec,
++                                        const std::variant<BiosBaseTableType>&
++                                            retBiosTable) {
++                                if (ec)
++                                {
++                                    BMCWEB_LOG_ERROR
++                                        << "getBiosAttributes DBUS error: "
++                                        << ec;
++                                    messages::internalError(asyncResp->res);
++                                    return;
++                                }
++                                const BiosBaseTableType* baseBiosTable =
++                                    std::get_if<BiosBaseTableType>(
++                                        &retBiosTable);
++                                nlohmann::json& attributesJson =
++                                    asyncResp->res.jsonValue["Attributes"];
++                                if (baseBiosTable == nullptr)
++                                {
++                                    BMCWEB_LOG_ERROR
++                                        << "baseBiosTable == nullptr ";
++                                    messages::internalError(asyncResp->res);
++                                    return;
++                                }
++                                for (const BiosBaseTableItemType& item :
++                                     *baseBiosTable)
++                                {
++                                    const std::string& key = item.first;
++                                    const std::string& itemType =
++                                        std::get<biosBaseAttrType>(item.second);
++                                    std::string attrType =
++                                        mapAttrTypeToRedfish(itemType);
++                                    if (attrType == "String")
++                                    {
++                                        const std::string* currValue =
++                                            std::get_if<std::string>(
++                                                &std::get<biosBaseCurrValue>(
++                                                    item.second));
++                                        attributesJson.emplace(
++                                            key, currValue != nullptr
++                                                     ? *currValue
++                                                     : "");
++                                    }
++                                    else if (attrType == "Integer")
++                                    {
++                                        const int64_t* currValue =
++                                            std::get_if<int64_t>(
++                                                &std::get<biosBaseCurrValue>(
++                                                    item.second));
++                                        attributesJson.emplace(
++                                            key, currValue != nullptr
++                                                     ? *currValue
++                                                     : 0);
++                                    }
++                                    else
++                                    {
++                                        BMCWEB_LOG_ERROR
++                                            << "Unsupported attribute type.";
++                                        messages::internalError(asyncResp->res);
++                                    }
++                                }
++                            },
++                            service, "/xyz/openbmc_project/bios_config/manager",
++                            "org.freedesktop.DBus.Properties", "Get",
++                            "xyz.openbmc_project.BIOSConfig.Manager",
++                            "BaseBIOSTable");
 +                    },
-+                    service, "/xyz/openbmc_project/bios_config/manager",
-+                    "org.freedesktop.DBus.Properties", "Get",
-+                    "xyz.openbmc_project.BIOSConfig.Manager", "BaseBIOSTable");
-+            },
-+            "xyz.openbmc_project.ObjectMapper",
-+            "/xyz/openbmc_project/object_mapper",
-+            "xyz.openbmc_project.ObjectMapper", "GetObject",
-+            "/xyz/openbmc_project/bios_config/manager",
-+            std::array<const char*, 0>());
-+    }
-+};
++                    "xyz.openbmc_project.ObjectMapper",
++                    "/xyz/openbmc_project/object_mapper",
++                    "xyz.openbmc_project.ObjectMapper", "GetObject",
++                    "/xyz/openbmc_project/bios_config/manager",
++                    std::array<const char*, 0>());
+             });
+ }
 +
 +/**
 + * BiosSettings class supports handle GET/PATCH method for
 + * BIOS configuration pending settings.
 + */
-+class BiosSettings : public Node
++inline void requestRoutesBiosSettings(App& app)
 +{
-+  public:
-+    BiosSettings(App& app) :
-+        Node(app, "/redfish/v1/Systems/system/Bios/Settings")
-+    {
-+        entityPrivileges = {{boost::beast::http::verb::get, {{"Login"}}}};
-+    }
-+
-+  private:
-+    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-+               const crow::Request&, const std::vector<std::string>&) override
-+    {
-+        asyncResp->res.jsonValue["@odata.id"] =
-+            "/redfish/v1/Systems/system/Bios/Settings";
-+        asyncResp->res.jsonValue["@odata.type"] = "#Bios.v1_1_0.Bios";
-+        asyncResp->res.jsonValue["Name"] = "Bios Settings Version 1";
-+        asyncResp->res.jsonValue["Id"] = "BiosSettingsV1";
-+        asyncResp->res.jsonValue["AttributeRegistry"] = "BiosAttributeRegistry";
-+        asyncResp->res.jsonValue["Attributes"] = {};
-+
-+        crow::connections::systemBus->async_method_call(
-+            [asyncResp](const boost::system::error_code ec,
-+                        const GetObjectType& getObjectType) {
-+                if (ec)
-+                {
-+                    BMCWEB_LOG_ERROR << "ObjectMapper::GetObject call failed: "
-+                                     << ec;
-+                    messages::internalError(asyncResp->res);
-+
-+                    return;
-+                }
-+                std::string service = getObjectType.begin()->first;
++    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Bios/Settings")
++        .privileges(redfish::privileges::getBios)
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++                asyncResp->res.jsonValue["@odata.id"] =
++                    asyncResp->res.jsonValue["@odata.id"] =
++                        "/redfish/v1/Systems/system/Bios/Settings";
++                asyncResp->res.jsonValue["@odata.type"] = "#Bios.v1_1_0.Bios";
++                asyncResp->res.jsonValue["Name"] = "Bios Settings Version 1";
++                asyncResp->res.jsonValue["Id"] = "BiosSettingsV1";
++                asyncResp->res.jsonValue["AttributeRegistry"] =
++                    "BiosAttributeRegistry";
++                asyncResp->res.jsonValue["Attributes"] = {};
 +
 +                crow::connections::systemBus->async_method_call(
 +                    [asyncResp](const boost::system::error_code ec,
-+                                const std::variant<PendingAttributesType>&
-+                                    retPendingAttributes) {
++                                const GetObjectType& getObjectType) {
 +                        if (ec)
 +                        {
-+                            BMCWEB_LOG_ERROR << "getBiosSettings DBUS error: "
-+                                             << ec;
-+                            messages::resourceNotFound(asyncResp->res,
-+                                                       "Systems/system/Bios",
-+                                                       "Settings");
-+                            return;
-+                        }
-+                        const PendingAttributesType* pendingAttributes =
-+                            std::get_if<PendingAttributesType>(
-+                                &retPendingAttributes);
-+                        nlohmann::json& attributesJson =
-+                            asyncResp->res.jsonValue["Attributes"];
-+                        if (pendingAttributes == nullptr)
-+                        {
-+                            BMCWEB_LOG_ERROR << "pendingAttributes == nullptr ";
++                            BMCWEB_LOG_ERROR
++                                << "ObjectMapper::GetObject call failed: "
++                                << ec;
 +                            messages::internalError(asyncResp->res);
++
 +                            return;
 +                        }
-+                        for (const PendingAttributesItemType& item :
-+                             *pendingAttributes)
-+                        {
-+                            const std::string& key = item.first;
-+                            const std::string& itemType =
-+                                std::get<pendingAttrType>(item.second);
-+                            std::string attrType =
-+                                mapAttrTypeToRedfish(itemType);
-+                            if (attrType == "String")
-+                            {
-+                                const std::string* currValue =
-+                                    std::get_if<std::string>(
-+                                        &std::get<pendingAttrValue>(
-+                                            item.second));
-+                                attributesJson.emplace(key, currValue != nullptr
-+                                                                ? *currValue
-+                                                                : "");
-+                            }
-+                            else if (attrType == "Integer")
-+                            {
-+                                const int64_t* currValue = std::get_if<int64_t>(
-+                                    &std::get<pendingAttrValue>(item.second));
-+                                attributesJson.emplace(
-+                                    key, currValue != nullptr ? *currValue : 0);
-+                            }
-+                            else
-+                            {
-+                                BMCWEB_LOG_ERROR
-+                                    << "Unsupported attribute type.";
-+                                messages::internalError(asyncResp->res);
-+                            }
-+                        }
++                        std::string service = getObjectType.begin()->first;
++
++                        crow::connections::systemBus->async_method_call(
++                            [asyncResp](
++                                const boost::system::error_code ec,
++                                const std::variant<PendingAttributesType>&
++                                    retPendingAttributes) {
++                                if (ec)
++                                {
++                                    BMCWEB_LOG_ERROR
++                                        << "getBiosSettings DBUS error: " << ec;
++                                    messages::resourceNotFound(
++                                        asyncResp->res, "Systems/system/Bios",
++                                        "Settings");
++                                    return;
++                                }
++                                const PendingAttributesType* pendingAttributes =
++                                    std::get_if<PendingAttributesType>(
++                                        &retPendingAttributes);
++                                nlohmann::json& attributesJson =
++                                    asyncResp->res.jsonValue["Attributes"];
++                                if (pendingAttributes == nullptr)
++                                {
++                                    BMCWEB_LOG_ERROR
++                                        << "pendingAttributes == nullptr ";
++                                    messages::internalError(asyncResp->res);
++                                    return;
++                                }
++                                for (const PendingAttributesItemType& item :
++                                     *pendingAttributes)
++                                {
++                                    const std::string& key = item.first;
++                                    const std::string& itemType =
++                                        std::get<pendingAttrType>(item.second);
++                                    std::string attrType =
++                                        mapAttrTypeToRedfish(itemType);
++                                    if (attrType == "String")
++                                    {
++                                        const std::string* currValue =
++                                            std::get_if<std::string>(
++                                                &std::get<pendingAttrValue>(
++                                                    item.second));
++                                        attributesJson.emplace(
++                                            key, currValue != nullptr
++                                                     ? *currValue
++                                                     : "");
++                                    }
++                                    else if (attrType == "Integer")
++                                    {
++                                        const int64_t* currValue =
++                                            std::get_if<int64_t>(
++                                                &std::get<pendingAttrValue>(
++                                                    item.second));
++                                        attributesJson.emplace(
++                                            key, currValue != nullptr
++                                                     ? *currValue
++                                                     : 0);
++                                    }
++                                    else
++                                    {
++                                        BMCWEB_LOG_ERROR
++                                            << "Unsupported attribute type.";
++                                        messages::internalError(asyncResp->res);
++                                    }
++                                }
++                            },
++                            service, "/xyz/openbmc_project/bios_config/manager",
++                            "org.freedesktop.DBus.Properties", "Get",
++                            "xyz.openbmc_project.BIOSConfig.Manager",
++                            "PendingAttributes");
 +                    },
-+                    service, "/xyz/openbmc_project/bios_config/manager",
-+                    "org.freedesktop.DBus.Properties", "Get",
-+                    "xyz.openbmc_project.BIOSConfig.Manager",
-+                    "PendingAttributes");
-+            },
-+            "xyz.openbmc_project.ObjectMapper",
-+            "/xyz/openbmc_project/object_mapper",
-+            "xyz.openbmc_project.ObjectMapper", "GetObject",
-+            "/xyz/openbmc_project/bios_config/manager",
-+            std::array<const char*, 0>());
-+    }
-+};
++                    "xyz.openbmc_project.ObjectMapper",
++                    "/xyz/openbmc_project/object_mapper",
++                    "xyz.openbmc_project.ObjectMapper", "GetObject",
++                    "/xyz/openbmc_project/bios_config/manager",
++                    std::array<const char*, 0>());
++            });
++}
 +/**
 + * BiosAttributeRegistry class supports handle get method for BIOS attribute
 + * registry.
 + */
-+class BiosAttributeRegistry : public Node
++inline void requestRoutesBiosAttributeRegistry(App& app)
 +{
-+  public:
-+    BiosAttributeRegistry(App& app) :
-+        Node(app, "/redfish/v1/Registries/BiosAttributeRegistry/"
-+                  "BiosAttributeRegistry")
-+    {
-+        entityPrivileges = {{boost::beast::http::verb::get, {{"Login"}}}};
-+    }
++    BMCWEB_ROUTE(
++        app,
++        "/redfish/v1/Registries/BiosAttributeRegistry/BiosAttributeRegistry/")
++        .privileges(redfish::privileges::getBios)
++        .methods(
++            boost::beast::http::verb::
++                get)([](const crow::Request&,
++                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++            asyncResp->res.jsonValue["@odata.id"] =
++                "/redfish/v1/Registries/BiosAttributeRegistry/"
++                "BiosAttributeRegistry";
++            asyncResp->res.jsonValue["@odata.type"] =
++                "#AttributeRegistry.v1_3_2.AttributeRegistry";
++            asyncResp->res.jsonValue["Name"] = "Bios Attribute Registry";
++            asyncResp->res.jsonValue["Id"] = "BiosAttributeRegistry";
++            asyncResp->res.jsonValue["RegistryVersion"] = "1.0.0";
++            asyncResp->res.jsonValue["Language"] = "en";
++            asyncResp->res.jsonValue["OwningEntity"] = "OpenBMC";
++            asyncResp->res.jsonValue["RegistryEntries"]["Attributes"] =
++                nlohmann::json::array();
 +
-+  private:
-+    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-+               const crow::Request&, const std::vector<std::string>&) override
-+    {
-+        asyncResp->res.jsonValue["@odata.id"] =
-+            "/redfish/v1/Registries/BiosAttributeRegistry/"
-+            "BiosAttributeRegistry";
-+        asyncResp->res.jsonValue["@odata.type"] =
-+            "#AttributeRegistry.v1_3_2.AttributeRegistry";
-+        asyncResp->res.jsonValue["Name"] = "Bios Attribute Registry";
-+        asyncResp->res.jsonValue["Id"] = "BiosAttributeRegistry";
-+        asyncResp->res.jsonValue["RegistryVersion"] = "1.0.0";
-+        asyncResp->res.jsonValue["Language"] = "en";
-+        asyncResp->res.jsonValue["OwningEntity"] = "OpenBMC";
-+        asyncResp->res.jsonValue["RegistryEntries"]["Attributes"] =
-+            nlohmann::json::array();
++            crow::connections::systemBus->async_method_call(
++                [asyncResp](const boost::system::error_code ec,
++                            const GetObjectType& getObjectType) {
++                    if (ec)
++                    {
++                        BMCWEB_LOG_ERROR
++                            << "ObjectMapper::GetObject call failed: " << ec;
++                        messages::internalError(asyncResp->res);
 +
-+        crow::connections::systemBus->async_method_call(
-+            [asyncResp](const boost::system::error_code ec,
-+                        const GetObjectType& getObjectType) {
-+                if (ec)
-+                {
-+                    BMCWEB_LOG_ERROR << "ObjectMapper::GetObject call failed: "
-+                                     << ec;
-+                    messages::internalError(asyncResp->res);
++                        return;
++                    }
++                    std::string service = getObjectType.begin()->first;
 +
-+                    return;
-+                }
-+                std::string service = getObjectType.begin()->first;
-+
-+                crow::connections::systemBus->async_method_call(
-+                    [asyncResp](
-+                        const boost::system::error_code ec,
-+                        const std::variant<BiosBaseTableType>& retBiosTable) {
-+                        if (ec)
-+                        {
-+                            BMCWEB_LOG_ERROR
-+                                << "getBiosAttributeRegistry DBUS error: "
-+                                << ec;
-+                            messages::resourceNotFound(
-+                                asyncResp->res, "Registries/Bios", "Bios");
-+                            return;
-+                        }
-+                        const BiosBaseTableType* baseBiosTable =
-+                            std::get_if<BiosBaseTableType>(&retBiosTable);
-+                        nlohmann::json& attributeArray =
-+                            asyncResp->res
-+                                .jsonValue["RegistryEntries"]["Attributes"];
-+                        nlohmann::json optionsArray = nlohmann::json::array();
-+                        if (baseBiosTable == nullptr)
-+                        {
-+                            BMCWEB_LOG_ERROR << "baseBiosTable == nullptr ";
-+                            messages::internalError(asyncResp->res);
-+                            return;
-+                        }
-+                        for (const BiosBaseTableItemType& item : *baseBiosTable)
-+                        {
-+                            const std::string& itemType =
-+                                std::get<biosBaseAttrType>(item.second);
-+                            std::string attrType =
-+                                mapAttrTypeToRedfish(itemType);
-+                            if (attrType == "UNKNOWN")
-+                            {
-+                                BMCWEB_LOG_ERROR << "attrType == UNKNOWN";
-+                                messages::internalError(asyncResp->res);
-+                                return;
-+                            }
-+                            nlohmann::json attributeItem;
-+                            attributeItem["AttributeName"] = item.first;
-+                            attributeItem["Type"] = attrType;
-+                            attributeItem["ReadOnly"] =
-+                                std::get<biosBaseReadonlyStatus>(item.second);
-+                            attributeItem["DisplayName"] =
-+                                std::get<biosBaseDisplayName>(item.second);
-+                            attributeItem["HelpText"] =
-+                                std::get<biosBaseDescription>(item.second);
-+                            attributeItem["MenuPath"] =
-+                                std::get<biosBaseMenuPath>(item.second);
-+
-+                            if (attrType == "String")
-+                            {
-+                                const std::string* currValue =
-+                                    std::get_if<std::string>(
-+                                        &std::get<biosBaseCurrValue>(
-+                                            item.second));
-+                                const std::string* defValue =
-+                                    std::get_if<std::string>(
-+                                        &std::get<biosBaseDefaultValue>(
-+                                            item.second));
-+                                attributeItem["CurrentValue"] =
-+                                    currValue != nullptr ? *currValue : "";
-+                                attributeItem["DefaultValue"] =
-+                                    defValue != nullptr ? *defValue : "";
-+                            }
-+                            else if (attrType == "Integer")
-+                            {
-+                                const int64_t* currValue = std::get_if<int64_t>(
-+                                    &std::get<biosBaseCurrValue>(item.second));
-+                                const int64_t* defValue = std::get_if<int64_t>(
-+                                    &std::get<biosBaseDefaultValue>(
-+                                        item.second));
-+                                attributeItem["CurrentValue"] =
-+                                    currValue != nullptr ? *currValue : 0;
-+                                attributeItem["DefaultValue"] =
-+                                    defValue != nullptr ? *defValue : 0;
-+                            }
-+                            else
++                    crow::connections::systemBus->async_method_call(
++                        [asyncResp](const boost::system::error_code ec,
++                                    const std::variant<BiosBaseTableType>&
++                                        retBiosTable) {
++                            if (ec)
 +                            {
 +                                BMCWEB_LOG_ERROR
-+                                    << "Unsupported attribute type.";
++                                    << "getBiosAttributeRegistry DBUS error: "
++                                    << ec;
++                                messages::resourceNotFound(
++                                    asyncResp->res, "Registries/Bios", "Bios");
++                                return;
++                            }
++                            const BiosBaseTableType* baseBiosTable =
++                                std::get_if<BiosBaseTableType>(&retBiosTable);
++                            nlohmann::json& attributeArray =
++                                asyncResp->res
++                                    .jsonValue["RegistryEntries"]["Attributes"];
++                            nlohmann::json optionsArray =
++                                nlohmann::json::array();
++                            if (baseBiosTable == nullptr)
++                            {
++                                BMCWEB_LOG_ERROR << "baseBiosTable == nullptr ";
 +                                messages::internalError(asyncResp->res);
 +                                return;
 +                            }
-+
-+                            const std::vector<OptionsItemType>& optionsVector =
-+                                std::get<biosBaseOptions>(item.second);
-+                            for (const OptionsItemType& optItem : optionsVector)
++                            for (const BiosBaseTableItemType& item :
++                                 *baseBiosTable)
 +                            {
-+                                nlohmann::json optItemJson;
-+                                const std::string& strOptItemType =
-+                                    std::get<optItemType>(optItem);
-+                                std::string optItemTypeRedfish =
-+                                    mapBoundTypeToRedfish(strOptItemType);
-+                                if (optItemTypeRedfish == "UNKNOWN")
++                                const std::string& itemType =
++                                    std::get<biosBaseAttrType>(item.second);
++                                std::string attrType =
++                                    mapAttrTypeToRedfish(itemType);
++                                if (attrType == "UNKNOWN")
 +                                {
-+                                    BMCWEB_LOG_ERROR
-+                                        << "optItemTypeRedfish == UNKNOWN";
++                                    BMCWEB_LOG_ERROR << "attrType == UNKNOWN";
 +                                    messages::internalError(asyncResp->res);
 +                                    return;
 +                                }
-+                                if (optItemTypeRedfish == "OneOf")
++                                nlohmann::json attributeItem;
++                                attributeItem["AttributeName"] = item.first;
++                                attributeItem["Type"] = attrType;
++                                attributeItem["ReadOnly"] =
++                                    std::get<biosBaseReadonlyStatus>(
++                                        item.second);
++                                attributeItem["DisplayName"] =
++                                    std::get<biosBaseDisplayName>(item.second);
++                                attributeItem["HelpText"] =
++                                    std::get<biosBaseDescription>(item.second);
++                                attributeItem["MenuPath"] =
++                                    std::get<biosBaseMenuPath>(item.second);
++
++                                if (attrType == "String")
 +                                {
 +                                    const std::string* currValue =
 +                                        std::get_if<std::string>(
-+                                            &std::get<optItemValue>(optItem));
-+                                    optItemJson[optItemTypeRedfish] =
++                                            &std::get<biosBaseCurrValue>(
++                                                item.second));
++                                    const std::string* defValue =
++                                        std::get_if<std::string>(
++                                            &std::get<biosBaseDefaultValue>(
++                                                item.second));
++                                    attributeItem["CurrentValue"] =
 +                                        currValue != nullptr ? *currValue : "";
++                                    attributeItem["DefaultValue"] =
++                                        defValue != nullptr ? *defValue : "";
 +                                }
-+                                else
++                                else if (attrType == "Integer")
 +                                {
 +                                    const int64_t* currValue =
 +                                        std::get_if<int64_t>(
-+                                            &std::get<optItemValue>(optItem));
-+                                    optItemJson[optItemTypeRedfish] =
++                                            &std::get<biosBaseCurrValue>(
++                                                item.second));
++                                    const int64_t* defValue =
++                                        std::get_if<int64_t>(
++                                            &std::get<biosBaseDefaultValue>(
++                                                item.second));
++                                    attributeItem["CurrentValue"] =
 +                                        currValue != nullptr ? *currValue : 0;
++                                    attributeItem["DefaultValue"] =
++                                        defValue != nullptr ? *defValue : 0;
++                                }
++                                else
++                                {
++                                    BMCWEB_LOG_ERROR
++                                        << "Unsupported attribute type.";
++                                    messages::internalError(asyncResp->res);
++                                    return;
 +                                }
 +
-+                                optionsArray.push_back(optItemJson);
-+                            }
++                                const std::vector<OptionsItemType>&
++                                    optionsVector =
++                                        std::get<biosBaseOptions>(item.second);
++                                for (const OptionsItemType& optItem :
++                                     optionsVector)
++                                {
++                                    nlohmann::json optItemJson;
++                                    const std::string& strOptItemType =
++                                        std::get<optItemType>(optItem);
++                                    std::string optItemTypeRedfish =
++                                        mapBoundTypeToRedfish(strOptItemType);
++                                    if (optItemTypeRedfish == "UNKNOWN")
++                                    {
++                                        BMCWEB_LOG_ERROR
++                                            << "optItemTypeRedfish == UNKNOWN";
++                                        messages::internalError(asyncResp->res);
++                                        return;
++                                    }
++                                    if (optItemTypeRedfish == "OneOf")
++                                    {
++                                        const std::string* currValue =
++                                            std::get_if<std::string>(
++                                                &std::get<optItemValue>(
++                                                    optItem));
++                                        optItemJson[optItemTypeRedfish] =
++                                            currValue != nullptr ? *currValue
++                                                                 : "";
++                                    }
++                                    else
++                                    {
++                                        const int64_t* currValue =
++                                            std::get_if<int64_t>(
++                                                &std::get<optItemValue>(
++                                                    optItem));
++                                        optItemJson[optItemTypeRedfish] =
++                                            currValue != nullptr ? *currValue
++                                                                 : 0;
++                                    }
 +
-+                            attributeItem["Value"] = optionsArray;
-+                            attributeArray.push_back(attributeItem);
-+                        }
-+                    },
-+                    service, "/xyz/openbmc_project/bios_config/manager",
-+                    "org.freedesktop.DBus.Properties", "Get",
-+                    "xyz.openbmc_project.BIOSConfig.Manager", "BaseBIOSTable");
-+            },
-+            "xyz.openbmc_project.ObjectMapper",
-+            "/xyz/openbmc_project/object_mapper",
-+            "xyz.openbmc_project.ObjectMapper", "GetObject",
-+            "/xyz/openbmc_project/bios_config/manager",
-+            std::array<const char*, 0>());
-     }
- };
++                                    optionsArray.push_back(optItemJson);
++                                }
++
++                                attributeItem["Value"] = optionsArray;
++                                attributeArray.push_back(attributeItem);
++                            }
++                        },
++                        service, "/xyz/openbmc_project/bios_config/manager",
++                        "org.freedesktop.DBus.Properties", "Get",
++                        "xyz.openbmc_project.BIOSConfig.Manager",
++                        "BaseBIOSTable");
++                },
++                "xyz.openbmc_project.ObjectMapper",
++                "/xyz/openbmc_project/object_mapper",
++                "xyz.openbmc_project.ObjectMapper", "GetObject",
++                "/xyz/openbmc_project/bios_config/manager",
++                std::array<const char*, 0>());
++        });
++}
  /**
+  * BiosReset class supports handle POST method for Reset bios.
+  * The class retrieves and sends data directly to D-Bus.
 diff --git a/redfish-core/lib/message_registries.hpp b/redfish-core/lib/message_registries.hpp
-index 455bf70..7afbfc2 100644
+index e3bd5bf..f1f130a 100644
 --- a/redfish-core/lib/message_registries.hpp
 +++ b/redfish-core/lib/message_registries.hpp
-@@ -18,6 +18,7 @@
- #include "node.hpp"
+@@ -17,6 +17,7 @@
+ 
  #include "registries.hpp"
  #include "registries/base_message_registry.hpp"
 +#include "registries/bios_registry.hpp"
  #include "registries/openbmc_message_registry.hpp"
  #include "registries/resource_event_message_registry.hpp"
  #include "registries/task_event_message_registry.hpp"
-@@ -56,11 +57,12 @@ class MessageRegistryFileCollection : public Node
-             {"@odata.id", "/redfish/v1/Registries"},
-             {"Name", "MessageRegistryFile Collection"},
-             {"Description", "Collection of MessageRegistryFiles"},
--            {"Members@odata.count", 4},
-+            {"Members@odata.count", 5},
-             {"Members",
-              {{{"@odata.id", "/redfish/v1/Registries/Base"}},
-               {{"@odata.id", "/redfish/v1/Registries/TaskEvent"}},
-               {{"@odata.id", "/redfish/v1/Registries/ResourceEvent"}},
-+              {{"@odata.id", "/redfish/v1/Registries/BiosAttributeRegistry"}},
-               {{"@odata.id", "/redfish/v1/Registries/OpenBMC"}}}}};
-     }
- };
-@@ -116,6 +118,11 @@ class MessageRegistryFile : public Node
-             header = &message_registries::resource_event::header;
-             url = message_registries::resource_event::url;
-         }
-+        else if (registry == "BiosAttributeRegistry")
-+        {
-+            header = &message_registries::bios::header;
-+            dmtf.clear();
-+        }
-         else
-         {
-             messages::resourceNotFound(
+@@ -87,6 +88,11 @@ inline void requestRoutesMessageRegistryFile(App& app)
+                     header = &message_registries::resource_event::header;
+                     url = message_registries::resource_event::url;
+                 }
++                else if (registry == "BiosAttributeRegistry")
++                {
++                    header = &message_registries::bios::header;
++                    dmtf.clear();
++                }
+                 else
+                 {
+                     messages::resourceNotFound(
 -- 
 2.17.1
 

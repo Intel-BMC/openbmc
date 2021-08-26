@@ -1,4 +1,4 @@
-From 65d1772312a76ebfdac6391bb97287c62f18c43f Mon Sep 17 00:00:00 2001
+From 2c270f8fd9f45ff0792d2730c25eb2f673314115 Mon Sep 17 00:00:00 2001
 From: "Kowalski, Mariusz" <mariusz.kowalski@intel.com>
 Date: Thu, 27 Feb 2020 15:48:56 +0100
 Subject: [PATCH] MCTP Daemon D-Bus interface definition.
@@ -12,27 +12,24 @@ Signed-off-by: Mariusz Kowalski <mariusz.kowalski@intel.com>
 Signed-off-by: Karol Wachowski <karol.wachowski@intel.com>
 Change-Id: Ida66f8ffcf00003655edcb0fb0112202797b8e1a
 ---
- xyz/openbmc_project/MCTP/Base.interface.yaml  | 227 ++++++++++++++++++
+ .../openbmc_project/MCTP/Base.interface.yaml  | 227 ++++++++++++++++++
  .../MCTP/Binding/PCIe.interface.yaml          |  29 +++
  .../MCTP/Binding/SMBus.interface.yaml         |  17 ++
  .../MCTP/BusOwner.interface.yaml              |  17 ++
- .../MCTP/Endpoint.interface.yaml              |  13 +
- xyz/openbmc_project/MCTP/README.md            |  43 ++++
+ .../MCTP/Endpoint.interface.yaml              |   4 +
  .../MCTP/SupportedMessageTypes.interface.yaml |  36 +++
- 7 files changed, 382 insertions(+)
- create mode 100644 xyz/openbmc_project/MCTP/Base.interface.yaml
- create mode 100644 xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml
- create mode 100644 xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml
- create mode 100644 xyz/openbmc_project/MCTP/BusOwner.interface.yaml
- create mode 100644 xyz/openbmc_project/MCTP/Endpoint.interface.yaml
- create mode 100644 xyz/openbmc_project/MCTP/README.md
- create mode 100644 xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml
+ 6 files changed, 330 insertions(+)
+ create mode 100644 yaml/xyz/openbmc_project/MCTP/Base.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/MCTP/BusOwner.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml
 
-diff --git a/xyz/openbmc_project/MCTP/Base.interface.yaml b/xyz/openbmc_project/MCTP/Base.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/MCTP/Base.interface.yaml b/yaml/xyz/openbmc_project/MCTP/Base.interface.yaml
 new file mode 100644
-index 0000000..9438551
+index 000000000000..9438551e648e
 --- /dev/null
-+++ b/xyz/openbmc_project/MCTP/Base.interface.yaml
++++ b/yaml/xyz/openbmc_project/MCTP/Base.interface.yaml
 @@ -0,0 +1,227 @@
 +description: >
 +  Mandatory interface for each instance of the MCTP Daemon to expose
@@ -261,11 +258,11 @@ index 0000000..9438551
 +    - name: SPDM
 +    - name: VDPCI
 +    - name: VDIANA
-diff --git a/xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml b/xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml b/yaml/xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml
 new file mode 100644
-index 0000000..1bd2881
+index 000000000000..1bd28818b39a
 --- /dev/null
-+++ b/xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml
++++ b/yaml/xyz/openbmc_project/MCTP/Binding/PCIe.interface.yaml
 @@ -0,0 +1,29 @@
 +description: >
 +    Interface exposed by MCTP daemon for PCIe binding
@@ -296,11 +293,11 @@ index 0000000..1bd2881
 +        - name: Discovered
 +        - name: Undiscovered
 +        - name: NotApplicable
-diff --git a/xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml b/xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml b/yaml/xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml
 new file mode 100644
-index 0000000..9219ad0
+index 000000000000..9219ad02af06
 --- /dev/null
-+++ b/xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml
++++ b/yaml/xyz/openbmc_project/MCTP/Binding/SMBus.interface.yaml
 @@ -0,0 +1,17 @@
 +description: >
 +  Interface exposed by MCTP daemon for SMBus binding
@@ -319,11 +316,11 @@ index 0000000..9219ad0
 +    - name: SlaveAddress
 +      type: byte
 +      description: Slave address to be used for this medium
-diff --git a/xyz/openbmc_project/MCTP/BusOwner.interface.yaml b/xyz/openbmc_project/MCTP/BusOwner.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/MCTP/BusOwner.interface.yaml b/yaml/xyz/openbmc_project/MCTP/BusOwner.interface.yaml
 new file mode 100644
-index 0000000..d46298e
+index 000000000000..d46298ed35b4
 --- /dev/null
-+++ b/xyz/openbmc_project/MCTP/BusOwner.interface.yaml
++++ b/yaml/xyz/openbmc_project/MCTP/BusOwner.interface.yaml
 @@ -0,0 +1,17 @@
 +description: >
 +    Interface exposed by MCTP root object, when executing in Bus Owner mode.
@@ -342,79 +339,26 @@ index 0000000..d46298e
 +    - name: OwnEidPool
 +      type: boolean
 +      description: Indicates Eid pool is managed by self
-diff --git a/xyz/openbmc_project/MCTP/Endpoint.interface.yaml b/xyz/openbmc_project/MCTP/Endpoint.interface.yaml
-new file mode 100644
-index 0000000..e4ba4d0
---- /dev/null
-+++ b/xyz/openbmc_project/MCTP/Endpoint.interface.yaml
-@@ -0,0 +1,13 @@
-+description:
-+  Interface exposed by discovered MCTP endpoints.
-+
-+properties:
+diff --git a/yaml/xyz/openbmc_project/MCTP/Endpoint.interface.yaml b/yaml/xyz/openbmc_project/MCTP/Endpoint.interface.yaml
+index 119f1c673c2c..abb3ac930236 100644
+--- a/yaml/xyz/openbmc_project/MCTP/Endpoint.interface.yaml
++++ b/yaml/xyz/openbmc_project/MCTP/Endpoint.interface.yaml
+@@ -6,6 +6,10 @@ description: >
+     MCTP-capable management controllers and managed devices.
+ 
+ properties:
 +    - name: Mode
 +      type: enum[xyz.openbmc_project.MCTP.Base.BindingModeTypes]
-+      description: Endpoint / BusOwner / Bridge
-+
-+    - name: NetworkId
-+      type: uint16
 +      description: >
-+        MCTP network ID a unique identifier to distinguish each independent
-+        MCTP network within a platform.
-diff --git a/xyz/openbmc_project/MCTP/README.md b/xyz/openbmc_project/MCTP/README.md
++          Endpoint / BusOwner / Bridge
+ 
+     - name: NetworkId
+       type: size
+diff --git a/yaml/xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml b/yaml/xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml
 new file mode 100644
-index 0000000..c819dbb
+index 000000000000..fa447ee6a3bb
 --- /dev/null
-+++ b/xyz/openbmc_project/MCTP/README.md
-@@ -0,0 +1,43 @@
-+# MCTP Daemon
-+
-+## Overview
-+MCTP service exposes D-Bus methods / properties / signals for managing
-+MCTP devices or work as MCTP Endpoint. MCTP daemon will either
-+work in Bus Owner or Endpoint mode for the specified physical medium.
-+
-+### MCTP service
-+MCTP service can be started either in Bus Owner mode or Endpoint mode.
-+It will expose following objects.
-+1. Base object
-+2. MCTP Endpoints (discovered in case of Bus Owner mode, queried using
-+routing table in case of Endpoint mode)
-+Please refer individual yaml file for details about the
-+methods / signals / properties exposed in the interfaces.
-+
-+#### Base object
-+Exposed under the path `/xyz/openbmc_project/mctp` with the following
-+interfaces.
-+1. `xyz.openbmc_project.MCTP.Base` which exposes all the common properties
-+needed for MCTP Daemon.
-+2. `xyz.openbmc_project.MCTP.BusOwner` available only in Bus Owner mode
-+which exposes the properties needed by Bus Owner MCTP Daemon.
-+3. `xyz.openbmc_project.MCTP.SupportedMessageTypes` which exposes the message
-+types supported.
-+4. Binding interface `xyz.openbmc_project.MCTP.Binding.PCIe` or
-+`xyz.openbmc_project.MCTP.Binding.SMBus` as per the physical medium in which
-+this MCTP Daemon is instantiated.
-+5. Common UUID interface `xyz.openbmc_project.Common.UUID` which exposes UUID
-+in RFC4122 format.
-+
-+#### Endpoint object
-+Exposed under the path `/xyz/openbmc_project/mctp/device/<eid>` with the
-+following interfaces.
-+1. `xyz.openbmc_project.MCTP.SupportedMessageTypes` which exposes supported MCTP
-+message types for the discovered MCTP Endpoint.
-+2. `xyz.openbmc_project.MCTP.Endpoint` which exposes properties like Network ID
-+and endpoint mode (to identify Bus Owner or Bridge or Endpoint) for the discovered
-+MCTP Endpoint.
-+3. `xyz.openbmc_project.MCTP.Bridge` available only for discovered MCTP Bridges to
-+expose properties like EID pool. (TBD)
-+4. Common UUID interface `xyz.openbmc_project.Common.UUID` which exposes UUID
-+in RFC4122 format.
-diff --git a/xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml b/xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml
-new file mode 100644
-index 0000000..fa447ee
---- /dev/null
-+++ b/xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml
++++ b/yaml/xyz/openbmc_project/MCTP/SupportedMessageTypes.interface.yaml
 @@ -0,0 +1,36 @@
 +description:
 +  Interface used to represent the supported MCTP message types.

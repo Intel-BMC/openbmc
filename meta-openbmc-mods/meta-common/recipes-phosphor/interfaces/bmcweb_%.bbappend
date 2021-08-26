@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "eb75770c6c4369984cb150ded4f5ace410ed24a9"
+SRCREV = "e6a716506447d2d03b99f1cd2007e207a6dfcae0"
 
 DEPENDS += "boost-url"
 RDEPENDS_${PN} += "phosphor-nslcd-authority-cert-config"
@@ -24,6 +24,11 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0017-Add-msg-registry-for-subscription-related-actions.patch \
             file://0018-bmcweb-Add-BMC-Time-update-log-to-the-registry.patch \
             file://0019-Add-generic-message-PropertySizeExceeded.patch \
+            file://0020-Redfish-Deny-set-AccountLockDuration-to-zero.patch \
+            file://0021-Add-message-registry-entry-for-FirmwareResiliencyErr.patch \
+            file://0023-Add-get-IPMI-session-id-s-to-Redfish.patch \
+            file://0024-Add-count-sensor-type.patch \
+            file://0025-Revert-Support-new-boot-override-setting-design.patch \
 "
 
 # OOB Bios Config:
@@ -42,7 +47,6 @@ SRC_URI += "file://vm/0001-Revert-Disable-nbd-proxy-from-the-build.patch \
             file://vm/0005-Set-Inserted-redfish-property-for-not-inserted-resou.patch \
             file://vm/0006-Bmcweb-handle-permission-denied-exception.patch \
             file://vm/0007-Fix-unmounting-image-in-proxy-mode.patch \
-            file://vm/0008-Fix-VM-NBDPROXY-build-issue-with-AsyncResp.patch \
 "
 
 # EventService: Temporary pulled to downstream. See eventservice\README for details
@@ -53,6 +57,7 @@ SRC_URI += "file://eventservice/0001-EventService-Fix-retry-handling-for-http-cl
             file://eventservice/0006-Add-EventService-SSE-filter-support.patch \
             file://eventservice/0007-EventService-Log-events-for-subscription-actions.patch \
             file://eventservice/0008-Add-checks-on-Event-Subscription-input-parameters.patch \
+            file://eventservice/0009-Restructure-Redifsh-EventLog-Transmit-code-flow.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
@@ -60,6 +65,9 @@ SRC_URI += " file://telemetry/0001-Add-support-for-MetricDefinition-scheme.patch
              file://telemetry/0002-Sync-Telmetry-service-with-EventService.patch \
              file://telemetry/0003-Revert-Remove-LogService-from-TelemetryService.patch \
              file://telemetry/0004-event-service-fix-added-Context-field-to-response.patch \
+             file://telemetry/0005-Switched-bmcweb-to-use-new-telemetry-service-API.patch \
+             file://telemetry/0006-Add-support-for-MetricDefinition-property-in-MetricReport.patch \
+             file://telemetry/0007-Generalize-ReadingType-in-MetricDefinition.patch \
 "
 
 # Temporary fix: Move it to service file
@@ -78,6 +86,4 @@ EXTRA_OEMESON += " -Dvm-nbdproxy=enabled"
 EXTRA_OEMESON += " -Dvm-websocket=disabled"
 RDEPENDS_${PN}_remove += "jsnbd"
 
-# Enable Validation unsecure based on IMAGE_FEATURES
-EXTRA_OEMESON += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-Dvalidate-unsecure-feature=enabled', '', d)}"
 

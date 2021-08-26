@@ -13,16 +13,17 @@ only when Force Firmware Update Jumper is ON.
 
 Tested By:
 Stopped booting in uBoot and sent IPMI commands
-via KCS interfaces using cmdtool.efi.
+via KCS interfaces.
  - Get Device ID:
-    Req: cmdtool.efi 20 18 1
-    Res: 00 23 00 12 03 02 BF 57 01 00 7B 00 00 00 00 00
+    Req: ipmitool raw 6 1
+    Res: 23 00 12 03 02 BF 57 01 00 7B 00 00 00 00 00
  - Get Self Test Results
-    Req: cmdtool.efi 20 18 4
-    Res: 00 56 00
+    Req: ipmitool raw 6 4
+    Res: 56 00
  - All other commands
-    Req: cmdtool.efi 20 18 2
-    Res: C1 (Invalid).
+    Req: ipmitool raw 6 2
+    Res: Unable to send RAW command (channel=0x0 netfn=0x6 lun=0x0
+cmd=0x2 rsp=0xc1): Invalid command
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: James Feist <james.feist@linux.intel.com>

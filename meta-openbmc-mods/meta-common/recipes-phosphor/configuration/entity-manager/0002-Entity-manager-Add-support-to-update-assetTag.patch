@@ -1,4 +1,4 @@
-From 7ae5ebc43755631c1756bbc1e89b41f2a1da138c Mon Sep 17 00:00:00 2001
+From 0941036f4206d74bfc3d3e505a5d269fb39c48ff Mon Sep 17 00:00:00 2001
 From: mansijos <mansi.joshi@intel.com>
 Date: Tue, 6 Apr 2021 02:12:56 +0530
 Subject: [PATCH] Entity-manager: Add support to update assetTag
@@ -15,21 +15,23 @@ The new value is preserved after BMC resets.
 Change-Id: If7fbfd8325488280f500ab0e2c8b38475813cc3f
 Signed-off-by: mansijos <mansi.joshi@intel.com>
 ---
- src/EntityManager.cpp | 93 +++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 89 insertions(+), 4 deletions(-)
+ src/EntityManager.cpp | 95 +++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 91 insertions(+), 4 deletions(-)
 
 diff --git a/src/EntityManager.cpp b/src/EntityManager.cpp
-index 7cfcc6e..bf5e175 100644
+index 490c0f5..139ba9a 100644
 --- a/src/EntityManager.cpp
 +++ b/src/EntityManager.cpp
-@@ -48,9 +48,17 @@ constexpr const char* lastConfiguration = "/tmp/configuration/last.json";
+@@ -48,9 +48,19 @@ constexpr const char* lastConfiguration = "/tmp/configuration/last.json";
  constexpr const char* currentConfiguration = "/var/configuration/system.json";
  constexpr const char* globalSchema = "global.json";
- constexpr const int32_t MAX_MAPPER_DEPTH = 0;
+ constexpr const int32_t maxMapperDepth = 0;
 +constexpr const char* foundObject = "FoundProbe";
  
- constexpr const bool DEBUG = false;
+ constexpr const bool debug = false;
  
++
++
 +using foundProbeData = std::map<std::string, std::string>;
 +static foundProbeData foundData;
 +static std::map<std::string, foundProbeData> mapFoundData;
@@ -37,10 +39,10 @@ index 7cfcc6e..bf5e175 100644
 +constexpr const char* fruConn = "xyz.openbmc_project.FruDevice";
 +constexpr const char* fruIntf = "xyz.openbmc_project.FruDevice";
 +
- struct cmp_str
+ struct CmpStr
  {
      bool operator()(const char* a, const char* b) const
-@@ -576,6 +584,43 @@ void addArrayToDbus(const std::string& name, const nlohmann::json& array,
+@@ -577,6 +587,43 @@ void addArrayToDbus(const std::string& name, const nlohmann::json& array,
      }
  }
  
@@ -68,7 +70,7 @@ index 7cfcc6e..bf5e175 100644
 +        return false;
 +    }
 +
-+    SYSTEM_BUS->async_method_call(
++    systemBus->async_method_call(
 +        [](const boost::system::error_code& ec) {
 +            if (ec)
 +            {
@@ -84,7 +86,7 @@ index 7cfcc6e..bf5e175 100644
  template <typename PropertyType>
  void addProperty(const std::string& propertyName, const PropertyType& value,
                   sdbusplus::asio::dbus_interface* iface,
-@@ -590,9 +635,18 @@ void addProperty(const std::string& propertyName, const PropertyType& value,
+@@ -591,9 +638,18 @@ void addProperty(const std::string& propertyName, const PropertyType& value,
      }
      iface->register_property(
          propertyName, value,
@@ -104,7 +106,7 @@ index 7cfcc6e..bf5e175 100644
              val = newVal;
              if (!setJsonFromPointer(jsonPointerString, val,
                                      systemConfiguration))
-@@ -990,6 +1044,9 @@ void postToDbus(const nlohmann::json& newConfiguration,
+@@ -993,6 +1049,9 @@ void postToDbus(const nlohmann::json& newConfiguration,
          populateInterfaceFromJson(systemConfiguration, jsonPointerPath,
                                    boardIface, boardValues, objServer);
          jsonPointerPath += "/";
@@ -114,7 +116,7 @@ index 7cfcc6e..bf5e175 100644
          // iterate through board properties
          for (auto& boardField : boardValues.items())
          {
-@@ -999,9 +1056,28 @@ void postToDbus(const nlohmann::json& newConfiguration,
+@@ -1002,9 +1061,28 @@ void postToDbus(const nlohmann::json& newConfiguration,
                      createInterface(objServer, boardName, boardField.key(),
                                      boardKeyOrig);
  
@@ -146,7 +148,7 @@ index 7cfcc6e..bf5e175 100644
              }
          }
  
-@@ -1357,6 +1433,11 @@ void PerformScan::run()
+@@ -1362,6 +1440,11 @@ void PerformScan::run()
                              {
                                  continue; // non-numeric replacement
                              }
@@ -158,7 +160,7 @@ index 7cfcc6e..bf5e175 100644
                              usedNames.insert(nameIt.value());
                              auto usedIt = std::find(indexes.begin(),
                                                      indexes.end(), index);
-@@ -1434,6 +1515,10 @@ void PerformScan::run()
+@@ -1439,6 +1522,10 @@ void PerformScan::run()
                          }
                      }
  
@@ -170,5 +172,5 @@ index 7cfcc6e..bf5e175 100644
                      {
                          std::cerr << "Duplicates found, replacing "
 -- 
-2.30.2
+2.17.1
 

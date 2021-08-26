@@ -1,4 +1,4 @@
-From 0c531d959364192697290c1489d5f7b1bdd7a665 Mon Sep 17 00:00:00 2001
+From 882dc7755083eea32f3d14f7e6c7330d5a9ac66f Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Fri, 12 Mar 2021 18:53:25 +0000
 Subject: [PATCH] Add Server-Sent-Events support
@@ -30,7 +30,7 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
  create mode 100644 http/server_sent_event.hpp
 
 diff --git a/http/http_connection.hpp b/http/http_connection.hpp
-index 6172b3a..fc9fc60 100644
+index fb64014..45b1a68 100644
 --- a/http/http_connection.hpp
 +++ b/http/http_connection.hpp
 @@ -326,7 +326,7 @@ class Connection :
@@ -63,10 +63,10 @@ index 6172b3a..fc9fc60 100644
                      // delete lambda with self shared_ptr
                      // to enable connection destruction
 diff --git a/http/http_response.hpp b/http/http_response.hpp
-index 7965704..29c56e1 100644
+index 72ff9e9..6bb3aa5 100644
 --- a/http/http_response.hpp
 +++ b/http/http_response.hpp
-@@ -13,10 +13,15 @@ namespace crow
+@@ -15,10 +15,15 @@ namespace crow
  template <typename Adaptor, typename Handler>
  class Connection;
  
@@ -82,7 +82,7 @@ index 7965704..29c56e1 100644
      using response_type =
          boost::beast::http::response<boost::beast::http::string_body>;
  
-@@ -136,8 +141,8 @@ struct Response
+@@ -138,8 +143,8 @@ struct Response
  
    private:
      bool completed{};
@@ -93,7 +93,7 @@ index 7965704..29c56e1 100644
      // In case of a JSON object, set the Content-Type header
      void jsonMode()
 diff --git a/http/routing.hpp b/http/routing.hpp
-index dd07523..7ddc6b0 100644
+index af6269e..318fcfe 100644
 --- a/http/routing.hpp
 +++ b/http/routing.hpp
 @@ -6,6 +6,7 @@
@@ -474,5 +474,4 @@ index 0000000..41d18ed
 +};
 +} // namespace crow
 -- 
-2.17.1
-
+2.25.1

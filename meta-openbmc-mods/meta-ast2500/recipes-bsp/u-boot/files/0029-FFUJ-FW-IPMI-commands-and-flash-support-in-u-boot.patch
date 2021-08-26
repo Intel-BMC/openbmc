@@ -22,10 +22,10 @@ OEM Commands:
 1) Get Buffer Size(0x66)
 
 Tested:
- - Used cmdtool.efi to test the individual commands
-   implementation and negative cases.
- - Used debug fwpiaupd.efi tool for validating Firmware
-   image transfer via KCS and flashing.
+ - Tested the individual commands implementation and negative
+   cases.
+ - Used debug tool for validating Firmware image transfer via
+   KCS and flashing.
 
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 

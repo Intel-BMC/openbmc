@@ -1,5 +1,5 @@
-From e7ba5f63a551099e1b5f934683e163963f28f28e Mon Sep 17 00:00:00 2001
-From: "Gade-RajasekharReddy@" <raja.sekhar.reddy.gade@linux.intel.com>
+From 2da0a05ae9b69cd8da67ced1bcac6ae7c6c5f930 Mon Sep 17 00:00:00 2001
+From: "Gade-RajasekharReddy@" <Gade-RajasekharReddy@>
 Date: Wed, 16 Sep 2020 03:19:41 +0530
 Subject: [PATCH] Add D-Bus interfaces for PLDM FW update
 
@@ -24,26 +24,26 @@ Signed-off-by: Gade-RajasekharReddy@ <raja.sekhar.reddy.gade@linux.intel.com>
  ...endingComponentImageSetInfo.interface.yaml |  10 ++
  .../FWU/PendingComponentInfo.interface.yaml   |  40 +++++++
  .../PLDM/FWU/PnPDescriptor.interface.yaml     |  14 +++
- xyz/openbmc_project/PLDM/FWU/README.md        | 103 ++++++++++++++++++
+ yaml/xyz/openbmc_project/PLDM/FWU/README.md   | 103 ++++++++++++++++++
  12 files changed, 378 insertions(+)
- create mode 100644 xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
- create mode 100644 xyz/openbmc_project/PLDM/FWU/README.md
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/PLDM/FWU/README.md
 
-diff --git a/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
 new file mode 100644
-index 0000000..e225bad
+index 000000000000..e225bade0df0
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/ACPIDescriptor.interface.yaml
 @@ -0,0 +1,14 @@
 +description : >
 +   This interface has ACPI descriptor properties.
@@ -59,11 +59,11 @@ index 0000000..e225bad
 +      type : string
 +      description: >
 +        Property containing ACPI Product Identifier.
-diff --git a/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
 new file mode 100644
-index 0000000..94115a3
+index 000000000000..94115a33e1d9
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentImageSetInfo.interface.yaml
 @@ -0,0 +1,9 @@
 +description : >
 +  This interface has the PLDM FWU active component image set properties.
@@ -74,11 +74,11 @@ index 0000000..94115a3
 +      type : string
 +      description: >
 +        String describing the active component image set version.
-diff --git a/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
 new file mode 100644
-index 0000000..77a7566
+index 000000000000..77a75669439b
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/ActiveComponentInfo.interface.yaml
 @@ -0,0 +1,55 @@
 +description: >
 +  This interface has the component entries for all of the updatable
@@ -135,11 +135,11 @@ index 0000000..77a7566
 +      type: string
 +      description: >
 +        String describing the active component version.
-diff --git a/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml b/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
 new file mode 100644
-index 0000000..36560ff
+index 000000000000..36560ff0742b
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/CapabilitiesDuringUpdate.interface.yaml
 @@ -0,0 +1,32 @@
 +description : >
 +  This interface describes the capabilities during update.
@@ -173,11 +173,11 @@ index 0000000..36560ff
 +      description: >
 +        This property shows the component update failure recovery
 +        capability.
-diff --git a/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml b/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
 new file mode 100644
-index 0000000..d5ec47c
+index 000000000000..d5ec47cbc77f
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/ComponentActivationMethods.interface.yaml
 @@ -0,0 +1,40 @@
 +description: >
 +  This interface has the component activation methods.
@@ -219,11 +219,11 @@ index 0000000..d5ec47c
 +      description: >
 +        Property that tells whether the component can be activated
 +        automatically once apply completes.
-diff --git a/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml b/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
 new file mode 100644
-index 0000000..2ba15e2
+index 000000000000..2ba15e26c690
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/FWUBase.interface.yaml
 @@ -0,0 +1,21 @@
 +description: >
 +    This interface provides a method to initiate the PLDM FW update.
@@ -246,11 +246,11 @@ index 0000000..2ba15e2
 +        - xyz.openbmc_project.Common.Error.NotAllowed
 +        - xyz.openbmc_project.Common.Error.InvalidArgument
 +        - xyz.openbmc_project.Common.Error.ResourceNotFound
-diff --git a/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
 new file mode 100644
-index 0000000..c013955
+index 000000000000..c013955af3b6
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/IANADescriptor.interface.yaml
 @@ -0,0 +1,10 @@
 +description : >
 +   This interface has device identification info, in which IANA
@@ -262,11 +262,11 @@ index 0000000..c013955
 +      type : string
 +      description: >
 +        Property containing the IANA Enterprise ID.
-diff --git a/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
 new file mode 100644
-index 0000000..8d758ed
+index 000000000000..8d758ed51192
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/PCIDescriptor.interface.yaml
 @@ -0,0 +1,30 @@
 +description : >
 +  This interface has device identification info,in which PCI Vendor ID
@@ -298,11 +298,11 @@ index 0000000..8d758ed
 +      type : string
 +      description: >
 +        Property containing the PCI Revision ID.
-diff --git a/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
 new file mode 100644
-index 0000000..3861572
+index 000000000000..3861572d81a4
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentImageSetInfo.interface.yaml
 @@ -0,0 +1,10 @@
 +description : >
 +  This interface has the PLDM FWU pending component image set
@@ -314,11 +314,11 @@ index 0000000..3861572
 +      type : string
 +      description: >
 +        String describing the pending component image set version.
-diff --git a/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
 new file mode 100644
-index 0000000..59a2ad8
+index 000000000000..59a2ad8dae8c
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/PendingComponentInfo.interface.yaml
 @@ -0,0 +1,40 @@
 +description: >
 +  This interface has the component entries for all of the pending
@@ -360,11 +360,11 @@ index 0000000..59a2ad8
 +        PendingComponentComparisonStamp field for additional details.
 +        If no pending firmware component exists, this field is zero
 +        bytes in length.
-diff --git a/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml b/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml b/yaml/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
 new file mode 100644
-index 0000000..801db6d
+index 000000000000..801db6d6380c
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/PnPDescriptor.interface.yaml
 @@ -0,0 +1,14 @@
 +description : >
 +  This interface has PnP descriptor properties.
@@ -380,11 +380,11 @@ index 0000000..801db6d
 +      type : string
 +      description: >
 +        Property containing the PnP Product Identifier.
-diff --git a/xyz/openbmc_project/PLDM/FWU/README.md b/xyz/openbmc_project/PLDM/FWU/README.md
+diff --git a/yaml/xyz/openbmc_project/PLDM/FWU/README.md b/yaml/xyz/openbmc_project/PLDM/FWU/README.md
 new file mode 100644
-index 0000000..2931739
+index 000000000000..293173933baf
 --- /dev/null
-+++ b/xyz/openbmc_project/PLDM/FWU/README.md
++++ b/yaml/xyz/openbmc_project/PLDM/FWU/README.md
 @@ -0,0 +1,103 @@
 +#PLDM FW Update
 +

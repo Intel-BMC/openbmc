@@ -1,4 +1,4 @@
-From 5f19e5c8ebc5cb0ce331e4ef841526995b6bdb2e Mon Sep 17 00:00:00 2001
+From 4df4a36d6d2cc11c51cc9d53cd441178cc97e39b Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Mon, 22 Feb 2021 17:07:47 +0000
 Subject: [PATCH] EventService: https client support
@@ -385,10 +385,10 @@ index feabbba..aaf1b2d 100644
      {
          if ((state == ConnState::suspended) || (state == ConnState::terminated))
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index c999121..267c857 100644
+index a8f7517..d4a5bc5 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -398,7 +398,7 @@ class Subscription
+@@ -397,7 +397,7 @@ class Subscription
      {
          conn = std::make_shared<crow::HttpClient>(
              crow::connections::systemBus->get_io_context(), id, host, port,
@@ -398,5 +398,4 @@ index c999121..267c857 100644
  
      Subscription(const std::shared_ptr<boost::beast::tcp_stream>& adaptor) :
 -- 
-2.17.1
-
+2.25.1

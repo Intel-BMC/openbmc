@@ -1,7 +1,7 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "8685b17ab14a187eae08399153b9ec6bace2ab9b"
+SRCREV = "5cf0f99210890d0cd52d5929e919316d238a5701"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 SRC_URI += "\
@@ -31,6 +31,9 @@ PACKAGECONFIG += " \
 "
 
 PACKAGECONFIG[nvmesensor] = "-Dnvme=enabled, -Dnvme=disabled"
+
+# Enable Validation unsecure based on IMAGE_FEATURES
+EXTRA_OEMESON += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-Dvalidate-unsecure-feature=enabled', '', d)}"
 
 SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'nvmesensor', \
                                                'xyz.openbmc_project.nvmesensor.service', \

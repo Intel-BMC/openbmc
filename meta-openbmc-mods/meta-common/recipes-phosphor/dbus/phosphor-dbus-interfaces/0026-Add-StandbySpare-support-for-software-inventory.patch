@@ -1,4 +1,4 @@
-From 0d6556539be9bda478a3cabb6127eace5764fa11 Mon Sep 17 00:00:00 2001
+From 826946ecad67b34818db0634367c4cf7100d0890 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Wed, 15 Jan 2020 10:01:04 +0800
 Subject: [PATCH] Add StandbySpare support for software inventory
@@ -11,13 +11,13 @@ image.
 
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
 ---
- xyz/openbmc_project/Software/Activation.interface.yaml | 12 ++++++++++++
+ .../Software/Activation.interface.yaml               | 12 ++++++++++++
  1 file changed, 12 insertions(+)
 
-diff --git a/xyz/openbmc_project/Software/Activation.interface.yaml b/xyz/openbmc_project/Software/Activation.interface.yaml
-index efeeeb6..6c9ce75 100644
---- a/xyz/openbmc_project/Software/Activation.interface.yaml
-+++ b/xyz/openbmc_project/Software/Activation.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/Software/Activation.interface.yaml b/yaml/xyz/openbmc_project/Software/Activation.interface.yaml
+index 6af2984b7b2e..26ab87b0262d 100644
+--- a/yaml/xyz/openbmc_project/Software/Activation.interface.yaml
++++ b/yaml/xyz/openbmc_project/Software/Activation.interface.yaml
 @@ -28,12 +28,20 @@ enumerations:
          - name: Activating
            description: >
@@ -39,7 +39,7 @@ index efeeeb6..6c9ce75 100644
          - name: Staged
            description: >
              The Software.Version is currently in staged flash area.
-@@ -48,6 +56,10 @@ enumerations:
+@@ -52,6 +60,10 @@ enumerations:
          - name: Active
            description: >
              The Software.Version has been requested for Activation.
@@ -51,5 +51,5 @@ index efeeeb6..6c9ce75 100644
  #       due to current system state.  Currently, sdbusplus does not support
  #       errors on properties.
 -- 
-2.7.4
+2.17.1
 

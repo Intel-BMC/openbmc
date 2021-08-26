@@ -1,8 +1,8 @@
-From 805641a2d189da9befc05168f51cef76da1ba326 Mon Sep 17 00:00:00 2001
-From: Alicja Rybak <alicja.rybak@intel.com>
-Date: Tue, 20 Apr 2021 16:32:37 +0200
-Subject: [PATCH] Invalid status code from InsertMedia REST methods GET,
- PUT, DELETE, PATCH in proxy mode
+From 95f7ca477a8353fa7b99f463de9ee310dda13735 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Thu, 1 Jul 2021 10:08:27 +0000
+Subject: [PATCH] Invalid status code from InsertMedia REST methods GET,  PUT,
+ DELETE, PATCH in proxy mode
 
 Add handlers for GET, PUT, DELETE, PATCH method and function that
 checks which mode is used and set suitable status code:
@@ -11,175 +11,156 @@ Not allowed for Legacy and Not found for Proxy.
 Change-Id: Ib4c0a3e9a2a8853caa74c59239d9fcfed99c5e8b
 Signed-off-by: Alicja Rybak <alicja.rybak@intel.com>
 ---
- redfish-core/lib/virtual_media.hpp | 155 +++++++++++++++++++++++++++++
- 1 file changed, 155 insertions(+)
+ redfish-core/lib/virtual_media.hpp | 129 +++++++++++++++++++++++++++++
+ 1 file changed, 129 insertions(+)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index aa7c639..3e28164 100644
+index a834c69..186c04b 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
-@@ -548,6 +548,161 @@ class VirtualMediaActionInsertMedia : public Node
-         return true;
-     }
+@@ -28,6 +28,109 @@
  
-+    /**
-+     * @brief Function checks if insert media request is Legacy or Proxy type
-+     *        and sets suitable response code for unsupported REST method.
-+     *
-+     */
-+    void CheckProxyMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
-+                        const crow::Request& req,
-+                        const std::vector<std::string>& params)
+ namespace redfish
+ {
++
++/**
++ * @brief Function checks if insert media request is Legacy or Proxy type
++ *        and sets suitable response code for unsupported REST method.
++ *
++ */
++void CheckProxyMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
++                    const crow::Request& req, const std::string& name,
++                    const std::string& resName)
++{
++    if (name != "bmc")
 +    {
-+        if (params.size() != 2)
-+        {
-+            messages::internalError(aResp->res);
-+            return;
-+        }
++        messages::resourceNotFound(aResp->res, "VirtualMedia.Insert", resName);
 +
-+        // take resource name from URL
-+        const std::string& resName = params[1];
++        return;
++    }
 +
-+        if (params[0] != "bmc")
-+        {
-+            messages::resourceNotFound(aResp->res, "VirtualMedia.Insert",
-+                                       resName);
++    crow::connections::systemBus->async_method_call(
++        [aResp, req, resName](const boost::system::error_code ec,
++                              const GetObjectType& getObjectType) {
++            if (ec)
++            {
++                BMCWEB_LOG_ERROR << "ObjectMapper::GetObject call failed: "
++                                 << ec;
++                aResp->res.result(boost::beast::http::status::not_found);
 +
-+            return;
-+        }
++                return;
++            }
++            std::string service = getObjectType.begin()->first;
++            BMCWEB_LOG_DEBUG << "GetObjectType: " << service;
 +
-+        crow::connections::systemBus->async_method_call(
-+            [this, aResp{std::move(aResp)}, req,
-+             resName](const boost::system::error_code ec,
-+                      const GetObjectType& getObjectType) {
-+                if (ec)
-+                {
-+                    BMCWEB_LOG_ERROR << "ObjectMapper::GetObject call failed: "
-+                                     << ec;
-+                    aResp->res.result(boost::beast::http::status::not_found);
++            crow::connections::systemBus->async_method_call(
++                [service, resName, req,
++                 aResp](const boost::system::error_code ec,
++                        ManagedObjectType& subtree) {
++                    if (ec)
++                    {
++                        BMCWEB_LOG_DEBUG << "DBUS response error";
 +
-+                    return;
-+                }
-+                std::string service = getObjectType.begin()->first;
-+                BMCWEB_LOG_DEBUG << "GetObjectType: " << service;
++                        return;
++                    }
 +
-+                crow::connections::systemBus->async_method_call(
-+                    [this, service, resName, req,
-+                     aResp{aResp}](const boost::system::error_code ec,
-+                                   ManagedObjectType& subtree) {
-+                        if (ec)
++                    for (auto& item : subtree)
++                    {
++                        std::string thispath = item.first.filename();
++                        if (thispath.empty())
 +                        {
-+                            BMCWEB_LOG_DEBUG << "DBUS response error";
++                            continue;
++                        }
++
++                        if (thispath != resName)
++                        {
++                            continue;
++                        }
++
++                        auto mode = item.first.parent_path();
++                        auto type = mode.parent_path();
++                        if (mode.filename().empty() || type.filename().empty())
++                        {
++                            continue;
++                        }
++
++                        if (type.filename() != "VirtualMedia")
++                        {
++                            continue;
++                        }
++
++                        // Check if dbus path is Legacy type
++                        if (mode.filename() == "Legacy")
++                        {
++                            BMCWEB_LOG_DEBUG << "InsertMedia only allowed "
++                                                "with POST method "
++                                                "in legacy mode";
++                            aResp->res.result(
++                                boost::beast::http::status::method_not_allowed);
 +
 +                            return;
 +                        }
-+
-+                        for (auto& item : subtree)
++                        // Check if dbus path is Proxy type
++                        if (mode.filename() == "Proxy")
 +                        {
-+                            std::string thispath = item.first.filename();
-+                            if (thispath.empty())
-+                            {
-+                                continue;
-+                            }
++                            // Not possible in proxy mode
++                            BMCWEB_LOG_DEBUG << "InsertMedia not "
++                                                "allowed in proxy mode";
++                            aResp->res.result(
++                                boost::beast::http::status::not_found);
 +
-+                            if (thispath != resName)
-+                            {
-+                                continue;
-+                            }
-+
-+                            auto mode = item.first.parent_path();
-+                            auto type = mode.parent_path();
-+                            if (mode.filename().empty() ||
-+                                type.filename().empty())
-+                            {
-+                                continue;
-+                            }
-+
-+                            if (type.filename() != "VirtualMedia")
-+                            {
-+                                continue;
-+                            }
-+
-+                            // Check if dbus path is Legacy type
-+                            if (mode.filename() == "Legacy")
-+                            {
-+                                BMCWEB_LOG_DEBUG << "InsertMedia only allowed "
-+                                                    "with POST method "
-+                                                    "in legacy mode";
-+                                aResp->res.result(boost::beast::http::status::
-+                                                      method_not_allowed);
-+
-+                                return;
-+                            }
-+                            // Check if dbus path is Proxy type
-+                            if (mode.filename() == "Proxy")
-+                            {
-+                                // Not possible in proxy mode
-+                                BMCWEB_LOG_DEBUG << "InsertMedia not "
-+                                                    "allowed in proxy mode";
-+                                aResp->res.result(
-+                                    boost::beast::http::status::not_found);
-+
-+                                return;
-+                            }
++                            return;
 +                        }
++                    }
 +
-+                        BMCWEB_LOG_DEBUG << "Parent item not found";
-+                        aResp->res.result(
-+                            boost::beast::http::status::not_found);
-+                    },
-+                    service, "/xyz/openbmc_project/VirtualMedia",
-+                    "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
-+            },
-+            "xyz.openbmc_project.ObjectMapper",
-+            "/xyz/openbmc_project/object_mapper",
-+            "xyz.openbmc_project.ObjectMapper", "GetObject",
-+            "/xyz/openbmc_project/VirtualMedia", std::array<const char*, 0>());
-+    }
++                    BMCWEB_LOG_DEBUG << "Parent item not found";
++                    aResp->res.result(boost::beast::http::status::not_found);
++                },
++                service, "/xyz/openbmc_project/VirtualMedia",
++                "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
++        },
++        "xyz.openbmc_project.ObjectMapper",
++        "/xyz/openbmc_project/object_mapper",
++        "xyz.openbmc_project.ObjectMapper", "GetObject",
++        "/xyz/openbmc_project/VirtualMedia", std::array<const char*, 0>());
++}
 +
-+    /**
-+     * @brief Function handles GET method request.
-+     */
-+    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-+               const crow::Request& req,
-+               const std::vector<std::string>& params) override
+ /**
+  * @brief Function extracts transfer protocol name from URI.
+  */
+@@ -829,6 +932,32 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+ 
+ inline void requestNBDVirtualMediaRoutes(App& app)
+ {
++    BMCWEB_ROUTE(app, "/redfish/v1/Managers/<str>/VirtualMedia/<str>/Actions/"
++                      "VirtualMedia.InsertMedia")
++        .privileges({{"Login"}})
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request& req,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const std::string& name, const std::string& resName) {
++                CheckProxyMode(asyncResp, req, name, resName);
++            });
++
++    for (auto method :
++         {boost::beast::http::verb::patch, boost::beast::http::verb::put,
++          boost::beast::http::verb::delete_})
 +    {
-+        CheckProxyMode(asyncResp, req, params);
++        BMCWEB_ROUTE(app,
++                     "/redfish/v1/Managers/<str>/VirtualMedia/<str>/Actions/"
++                     "VirtualMedia.InsertMedia")
++            .privileges({{"ConfigureManager"}})
++            .methods(method)(
++                [](const crow::Request& req,
++                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                   const std::string& name, const std::string& resName) {
++                    CheckProxyMode(asyncResp, req, name, resName);
++                });
 +    }
 +
-+    /**
-+     * @brief Function handles PATCH method request.
-+     */
-+    void doPatch(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-+                 const crow::Request& req,
-+                 const std::vector<std::string>& params) override
-+    {
-+        CheckProxyMode(asyncResp, req, params);
-+    }
-+
-+    /**
-+     * @brief Function handles PUT method request.
-+     */
-+    void doPut(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-+               const crow::Request& req,
-+               const std::vector<std::string>& params) override
-+    {
-+        CheckProxyMode(asyncResp, req, params);
-+    }
-+
-+    /**
-+     * @brief Function handles DELETE method request.
-+     */
-+    void doDelete(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-+                  const crow::Request& req,
-+                  const std::vector<std::string>& params) override
-+    {
-+        CheckProxyMode(asyncResp, req, params);
-+    }
-+
-     /**
-      * @brief Function handles POST method request.
-      *
+     BMCWEB_ROUTE(app, "/redfish/v1/Managers/<str>/VirtualMedia/<str>/Actions/"
+                       "VirtualMedia.InsertMedia")
+         .privileges({{"ConfigureManager"}})
 -- 
-2.17.1
+2.25.1
 
