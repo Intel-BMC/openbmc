@@ -38,6 +38,7 @@ DEPENDS += " \
         ${PYTHON_PN}-pyyaml-native \
         ${PYTHON_PN}-setuptools-native \
         ${PYTHON_PN}-mako-native \
+        fmt \
 "
 
 RDEPENDS_${PN}-manager += " \
@@ -63,11 +64,13 @@ FILES_${PN}-manager +=  " \
     ${datadir}/dump/ \
     "
 FILES_${PN}-monitor += "${bindir}/phosphor-dump-monitor"
+FILES_${PN}-monitor += "${bindir}/phosphor-ramoops-monitor"
 FILES_${PN}-dreport += "${bindir}/dreport"
 FILES_${PN}-scripts += "${dreport_dir}"
 
 DBUS_SERVICE_${PN}-manager += "${MGR_SVC}"
 SYSTEMD_SERVICE_${PN}-monitor += "obmc-dump-monitor.service"
+SYSTEMD_SERVICE_${PN}-monitor += "ramoops-monitor.service"
 
 EXTRA_OEMESON = " \
     -DBMC_DUMP_PATH=${bmc_dump_path} \

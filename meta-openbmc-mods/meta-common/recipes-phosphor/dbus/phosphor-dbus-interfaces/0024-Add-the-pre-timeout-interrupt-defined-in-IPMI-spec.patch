@@ -1,4 +1,4 @@
-From 6e9a19c43acac7d4254910906329d98d7b59085a Mon Sep 17 00:00:00 2001
+From 45f4457c23a8da9d246bd33c3d426b52186b39f0 Mon Sep 17 00:00:00 2001
 From: Ren Yu <yux.ren@intel.com>
 Date: Fri, 24 May 2019 14:55:10 +0800
 Subject: [PATCH] Add the pre-timeout interrupt defined in IPMI spec
@@ -9,13 +9,13 @@ IPMI set/get watchdog commands will use it.
 
 Signed-off-by: Ren Yu <yux.ren@intel.com>
 ---
- xyz/openbmc_project/State/Watchdog.interface.yaml | 22 ++++++++++++++++++++++
+ .../State/Watchdog.interface.yaml             | 22 +++++++++++++++++++
  1 file changed, 22 insertions(+)
 
-diff --git a/xyz/openbmc_project/State/Watchdog.interface.yaml b/xyz/openbmc_project/State/Watchdog.interface.yaml
-index 2fc47d8..6dfa9b9 100644
---- a/xyz/openbmc_project/State/Watchdog.interface.yaml
-+++ b/xyz/openbmc_project/State/Watchdog.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml b/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
+index ede961da1942..a67a6a30ea2c 100644
+--- a/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
++++ b/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
 @@ -33,6 +33,11 @@ properties:
        description: >
            The action the watchdog should perform when it expires.
@@ -53,5 +53,5 @@ index 2fc47d8..6dfa9b9 100644
       description: >
         The type of timer use.
 -- 
-2.7.4
+2.17.1
 

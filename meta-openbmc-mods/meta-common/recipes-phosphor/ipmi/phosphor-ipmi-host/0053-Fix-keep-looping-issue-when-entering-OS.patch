@@ -13,7 +13,7 @@ and fix the issue, clear SMS_ATN after every time power cycle happen.
 Unit Test:
     After entered OS, force reset system, after enter OS again, OS can start
 normally without keep sending READ EVENT MESSAGE BUFFER command.
-    After power on system, enter EFI SHELL, check cmdtool.efi can work
+    After power on system, enter EFI SHELL, check IPMI can work
 correctly through KCS channel.
 ---
  host-cmd-manager.cpp | 33 ++++++++++++++++++++++++---------

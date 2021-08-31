@@ -12,11 +12,11 @@ Tested By:
 Ran the above IPMI command Via KCS channel
 and got proper response.
 - Get Device ID
-  Req: cmdtool.efi 20 18 1
-  Res: 0x00 0x23 0x00 0x82 0x03 0x02 0x00 0x57 0x01 0x00 0x7b 0x00 0x00 0x00 0x00 0x00
+  Req: ipmitool raw 6 1
+  Res: 23 00 82 03 02 00 57 01 00 7b 00 00 00 00 00
 - Get Self Test Results
-  Req: cmdtool.efi 20 18 4
-  Res: 00 56 00
+  Req: ipmitool raw 6 4
+  Res: 56 00
 
 Change-Id: I18b205bc45c34f7c4ef16adc29fa5bd494624ceb
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>

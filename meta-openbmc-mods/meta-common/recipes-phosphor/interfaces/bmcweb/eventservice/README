@@ -4,16 +4,25 @@ thee gets merged upstream.
 
 Upstream revision information:
  - EventService : Fix retry handling for http-client
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/40731/20
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/40731/21
 
  - EventService: https client support
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31735/39
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31735/40
 
  - Add Server-Sent-Events support
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41258/6
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41258/7
 
  - Add SSE style subscription support to eventservice
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41319/6
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41319/8
 
  - Add EventService SSE filter support
-   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41349/3
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41349/5
+
+ - EventService Log events for subscription actions
+   file://telemetry/0007-EventService-Log-events-for-subscription-actions.patch
+
+ - Add checks on Event-Subscription input parameters
+   file://telemetry/0008-Add-checks-on-Event-Subscription-input-parameters.patch
+
+ - Restructure Redifsh EventLog Transmit code flow
+   file://telemetry/0009-Restructure-Redifsh-EventLog-Transmit-code-flow.patch

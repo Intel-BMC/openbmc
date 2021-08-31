@@ -134,13 +134,10 @@ KERNEL_SYSFS_FIU="/sys/bus/platform/drivers/NPCM-FIU"
 # the node of FIU is spi for kernel 5.10, but
 # for less than or equal kernel 5.4, the node
 # is fiu
-for fname in $(find ${KERNEL_SYSFS_FIU} -type l)
-do
-    if [ "${fname##*\.}" == "fiu" ]
-    then
-        KERNEL_FIU_ID="c0000000.fiu"
-        break
-    fi
+shopt -s nullglob
+for fiu in "$KERNEL_SYSFS_FIU"/*.fiu; do
+  KERNEL_FIU_ID="c0000000.fiu"
+  break
 done
 
 bind_host_mtd() {
@@ -224,7 +221,7 @@ parse_pe_fru() {
 }
 
 check_power_status() {
-    res0="$(busctl get-property -j xyz.openbmc_project.State.Chassis \
+    res0="$(busctl get-property -j xyz.openbmc_project.State.Chassis0 \
         /xyz/openbmc_project/state/chassis0 xyz.openbmc_project.State.Chassis \
         CurrentPowerState | jq -r '.["data"]')"
     echo $res0
@@ -263,7 +260,7 @@ main() {
     set_gpio_persistence
 
     echo "Starting host power!" >&2
-    busctl set-property xyz.openbmc_project.State.Host \
+    busctl set-property xyz.openbmc_project.State.Host0 \
         /xyz/openbmc_project/state/host0 \
         xyz.openbmc_project.State.Host \
         RequestedHostTransition s \

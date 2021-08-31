@@ -1,7 +1,7 @@
-From 4e85ce8a5f34038c289504855d21ebfa3d6b94f0 Mon Sep 17 00:00:00 2001
-From: Kuiying Wang <kuiying.wang@intel.com>
-Date: Wed, 23 Dec 2020 22:47:56 +0800
-Subject: [PATCH] Add support to ResetBios action
+From 02e44acef17a2b0681fe019e090d09015f9412e0 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Wed, 30 Jun 2021 15:27:16 +0000
+Subject: [PATCH 3/5] Add support to ResetBios action
 
 Tested:
 
@@ -11,50 +11,48 @@ POST https://IP_ADDR/redfish/v1/Systems/system/Bios/Actions/Bios.ResetBios
 Change-Id: I5e5fbdd70d4a3ce3b976cc2eb0a7d9a2a3adb124
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 ---
- redfish-core/lib/bios.hpp | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ redfish-core/lib/bios.hpp | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
 
 diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
-index 860a643..1eb7bef 100644
+index 14d2171..49c0fd0 100644
 --- a/redfish-core/lib/bios.hpp
 +++ b/redfish-core/lib/bios.hpp
-@@ -638,7 +638,7 @@ class BiosReset : public Node
-         Node(app, "/redfish/v1/Systems/system/Bios/Actions/Bios.ResetBios/")
-     {
-         entityPrivileges = {
--            {boost::beast::http::verb::post, {{"ConfigureManager"}}}};
-+            {boost::beast::http::verb::post, {{"ConfigureComponents"}}}};
-     }
- 
-   private:
-@@ -649,19 +649,24 @@ class BiosReset : public Node
-     void doPost(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
-                 const crow::Request&, const std::vector<std::string>&) override
-     {
-+        std::string resetFlag =
-+            "xyz.openbmc_project.BIOSConfig.Manager.ResetFlag.FactoryDefaults";
- 
-         crow::connections::systemBus->async_method_call(
-             [asyncResp](const boost::system::error_code ec) {
-                 if (ec)
-                 {
--                    BMCWEB_LOG_ERROR << "Failed to reset bios: " << ec;
-+                    BMCWEB_LOG_ERROR << "doPost bios reset got error " << ec;
-                     messages::internalError(asyncResp->res);
-                     return;
-                 }
-+                BMCWEB_LOG_DEBUG << "bios reset action is done";
-             },
--            "org.open_power.Software.Host.Updater",
--            "/xyz/openbmc_project/software",
--            "xyz.openbmc_project.Common.FactoryReset", "Reset");
-+            "xyz.openbmc_project.BIOSConfigManager",
-+            "/xyz/openbmc_project/bios_config/manager",
-+            "org.freedesktop.DBus.Properties", "Set",
-+            "xyz.openbmc_project.BIOSConfig.Manager", "ResetBIOSSettings",
-+            std::variant<std::string>(resetFlag));
-     }
- };
+@@ -665,24 +665,28 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
+ inline void requestRoutesBiosReset(App& app)
+ {
+     BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/Bios/Actions/Bios.ResetBios/")
+-        // Incorrect Privilege;  Should be ConfigureComponents
+-        //.privileges(redfish::privileges::postBios)
+-        .privileges({{"ConfigureManager"}})
++        .privileges(redfish::privileges::postBios)
+         .methods(boost::beast::http::verb::post)(
+             [](const crow::Request&,
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++                std::string resetFlag = "xyz.openbmc_project.BIOSConfig."
++                                        "Manager.ResetFlag.FactoryDefaults";
++
+                 crow::connections::systemBus->async_method_call(
+                     [asyncResp](const boost::system::error_code ec) {
+                         if (ec)
+                         {
+-                            BMCWEB_LOG_ERROR << "Failed to reset bios: " << ec;
++                            BMCWEB_LOG_ERROR << "doPost bios reset got error "
++                                             << ec;
+                             messages::internalError(asyncResp->res);
+                             return;
+                         }
+                     },
+-                    "org.open_power.Software.Host.Updater",
+-                    "/xyz/openbmc_project/software",
+-                    "xyz.openbmc_project.Common.FactoryReset", "Reset");
++                    "xyz.openbmc_project.BIOSConfigManager",
++                    "/xyz/openbmc_project/bios_config/manager",
++                    "org.freedesktop.DBus.Properties", "Set",
++                    "xyz.openbmc_project.BIOSConfig.Manager",
++                    "ResetBIOSSettings", std::variant<std::string>(resetFlag));
+             });
+ }
  } // namespace redfish
 -- 
 2.17.1

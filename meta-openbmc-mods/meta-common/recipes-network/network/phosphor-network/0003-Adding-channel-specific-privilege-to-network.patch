@@ -1,4 +1,4 @@
-From 24bac5f6660ec5e5ea15c0f062dc4a08fbc0e876 Mon Sep 17 00:00:00 2001
+From 29c6b0a294e2c32c9617d243d71d202e926262d0 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Thu, 2 Apr 2020 17:06:07 +0530
 Subject: [PATCH] Adding channel specific privilege to network
@@ -19,17 +19,17 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- src/ethernet_interface.cpp | 124 +++++++++++++++++++++++++++++++++++++++++
- src/ethernet_interface.hpp |  37 +++++++++++-
- src/network_manager.cpp    | 102 +++++++++++++++++++++++++++++++++
+ src/ethernet_interface.cpp | 124 +++++++++++++++++++++++++++++++++++++
+ src/ethernet_interface.hpp |  36 ++++++++++-
+ src/network_manager.cpp    | 102 ++++++++++++++++++++++++++++++
  src/network_manager.hpp    |   9 +++
- 4 files changed, 271 insertions(+), 1 deletion(-)
+ 4 files changed, 270 insertions(+), 1 deletion(-)
 
 diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
-index 607e658..e2b2da9 100644
+index 5ce4349..4c52fc8 100644
 --- a/src/ethernet_interface.cpp
 +++ b/src/ethernet_interface.cpp
-@@ -45,6 +45,10 @@ constexpr auto PROPERTY_INTERFACE = "org.freedesktop.DBus.Properties";
+@@ -49,6 +49,10 @@ constexpr auto PROPERTY_INTERFACE = "org.freedesktop.DBus.Properties";
  constexpr auto RESOLVED_SERVICE_PATH = "/org/freedesktop/resolve1/link/";
  constexpr auto METHOD_GET = "Get";
  
@@ -40,7 +40,7 @@ index 607e658..e2b2da9 100644
  struct EthernetIntfSocket
  {
      EthernetIntfSocket(int domain, int type, int protocol)
-@@ -128,6 +132,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+@@ -133,6 +137,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
      EthernetInterfaceIntf::autoNeg(std::get<2>(ifInfo));
      EthernetInterfaceIntf::speed(std::get<0>(ifInfo));
  #endif
@@ -48,7 +48,7 @@ index 607e658..e2b2da9 100644
  
      // Emit deferred signal.
      if (emitSignal)
-@@ -1175,5 +1180,124 @@ std::string EthernetInterface::defaultGateway6(std::string gateway)
+@@ -1248,5 +1253,124 @@ std::string EthernetInterface::defaultGateway6(std::string gateway)
      manager.writeToConfigurationFile();
      return gw;
  }
@@ -174,7 +174,7 @@ index 607e658..e2b2da9 100644
  } // namespace network
  } // namespace phosphor
 diff --git a/src/ethernet_interface.hpp b/src/ethernet_interface.hpp
-index 8e28b51..ebba151 100644
+index 12d307f..d764b2b 100644
 --- a/src/ethernet_interface.hpp
 +++ b/src/ethernet_interface.hpp
 @@ -2,11 +2,14 @@
@@ -190,9 +190,9 @@ index 8e28b51..ebba151 100644
  #include <sdbusplus/bus.hpp>
 +#include <sdbusplus/bus/match.hpp>
  #include <sdbusplus/server/object.hpp>
+ #include <sdbusplus/timer.hpp>
  #include <string>
- #include <xyz/openbmc_project/Collection/DeleteAll/server.hpp>
-@@ -33,7 +36,8 @@ using Ifaces = sdbusplus::server::object::object<
+@@ -35,7 +38,8 @@ using Ifaces = sdbusplus::server::object::object<
      sdbusplus::xyz::openbmc_project::Network::server::MACAddress,
      sdbusplus::xyz::openbmc_project::Network::IP::server::Create,
      sdbusplus::xyz::openbmc_project::Network::Neighbor::server::CreateStatic,
@@ -202,7 +202,7 @@ index 8e28b51..ebba151 100644
  
  using IP = sdbusplus::xyz::openbmc_project::Network::server::IP;
  
-@@ -41,11 +45,14 @@ using EthernetInterfaceIntf =
+@@ -43,11 +47,14 @@ using EthernetInterfaceIntf =
      sdbusplus::xyz::openbmc_project::Network::server::EthernetInterface;
  using MacAddressIntf =
      sdbusplus::xyz::openbmc_project::Network::server::MACAddress;
@@ -217,7 +217,7 @@ index 8e28b51..ebba151 100644
  
  class Manager; // forward declaration of network manager.
  
-@@ -244,6 +251,14 @@ class EthernetInterface : public Ifaces
+@@ -247,6 +254,14 @@ class EthernetInterface : public Ifaces
      std::string defaultGateway6(std::string gateway) override;
  
      using EthernetInterfaceIntf::dhcpEnabled;
@@ -232,11 +232,10 @@ index 8e28b51..ebba151 100644
      using EthernetInterfaceIntf::interfaceName;
      using EthernetInterfaceIntf::linkUp;
      using EthernetInterfaceIntf::nicEnabled;
-@@ -366,6 +381,26 @@ class EthernetInterface : public Ifaces
-      *  @returns true/false value if the address is static
+@@ -374,6 +389,25 @@ class EthernetInterface : public Ifaces
+      *  @returns true/false value if the NIC is enabled
       */
-     bool originIsManuallyAssigned(IP::AddressOrigin origin);
-+
+     bool queryNicEnabled() const;
 +    /** @brief gets the channel privilege.
 +     *  @param[in] interfaceName - Network interface name.
 +     *  @returns privilege of the interface
@@ -260,7 +259,7 @@ index 8e28b51..ebba151 100644
  
  } // namespace network
 diff --git a/src/network_manager.cpp b/src/network_manager.cpp
-index 881b767..847852f 100644
+index 9ae9c5b..2f5097a 100644
 --- a/src/network_manager.cpp
 +++ b/src/network_manager.cpp
 @@ -36,6 +36,13 @@ extern std::unique_ptr<Timer> restartTimer;

@@ -1,6 +1,6 @@
-From 0a1390428fd6f5651669f4306f6105d33a24453c Mon Sep 17 00:00:00 2001
-From: Ayushi Smriti <smriti.ayushi@intel.com>
-Date: Mon, 10 May 2021 13:03:37 +0530
+From dad35d6e6736f1c4ab6d739c62b22923ad749ad7 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 13 Jul 2021 12:30:08 +0000
 Subject: [PATCH] EventService: Log events for subscription actions
 
 Log redfish event for below 3 actions
@@ -27,10 +27,10 @@ Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
  2 files changed, 32 insertions(+), 5 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 9952ef1..2b957ea 100644
+index a5b37e5..75f5615 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -22,6 +22,7 @@
+@@ -20,6 +20,7 @@
  #include "registries/task_event_message_registry.hpp"
  
  #include <sys/inotify.h>
@@ -38,7 +38,7 @@ index 9952ef1..2b957ea 100644
  
  #include <boost/asio/io_context.hpp>
  #include <boost/beast/core/span.hpp>
-@@ -800,7 +801,7 @@ class EventServiceManager
+@@ -813,7 +814,7 @@ class EventServiceManager
          return;
      }
  
@@ -47,7 +47,7 @@ index 9952ef1..2b957ea 100644
      {
          // Persist the config and subscription data.
          nlohmann::json jsonData;
-@@ -897,7 +898,7 @@ class EventServiceManager
+@@ -910,7 +911,7 @@ class EventServiceManager
  
          if (updateConfig)
          {
@@ -56,7 +56,7 @@ index 9952ef1..2b957ea 100644
          }
  
          if (updateRetryCfg)
-@@ -992,7 +993,7 @@ class EventServiceManager
+@@ -1005,7 +1006,7 @@ class EventServiceManager
  
          if (updateFile)
          {
@@ -65,7 +65,7 @@ index 9952ef1..2b957ea 100644
          }
  
  #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
-@@ -1007,6 +1008,13 @@ class EventServiceManager
+@@ -1020,6 +1021,13 @@ class EventServiceManager
  
          // Set Subscription ID for back trace
          subValue->setSubscriptionId(id);
@@ -79,7 +79,7 @@ index 9952ef1..2b957ea 100644
          return id;
      }
  
-@@ -1027,7 +1035,14 @@ class EventServiceManager
+@@ -1040,7 +1048,14 @@ class EventServiceManager
          {
              subscriptionsMap.erase(obj);
              updateNoOfSubscribersCount();
@@ -95,7 +95,7 @@ index 9952ef1..2b957ea 100644
          }
      }
  
-@@ -1049,6 +1064,18 @@ class EventServiceManager
+@@ -1062,6 +1077,18 @@ class EventServiceManager
          }
      }
  
@@ -115,18 +115,18 @@ index 9952ef1..2b957ea 100644
      {
          return subscriptionsMap.size();
 diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
-index 297a4ea..ed4955e 100644
+index 53a60d3..435c93d 100644
 --- a/redfish-core/lib/event_service.hpp
 +++ b/redfish-core/lib/event_service.hpp
-@@ -616,7 +616,7 @@ class EventDestination : public Node
-             subValue->updateRetryPolicy();
-         }
+@@ -579,7 +579,7 @@ inline void requestRoutesEventDestination(App& app)
+                     subValue->updateRetryPolicy();
+                 }
  
--        EventServiceManager::getInstance().updateSubscriptionData();
-+        EventServiceManager::getInstance().updateSubscription(params[0]);
-     }
- 
-     void doDelete(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+-                EventServiceManager::getInstance().updateSubscriptionData();
++                EventServiceManager::getInstance().updateSubscription(param);
+             });
+     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/<str>/")
+         .privileges({{"ConfigureManager"}})
 -- 
-2.17.1
+2.25.1
 

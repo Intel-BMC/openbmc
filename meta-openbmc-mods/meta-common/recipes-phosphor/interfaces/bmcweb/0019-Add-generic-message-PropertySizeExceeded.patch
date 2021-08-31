@@ -1,6 +1,6 @@
-From da893566ec02aefe235685f1b6742269aab37909 Mon Sep 17 00:00:00 2001
-From: Nitin Wankhade <nitinx.arunrao.wankhade@intel.com>
-Date: Thu, 24 Jun 2021 15:29:24 +0000
+From 2b865ad20ce0616b79a453d1571976bb2303050c Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Wed, 14 Jul 2021 13:55:27 +0000
 Subject: [PATCH] Add generic message - PropertySizeExceeded
 
 Adding a generic error message "PropertySizeExceeded"
@@ -19,13 +19,13 @@ Signed-off-by: Nitin Wankhade <nitinx.arunrao.wankhade@intel.com>
  3 files changed, 55 insertions(+), 1 deletion(-)
 
 diff --git a/redfish-core/include/error_messages.hpp b/redfish-core/include/error_messages.hpp
-index 922dae9..586246c 100644
+index 922dae9..f29e326 100644
 --- a/redfish-core/include/error_messages.hpp
 +++ b/redfish-core/include/error_messages.hpp
 @@ -222,6 +222,18 @@ nlohmann::json propertyValueFormatError(const std::string& arg1,
  void propertyValueFormatError(crow::Response& res, const std::string& arg1,
                                const std::string& arg2);
-
+ 
 +/**
 + * @brief Formats PropertySizeExceeded message into JSON
 + * Message body: "The property <arg1> is too long. The value exceeds its size
@@ -42,19 +42,19 @@ index 922dae9..586246c 100644
   * @brief Formats PropertyValueNotInList message into JSON
   * Message body: "The value <arg1> for the property <arg2> is not in the list of
 diff --git a/redfish-core/include/registries/base_message_registry.hpp b/redfish-core/include/registries/base_message_registry.hpp
-index 7c385a0..79d324e 100644
+index 58156c8..ab9b046 100644
 --- a/redfish-core/include/registries/base_message_registry.hpp
 +++ b/redfish-core/include/registries/base_message_registry.hpp
 @@ -36,7 +36,7 @@ const Header header = {
  constexpr const char* url =
-     "https://redfish.dmtf.org/registries/Base.1.8.1.json";
-
--constexpr std::array<MessageEntry, 74> registry = {
-+constexpr std::array<MessageEntry, 75> registry = {
+     "https://redfish.dmtf.org/registries/Base.1.10.0.json";
+ 
+-constexpr std::array<MessageEntry, 87> registry = {
++constexpr std::array<MessageEntry, 88> registry = {
      MessageEntry{
          "AccessDenied",
          {
-@@ -592,6 +592,21 @@ constexpr std::array<MessageEntry, 74> registry = {
+@@ -664,6 +664,21 @@ constexpr std::array<MessageEntry, 87> registry = {
                       "Remove the property from the request body and resubmit "
                       "the request if the operation failed.",
                   }},
@@ -77,13 +77,13 @@ index 7c385a0..79d324e 100644
                   {
                       "Indicates that an unknown property was included in the "
 diff --git a/redfish-core/src/error_messages.cpp b/redfish-core/src/error_messages.cpp
-index 409adb1..11e59be 100644
+index 409adb1..bebb6d8 100644
 --- a/redfish-core/src/error_messages.cpp
 +++ b/redfish-core/src/error_messages.cpp
 @@ -514,6 +514,33 @@ void propertyValueFormatError(crow::Response& res, const std::string& arg1,
      addMessageToJson(res.jsonValue, propertyValueFormatError(arg1, arg2), arg2);
  }
-
+ 
 +/**
 + * @internal
 + * @brief Formats PropertySizeExceeded message into JSON for the specified
@@ -114,5 +114,6 @@ index 409adb1..11e59be 100644
  /**
   * @internal
   * @brief Formats PropertyValueNotInList message into JSON for the specified
-2.17.1
+-- 
+2.25.1
 

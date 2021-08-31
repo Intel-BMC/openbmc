@@ -1,4 +1,4 @@
-From 3dc6f6d807060cf3b38486e4190fd1ba9c66c66b Mon Sep 17 00:00:00 2001
+From e8bf93f1cc374a986896174489719065d0cc49a0 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 17 Mar 2021 01:16:50 +0000
 Subject: [PATCH] Add EventService SSE filter support
@@ -33,18 +33,18 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 Change-Id: I55c6f53bb5e57aa1f2d1601f1a16525a33b13bd2
 ---
- include/eventservice_sse.hpp                  | 141 +++++++++++++++++-
+ include/eventservice_sse.hpp                  | 145 +++++++++++++++++-
  redfish-core/include/error_messages.hpp       |   9 ++
  .../include/event_service_manager.hpp         |   5 +
  redfish-core/lib/event_service.hpp            |   5 -
  redfish-core/src/error_messages.cpp           |  26 ++++
- 5 files changed, 177 insertions(+), 9 deletions(-)
+ 5 files changed, 181 insertions(+), 9 deletions(-)
 
 diff --git a/include/eventservice_sse.hpp b/include/eventservice_sse.hpp
-index 6c98e6e..01e4126 100644
+index 14daf00..2f22f98 100644
 --- a/include/eventservice_sse.hpp
 +++ b/include/eventservice_sse.hpp
-@@ -23,16 +23,149 @@ static bool createSubscription(std::shared_ptr<crow::SseConnection>& conn,
+@@ -23,16 +23,153 @@ static bool createSubscription(std::shared_ptr<crow::SseConnection>& conn,
      }
      BMCWEB_LOG_DEBUG << "Request query param size: " << req.urlParams.size();
  
@@ -143,6 +143,10 @@ index 6c98e6e..01e4126 100644
 +                registryPrefix.assign(supportedRegPrefixes.begin(),
 +                                      supportedRegPrefixes.end());
 +            }
++            else
++            {
++                registryPrefix = regPrefixes;
++            }
 +
 +            for (const std::string& id : msgIds)
 +            {
@@ -172,7 +176,7 @@ index 6c98e6e..01e4126 100644
 +
 +                if (!validId)
 +                {
-+                    messages::propertyValueNotInList(res, id, "MessageId");
++                    messages::propertyValueNotInList(res, id, "MessageIds");
 +                    res.end();
 +                    return false;
 +                }
@@ -199,10 +203,10 @@ index 6c98e6e..01e4126 100644
      std::string id =
          redfish::EventServiceManager::getInstance().addSubscription(subValue,
 diff --git a/redfish-core/include/error_messages.hpp b/redfish-core/include/error_messages.hpp
-index 7dfdc80..922dae9 100644
+index 10567d1..f29e326 100644
 --- a/redfish-core/include/error_messages.hpp
 +++ b/redfish-core/include/error_messages.hpp
-@@ -959,6 +959,15 @@ nlohmann::json mutualExclusiveProperties(const std::string& arg1,
+@@ -971,6 +971,15 @@ nlohmann::json mutualExclusiveProperties(const std::string& arg1,
  void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
                                 const std::string& arg2);
  
@@ -219,7 +223,7 @@ index 7dfdc80..922dae9 100644
  
  } // namespace redfish
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index e826207..f201134 100644
+index 098134a..c8fcb33 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -55,6 +55,11 @@ static constexpr const char* eventServiceFile =
@@ -235,10 +239,10 @@ index e826207..f201134 100644
  static std::optional<boost::asio::posix::stream_descriptor> inotifyConn;
  static constexpr const char* redfishEventLogDir = "/var/log";
 diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
-index 7c9bb7a..297a4ea 100644
+index 4a2d58a..67abb95 100644
 --- a/redfish-core/lib/event_service.hpp
 +++ b/redfish-core/lib/event_service.hpp
-@@ -18,11 +18,6 @@
+@@ -21,11 +21,6 @@
  
  namespace redfish
  {
@@ -251,10 +255,10 @@ index 7c9bb7a..297a4ea 100644
      "TerminateAfterRetries", "SuspendRetries", "RetryForever"};
  
 diff --git a/redfish-core/src/error_messages.cpp b/redfish-core/src/error_messages.cpp
-index ad5f819..409adb1 100644
+index 48edaf1..bebb6d8 100644
 --- a/redfish-core/src/error_messages.cpp
 +++ b/redfish-core/src/error_messages.cpp
-@@ -2147,6 +2147,32 @@ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
+@@ -2174,6 +2174,32 @@ void mutualExclusiveProperties(crow::Response& res, const std::string& arg1,
      addMessageToErrorJson(res.jsonValue, mutualExclusiveProperties(arg1, arg2));
  }
  

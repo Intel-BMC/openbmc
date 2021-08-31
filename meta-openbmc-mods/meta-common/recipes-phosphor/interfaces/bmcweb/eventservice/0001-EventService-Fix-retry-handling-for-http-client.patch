@@ -1,4 +1,4 @@
-From 3d6c3b3e91c04ff8f10bff49bcf2a7d7206c53df Mon Sep 17 00:00:00 2001
+From f74393a9bca899e353be3d0e2dc5c224539fe432 Mon Sep 17 00:00:00 2001
 From: Sunitha Harish <sunithaharish04@gmail.com>
 Date: Fri, 19 Feb 2021 13:38:31 +0530
 Subject: [PATCH] EventService : Fix retry handling for http-client
@@ -530,10 +530,10 @@ index 992ac2b..feabbba 100644
  
      void setRetryConfig(const uint32_t retryAttempts,
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index fa4e41a..c999121 100644
+index 11190ef..a8f7517 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -423,7 +423,7 @@ class Subscription
+@@ -422,7 +422,7 @@ class Subscription
                      reqHeaders.emplace_back(std::pair(key, val));
                  }
              }
@@ -543,5 +543,4 @@ index fa4e41a..c999121 100644
              this->eventSeqNum++;
          }
 -- 
-2.17.1
-
+2.25.1

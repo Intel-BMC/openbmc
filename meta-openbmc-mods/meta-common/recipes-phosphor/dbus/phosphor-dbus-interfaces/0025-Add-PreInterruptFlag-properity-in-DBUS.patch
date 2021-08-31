@@ -1,4 +1,4 @@
-From b7c487750c05dcc081219ccdd4ef539beef6aa30 Mon Sep 17 00:00:00 2001
+From c71c17951e5f00195c9cacd6829a359c3d253714 Mon Sep 17 00:00:00 2001
 From: Ren Yu <yux.ren@intel.com>
 Date: Mon, 29 Jul 2019 10:51:12 +0800
 Subject: [PATCH] Add PreInterruptFlag properity in DBUS.
@@ -15,13 +15,13 @@ pre-timeout interrupt occurred.
 
 Signed-off-by: Ren Yu <yux.ren@intel.com>
 ---
- xyz/openbmc_project/State/Watchdog.interface.yaml | 5 +++++
+ yaml/xyz/openbmc_project/State/Watchdog.interface.yaml | 5 +++++
  1 file changed, 5 insertions(+)
 
-diff --git a/xyz/openbmc_project/State/Watchdog.interface.yaml b/xyz/openbmc_project/State/Watchdog.interface.yaml
-index bf4cca0..6579368 100644
---- a/xyz/openbmc_project/State/Watchdog.interface.yaml
-+++ b/xyz/openbmc_project/State/Watchdog.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml b/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
+index a67a6a30ea2c..d1ae8e3411e6 100644
+--- a/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
++++ b/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
 @@ -59,6 +59,11 @@ properties:
        description: >
            The timer user at the time of expiration.
@@ -35,5 +35,5 @@ index bf4cca0..6579368 100644
  enumerations:
     - name: Action
 -- 
-2.7.4
+2.17.1
 

@@ -1,4 +1,4 @@
-From 631deef0ca88a77283741edeae8078d2185f414c Mon Sep 17 00:00:00 2001
+From 479b46d2ed42b576cf2aee2ecbd76de7940d0cfe Mon Sep 17 00:00:00 2001
 From: Yong Li <yong.b.li@linux.intel.com>
 Date: Fri, 10 Aug 2018 16:23:13 +0800
 Subject: [PATCH] Increase the default watchdog timeout value
@@ -13,13 +13,13 @@ Will adjust this value in the future
 
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
 ---
- xyz/openbmc_project/State/Watchdog.interface.yaml | 2 +-
+ yaml/xyz/openbmc_project/State/Watchdog.interface.yaml | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/xyz/openbmc_project/State/Watchdog.interface.yaml b/xyz/openbmc_project/State/Watchdog.interface.yaml
-index f76dbf2..402e1a8 100644
---- a/xyz/openbmc_project/State/Watchdog.interface.yaml
-+++ b/xyz/openbmc_project/State/Watchdog.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml b/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
+index f54ec3b6e4fb..ede961da1942 100644
+--- a/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
++++ b/yaml/xyz/openbmc_project/State/Watchdog.interface.yaml
 @@ -37,7 +37,7 @@ properties:
        type: uint64
        description: >
@@ -30,5 +30,5 @@ index f76dbf2..402e1a8 100644
        type: uint64
        description: >
 -- 
-2.7.4
+2.17.1
 

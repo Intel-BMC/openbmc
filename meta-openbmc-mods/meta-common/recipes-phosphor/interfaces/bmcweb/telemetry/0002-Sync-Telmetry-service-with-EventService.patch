@@ -1,4 +1,4 @@
-From 206411b4c9b603e7b0edf63e03c0ef7bf10b09b2 Mon Sep 17 00:00:00 2001
+From 277d261ef3b1723c9d198baf4b84d2e01a7460b8 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Tue, 15 Dec 2020 12:30:31 +0100
 Subject: [PATCH] Sync Telmetry service with EventService
@@ -22,7 +22,7 @@ Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
  2 files changed, 69 insertions(+), 115 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index a1761bb..0e2ebfd 100644
+index 11190ef..ffe9435 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -14,6 +14,7 @@
@@ -30,10 +30,10 @@ index a1761bb..0e2ebfd 100644
  */
  #pragma once
 +#include "metric_report.hpp"
- #include "node.hpp"
  #include "registries.hpp"
  #include "registries/base_message_registry.hpp"
-@@ -523,47 +524,32 @@ class Subscription
+ #include "registries/openbmc_message_registry.hpp"
+@@ -522,47 +523,32 @@ class Subscription
      }
  #endif
  
@@ -92,7 +92,7 @@ index a1761bb..0e2ebfd 100644
          this->sendEvent(
              msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
      }
-@@ -1359,75 +1345,6 @@ class EventServiceManager
+@@ -1358,75 +1344,6 @@ class EventServiceManager
      }
  
  #endif
@@ -168,7 +168,7 @@ index a1761bb..0e2ebfd 100644
      void unregisterMetricReportSignal()
      {
          if (matchTelemetryMonitor)
-@@ -1447,9 +1364,11 @@ class EventServiceManager
+@@ -1446,9 +1363,11 @@ class EventServiceManager
          }
  
          BMCWEB_LOG_DEBUG << "Metrics report signal - Register";
@@ -183,7 +183,7 @@ index a1761bb..0e2ebfd 100644
  
          matchTelemetryMonitor = std::make_shared<sdbusplus::bus::match::match>(
              *crow::connections::systemBus, matchStr,
-@@ -1460,10 +1379,43 @@ class EventServiceManager
+@@ -1459,10 +1378,43 @@ class EventServiceManager
                      return;
                  }
  
@@ -232,10 +232,10 @@ index a1761bb..0e2ebfd 100644
      }
  
 diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
-index ad15a05..18a6dcc 100644
+index 66f4f93..a43f6a6 100644
 --- a/redfish-core/lib/metric_report.hpp
 +++ b/redfish-core/lib/metric_report.hpp
-@@ -31,16 +31,14 @@ inline nlohmann::json toMetricValues(const Readings& readings)
+@@ -32,16 +32,14 @@ inline nlohmann::json toMetricValues(const Readings& readings)
      return metricValues;
  }
  
@@ -258,7 +258,7 @@ index ad15a05..18a6dcc 100644
          telemetry::metricReportDefinitionUri + id;
  
      const TimestampReadings* timestampReadings =
-@@ -48,14 +46,14 @@ inline void fillReport(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+@@ -49,14 +47,14 @@ inline void fillReport(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
      if (!timestampReadings)
      {
          BMCWEB_LOG_ERROR << "Property type mismatch or property is missing";
@@ -277,18 +277,18 @@ index ad15a05..18a6dcc 100644
  }
  } // namespace telemetry
  
-@@ -145,7 +143,11 @@ class MetricReport : public Node
-                             return;
-                         }
+@@ -117,7 +115,11 @@ inline void requestRoutesMetricReport(App& app)
+                                     return;
+                                 }
  
--                        telemetry::fillReport(asyncResp, id, ret);
-+                        if (!telemetry::fillReport(asyncResp->res.jsonValue, id,
-+                                                   ret))
-+                        {
-+                            messages::internalError(asyncResp->res);
-+                        }
-                     },
-                     telemetry::service, reportPath,
-                     "org.freedesktop.DBus.Properties", "Get",
+-                                telemetry::fillReport(asyncResp, id, ret);
++                                if (!telemetry::fillReport(
++                                        asyncResp->res.jsonValue, id, ret))
++                                {
++                                    messages::internalError(asyncResp->res);
++                                }
+                             },
+                             telemetry::service, reportPath,
+                             "org.freedesktop.DBus.Properties", "Get",
 -- 
 2.25.1

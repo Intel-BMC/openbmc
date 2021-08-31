@@ -8,6 +8,7 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0060-Move-Get-SOL-config-parameter-to-host-ipmid.patch \
             file://0062-Update-IPMI-Chassis-Control-command.patch \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
+            file://0064-chassishandler-Fix-for-BIOS-boot-type-Legacy.patch \
             "
 
 EXTRA_OECONF_append = " --disable-i2c-whitelist-check"

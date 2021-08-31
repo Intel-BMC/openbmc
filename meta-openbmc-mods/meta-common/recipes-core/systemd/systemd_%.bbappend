@@ -7,6 +7,7 @@ FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 SRC_URI += "file://0001-Modfiy-system.conf-DefaultTimeoutStopSec.patch \
             file://systemd-time-wait-sync.service \
             file://0002-Add-event-log-for-system-time-synchronization.patch \
+            file://0003-CVE-2021-33910-basic-unit-name-do-not-use-strdupa-on-a-path.patch \
            "
 
 USERADD_PACKAGES_remove = "${PN}-journal-gateway ${PN}-journal-upload ${PN}-journal-remote"

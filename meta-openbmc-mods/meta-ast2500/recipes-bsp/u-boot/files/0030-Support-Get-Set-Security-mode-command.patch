@@ -11,9 +11,9 @@ value, which is not allowed in normal mode from Host interface
 
 Tested:
 1. Verified get security mode returns proper value read from
-U-Boot environment variable. cmdtool.efi 20 C0 B3
+U-Boot environment variable. ipmitool raw 0x30 0xB3
 2. Verified set security mode updates U-Boot environment variable
-and it is reflected in linux too cmdtool.efi 20 C0 B4 4
+and it is reflected in linux too. ipmitool raw 0x30 0xB4 4
 3. Verified negative test cases with improper values and it
 throws correct errors
 

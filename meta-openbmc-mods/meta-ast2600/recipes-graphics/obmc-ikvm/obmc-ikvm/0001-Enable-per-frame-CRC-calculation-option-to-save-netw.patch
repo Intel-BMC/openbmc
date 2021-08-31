@@ -1,0 +1,30 @@
+From fa81ec28629d59b8bad623ff8d3285162671d45a Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Wed, 21 Jul 2021 13:03:22 -0700
+Subject: [PATCH] Enable per-frame CRC calculation option to save network
+ bandwidth
+
+This commit enables per-frame CRC calculation option to save network
+bandwidth by dropping off frames that don't have changes.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ start-ipkvm.service | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/start-ipkvm.service b/start-ipkvm.service
+index 60234b231da3..10e424845599 100644
+--- a/start-ipkvm.service
++++ b/start-ipkvm.service
+@@ -5,7 +5,7 @@ ConditionPathIsMountPoint=/sys/kernel/config
+ [Service]
+ Restart=always
+ ExecStartPre=/usr/bin/create_usbhid.sh disconnect
+-ExecStart=/usr/bin/obmc-ikvm -v /dev/video0 -k /dev/hidg0 -p /dev/hidg1
++ExecStart=/usr/bin/obmc-ikvm -c -v /dev/video0 -k /dev/hidg0 -p /dev/hidg1
+ 
+ [Install]
+ WantedBy=multi-user.target
+-- 
+2.17.1
+

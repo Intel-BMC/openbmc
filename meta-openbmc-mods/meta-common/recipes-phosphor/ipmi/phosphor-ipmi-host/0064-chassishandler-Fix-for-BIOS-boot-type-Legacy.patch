@@ -1,0 +1,51 @@
+From 90df4bce744fdff6de98f63a320c50e24d40a0d4 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 2 Aug 2021 16:16:50 +0000
+Subject: [PATCH] Fix for BIOS boot type Legacy
+
+If user trying to set BIOS boot type as Legacy in Set System boot
+options IPMI command is getting success for boot option parameter 5
+(boot flags).
+Legacy boot type is not supported in Intel platforms, so returning
+InvalidFieldRequest. This can't be pushed to upstream as OEM's in
+community supports it.
+
+Tested:
+Verified using IPMI commands.
+//Set system boot options
+Command : ipmitool raw 0x00 0x08 0x05 0x80 0x18 0x00 0x00 0x00
+Response: Unable to send RAW command (channel=0x0 netfn=0x0 lun=0x0
+          cmd=0x8 rsp=0xcc): Invalid data field in request
+Command: ipmitool raw 0x00 0x08 0x05 0xa0 0x18 0x00 0x00 0x00
+Response:               //Success
+//Get System boot options
+Command : ipmitool raw 0x00 0x09 0x05 0x00 0x00
+Response:  01 05 a0 18 00 00 00
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ chassishandler.cpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index f7820af..abc84b6 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -1875,6 +1875,14 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
+         {
+             return ipmi::responseInvalidFieldRequest();
+         }
++        constexpr auto biosBootTypeLegacy = 0;
++        if (biosBootType == biosBootTypeLegacy)
++        {
++            // return error if BIOS boot type is legacy
++            log<level::ERR>("ipmiChassisSetSysBootOptions: BIOS boot type "
++                            "Legacy is not supported");
++            return ipmi::responseInvalidFieldRequest();
++        }
+ 
+         using namespace chassis::internal;
+         using namespace chassis::internal::cache;
+-- 
+2.17.1
+

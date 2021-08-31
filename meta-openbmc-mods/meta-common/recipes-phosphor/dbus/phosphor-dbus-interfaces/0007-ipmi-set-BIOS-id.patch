@@ -1,22 +1,22 @@
-From 49debd0955b672d591f35e74119b288bd6df2992 Mon Sep 17 00:00:00 2001
+From bc282f4e9537b115e32733dfc6e16c303f81b3e3 Mon Sep 17 00:00:00 2001
 From: "Jia, Chunhui" <chunhui.jia@intel.com>
 Date: Tue, 24 Jul 2018 11:40:49 +0800
-Subject: [PATCH] [ipmi] set BIOS id
+Subject: [PATCH] set BIOS id
 
 change#2
 add new dbus interface for BIOS attributes
 
 Signed-off-by: Jia, Chunhui <chunhui.jia@intel.com>
 ---
- xyz/openbmc_project/Inventory/Item/Bios.interface.yaml | 9 +++++++++
+ .../openbmc_project/Inventory/Item/Bios.interface.yaml   | 9 +++++++++
  1 file changed, 9 insertions(+)
- create mode 100644 xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
 
-diff --git a/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml b/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
+diff --git a/yaml/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml b/yaml/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
 new file mode 100644
-index 0000000..d7a6b95
+index 000000000000..d7a6b95bfdce
 --- /dev/null
-+++ b/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
++++ b/yaml/xyz/openbmc_project/Inventory/Item/Bios.interface.yaml
 @@ -0,0 +1,9 @@
 +description: >
 +    Implement to provide BIOS attributes.
@@ -28,5 +28,5 @@ index 0000000..d7a6b95
 +
 +# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 -- 
-2.16.2
+2.17.1
 
