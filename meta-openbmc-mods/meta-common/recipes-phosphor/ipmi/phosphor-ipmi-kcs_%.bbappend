@@ -13,7 +13,9 @@ SYSTEMD_SERVICE_${PN}_append = " ${PN}@${SMM_DEVICE}.service "
 SRC_URI = "git://github.com/openbmc/kcsbridge.git"
 SRCREV = "d8594e9a62feb8b2fac789159966b4782b4aa31e"
 
-SRC_URI += "file://99-ipmi-kcs.rules"
+SRC_URI += "file://99-ipmi-kcs.rules \
+            file://0001-Add-WA-for-host-OS-not-retrying-when-BMC-times-out.patch \
+"
 
 do_install_append() {
     install -d ${D}${base_libdir}/udev/rules.d

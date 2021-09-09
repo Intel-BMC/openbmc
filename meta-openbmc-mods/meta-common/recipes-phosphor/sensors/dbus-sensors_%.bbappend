@@ -7,6 +7,7 @@ SRCREV = "8aeffd91ff3434f7812e9fdb6b0b03c6119921dd"
 SRC_URI += "\
     file://intrusionsensor-depend-on-networkd.conf \
     file://0001-Fix-for-intrusionsensor-service-crash.patch \
+    file://0003-Add-check-for-min-max-received-from-hwmon-files.patch \
     "
 
 DEPENDS_append = " libgpiod libmctp"

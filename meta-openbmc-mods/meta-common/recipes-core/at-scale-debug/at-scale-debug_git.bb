@@ -4,7 +4,7 @@ SUMMARY = "At Scale Debug Service"
 DESCRIPTION = "At Scale Debug Service exposes remote JTAG target debug capabilities"
 
 LICENSE = "BSD"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=0d1c657b2ba1e8877940a8d1614ec560"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=8929d33c051277ca2294fe0f5b062f38"
 
 
 inherit cmake
@@ -13,7 +13,7 @@ DEPENDS = "sdbusplus openssl libpam libgpiod safec"
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
 SRC_URI = "git://github.com/Intel-BMC/asd;protocol=git"
-SRCREV = "1.4.3"
+SRCREV = "1.4.6"
 
 inherit useradd
 

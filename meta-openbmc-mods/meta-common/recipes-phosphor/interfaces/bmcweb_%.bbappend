@@ -56,6 +56,8 @@ SRC_URI += "file://0001-Firmware-update-support-for-StandBySpare.patch \
             file://0039-Return-InternalError-on-DBus-error.patch \
             file://0040-Add-boundary-check-to-avoid-crash.patch \
             file://0041-Revamp-Redfish-Event-Log-Unique-ID-Generation.patch \
+            file://0042-Fix-nlohmann-json-dump-calls.patch \
+            file://0043-account_service-Fix-incorrect-pointer-dereference.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details

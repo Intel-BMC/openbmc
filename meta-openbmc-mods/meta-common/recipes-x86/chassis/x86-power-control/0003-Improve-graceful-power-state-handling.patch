@@ -1,0 +1,97 @@
+From a7a1a2881643e1e711136363211df30a7133cf5f Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Thu, 4 Mar 2021 12:54:04 -0800
+Subject: [PATCH] Improve graceful power state handling
+
+The current timeout of 1 minute for an OS to respond to a graceful
+shutdown, is not enough for some situations.  Extending this to
+5 minutes to allow enough time for an OS to gracefully shut down.
+
+This causes an issue with the current code which ignores further
+power change requests during the graceful timeout, which would now
+block forced shutdown and reset commands for 5 minutes.  So, this
+change also adds support for shutdown and reset commands to be
+accepted during a graceful shutdown timeout.
+
+Tested:
+Triggered a graceful shutdown and confirmed that it will time out
+after 5 minutes and that shutdown and reset commands can be issued
+during that time.
+
+Change-Id: Ie88207cbc754a34642b4e1bc9636a257475cdee6
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ power-control-x86/src/power_control.cpp | 35 ++++++++++++++++++++++++++++++---
+ 1 file changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 9dc08ba..5a8487e 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -55,9 +55,8 @@ const static constexpr int resetPulseTimeMs = 500;
+ const static constexpr int powerCycleTimeMs = 5000;
+ const static constexpr int sioPowerGoodWatchdogTimeMs = 12000;
+ const static constexpr int psPowerOKWatchdogTimeMs = 8000;
+-const static constexpr int gracefulPowerOffTimeMs = 60000;
++const static constexpr int gracefulPowerOffTimeS = 5 * 60;
+ const static constexpr int warmResetCheckTimeMs = 500;
+-const static constexpr int buttonMaskTimeMs = 60000;
+ const static constexpr int powerOffSaveTimeMs = 7000;
+ 
+ const static std::filesystem::path powerControlDir = "/var/lib/power-control";
+@@ -1136,7 +1135,7 @@ static void gracefulPowerOffTimerStart()
+ {
+     std::cerr << "Graceful power-off timer started\n";
+     gracefulPowerOffTimer.expires_after(
+-        std::chrono::milliseconds(gracefulPowerOffTimeMs));
++        std::chrono::seconds(gracefulPowerOffTimeS));
+     gracefulPowerOffTimer.async_wait([](const boost::system::error_code ec) {
+         if (ec)
+         {
+@@ -1546,6 +1545,21 @@ static void powerStateGracefulTransitionToOff(const Event event)
+         case Event::gracefulPowerOffTimerExpired:
+             setPowerState(PowerState::on);
+             break;
++        case Event::powerOffRequest:
++            gracefulPowerOffTimer.cancel();
++            setPowerState(PowerState::transitionToOff);
++            forcePowerOff();
++            break;
++        case Event::powerCycleRequest:
++            gracefulPowerOffTimer.cancel();
++            setPowerState(PowerState::transitionToCycleOff);
++            forcePowerOff();
++            break;
++        case Event::resetRequest:
++            gracefulPowerOffTimer.cancel();
++            setPowerState(PowerState::on);
++            reset();
++            break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+                 "No action taken.");
+@@ -1614,6 +1628,21 @@ static void powerStateGracefulTransitionToCycleOff(const Event event)
+         case Event::gracefulPowerOffTimerExpired:
+             setPowerState(PowerState::on);
+             break;
++        case Event::powerOffRequest:
++            gracefulPowerOffTimer.cancel();
++            setPowerState(PowerState::transitionToOff);
++            forcePowerOff();
++            break;
++        case Event::powerCycleRequest:
++            gracefulPowerOffTimer.cancel();
++            setPowerState(PowerState::transitionToCycleOff);
++            forcePowerOff();
++            break;
++        case Event::resetRequest:
++            gracefulPowerOffTimer.cancel();
++            setPowerState(PowerState::on);
++            reset();
++            break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+                 "No action taken.");
+-- 
+2.7.4
+

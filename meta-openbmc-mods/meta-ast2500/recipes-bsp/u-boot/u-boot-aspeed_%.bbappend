@@ -1,6 +1,5 @@
 COMPATIBLE_MACHINE = "intel-ast2500"
 FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files:"
-FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files/CVE-2020-10648:"
 
 # the meta-phosphor layer adds this patch, which conflicts
 # with the intel layout for environment
@@ -53,6 +52,7 @@ SRC_URI_append_intel-ast2500 = " \
     file://0054-U-Boot-4-4-lib-uuid-Improve-randomness-of-uuid-values-on-RANDOM_UUID-y.patch \
     "
 # CVE-2020-10648 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files/CVE-2020-10648:"
 SRC_URI_append_intel-ast2500 = " \
     file://0001-image-Correct-comment-for-fit_conf_get_node.patch \
     file://0002-image-Be-a-little-more-verbose-when-checking-signatu.patch \
@@ -62,6 +62,20 @@ SRC_URI_append_intel-ast2500 = " \
     file://0009-fit_check_sign-Allow-selecting-the-configuration-to-.patch \
     file://0012-image-Use-constants-for-required-and-key-name-hint.patch \
     "
+
+# CVE-2021-27097 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files/CVE-2021-27097:"
+SRC_URI_append_intel-ast2500 = " \
+    file://0001-image-Adjust-the-workings-of-fit_check_format.patch \
+    file://0002-image-Add-an-option-to-do-a-full-check-of-the-FIT.patch \
+    "
+
+# CVE-2021-27138 vulnerability fix
+FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files/CVE-2021-27138:"
+SRC_URI_append_intel-ast2500 = " \
+    file://0001-image-Check-for-unit-addresses-in-FITs.patch \
+    "
+
 PFR_SRC_URI = " \
     file://0022-u-boot-env-change-for-PFR-image.patch \
     file://0032-PFR-FW-update-and-checkpoint-support-in-u-boot.patch \

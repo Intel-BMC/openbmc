@@ -133,7 +133,7 @@ index 99239938b5..89fe5fd4fd 100644
 -	switch (genimg_get_format(hdr)) {
 -	case IMAGE_FORMAT_FIT:
 -		printf("   FIT image found\n");
--		if (!fit_check_format(hdr)) {
+-		if (fit_check_format(hdr, IMAGE_SIZE_INVAL)) {
 -			printf("Bad FIT image format!\n");
 -			return -1;
 -		}

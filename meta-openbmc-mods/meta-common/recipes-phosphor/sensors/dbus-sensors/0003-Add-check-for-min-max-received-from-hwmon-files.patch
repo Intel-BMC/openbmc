@@ -1,0 +1,95 @@
+From 540b694667c659e2e811ddbb86a73d3356cc1885 Mon Sep 17 00:00:00 2001
+From: Zbigniew Lukwinski <zbigniew.lukwinski@linux.intel.com>
+Date: Wed, 21 Apr 2021 15:01:18 +0200
+Subject: [PATCH] Add check for min/max received from hwmon files
+
+    When hwmon reports incorrect min/max values or CPU Sensor cannot access
+    readings, it shall keep the last known good readings and not update
+    DBus with incorrect values.
+    This patch adds min < max verification check for the values received
+    from hwmon and removes check for power on/off in the case of a read
+    failure.
+
+    Tested manually on a physical platform, test cases cover incorrect
+    max/min values and failing access to hwmon files.
+    SDR over IPMI can be fully received in the case of error.
+
+Signed-off-by: Wojciech Dembinski <wojciech.dembinski@intel.com>
+Signed-off-by: Zbigniew Lukwinski <zbigniew.lukwinski@linux.intel.com>
+---
+ src/CPUSensor.cpp | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)
+
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index f96b178..a17d5db 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -156,16 +156,21 @@ void CPUSensor::setupRead(void)
+ 
+ void CPUSensor::updateMinMaxValues(void)
+ {
++    double newMin = std::numeric_limits<double>::quiet_NaN();
++    double newMax = std::numeric_limits<double>::quiet_NaN();
++
+     const boost::container::flat_map<
+         std::string,
+         std::vector<std::tuple<const char*, std::reference_wrapper<double>,
+-                               const char*>>>
++                               const char*, std::reference_wrapper<double>>>>
+         map = {
+             {
+                 "cap",
+                 {
+-                    std::make_tuple("cap_max", std::ref(maxValue), "MaxValue"),
+-                    std::make_tuple("cap_min", std::ref(minValue), "MinValue"),
++                    std::make_tuple("cap_max", std::ref(maxValue), "MaxValue",
++                                    std::ref(newMax)),
++                    std::make_tuple("cap_min", std::ref(minValue), "MinValue",
++                                    std::ref(newMin)),
+                 },
+             },
+         };
+@@ -178,26 +183,25 @@ void CPUSensor::updateMinMaxValues(void)
+         {
+             for (const auto& vectorItem : mapIt->second)
+             {
+-                auto [suffix, oldValue, dbusName] = vectorItem;
++                auto [suffix, oldValue, dbusName, newValue] = vectorItem;
+                 auto attrPath = boost::replace_all_copy(path, fileItem, suffix);
+-                if (auto newVal =
+-                        readFile(attrPath, CPUSensor::sensorScaleFactor))
++                if (auto tmp = readFile(attrPath, CPUSensor::sensorScaleFactor))
+                 {
+-                    updateProperty(sensorInterface, oldValue, *newVal,
+-                                   dbusName);
++                    newValue.get() = *tmp;
+                 }
+                 else
+                 {
+-                    if (isPowerOn())
+-                    {
+-                        updateProperty(sensorInterface, oldValue, 0, dbusName);
+-                    }
+-                    else
+-                    {
+-                        updateProperty(sensorInterface, oldValue,
+-                                       std::numeric_limits<double>::quiet_NaN(),
+-                                       dbusName);
+-                    }
++                    newValue.get() = std::numeric_limits<double>::quiet_NaN();
++                }
++            }
++            if (std::isfinite(newMin) && std::isfinite(newMax) &&
++                (newMin < newMax))
++            {
++                for (const auto& vectorItem : mapIt->second)
++                {
++                    auto& [suffix, oldValue, dbusName, newValue] = vectorItem;
++                    updateProperty(sensorInterface, oldValue, newValue,
++                                   dbusName);
+                 }
+             }
+         }
+-- 
+2.7.4
+
