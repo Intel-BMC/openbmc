@@ -18,4 +18,6 @@ SRC_URI += "file://0001-Only-allow-drive-sensors-on-bus-2-for-ast2500.patch \
             file://0016-Fix-threshold-assertion-events-for-cpu-adc-sensors.patch \
             file://0017-Add-more-boundary-checking-in-Texitair-calculation.patch \
             file://0018-ADCSensor-use-tmp-power-state-file-for-threshold.patch \
+            file://0019-ADCSensor-check-threshold-10-seconds-after-power-on.patch \
+            file://0020-ExitAirTemp-fix-use-weak_ptr-to-in-async-handler.patch \
             "

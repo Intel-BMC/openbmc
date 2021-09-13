@@ -207,5 +207,62 @@ SRC_URI += " \
     file://0001-tracing-Fix-race-in-trace_open-and-buffer-resize-cal.patch \
     "
 
+# CVE-2021-3347 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2021-3347:"
+SRC_URI += " \
+    file://0001-futex-Fix-incorrect-should_fail_futex-handling.patch \
+    file://0002-futex-Handle-transient-ownerless-rtmutex-state-corre.patch \
+    file://0003-futex-Don-t-enable-IRQs-unconditionally-in-put_pi_st.patch \
+    file://0004-futex-Ensure-the-correct-return-value-from-futex_loc.patch \
+    file://0005-futex-Replace-pointless-printk-in-fixup_owner.patch \
+    file://0006-futex-Provide-and-use-pi_state_update_owner.patch \
+    file://0007-rtmutex-Remove-unused-argument-from-rt_mutex_proxy_u.patch \
+    file://0008-futex-Use-pi_state_update_owner-in-put_pi_state.patch \
+    file://0009-futex-Simplify-fixup_pi_state_owner.patch \
+    file://0010-futex-Handle-faults-correctly-for-PI-futexes.patch \
+    "
+
+# CVE-2020-35508 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-35508:"
+SRC_URI += " \
+    file://0001-fork-fix-copy_process-CLONE_PARENT-race-with-the-exi.patch \
+    "
+
+# CVE-2021-29650 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2021-29650:"
+SRC_URI += " \
+    file://0001-netfilter-x_tables-Use-correct-memory-barriers.patch \
+    "
+
+# CVE-2021-30002 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2021-30002:"
+SRC_URI += " \
+    file://0001-media-v4l-ioctl-Fix-memory-leak-in-video_usercopy.patch \
+    "
+
+# CVE-2020-28588 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-28588:"
+SRC_URI += " \
+    file://0001-lib-syscall-fix-syscall-registers-retrieval-on-32-bi.patch \
+    "
+
+# CVE-2020-27815 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-27815:"
+SRC_URI += " \
+    file://0001-jfs-Fix-array-index-bounds-check-in-dbAdjTree.patch \
+    "
+
+# CVE-2021-20177 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2021-20177:"
+SRC_URI += " \
+    file://0001-netfilter-add-and-use-nf_hook_slow_list.patch \
+    "
+
+# CVE-2021-31916 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2021-31916:"
+SRC_URI += " \
+    file://0001-dm-ioctl-fix-out-of-bounds-array-access-when-no-devi.patch \
+    "
+
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"
 SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'file://debug.cfg', '', d)}"

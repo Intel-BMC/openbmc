@@ -1,0 +1,451 @@
+From 7c93f19e80d6d6fb11710e112a7aa449c77924f6 Mon Sep 17 00:00:00 2001
+From: Ed Tanous <edtanous@google.com>
+Date: Fri, 19 Feb 2021 08:51:17 -0800
+Subject: [PATCH] Fix nlohmann::json::dump calls
+
+The nlohmann::json::dump call needs to be called with specific arguments
+to avoid throwing in failure cases.  http connection already does this
+properly, but a bunch of code has snuck in (mostly in redfish) that
+ignores this, and calls it incorrectly.  This can potentially lead to a
+crash if the wrong thing throws on invalid UTF8 characters.
+
+This audits the whole codebase, and replaces every dump() call with the
+correct dump(2, ' ', true, nlohmann::json::error_handler_t::replace)
+call.  For correct output, the callers should expect no change, and in
+practice, this would require injecting non-utf8 characters into the
+BMC.
+
+Tested:
+Ran several of the endpoints/error conditions in question, including
+some of the error cases.  Observed correct responses.  I don't know of a
+security issue that would allow injecting invalid utf8 into the BMC, but
+in theory if it were possible, this would prevent a crash.
+
+Signed-off-by: Ed Tanous <edtanous@google.com>
+Change-Id: I4a15b8e260e3db129bc20484ade4ed5449f75ad0
+Signed-off-by: Terry S. Duncan <terry.s.duncan@linux.intel.com>
+---
+ http/http_connection.h                        |  3 +-
+ include/dbus_monitor.hpp                      |  3 +-
+ include/openbmc_dbus_rest.hpp                 |  6 ++-
+ .../include/event_service_manager.hpp         | 12 +++--
+ redfish-core/include/utils/json_utils.hpp     | 30 ++++++++++--
+ redfish-core/lib/account_service.hpp          |  4 +-
+ redfish-core/lib/ethernet.hpp                 | 48 +++++++++++-------
+ redfish-core/lib/event_service.hpp            |  4 +-
+ redfish-core/lib/hypervisor_ethernet.hpp      |  7 ++-
+ redfish-core/lib/managers.hpp                 | 49 +++++++++++++------
+ 10 files changed, 115 insertions(+), 51 deletions(-)
+
+diff --git a/http/http_connection.h b/http/http_connection.h
+index 59a134f..4fb2d85 100644
+--- a/http/http_connection.h
++++ b/http/http_connection.h
+@@ -660,7 +660,8 @@ class Connection :
+             else
+             {
+                 res.jsonMode();
+-                res.body() = res.jsonValue.dump(2, ' ', true);
++                res.body() = res.jsonValue.dump(
++                    2, ' ', true, nlohmann::json::error_handler_t::replace);
+             }
+         }
+ 
+diff --git a/include/dbus_monitor.hpp b/include/dbus_monitor.hpp
+index 9e22b9c..db0d07b 100644
+--- a/include/dbus_monitor.hpp
++++ b/include/dbus_monitor.hpp
+@@ -110,7 +110,8 @@ inline int onPropertyUpdate(sd_bus_message* m, void* userdata,
+         return 0;
+     }
+ 
+-    connection->sendText(j.dump());
++    connection->sendText(
++        j.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
+     return 0;
+ }
+ 
+diff --git a/include/openbmc_dbus_rest.hpp b/include/openbmc_dbus_rest.hpp
+index c41a568..00d849a 100644
+--- a/include/openbmc_dbus_rest.hpp
++++ b/include/openbmc_dbus_rest.hpp
+@@ -508,7 +508,9 @@ int convertJsonToDbus(sd_bus_message* m, const std::string& arg_type,
+                       const nlohmann::json& input_json)
+ {
+     int r = 0;
+-    BMCWEB_LOG_DEBUG << "Converting " << input_json.dump()
++    BMCWEB_LOG_DEBUG << "Converting "
++                     << input_json.dump(2, ' ', true,
++                                        nlohmann::json::error_handler_t::replace)
+                      << " to type: " << arg_type;
+     const std::vector<std::string> argTypes = dbusArgSplit(arg_type);
+ 
+@@ -917,7 +919,7 @@ int readDictEntryFromMessage(const std::string& typeCode,
+     {
+         // json doesn't support non-string keys.  If we hit this condition,
+         // convert the result to a string so we can proceed
+-        key = key.dump();
++        key = key.dump(2, ' ', true, nlohmann::json::error_handler_t::replace);
+         keyPtr = key.get_ptr<const std::string*>();
+         // in theory this can't fail now, but lets be paranoid about it
+         // anyway
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 470636f..633e096 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -462,7 +462,8 @@ class Subscription
+                               {"Name", "Event Log"},
+                               {"Events", logEntryArray}};
+ 
+-        this->sendEvent(msg.dump());
++        this->sendEvent(
++            msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
+         this->eventSeqNum++;
+     }
+ 
+@@ -526,7 +527,8 @@ class Subscription
+                               {"Name", "Event Log"},
+                               {"Events", logEntryArray}};
+ 
+-        this->sendEvent(msg.dump());
++        this->sendEvent(
++            msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
+         this->eventSeqNum++;
+     }
+ #endif
+@@ -573,7 +575,8 @@ class Subscription
+             {"MetricReportDefinition", {{"@odata.id", metricReportDef}}},
+             {"MetricValues", metricValuesArray}};
+ 
+-        this->sendEvent(msg.dump());
++        this->sendEvent(
++            msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
+     }
+ 
+     void updateRetryConfig(const uint32_t retryAttempts,
+@@ -826,7 +829,8 @@ class EventServiceManager
+ 
+         const std::string tmpFile(std::string(eventServiceFile) + "_tmp");
+         std::ofstream ofs(tmpFile, std::ios::out);
+-        const auto& writeData = jsonData.dump();
++        const auto& writeData = jsonData.dump(
++            2, ' ', true, nlohmann::json::error_handler_t::replace);
+         ofs << writeData;
+         ofs.close();
+ 
+diff --git a/redfish-core/include/utils/json_utils.hpp b/redfish-core/include/utils/json_utils.hpp
+index fbb259d..1252746 100644
+--- a/redfish-core/include/utils/json_utils.hpp
++++ b/redfish-core/include/utils/json_utils.hpp
+@@ -222,12 +222,20 @@ bool unpackValue(nlohmann::json& jsonValue, const std::string& key,
+     {
+         if (!jsonValue.is_array())
+         {
+-            messages::propertyValueTypeError(res, res.jsonValue.dump(), key);
++            messages::propertyValueTypeError(
++                res,
++                res.jsonValue.dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace),
++                key);
+             return false;
+         }
+         if (jsonValue.size() != value.size())
+         {
+-            messages::propertyValueTypeError(res, res.jsonValue.dump(), key);
++            messages::propertyValueTypeError(
++                res,
++                res.jsonValue.dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace),
++                key);
+             return false;
+         }
+         size_t index = 0;
+@@ -242,7 +250,11 @@ bool unpackValue(nlohmann::json& jsonValue, const std::string& key,
+     {
+         if (!jsonValue.is_array())
+         {
+-            messages::propertyValueTypeError(res, res.jsonValue.dump(), key);
++            messages::propertyValueTypeError(
++                res,
++                res.jsonValue.dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace),
++                key);
+             return false;
+         }
+ 
+@@ -261,11 +273,19 @@ bool unpackValue(nlohmann::json& jsonValue, const std::string& key,
+         {
+             if (ec == UnpackErrorCode::invalidType)
+             {
+-                messages::propertyValueTypeError(res, jsonValue.dump(), key);
++                messages::propertyValueTypeError(
++                    res,
++                    jsonValue.dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace),
++                    key);
+             }
+             else if (ec == UnpackErrorCode::outOfRange)
+             {
+-                messages::propertyValueNotInList(res, jsonValue.dump(), key);
++                messages::propertyValueNotInList(
++                    res,
++                    jsonValue.dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace),
++                    key);
+             }
+             return false;
+         }
+diff --git a/redfish-core/lib/account_service.hpp b/redfish-core/lib/account_service.hpp
+index 8ef1434..1619a3e 100644
+--- a/redfish-core/lib/account_service.hpp
++++ b/redfish-core/lib/account_service.hpp
+@@ -240,7 +240,9 @@ static void handleRoleMapPatch(
+             {
+                 BMCWEB_LOG_ERROR << "Can't delete the object";
+                 messages::propertyValueTypeError(
+-                    asyncResp->res, thisJson.dump(),
++                    asyncResp->res,
++                    thisJson.dump(2, ' ', true,
++                                  nlohmann::json::error_handler_t::replace),
+                     "RemoteRoleMapping/" + std::to_string(index));
+                 return;
+             }
+diff --git a/redfish-core/lib/ethernet.hpp b/redfish-core/lib/ethernet.hpp
+index b1a9f69..fc909ce 100644
+--- a/redfish-core/lib/ethernet.hpp
++++ b/redfish-core/lib/ethernet.hpp
+@@ -1421,8 +1421,11 @@ class EthernetInterface : public Node
+     {
+         if ((!input.is_array()) || input.empty())
+         {
+-            messages::propertyValueTypeError(asyncResp->res, input.dump(),
+-                                             "IPv4StaticAddresses");
++            messages::propertyValueTypeError(
++                asyncResp->res,
++                input.dump(2, ' ', true,
++                           nlohmann::json::error_handler_t::replace),
++                "IPv4StaticAddresses");
+             return;
+         }
+ 
+@@ -1450,7 +1453,10 @@ class EthernetInterface : public Node
+                                          "Gateway", gateway))
+                 {
+                     messages::propertyValueFormatError(
+-                        asyncResp->res, thisJson.dump(), pathString);
++                        asyncResp->res,
++                        thisJson.dump(2, ' ', true,
++                                      nlohmann::json::error_handler_t::replace),
++                        pathString);
+                     return;
+                 }
+ 
+@@ -1569,12 +1575,12 @@ class EthernetInterface : public Node
+                         messages::resourceCannotBeDeleted(asyncResp->res);
+                         return;
+                     }
+-                    else
+-                    {
+-                        messages::propertyValueFormatError(
+-                            asyncResp->res, thisJson.dump(), pathString);
+-                        return;
+-                    }
++                    messages::propertyValueFormatError(
++                        asyncResp->res,
++                        thisJson.dump(2, ' ', true,
++                                      nlohmann::json::error_handler_t::replace),
++                        pathString);
++                    return;
+                 }
+ 
+                 if (thisJson.is_null())
+@@ -1619,8 +1625,11 @@ class EthernetInterface : public Node
+     {
+         if (!input.is_array() || input.empty())
+         {
+-            messages::propertyValueTypeError(asyncResp->res, input.dump(),
+-                                             "IPv6StaticAddresses");
++            messages::propertyValueTypeError(
++                asyncResp->res,
++                input.dump(2, ' ', true,
++                           nlohmann::json::error_handler_t::replace),
++                "IPv6StaticAddresses");
+             return;
+         }
+         size_t entryIdx = 1;
+@@ -1640,7 +1649,10 @@ class EthernetInterface : public Node
+                                          address, "PrefixLength", prefixLength))
+                 {
+                     messages::propertyValueFormatError(
+-                        asyncResp->res, thisJson.dump(), pathString);
++                        asyncResp->res,
++                        thisJson.dump(2, ' ', true,
++                                      nlohmann::json::error_handler_t::replace),
++                        pathString);
+                     return;
+                 }
+ 
+@@ -1706,12 +1718,12 @@ class EthernetInterface : public Node
+                         messages::resourceCannotBeDeleted(asyncResp->res);
+                         return;
+                     }
+-                    else
+-                    {
+-                        messages::propertyValueFormatError(
+-                            asyncResp->res, thisJson.dump(), pathString);
+-                        return;
+-                    }
++                    messages::propertyValueFormatError(
++                        asyncResp->res,
++                        thisJson.dump(2, ' ', true,
++                                      nlohmann::json::error_handler_t::replace),
++                        pathString);
++                    return;
+                 }
+ 
+                 if (thisJson.is_null())
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 7a29af5..dd5cf32 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -472,7 +472,9 @@ class EventDestinationCollection : public Node
+                 else
+                 {
+                     messages::propertyValueFormatError(
+-                        asyncResp->res, mrdObj.dump(),
++                        asyncResp->res,
++                        mrdObj.dump(2, ' ', true,
++                                    nlohmann::json::error_handler_t::replace),
+                         "MetricReportDefinitions");
+                     return;
+                 }
+diff --git a/redfish-core/lib/hypervisor_ethernet.hpp b/redfish-core/lib/hypervisor_ethernet.hpp
+index 7b64c20..6fb301f 100644
+--- a/redfish-core/lib/hypervisor_ethernet.hpp
++++ b/redfish-core/lib/hypervisor_ethernet.hpp
+@@ -521,8 +521,11 @@ class HypervisorInterface : public Node
+                                      address, "SubnetMask", subnetMask,
+                                      "Gateway", gateway))
+             {
+-                messages::propertyValueFormatError(asyncResp->res,
+-                                                   thisJson.dump(), pathString);
++                messages::propertyValueFormatError(
++                    asyncResp->res,
++                    thisJson.dump(2, ' ', true,
++                                  nlohmann::json::error_handler_t::replace),
++                    pathString);
+                 return;
+             }
+ 
+diff --git a/redfish-core/lib/managers.hpp b/redfish-core/lib/managers.hpp
+index 7832e81..176d146 100644
+--- a/redfish-core/lib/managers.hpp
++++ b/redfish-core/lib/managers.hpp
+@@ -865,8 +865,10 @@ static CreatePIDRet createPidInterface(
+                 "PositiveHysteresis", doubles["PositiveHysteresis"],
+                 "NegativeHysteresis", doubles["NegativeHysteresis"]))
+         {
+-            BMCWEB_LOG_ERROR << "Line:" << __LINE__ << ", Illegal Property "
+-                             << it.value().dump();
++            BMCWEB_LOG_ERROR << "Line:" << __LINE__
++                << "Illegal Property "
++                << it.value().dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace);
+             return CreatePIDRet::fail;
+         }
+         if (zones)
+@@ -972,8 +974,10 @@ static CreatePIDRet createPidInterface(
+                                           failSafePercent, "MinThermalOutput",
+                                           minThermalOutput))
+         {
+-            BMCWEB_LOG_ERROR << "Line:" << __LINE__ << ", Illegal Property "
+-                             << it.value().dump();
++            BMCWEB_LOG_ERROR << "Line:" << __LINE__
++                << "Illegal Property "
++                << it.value().dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace);
+             return CreatePIDRet::fail;
+         }
+ 
+@@ -984,8 +988,11 @@ static CreatePIDRet createPidInterface(
+             if (!redfish::json_util::readJson(*chassisContainer, response->res,
+                                               "@odata.id", chassisId))
+             {
+-                BMCWEB_LOG_ERROR << "Line:" << __LINE__ << ", Illegal Property "
+-                                 << chassisContainer->dump();
++                BMCWEB_LOG_ERROR << "Line:" << __LINE__
++                    << "Illegal Property "
++                    << chassisContainer->dump(
++                           2, ' ', true,
++                           nlohmann::json::error_handler_t::replace);
+                 return CreatePIDRet::fail;
+             }
+ 
+@@ -1022,8 +1029,10 @@ static CreatePIDRet createPidInterface(
+                 "NegativeHysteresis", negativeHysteresis, "Direction",
+                 direction))
+         {
+-            BMCWEB_LOG_ERROR << "Line:" << __LINE__ << ", Illegal Property "
+-                             << it.value().dump();
++            BMCWEB_LOG_ERROR << "Line:" << __LINE__
++                << "Illegal Property "
++                << it.value().dump(2, ' ', true,
++                                   nlohmann::json::error_handler_t::replace);
+             return CreatePIDRet::fail;
+         }
+ 
+@@ -1057,8 +1066,10 @@ static CreatePIDRet createPidInterface(
+                                                   target, "Output", output))
+                 {
+                     BMCWEB_LOG_ERROR << "Line:" << __LINE__
+-                                     << ", Illegal Property "
+-                                     << it.value().dump();
++                        << "Illegal Property "
++                        << it.value().dump(
++                               2, ' ', true,
++                               nlohmann::json::error_handler_t::replace);
+                     return CreatePIDRet::fail;
+                 }
+                 readings.emplace_back(target);
+@@ -1299,8 +1310,10 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
+                 "FanControllers", fanControllers, "FanZones", fanZones,
+                 "StepwiseControllers", stepwiseControllers, "Profile", profile))
+         {
+-            BMCWEB_LOG_ERROR << "Line:" << __LINE__ << ", Illegal Property "
+-                             << data.dump();
++            BMCWEB_LOG_ERROR << "Line:" << __LINE__
++                << "Illegal Property "
++                << data.dump(2, ' ', true,
++                             nlohmann::json::error_handler_t::replace);
+             return;
+         }
+         configuration.emplace_back("PidControllers", std::move(pidControllers));
+@@ -1822,8 +1835,10 @@ class Manager : public Node
+             std::optional<nlohmann::json> openbmc;
+             if (!redfish::json_util::readJson(*oem, res, "OpenBmc", openbmc))
+             {
+-                BMCWEB_LOG_ERROR << "Line:" << __LINE__ << ", Illegal Property "
+-                                 << oem->dump();
++                BMCWEB_LOG_ERROR << "Line:" << __LINE__
++                    << "Illegal Property "
++                    << oem->dump(2, ' ', true,
++                                 nlohmann::json::error_handler_t::replace);
+                 return;
+             }
+             if (openbmc)
+@@ -1832,8 +1847,10 @@ class Manager : public Node
+                 if (!redfish::json_util::readJson(*openbmc, res, "Fan", fan))
+                 {
+                     BMCWEB_LOG_ERROR << "Line:" << __LINE__
+-                                     << ", Illegal Property "
+-                                     << openbmc->dump();
++                        << "Illegal Property "
++                        << openbmc->dump(
++                               2, ' ', true,
++                               nlohmann::json::error_handler_t::replace);
+                     return;
+                 }
+                 if (fan)
+-- 
+2.17.1
+

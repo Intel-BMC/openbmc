@@ -1,0 +1,41 @@
+From c3286fb24b5d10557dbe2f91e03db6230e1d3b9a Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 15 Jun 2021 10:02:07 -0700
+Subject: [PATCH] Klocwork fix - fruDevice
+
+Fix for Klocwork issues.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/FruDevice.cpp | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/FruDevice.cpp b/src/FruDevice.cpp
+index e1e95f8..a2078a1 100644
+--- a/src/FruDevice.cpp
++++ b/src/FruDevice.cpp
+@@ -903,7 +903,7 @@ static std::pair<DecodeState, std::string>
+ 
+         case FRUDataEncoding::sixBitASCII:
+         {
+-            unsigned int accum;
++            unsigned int accum = 0;
+             unsigned int accumBitLen = 0;
+             value = std::string();
+             for (i = 0; i < len; i++, iter++)
+@@ -982,7 +982,11 @@ bool formatFru(const std::vector<char>& fruBytes,
+                 std::tm fruTime = intelEpoch();
+                 std::time_t timeValue = std::mktime(&fruTime);
+                 timeValue += minutes * 60;
+-                fruTime = *std::gmtime(&timeValue);
++                std::tm* realTime = std::gmtime(&timeValue);
++                if (realTime != NULL)
++                {
++                    fruTime = *realTime;
++                }
+ 
+                 // Tue Nov 20 23:08:00 2018
+                 char timeString[32] = {0};
+-- 
+2.17.1
+

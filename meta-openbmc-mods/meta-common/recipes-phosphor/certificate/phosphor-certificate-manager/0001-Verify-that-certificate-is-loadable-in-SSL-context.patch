@@ -1,0 +1,53 @@
+From 811a29e1941db0157f49d2e05491be945f7b2f07 Mon Sep 17 00:00:00 2001
+From: Nidhin MS <nidhin.ms@intel.com>
+Date: Thu, 13 May 2021 12:54:32 +0530
+Subject: [PATCH] Verify that certificate is loadable in SSL context
+
+Openssl requires private keys to have a minimum keylength specified by
+openssl security level 1. As a result RSA keys shorter
+than 1024 bits and ECC keys shorter than 160 bits are prohibited. Add a
+validation step to create an SSL context and try to load the
+certificate.
+
+Tested:
+Tested RSA with length 512 756 and 1024
+
+Change-Id: Idac4dea6279964bfd8e3d996d91cd278678c73f9
+Signed-off-by: Nidhin MS <nidhin.ms@intel.com>
+---
+ certificate.cpp | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/certificate.cpp b/certificate.cpp
+index 6bfd4af..7b902bd 100644
+--- a/certificate.cpp
++++ b/certificate.cpp
+@@ -9,6 +9,7 @@
+ #include <openssl/err.h>
+ #include <openssl/evp.h>
+ #include <openssl/pem.h>
++#include <openssl/ssl.h>
+ #include <openssl/x509v3.h>
+ 
+ #include <fstream>
+@@ -351,6 +352,17 @@ void Certificate::install(const std::string& certSrcFilePath)
+ 
+     validateCertificateExpiryDate(cert);
+ 
++    // Verify that the certificate can be used in a TLS context
++    const SSL_METHOD* method = TLS_method();
++    std::unique_ptr<SSL_CTX, decltype(&::SSL_CTX_free)> ctx(SSL_CTX_new(method),
++                                                            SSL_CTX_free);
++    if (SSL_CTX_use_certificate(ctx.get(), cert.get()) != 1)
++    {
++        log<level::ERR>("Certificate is not usable",
++                        entry("ERRCODE=%x", ERR_get_error()));
++        elog<InvalidCertificate>(Reason("Certificate is not usable"));
++    }
++
+     // Invoke type specific append private key function.
+     auto appendIter = appendKeyMap.find(certType);
+     if (appendIter == appendKeyMap.end())
+-- 
+2.7.4
+

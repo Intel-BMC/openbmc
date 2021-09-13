@@ -1,0 +1,61 @@
+From b8ab6980db2132276b0b74335710fe43a7a0c5b0 Mon Sep 17 00:00:00 2001
+From: "Terry S. Duncan" <terry.s.duncan@linux.intel.com>
+Date: Tue, 23 Feb 2021 14:55:02 -0800
+Subject: [PATCH] Add WA for host OS not retrying when BMC times out
+
+Patch was submitted upstream to add return codes to list being retried.
+This work around changes the completion code to one that the OS will
+retry.
+
+Signed-off-by: Terry S. Duncan <terry.s.duncan@linux.intel.com>
+---
+ kcsbridged.cpp | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/kcsbridged.cpp b/kcsbridged.cpp
+index 38911fa..b72cede 100644
+--- a/kcsbridged.cpp
++++ b/kcsbridged.cpp
+@@ -191,16 +191,21 @@ class SmsChannel
+                 if (ec)
+                 {
+                     log<level::ERR>(
+-                        "kcs<->ipmid bus error:", entry("NETFN=0x%02x", netfn),
+-                        entry("LUN=0x%02x", lun), entry("CMD=0x%02x", cmd),
++                        "kcs<->ipmid DBus error:",
++                        entry("NETFN=0x%02x", netfnCap),
++                        entry("LUN=0x%02x", lunCap),
++                        entry("CMD=0x%02x", cmdCap),
+                         entry("ERROR=%s", ec.message().c_str()));
+-                    // send unspecified error for a D-Bus error
+-                    constexpr uint8_t ccResponseNotAvailable = 0xce;
+-                    rsp.resize(sizeof(netfn) + sizeof(cmd) + sizeof(cc));
++                    // Send cannot-execute error for a D-Bus error.
++                    // This CC gets retried by the host driver.
++                    constexpr uint8_t ccCannotExecute = 0xd5;
++                    rsp.resize(sizeof(netfnCap) + sizeof(cmdCap) + sizeof(cc));
++
++                    // DBUS fail response will have zeros; copy values from req.
+                     rsp[0] =
+                         ((netfnCap + 1) << netFnShift) | (lunCap & lunMask);
+                     rsp[1] = cmdCap;
+-                    rsp[2] = ccResponseNotAvailable;
++                    rsp[2] = ccCannotExecute;
+                 }
+                 else
+                 {
+@@ -233,8 +238,9 @@ class SmsChannel
+                         "Failed to send rsp msg", entry("SIZE=%d", wlen),
+                         entry("EXPECT=%d", rsp.size()),
+                         entry("ERROR=%s", ecWr.message().c_str()),
+-                        entry("NETFN=0x%02x", netfn), entry("LUN=0x%02x", lun),
+-                        entry("CMD=0x%02x", cmd), entry("CC=0x%02x", cc));
++                        entry("NETFN=0x%02x", netfnCap),
++                        entry("LUN=0x%02x", lunCap),
++                        entry("CMD=0x%02x", cmdCap), entry("CC=0x%02x", cc));
+                 }
+             },
+             ipmiQueueService, ipmiQueuePath, ipmiQueueIntf, ipmiQueueMethod,
+-- 
+2.17.1
+

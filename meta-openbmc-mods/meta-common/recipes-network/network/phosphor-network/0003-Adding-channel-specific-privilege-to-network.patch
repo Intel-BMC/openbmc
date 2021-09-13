@@ -1,4 +1,4 @@
-From 5dfcd6c81a9f26c6c9c867a7a49f5259c3512be2 Mon Sep 17 00:00:00 2001
+From 7ff692291e9548bfc3e91f3ac32ab973a42b0b79 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Thu, 2 Apr 2020 17:06:07 +0530
 Subject: [PATCH 1/2] Adding channel specific privilege to network
@@ -17,20 +17,21 @@ access command
 Change-Id: I3b592a19363eef684e31d5f7c34dad8f2f9211df
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
 ---
- ethernet_interface.cpp | 123 +++++++++++++++++++++++++++++++++++++++++++++++++
- ethernet_interface.hpp |  39 +++++++++++++++-
- network_manager.cpp    | 104 +++++++++++++++++++++++++++++++++++++++++
- network_manager.hpp    |   9 ++++
- 4 files changed, 274 insertions(+), 1 deletion(-)
+ ethernet_interface.cpp | 123 +++++++++++++++++++++++++++++++++++++++++
+ ethernet_interface.hpp |  38 ++++++++++++-
+ network_manager.cpp    | 102 ++++++++++++++++++++++++++++++++++
+ network_manager.hpp    |   9 +++
+ 4 files changed, 271 insertions(+), 1 deletion(-)
 
 diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
-index ed1e1ba..fca86bd 100644
+index 4827f68..fd75514 100644
 --- a/ethernet_interface.cpp
 +++ b/ethernet_interface.cpp
-@@ -37,6 +37,10 @@ using namespace phosphor::logging;
- using namespace sdbusplus::xyz::openbmc_project::Common::Error;
- using Argument = xyz::openbmc_project::Common::InvalidArgument;
+@@ -44,6 +44,10 @@ constexpr auto PROPERTY_INTERFACE = "org.freedesktop.DBus.Properties";
+ constexpr auto RESOLVED_SERVICE_PATH = "/org/freedesktop/resolve1/link/";
+ constexpr auto METHOD_GET = "Get";
  
 +static constexpr const char* networkChannelCfgFile =
 +    "/var/channel_intf_data.json";
@@ -39,15 +40,15 @@ index ed1e1ba..fca86bd 100644
  struct EthernetIntfSocket
  {
      EthernetIntfSocket(int domain, int type, int protocol)
-@@ -86,6 +90,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
-     EthernetInterfaceIntf::speed(std::get<0>(ifInfo));
+@@ -93,6 +97,7 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
      EthernetInterfaceIntf::linkUp(std::get<3>(ifInfo));
+     EthernetInterfaceIntf::nICEnabled(std::get<4>(ifInfo));
  #endif
 +    getChannelPrivilege(intfName);
  
      // Emit deferred signal.
      if (emitSignal)
-@@ -869,5 +874,123 @@ void EthernetInterface::deleteAll()
+@@ -1007,5 +1012,123 @@ void EthernetInterface::deleteAll()
      manager.writeToConfigurationFile();
  }
  
@@ -115,7 +116,7 @@ index ed1e1ba..fca86bd 100644
 +    }
 +    else
 +    {
-+        jsonData[interfaceName] = priv;
++        return priv;
 +    }
 +
 +    if (writeJsonFile(networkChannelCfgFile, jsonData) != 0)
@@ -172,7 +173,7 @@ index ed1e1ba..fca86bd 100644
  } // namespace network
  } // namespace phosphor
 diff --git a/ethernet_interface.hpp b/ethernet_interface.hpp
-index 68668d6..058d328 100644
+index f8086a4..4191d49 100644
 --- a/ethernet_interface.hpp
 +++ b/ethernet_interface.hpp
 @@ -2,11 +2,14 @@
@@ -215,7 +216,7 @@ index 68668d6..058d328 100644
  namespace fs = std::experimental::filesystem;
  
  class Manager; // forward declaration of network manager.
-@@ -199,6 +208,14 @@ class EthernetInterface : public Ifaces
+@@ -217,6 +225,14 @@ class EthernetInterface : public Ifaces
       */
      void deleteAll();
  
@@ -230,7 +231,7 @@ index 68668d6..058d328 100644
      using EthernetInterfaceIntf::dHCPEnabled;
      using EthernetInterfaceIntf::interfaceName;
      using EthernetInterfaceIntf::linkUp;
-@@ -296,6 +313,26 @@ class EthernetInterface : public Ifaces
+@@ -316,6 +332,26 @@ class EthernetInterface : public Ifaces
      std::string objPath;
  
      friend class TestEthernetInterface;
@@ -258,7 +259,7 @@ index 68668d6..058d328 100644
  
  } // namespace network
 diff --git a/network_manager.cpp b/network_manager.cpp
-index 043d7a2..75f4e5f 100644
+index 637092b..6e5234c 100644
 --- a/network_manager.cpp
 +++ b/network_manager.cpp
 @@ -34,6 +34,13 @@ extern std::unique_ptr<Timer> restartTimer;
@@ -378,7 +379,7 @@ index 043d7a2..75f4e5f 100644
  
  bool Manager::createDefaultNetworkFiles(bool force)
 diff --git a/network_manager.hpp b/network_manager.hpp
-index edb341f..5fb9fe8 100644
+index 80d017e..e308650 100644
 --- a/network_manager.hpp
 +++ b/network_manager.hpp
 @@ -137,6 +137,12 @@ class Manager : public details::VLANCreateIface
@@ -405,5 +406,5 @@ index edb341f..5fb9fe8 100644
  
  } // namespace network
 -- 
-2.7.4
+2.31.1
 

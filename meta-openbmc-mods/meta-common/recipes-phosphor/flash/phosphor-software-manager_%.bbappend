@@ -20,6 +20,7 @@ SRC_URI += "file://0001-Add-more-error-types.patch \
 SRC_URI_PFR = "file://0007-PFR-images-support.patch \
                file://0008-PFR-image-HASH-verification.patch \
                file://0010-Add-error-reporting-to-pfr_image_manager.patch \
+               file://0015-Fix-delete-image-by-ID-and-inhibit-removal-of-bmc_ac.patch \
               "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', SRC_URI_PFR, '', d)}"

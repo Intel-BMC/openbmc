@@ -1,0 +1,62 @@
+From 13a5a77c408efd1e84b48de8a48ab5990d26fca9 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 9 Mar 2021 20:25:29 -0800
+Subject: [PATCH] ADCSensor: check threshold 10 seconds after power on
+
+For ADC Sensors, only check for threshold if the host power state file
+has been written for more than 10 seconds.
+
+This is a workaround to ensure that the sensor value that is used to
+compare against the threshold level is read after voltages settled and
+full ADC sampling cycle has been passed.
+
+The false SEL logs cannot be reliably reproduced, so it is not
+possible to confirm that the issue is fixed with this change.
+
+Tested:
+Use debug print to verify check threshold is skipped during first 10
+seconds after power state transition.
+SEL log is created when event is triggered after 10 seconds.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/ADCSensor.cpp | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index 4de2b1f..2017c0c 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -246,6 +246,7 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+ 
+ const static std::filesystem::path tmpHostStateFileDir = "/tmp";
+ const static constexpr std::string_view hostStateFile = "host-state";
++constexpr auto powerSettleTime = std::chrono::seconds{10};
+ 
+ static bool isPowerCurrentlyOn()
+ {
+@@ -256,6 +257,21 @@ static bool isPowerCurrentlyOn()
+         return false;
+     }
+ 
++    // File time is used as host power state change time.
++    // Make sure we are in the current state longer than settling time.
++    // This is only needed for power on to ensure VRs are sampled in
++    // the steady state.
++    // But it is ok to apply check for power off also,
++    // so always check the timestamp to keep the logic simple.
++    std::filesystem::file_time_type hostStateUpdateTime =
++        std::filesystem::last_write_time(
++            std::filesystem::path(tmpHostStateFileDir / hostStateFile));
++    if ((std::filesystem::file_time_type::clock::now() - hostStateUpdateTime) <=
++        powerSettleTime)
++    {
++        return false;
++    }
++
+     std::string state;
+     std::getline(hostStateStream, state);
+     return state == "xyz.openbmc_project.State.Host.HostState.Running";
+-- 
+2.17.1
+

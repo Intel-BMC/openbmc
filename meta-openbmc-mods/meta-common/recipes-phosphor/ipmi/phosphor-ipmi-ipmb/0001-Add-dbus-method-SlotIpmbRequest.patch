@@ -1,4 +1,4 @@
-From 644165bf32fd6e757c261881987d127a865cbf2b Mon Sep 17 00:00:00 2001
+From b0baf051a2b56e87d63d047c4a09a00d6d4bb955 Mon Sep 17 00:00:00 2001
 From: Rajashekar Gade Reddy <raja.sekhar.reddy.gade@linux.intel.com>
 Date: Mon, 23 Mar 2020 22:19:07 +0530
 Subject: [PATCH] Add dbus method SlotIpmbRequest
@@ -33,8 +33,7 @@ ipmitool raw 0x3e 0x51 0 0x01 0xb0 0x6 1
 Note: Tested for all possible negative test cases and it works fine.
 
 Signed-off-by: Rajashekar Gade Reddy <raja.sekhar.reddy.gade@intel.com>
-
-%% original patch: 0001-Add-dbus-method-SlotIpmbRequest.patch
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
 ---
  CMakeLists.txt      |   2 +-
  include/linux/i2c.h | 159 ++++++++++++++++++++++++++++++++
@@ -240,7 +239,7 @@ index 0876db7..ff570c6 100644
    ]
  }
 diff --git a/ipmbbridged.cpp b/ipmbbridged.cpp
-index e0eadfc..72ede8c 100644
+index e0eadfc..6e998bf 100644
 --- a/ipmbbridged.cpp
 +++ b/ipmbbridged.cpp
 @@ -18,6 +18,11 @@
@@ -362,7 +361,6 @@ index e0eadfc..72ede8c 100644
 +                                std::shared_ptr<IpmbRequest> request,
 +                                const uint8_t pcieSlot)
 +{
-+    makeRequestValid(request);
 +    std::filesystem::path p =
 +        "/dev/i2c-mux/PCIE_Mux/Pcie_Slot_" + std::to_string(pcieSlot);
 +
@@ -386,6 +384,7 @@ index e0eadfc..72ede8c 100644
 +        return returnStatus(ipmbResponseStatus::error);
 +    }
 +
++    makeRequestValid(request);
 +    uint8_t size = buffer.size();
 +
 +    const uint8_t slaveAddrIndex = 1;

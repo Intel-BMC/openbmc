@@ -1,6 +1,8 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
 
-SRC_URI += "file://enable-ssh.sh"
+SRC_URI += "file://0001-Port-OpenSSH-CVE-2018-20685-fix.patch \
+            file://enable-ssh.sh \
+           "
 
 add_manual_ssh_enable() {
    install -d ${D}/usr/share/misc

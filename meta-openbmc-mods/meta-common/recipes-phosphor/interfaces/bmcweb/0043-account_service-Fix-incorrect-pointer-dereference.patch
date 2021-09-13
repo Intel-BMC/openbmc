@@ -1,0 +1,40 @@
+From 2cfacab5512cdf9802b267138d06d955989c8593 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Tue, 15 Jun 2021 01:38:43 +0530
+Subject: [PATCH] account_service: Fix incorrect pointer dereference flow
+
+The pointer is being dereferenced before checking for null.
+Moved dereferencing of pointer to occur after null check.
+
+Tested:
+ -Built Successfully
+ -No regressions observed.
+
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ redfish-core/lib/account_service.hpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/account_service.hpp b/redfish-core/lib/account_service.hpp
+index 1619a3e..9263090 100644
+--- a/redfish-core/lib/account_service.hpp
++++ b/redfish-core/lib/account_service.hpp
+@@ -122,13 +122,14 @@ void userErrorMessageHandler(const sd_bus_error* e,
+                              const std::string& newUser,
+                              const std::string& username)
+ {
+-    const char* errorMessage = e->name;
+     if (e == nullptr)
+     {
+         messages::internalError(asyncResp->res);
+         return;
+     }
+ 
++    const char* errorMessage = e->name;
++
+     if (strcmp(errorMessage,
+                "xyz.openbmc_project.User.Common.Error.UserNameExists") == 0)
+     {
+-- 
+2.17.1
+

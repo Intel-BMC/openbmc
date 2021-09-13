@@ -1,0 +1,209 @@
+From efb007d288530ce6ec8a319488422fbccb521edd Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 9 Mar 2021 20:45:35 -0800
+Subject: ExitAirTemp fix: use weak_ptr to in async handler
+
+Replace shared_ptr with weak_ptr in async handler's capture.
+CFMSensor and ExitAirTempSensor are properly deleted before
+new instances are created.
+
+Tested:
+Run dc cycle test and no more memory leak or dbus connection timeout.
+
+Signed-off-by Zhikui Ren <zhikui.ren@intel.com>
+---
+ src/ExitAirTempSensor.cpp | 102 +++++++++++++++++++++++++++++---------
+ 1 file changed, 79 insertions(+), 23 deletions(-)
+
+diff --git a/src/ExitAirTempSensor.cpp b/src/ExitAirTempSensor.cpp
+index 4661aeb..1ee9301 100644
+--- a/src/ExitAirTempSensor.cpp
++++ b/src/ExitAirTempSensor.cpp
+@@ -208,10 +208,16 @@ CFMSensor::CFMSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+ void CFMSensor::setupMatches()
+ {
+ 
+-    std::shared_ptr<CFMSensor> self = shared_from_this();
++    std::weak_ptr<CFMSensor> weakRef = weak_from_this();
+     setupSensorMatch(
+         matches, *dbusConnection, "fan_tach",
+-        [self](const double& value, sdbusplus::message::message& message) {
++        [weakRef](const double& value, sdbusplus::message::message& message) {
++            std::shared_ptr<CFMSensor> self = weakRef.lock();
++            if (!self)
++            {
++                // we have been deleted
++                return;
++            }
+             self->tachReadings[message.get_path()] = value;
+             if (self->tachRanges.find(message.get_path()) ==
+                 self->tachRanges.end())
+@@ -226,8 +232,15 @@ void CFMSensor::setupMatches()
+         });
+ 
+     dbusConnection->async_method_call(
+-        [self](const boost::system::error_code ec,
+-               const std::variant<double> cfmVariant) {
++        [weakRef](const boost::system::error_code ec,
++                  const std::variant<double> cfmVariant) {
++            std::shared_ptr<CFMSensor> self = weakRef.lock();
++            if (!self)
++            {
++                // we have been deleted
++                return;
++            }
++
+             uint64_t maxRpm = 100;
+             if (!ec)
+             {
+@@ -252,7 +265,13 @@ void CFMSensor::setupMatches()
+         "freedesktop.DBus.Properties',path='" +
+             std::string(cfmSettingPath) + "',arg0='" +
+             std::string(cfmSettingIface) + "'",
+-        [self](sdbusplus::message::message& message) {
++        [weakRef](sdbusplus::message::message& message) {
++            std::shared_ptr<CFMSensor> self = weakRef.lock();
++            if (!self)
++            {
++                // we have been deleted
++                return;
++            }
+             boost::container::flat_map<std::string, std::variant<double>>
+                 values;
+             std::string objectName;
+@@ -298,18 +317,24 @@ void CFMSensor::createMaxCFMIface(void)
+ void CFMSensor::addTachRanges(const std::string& serviceName,
+                               const std::string& path)
+ {
+-    std::shared_ptr<CFMSensor> self = shared_from_this();
++    std::weak_ptr<CFMSensor> weakRef = weak_from_this();
+     dbusConnection->async_method_call(
+-        [self, path](const boost::system::error_code ec,
+-                     const boost::container::flat_map<std::string,
+-                                                      BasicVariantType>& data) {
++        [weakRef,
++         path](const boost::system::error_code ec,
++               const boost::container::flat_map<std::string, BasicVariantType>&
++                   data) {
+             if (ec)
+             {
+                 std::cerr << "Error getting properties from " << path << "\n";
+                 std::cerr << ec.message() << "\n";
+                 return;
+             }
+-
++            std::shared_ptr<CFMSensor> self = weakRef.lock();
++            if (!self)
++            {
++                // we have been deleted
++                return;
++            }
+             double max = loadVariant<double>(data, "MaxValue");
+             double min = loadVariant<double>(data, "MinValue");
+             self->tachRanges[path] = std::make_pair(min, max);
+@@ -544,13 +569,19 @@ void ExitAirTempSensor::setupMatches(void)
+     constexpr const std::array<const char*, 2> matchTypes = {
+         "power", inletTemperatureSensor};
+ 
+-    std::shared_ptr<ExitAirTempSensor> self = shared_from_this();
++    std::weak_ptr<ExitAirTempSensor> weakRef = weak_from_this();
+     for (const std::string& type : matchTypes)
+     {
+         setupSensorMatch(
+             matches, *dbusConnection, type,
+-            [self, type](const double& value,
+-                         sdbusplus::message::message& message) {
++            [weakRef, type](const double& value,
++                            sdbusplus::message::message& message) {
++                std::shared_ptr<ExitAirTempSensor> self = weakRef.lock();
++                if (!self)
++                {
++                    // we have been deleted
++                    return;
++                }
+                 if (type == "power")
+                 {
+                     std::string path = message.get_path();
+@@ -579,8 +610,14 @@ void ExitAirTempSensor::setupMatches(void)
+             });
+     }
+     dbusConnection->async_method_call(
+-        [self](boost::system::error_code ec,
+-               const std::variant<double>& value) {
++        [weakRef](boost::system::error_code ec,
++                  const std::variant<double>& value) {
++            std::shared_ptr<ExitAirTempSensor> self = weakRef.lock();
++            if (!self)
++            {
++                // we have been deleted
++                return;
++            }
+             if (ec)
+             {
+                 // sensor not ready yet
+@@ -593,7 +630,13 @@ void ExitAirTempSensor::setupMatches(void)
+         std::string("/xyz/openbmc_project/sensors/") + inletTemperatureSensor,
+         properties::interface, properties::get, sensorValueInterface, "Value");
+     dbusConnection->async_method_call(
+-        [self](boost::system::error_code ec, const GetSubTreeType& subtree) {
++        [weakRef](boost::system::error_code ec, const GetSubTreeType& subtree) {
++            std::shared_ptr<ExitAirTempSensor> self = weakRef.lock();
++            if (!self)
++            {
++                // we have been deleted
++                return;
++            }
+             if (ec)
+             {
+                 std::cerr << "Error contacting mapper\n";
+@@ -614,8 +657,15 @@ void ExitAirTempSensor::setupMatches(void)
+                 {
+                     const std::string& path = item.first;
+                     self->dbusConnection->async_method_call(
+-                        [self, path](boost::system::error_code ec,
+-                                     const std::variant<double>& value) {
++                        [weakRef, path](boost::system::error_code ec,
++                                        const std::variant<double>& value) {
++                            std::shared_ptr<ExitAirTempSensor> self =
++                                weakRef.lock();
++                            if (!self)
++                            {
++                                // we have been deleted
++                                return;
++                            }
+                             if (ec)
+                             {
+                                 std::cerr << "Error getting value from " << path
+@@ -644,18 +694,24 @@ void ExitAirTempSensor::setupMatches(void)
+ void ExitAirTempSensor::addPowerRanges(const std::string& serviceName,
+                                        const std::string& path)
+ {
+-    std::shared_ptr<ExitAirTempSensor> self = shared_from_this();
++    std::weak_ptr<ExitAirTempSensor> weakRef = weak_from_this();
+     dbusConnection->async_method_call(
+-        [self, path](const boost::system::error_code ec,
+-                     const boost::container::flat_map<std::string,
+-                                                      BasicVariantType>& data) {
++        [weakRef,
++         path](const boost::system::error_code ec,
++               const boost::container::flat_map<std::string, BasicVariantType>&
++                   data) {
+             if (ec)
+             {
+                 std::cerr << "Error getting properties from " << path << "\n";
+                 std::cerr << ec.message() << "\n";
+                 return;
+             }
+-
++            std::shared_ptr<ExitAirTempSensor> self = weakRef.lock();
++            if (!self)
++            {
++                // we have been deleted
++                return;
++            }
+             double max = loadVariant<double>(data, "MaxValue");
+             double min = loadVariant<double>(data, "MinValue");
+             self->powerRanges[path] = std::make_pair(min, max);
+-- 
+2.17.1
+

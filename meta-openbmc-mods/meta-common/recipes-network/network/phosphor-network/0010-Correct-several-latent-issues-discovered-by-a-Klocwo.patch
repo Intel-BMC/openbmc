@@ -1,0 +1,63 @@
+From 8d0cc1dfc3b48bccbe09a205f1ff2eb7721dbc6f Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Mon, 21 Jun 2021 13:34:04 -0700
+Subject: [PATCH] Correct several latent issues discovered by a Klocwork scan
+
+Klocwork identified several issues:
+1. ncsi_util: Null pointer dereferences
+2. vlan_interface: Missing return value for non-void function
+
+Tested:
+Programmed the updated code to WCity system.
+
+Change-Id: Ie6a601b343404f3070f35171336c0c5796c8d635
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ ncsi_util.cpp      | 11 +++++++++++
+ vlan_interface.cpp |  1 +
+ 2 files changed, 12 insertions(+)
+
+diff --git a/ncsi_util.cpp b/ncsi_util.cpp
+index 2b3fb54..4a46849 100644
+--- a/ncsi_util.cpp
++++ b/ncsi_util.cpp
+@@ -180,6 +180,12 @@ int applyCmd(int ifindex, int cmd, int package = DEFAULT_VALUE,
+              CallBack function = nullptr)
+ {
+     nlSocketPtr socket(nl_socket_alloc(), &::nl_socket_free);
++    if (socket == nullptr)
++    {
++        log<level::ERR>("Unable to allocate memory for the socket.");
++        return -ENOMEM;
++    }
++
+     auto ret = genl_connect(socket.get());
+     if (ret < 0)
+     {
+@@ -195,6 +201,11 @@ int applyCmd(int ifindex, int cmd, int package = DEFAULT_VALUE,
+     }
+ 
+     nlMsgPtr msg(nlmsg_alloc(), &::nlmsg_free);
++    if (msg == nullptr)
++    {
++        log<level::ERR>("Unable to allocate memory for the message.");
++        return -ENOMEM;
++    }
+ 
+     auto msgHdr = genlmsg_put(msg.get(), 0, 0, driverID, 0, flags, cmd, 0);
+     if (!msgHdr)
+diff --git a/vlan_interface.cpp b/vlan_interface.cpp
+index 26282cb..baa5271 100644
+--- a/vlan_interface.cpp
++++ b/vlan_interface.cpp
+@@ -41,6 +41,7 @@ std::string VlanInterface::mACAddress(std::string)
+ {
+     log<level::ERR>("Tried to set MAC address on VLAN");
+     elog<InternalFailure>();
++    return {};
+ }
+ 
+ void VlanInterface::writeDeviceFile()
+-- 
+2.31.1
+
