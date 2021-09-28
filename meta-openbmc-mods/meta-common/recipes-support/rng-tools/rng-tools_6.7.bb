@@ -21,7 +21,7 @@ S = "${WORKDIR}/git"
 inherit autotools update-rc.d systemd pkgconfig
 
 PACKAGECONFIG ??= "libgcrypt libjitterentropy"
-PACKAGECONFIG_libc-musl = "libargp libjitterentropy"
+PACKAGECONFIG:libc-musl = "libargp libjitterentropy"
 
 PACKAGECONFIG[libargp] = "--with-libargp,--without-libargp,argp-standalone,"
 PACKAGECONFIG[libgcrypt] = "--with-libgcrypt,--without-libgcrypt,libgcrypt,"
@@ -32,14 +32,14 @@ PACKAGECONFIG[nistbeacon] = "--with-nistbeacon,--without-nistbeacon,curl libxml2
 INITSCRIPT_NAME = "rng-tools"
 INITSCRIPT_PARAMS = "start 03 2 3 4 5 . stop 30 0 6 1 ."
 
-SYSTEMD_SERVICE_${PN} = "rngd.service"
+SYSTEMD_SERVICE:${PN} = "rngd.service"
 
 # Refer autogen.sh in rng-tools
-do_configure_prepend() {
+do_configure:prepend() {
     cp ${S}/README.md ${S}/README
 }
 
-do_install_append() {
+do_install:append() {
     install -Dm 0644 ${WORKDIR}/default ${D}${sysconfdir}/default/rng-tools
     install -Dm 0755 ${WORKDIR}/init ${D}${sysconfdir}/init.d/rng-tools
     install -Dm 0644 ${WORKDIR}/rngd.service \

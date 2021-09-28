@@ -13,7 +13,7 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 
 S = "${WORKDIR}"
 
-SYSTEMD_SERVICE_${PN} = "pch-time-sync.service"
+SYSTEMD_SERVICE:${PN} = "pch-time-sync.service"
 
 inherit cmake
 inherit obmc-phosphor-systemd

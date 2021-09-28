@@ -1,4 +1,4 @@
-From 235bb8a9b809c2449e3f5bf4e999db881012c144 Mon Sep 17 00:00:00 2001
+From db4353de222b51726c8e3c765cc8f1df4ad67687 Mon Sep 17 00:00:00 2001
 From: Zhikui Ren <zhikui.ren@intel.com>
 Date: Tue, 22 Jun 2021 11:35:12 -0700
 Subject: [PATCH] Fix missing de-assert event when threshold changes
@@ -42,8 +42,8 @@ Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
 ---
  include/Thresholds.hpp |  2 +-
  include/sensor.hpp     |  2 ++
- src/Thresholds.cpp     | 17 ++++++++++++++---
- 3 files changed, 17 insertions(+), 4 deletions(-)
+ src/Thresholds.cpp     | 20 ++++++++++++++++----
+ 3 files changed, 19 insertions(+), 5 deletions(-)
 
 diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
 index af63f72..fd507d0 100644
@@ -79,7 +79,7 @@ index b98241b..6235674 100644
      }
  
 diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
-index bbe8e20..78ded55 100644
+index 821083a..da0d650 100644
 --- a/src/Thresholds.cpp
 +++ b/src/Thresholds.cpp
 @@ -418,10 +418,19 @@ bool checkThresholds(Sensor* sensor)
@@ -103,7 +103,22 @@ index bbe8e20..78ded55 100644
          if (change.threshold.level == thresholds::Level::CRITICAL &&
              change.asserted)
          {
-@@ -473,7 +482,7 @@ void checkThresholdsPowerDelay(const std::weak_ptr<Sensor>& weakSensor,
+@@ -443,6 +452,7 @@ void checkThresholdsPowerDelay(const std::weak_ptr<Sensor>& weakSensor,
+ 
+     Sensor* sensor = sensorPtr.get();
+     std::vector<ChangeParam> changes = checkThresholds(sensor, sensor->value);
++    bool forceAssert = !sensor->hadValidValue;
+     for (const auto& change : changes)
+     {
+         // When CPU is powered off, some volatges are expected to
+@@ -467,13 +477,13 @@ void checkThresholdsPowerDelay(const std::weak_ptr<Sensor>& weakSensor,
+             }
+         }
+         assertThresholds(sensor, change.assertValue, change.threshold.level,
+-                         change.threshold.direction, change.asserted);
++                         change.threshold.direction, change.asserted, forceAssert);
+     }
+ }
  
  void assertThresholds(Sensor* sensor, double assertValue,
                        thresholds::Level level, thresholds::Direction direction,
@@ -112,7 +127,7 @@ index bbe8e20..78ded55 100644
  {
      std::string property;
      std::shared_ptr<sdbusplus::asio::dbus_interface> interface;
-@@ -513,7 +522,9 @@ void assertThresholds(Sensor* sensor, double assertValue,
+@@ -513,7 +523,9 @@ void assertThresholds(Sensor* sensor, double assertValue,
          return;
      }
  

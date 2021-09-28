@@ -14,7 +14,7 @@ OVERLAY_BASETYPE ?= "jffs2"
 
 IMAGE_TYPES += "mtd-auto"
 
-IMAGE_TYPEDEP_mtd-auto = "${IMAGE_BASETYPE}"
+IMAGE_TYPEDEP:mtd-auto = "${IMAGE_BASETYPE}"
 IMAGE_TYPES_MASKED += "mtd-auto"
 
 # Flash characteristics in KB unless otherwise noted

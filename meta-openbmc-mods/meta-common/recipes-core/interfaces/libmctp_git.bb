@@ -2,7 +2,7 @@ SUMMARY = "libmctp"
 DESCRIPTION = "Implementation of MCTP (DTMF DSP0236)"
 
 SRC_URI = "git://github.com/openbmc/libmctp.git"
-SRCREV = "cfeaef8ecb0ab8c59ea4e145603523e599d60014"
+SRCREV = "ae59f4fe3a3ceaf52a682ada2a2b54855fad2408"
 
 PV = "0.1+git${SRCPV}"
 
@@ -15,10 +15,10 @@ S = "${WORKDIR}/git"
 
 DEPENDS += "i2c-tools"
 
-CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
-CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
+CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include"
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += "file://0001-Smbus-changes-for-libmctp.patch \
             file://0002-Fix-Memory-Leak.patch \
@@ -28,16 +28,16 @@ SRC_URI += "file://0001-Smbus-changes-for-libmctp.patch \
             file://libmctp-smbus.h  \
             file://smbus.c"
 
-do_configure_prepend() {
+do_configure:prepend() {
     cp -f ${WORKDIR}/*.c ${S}
     cp -f ${WORKDIR}/*.h ${S}
     cp -f ${WORKDIR}/CMakeLists.txt ${S}
 }
 
 # linux-libc-headers guides this way to include custom uapi headers
-CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
-CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
-CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
-CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include"
+CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include"
+CXXFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CXXFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include"
 
 do_configure[depends] += "virtual/kernel:do_shared_workdir"

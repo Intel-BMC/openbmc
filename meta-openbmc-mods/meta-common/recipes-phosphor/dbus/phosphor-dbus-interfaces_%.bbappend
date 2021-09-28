@@ -1,9 +1,9 @@
 # Keep this as a comment to enable the auto-bump script without
 # stomping on SRC_URI from previous .bbappend files
 #SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git"
-SRCREV = "5795dacbc5763a0f1d1e1ac59d73baf4ca2ae616"
+SRCREV = "6b50623459b54af222cb9a79c5a0c7912c92da41"
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += "file://0007-ipmi-set-BIOS-id.patch \
             file://0010-Increase-the-default-watchdog-timeout-value.patch \

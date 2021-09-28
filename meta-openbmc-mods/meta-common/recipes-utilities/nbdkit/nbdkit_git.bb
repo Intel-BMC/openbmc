@@ -12,6 +12,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=f9dcc2d8acdde215fa4bd6ac12bb14f0"
 SRC_URI = "git://github.com/libguestfs/nbdkit.git;protocol=https"
 SRC_URI += "file://0001-Force-nbdkit-to-send-PATCH-as-upload-method.patch"
 SRC_URI += "file://0002-Add-support-for-ssl-config.patch"
+SRC_URI += "file://0003-Add-support-for-tls13-ciphers.patch"
+SRC_URI += "file://0004-Handle-empty-CAInfo-in-curl-plugin-correctly.patch"
 
 PV = "1.25.5+git${SRCPV}"
 SRCREV = "c828c6d48ff6b69454cad98054a1920d03c4b4c7"
@@ -29,7 +31,7 @@ EXTRA_OECONF = "--disable-python --disable-perl --disable-ocaml \
                --disable-lua --disable-vddk --without-libvirt \
                --without-libguestfs"
 
-do_install_append() {
+do_install:append() {
     rm -f ${D}/usr/share/bash-completion/completions/nbdkit
     rmdir ${D}/usr/share/bash-completion/completions
     rmdir ${D}/usr/share/bash-completion

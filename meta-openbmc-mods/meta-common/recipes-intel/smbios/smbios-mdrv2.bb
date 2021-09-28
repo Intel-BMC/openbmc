@@ -2,7 +2,7 @@ SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
 SRC_URI = "git://github.com/openbmc/smbios-mdr.git"
-SRCREV = "a427dd1de9e765861a52ce0f73021a282cc6ce4c"
+SRCREV = "ecbd71baa68d0c2834614d84f24de7d369a51ce4"
 
 S = "${WORKDIR}/git"
 
@@ -14,8 +14,8 @@ LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 inherit cmake pkgconfig
 inherit obmc-phosphor-systemd
 
-SYSTEMD_SERVICE_${PN} += "smbios-mdrv2.service"
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.cpuinfo.service"
+SYSTEMD_SERVICE:${PN} += "smbios-mdrv2.service"
+SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.cpuinfo.service"
 
 DEPENDS += " \
     autoconf-archive-native \

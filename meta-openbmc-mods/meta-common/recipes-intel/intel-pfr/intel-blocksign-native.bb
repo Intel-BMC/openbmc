@@ -14,7 +14,7 @@ SRCREV = "966d16f680c1b14c338640d35a12d5e2f9a6937a"
 
 S = "${WORKDIR}/git"
 
-do_install_append() {
+do_install:append() {
    install -d ${D}/${bindir}
    install -m 775 ${B}/blocksign ${D}/${bindir}
 }

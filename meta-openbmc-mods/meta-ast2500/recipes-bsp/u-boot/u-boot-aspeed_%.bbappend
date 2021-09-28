@@ -1,12 +1,11 @@
 COMPATIBLE_MACHINE = "intel-ast2500"
-FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files:"
-FILESEXTRAPATHS_append_intel-ast2500:= "${THISDIR}/files/CVE-2020-10648:"
+FILESEXTRAPATHS:append:intel-ast2500:= "${THISDIR}/files:"
 
 # the meta-phosphor layer adds this patch, which conflicts
 # with the intel layout for environment
-SRC_URI_remove_intel-ast2500 = " file://0001-configs-ast-Add-redundnant-env.patch"
+SRC_URI:remove:intel-ast2500 = " file://0001-configs-ast-Add-redundnant-env.patch"
 
-SRC_URI_append_intel-ast2500 = " \
+SRC_URI:append:intel-ast2500 = " \
     file://intel.cfg \
     file://0001-flash-use-readX-writeX-not-udelay.patch \
     file://0002-intel-layout-environment-addr.patch \
@@ -51,7 +50,8 @@ SRC_URI_append_intel-ast2500 = " \
     file://0050-Set-UART-routing-in-lowlevel_init.patch \
     "
 # CVE-2020-10648 vulnerability fix
-SRC_URI_append_intel-ast2500 = " \
+FILESEXTRAPATHS:append:intel-ast2500:= "${THISDIR}/files/CVE-2020-10648:"
+SRC_URI:append:intel-ast2500 = " \
     file://0001-image-Correct-comment-for-fit_conf_get_node.patch \
     file://0002-image-Be-a-little-more-verbose-when-checking-signatu.patch \
     file://0003-image-Return-an-error-message-from-fit_config_verify.patch \
@@ -69,9 +69,9 @@ PFR_SRC_URI = " \
 AUTOBOOT_SRC_URI = " \
     file://0041-Disabling-boot-delay.patch \
     "
-SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
-SRC_URI_append_intel-ast2500 += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', AUTOBOOT_SRC_URI, d)}"
-do_install_append () {
+SRC_URI:append:intel-ast2500 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
+SRC_URI:append:intel-ast2500 += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', AUTOBOOT_SRC_URI, d)}"
+do_install:append () {
     install -m 0644 ${WORKDIR}/fw_env.config ${S}/tools/env/fw_env.config
 }
 

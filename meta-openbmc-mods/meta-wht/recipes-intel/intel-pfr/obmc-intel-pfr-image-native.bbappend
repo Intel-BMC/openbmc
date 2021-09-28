@@ -1,6 +1,6 @@
-FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
+FILESEXTRAPATHS:append := ":${THISDIR}/${PN}"
 
-SRC_URI_append = " \
+SRC_URI:append = " \
            file://pfr_manifest.json \
            file://pfm_config.xml \
            file://bmc_config.xml \
@@ -10,7 +10,7 @@ SRC_URI_append = " \
            file://rk_prv.pem \
           "
 
-do_install_append () {
+do_install:append () {
         install -m 400 ${WORKDIR}/pfr_manifest.json ${D}/${datadir}/pfrconfig
         install -m 400 ${WORKDIR}/pfm_config.xml ${D}/${datadir}/pfrconfig/pfm_config.xml
         install -m 400 ${WORKDIR}/bmc_config.xml ${D}/${datadir}/pfrconfig/bmc_config.xml

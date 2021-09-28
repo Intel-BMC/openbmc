@@ -7,11 +7,11 @@
 
 require version-vars.inc
 
-OS_RELEASE_FIELDS_append = " OPENBMC_VERSION IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
+OS_RELEASE_FIELDS:append = " OPENBMC_VERSION IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
 
-OS_RELEASE_FIELDS_remove = "BUILD_ID"
+OS_RELEASE_FIELDS:remove = "BUILD_ID"
 
-python do_compile_append () {
+python do_compile:append () {
     import glob
     with open(d.expand('${B}/os-release'), 'a') as f:
         corebase = d.getVar('COREBASE', True)
@@ -33,4 +33,4 @@ python do_compile_append () {
 BB_DONT_CACHE = "1"
 
 # Make os-release available to other recipes.
-SYSROOT_DIRS_append = " ${sysconfdir}"
+SYSROOT_DIRS:append = " ${sysconfdir}"

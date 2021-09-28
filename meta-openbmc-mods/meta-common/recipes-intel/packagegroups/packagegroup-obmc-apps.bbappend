@@ -1,7 +1,7 @@
-RDEPENDS_${PN}-extrasdevtools = "libgpiod-tools"
-RDEPENDS_${PN}-chassis-state-mgmt_remove = "obmc-phosphor-power"
-RDEPENDS_${PN}-devtools_remove = "ffdc"
+RDEPENDS:${PN}-extrasdevtools = "libgpiod-tools"
+RDEPENDS:${PN}-chassis-state-mgmt:remove = "obmc-phosphor-power"
+RDEPENDS:${PN}-devtools:remove = "ffdc"
 
-PACKAGES_remove = "${PN}-debug-collector"
+PACKAGES:remove = "${PN}-debug-collector"
 
-RDEPENDS_${PN}-settings = "settings"
+RDEPENDS:${PN}-settings = "settings"

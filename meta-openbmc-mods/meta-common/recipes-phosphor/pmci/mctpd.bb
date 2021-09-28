@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${PN}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "a328510479aad6fd97e958759522ec9bcdc9e8d0"
+SRCREV = "02b272fb17a5fe835311818e9194eb0cd49db20c"
 
 S = "${WORKDIR}/git"
 
@@ -15,7 +15,7 @@ OECMAKE_SOURCEPATH = "${S}/${PN}"
 
 inherit cmake systemd
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 DEPENDS += " \
     libmctp-intel \
@@ -30,5 +30,5 @@ DEPENDS += " \
     phosphor-dbus-interfaces \
     udev \
     "
-FILES_${PN} += "${systemd_system_unitdir}/xyz.openbmc_project.mctpd@.service"
-FILES_${PN} += "/usr/share/mctp/mctp_config.json"
+FILES:${PN} += "${systemd_system_unitdir}/xyz.openbmc_project.mctpd@.service"
+FILES:${PN} += "/usr/share/mctp/mctp_config.json"

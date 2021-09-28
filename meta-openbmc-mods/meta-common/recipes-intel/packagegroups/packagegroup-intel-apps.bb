@@ -19,20 +19,25 @@ PROVIDES += "virtual/obmc-fan-mgmt"
 PROVIDES += "virtual/obmc-flash-mgmt"
 PROVIDES += "virtual/obmc-system-mgmt"
 
-RPROVIDES_${PN}-chassis += "virtual-obmc-chassis-mgmt"
-RPROVIDES_${PN}-fans += "virtual-obmc-fan-mgmt"
-RPROVIDES_${PN}-flash += "virtual-obmc-flash-mgmt"
-RPROVIDES_${PN}-system += "virtual-obmc-system-mgmt"
+RPROVIDES:${PN}-chassis += "virtual-obmc-chassis-mgmt"
+RPROVIDES:${PN}-fans += "virtual-obmc-fan-mgmt"
+RPROVIDES:${PN}-flash += "virtual-obmc-flash-mgmt"
+RPROVIDES:${PN}-system += "virtual-obmc-system-mgmt"
 
-SUMMARY_${PN}-chassis = "Intel Chassis"
-RDEPENDS_${PN}-chassis = " \
+SUMMARY:${PN}-chassis = "Intel Chassis"
+RDEPENDS:${PN}-chassis = " \
         x86-power-control \
         "
 
-SUMMARY_${PN}-fans = "Intel Fans"
-RDEPENDS_${PN}-fans = " \
+SUMMARY:${PN}-fans = "Intel Fans"
+RDEPENDS:${PN}-fans = " \
         phosphor-pid-control \
         "
 
-SUMMARY_${PN}-flash = "Intel Flash"
-RDEPENDS_${PN}-flash = ""
+SUMMARY:${PN}-flash = "Intel Flash"
+RDEPENDS:${PN}-flash = ""
+
+SUMMARY:${PN}-system = "Intel System"
+RDEPENDS:${PN}-system = " \
+        webui-vue \
+        "

@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "a328510479aad6fd97e958759522ec9bcdc9e8d0"
+SRCREV = "02b272fb17a5fe835311818e9194eb0cd49db20c"
 
 S = "${WORKDIR}/git/pmci_launcher"
 
@@ -19,5 +19,5 @@ DEPENDS += " \
     phosphor-logging \
     boost \
     "
-FILES_${PN} += "${systemd_system_unitdir}/xyz.openbmc_project.pmci-launcher.service"
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.pmci-launcher.service"
+FILES:${PN} += "${systemd_system_unitdir}/xyz.openbmc_project.pmci-launcher.service"
+SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.pmci-launcher.service"

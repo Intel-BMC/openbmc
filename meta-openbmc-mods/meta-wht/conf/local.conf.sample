@@ -3,11 +3,11 @@ MACHINE ??= "intel-ast2500"
 #SSTATE_DIR ?= "/~YoctoSstate-cache"
 DISTRO ?= "openbmc-phosphor"
 PACKAGE_CLASSES ?= "package_rpm"
-SANITY_TESTED_DISTROS_append ?= " RedHatEnterpriseWorkstation-6.*"
+SANITY_TESTED_DISTROS:append ?= " RedHatEnterpriseWorkstation-6.*"
 EXTRA_IMAGE_FEATURES = "validation-unsecure"
 # Uncomment the following line to enable debug features / default user account.
 #EXTRA_IMAGE_FEATURES += "debug-tweaks"
-USER_CLASSES ?= "buildstats image-prelink"
+USER_CLASSES ?= "buildstats"
 PATCHRESOLVE = "noop"
 
 # PFR image Build
@@ -15,7 +15,7 @@ PATCHRESOLVE = "noop"
 # for building Intel PFR compliant images.
 #IMAGE_FSTYPES += "intel-pfr"
 
-BB_DISKMON_DIRS = "\
+BB_DISKMON_DIRS ??= "\
     STOPTASKS,${TMPDIR},1G,100K \
     STOPTASKS,${DL_DIR},1G,100K \
     STOPTASKS,${SSTATE_DIR},1G,100K \

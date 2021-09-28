@@ -65,6 +65,24 @@ Response:
     },
     "UpperThresholdCritical": 115.0,
     "UpperThresholdNonCritical": 110.0
+},
+{
+     @odata.id": "/redfish/v1/Chassis/F2U8X25_HSBP_2/Thermal#/Temperatures/0",
+     @odata.type": "#Thermal.v1_3_0.Temperature",
+     LowerThresholdCritical": 7.0,
+     LowerThresholdNonCritical": 12.0,
+     MaxReadingRangeTemp": 127.0,
+     MemberId": "HSBP2_Temp",
+     MinReadingRangeTemp": -128.0,
+     Name": "HSBP2 Temp",
+     PhysicalContext": "Backplane",
+     ReadingCelsius": 21.437,
+     Status": {
+        "Health": "OK",
+        "State": "Enabled"
+     },
+     UpperThresholdCritical": 57.0,
+     UpperThresholdNonCritical": 52.0
 }
 3. GET - https://<bmc.ip>/redfish/v1/Chassis/<Board>/Power
 Response:
@@ -103,15 +121,16 @@ Response:
     }
 }
 Signed-off-by: Snehalatha Venkatesh <snehalathax.v@intel.com>
+Signed-off-by: sunitakx <sunitax.kumari@linux.intel.com>
 ---
- redfish-core/lib/sensors.hpp | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ redfish-core/lib/sensors.hpp | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
 diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
-index 9f06d2f..40fcdf8 100644
+index 5d27577..d51d09f 100644
 --- a/redfish-core/lib/sensors.hpp
 +++ b/redfish-core/lib/sensors.hpp
-@@ -964,6 +964,18 @@ inline void objectInterfacesToJson(
+@@ -973,6 +973,22 @@ inline void objectInterfacesToJson(
      {
          unit = "/ReadingCelsius"_json_pointer;
          sensorJson["@odata.type"] = "#Thermal.v1_3_0.Temperature";
@@ -122,6 +141,10 @@ index 9f06d2f..40fcdf8 100644
 +        else if (sensorName.find("Inlet") != std::string::npos)
 +        {
 +            sensorJson["PhysicalContext"] = "Intake";
++        }
++        else if (sensorName.find("HSBP") != std::string::npos)
++        {
++            sensorJson["PhysicalContext"] = "Backplane";
 +        }
 +        else
 +        {

@@ -1,0 +1,35 @@
+From f86b22a450589cdcac6bb3afa1818dfa6d2eefe4 Mon Sep 17 00:00:00 2001
+From: Wiktor Golgowski <wiktor.golgowski@intel.com>
+Date: Fri, 27 Aug 2021 17:39:59 +0200
+Subject: [PATCH] Handle empty CAInfo in curl plugin correctly.
+
+Recent change in libcurl causes CAINFO option to be set when
+the library is compiled. If we do not want to use the default
+certificate store, we set the option to an empty string.
+This change recognizes zero-length CAInfo and clears the libcurl
+option.
+
+Signed-off-by: Wiktor Golgowski <wiktor.golgowski@intel.com>
+---
+ plugins/curl/curl.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/plugins/curl/curl.c b/plugins/curl/curl.c
+index fad84140..176f9a1f 100644
+--- a/plugins/curl/curl.c
++++ b/plugins/curl/curl.c
+@@ -498,8 +498,12 @@ curl_open (int readonly)
+   curl_easy_setopt (h->c, CURLOPT_FAILONERROR, 1L);
+ 
+   /* Options. */
+-  if (cainfo)
+-    curl_easy_setopt (h->c, CURLOPT_CAINFO, cainfo);
++  if (cainfo) {
++    if (strlen (cainfo) == 0)
++      curl_easy_setopt (h->c, CURLOPT_CAINFO, NULL);
++    else
++      curl_easy_setopt (h->c, CURLOPT_CAINFO, cainfo);
++  }
+   if (capath)
+     curl_easy_setopt (h->c, CURLOPT_CAPATH, capath);
+   if (cookie)

@@ -1,5 +1,5 @@
 COMPATIBLE_MACHINE = "intel-ast2600"
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += " \
     file://intel-ast2600.cfg \

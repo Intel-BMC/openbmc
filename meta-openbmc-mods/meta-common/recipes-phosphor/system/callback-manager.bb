@@ -11,7 +11,7 @@ SRCREV = "1a9dde9b193a34392ab11a14d9cd0310f9abb930"
 
 S = "${WORKDIR}/git/callback-manager"
 
-SYSTEMD_SERVICE_${PN} += "callback-manager.service"
+SYSTEMD_SERVICE:${PN} += "callback-manager.service"
 
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENCE;md5=7becf906c8f8d03c237bad13bc3dac53"

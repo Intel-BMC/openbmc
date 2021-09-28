@@ -9,17 +9,17 @@ SRC_URI = " \
 
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fecd0a2940a0d1658"
-RDEPENDS_${PN} += "bash"
+RDEPENDS:${PN} += "bash"
 
 inherit systemd
 
-FILES_${PN} += "${systemd_system_unitdir}/configure-usb-c.service"
+FILES:${PN} += "${systemd_system_unitdir}/configure-usb-c.service"
 
-do_install_append() {
+do_install:append() {
     install -d ${D}${bindir}
     install -m 0755 ${S}/configure-usb-c.sh ${D}/${bindir}/configure-usb-c.sh
     install -d ${D}${systemd_system_unitdir}
     install -m 0644 ${S}/configure-usb-c.service ${D}${base_libdir}/systemd/system
 }
 
-SYSTEMD_SERVICE_${PN} = "configure-usb-c.service"
+SYSTEMD_SERVICE:${PN} = "configure-usb-c.service"

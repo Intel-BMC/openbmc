@@ -1,4 +1,4 @@
-From 51869fd549cd826981ad30c6cdea4c4e94a972db Mon Sep 17 00:00:00 2001
+From fca6f5b951a363916a83a25f6578f95a6cf32a3e Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Date: Thu, 17 Jun 2021 13:37:57 +0000
 Subject: [PATCH] Switched bmcweb to use new telemetry service API

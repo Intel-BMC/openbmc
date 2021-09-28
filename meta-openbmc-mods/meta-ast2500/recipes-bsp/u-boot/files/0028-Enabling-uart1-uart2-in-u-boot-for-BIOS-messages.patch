@@ -1,4 +1,4 @@
-From 777d3db853a7a9e6ec6e19d97ed12db689faa051 Mon Sep 17 00:00:00 2001
+From 8c2a3f6489c86d8dae57cae03d617de2296774ab Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Mon, 13 May 2019 23:49:02 +0530
 Subject: [PATCH] Enabling uart1&uart2 in u-boot for BIOS messages
@@ -18,11 +18,11 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
  1 file changed, 21 insertions(+)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 4eaed429e327..4190fb05acbe 100644
+index 6ea7f0060c57..5196a1a41299 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -492,6 +492,26 @@ void board_pre_abort_autoboot(void)
- 	ast_enable_pass_through();
+@@ -509,6 +509,26 @@ void board_pre_abort_autoboot(void)
+ {
  }
  
 +static void uart_init(void)
@@ -48,7 +48,7 @@ index 4eaed429e327..4190fb05acbe 100644
  static void pwm_init(void)
  {
  	uint32_t val;
-@@ -543,6 +563,7 @@ extern void espi_init(void);
+@@ -560,6 +580,7 @@ extern void espi_init(void);
  extern void kcs_init(void);
  void ast_g5_intel(void)
  {

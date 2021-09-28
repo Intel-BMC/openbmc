@@ -1,0 +1,132 @@
+From 4cf883dba6e16c56d04dbd092d30c9a13d5a5eb4 Mon Sep 17 00:00:00 2001
+From: Lukasz Kazmierczak <lukasz.kazmierczak@intel.com>
+Date: Fri, 6 Aug 2021 15:15:17 +0200
+Subject: [PATCH] Add DELETE method for MetricReport
+
+Added DELETE method for removing Reports by using MetricReports uri;
+metric_report.hpp and metric_report_definition.hpp files are sharing
+now common lambda function for DELETE operations
+
+Tested on QEMU:
+- Added Reports and requested from bmcweb to delete them via
+  /redfish/v1/TelemetryService/MetricReports/<reportname> or via
+  /redfish/v1/TelemetryService/MetricReportDefinitions/<reportname>
+- Added two different reports via POST, deleted first of them via
+  MetricReports DELETE, checked by MetricReports GET if list of reports
+  contain only second report, deleted second report via MetricReports
+  DELETE and checked by MetricReports GET if list of reports is empty
+- Same as one above but using MetricReportDefinitions DELETE and GET
+
+Signed-off-by: Lukasz Kazmierczak <lukasz.kazmierczak@intel.com>
+Change-Id: I151bad363dcabd57246eb10b501abd24107b937e
+---
+ .../include/utils/telemetry_utils.hpp         | 35 +++++++++++++++++++
+ redfish-core/lib/metric_report.hpp            |  4 +++
+ redfish-core/lib/metric_report_definition.hpp | 34 +-----------------
+ 3 files changed, 40 insertions(+), 33 deletions(-)
+
+diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
+index 5872350..743585f 100644
+--- a/redfish-core/include/utils/telemetry_utils.hpp
++++ b/redfish-core/include/utils/telemetry_utils.hpp
+@@ -70,5 +70,40 @@ inline std::string getDbusReportPath(const std::string& id)
+     return path;
+ }
+ 
++inline std::function<void(const crow::Request&,
++                          const std::shared_ptr<bmcweb::AsyncResp>&,
++                          const std::string&)>
++    getMetricReportDeleteHandler(const std::string& type)
++{
++    return [type](const crow::Request&,
++                  const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                  const std::string& id) {
++        const std::string reportPath = getDbusReportPath(id);
++
++        crow::connections::systemBus->async_method_call(
++            [asyncResp, type, id](const boost::system::error_code ec) {
++                /*
++                 * boost::system::errc and std::errc are missing value
++                 * for EBADR error that is defined in Linux.
++                 */
++                if (ec.value() == EBADR)
++                {
++                    messages::resourceNotFound(asyncResp->res, type, id);
++                    return;
++                }
++
++                if (ec)
++                {
++                    BMCWEB_LOG_ERROR << "respHandler DBus error " << ec;
++                    messages::internalError(asyncResp->res);
++                    return;
++                }
++
++                asyncResp->res.result(boost::beast::http::status::no_content);
++            },
++            service, reportPath, "xyz.openbmc_project.Object.Delete", "Delete");
++    };
++}
++
+ } // namespace telemetry
+ } // namespace redfish
+diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
+index 63c8c19..60ce74e 100644
+--- a/redfish-core/lib/metric_report.hpp
++++ b/redfish-core/lib/metric_report.hpp
+@@ -127,5 +127,9 @@ inline void requestRoutesMetricReport(App& app)
+                     telemetry::service, reportPath, telemetry::reportInterface,
+                     "Update");
+             });
++    BMCWEB_ROUTE(app, "/redfish/v1/TelemetryService/MetricReports/<str>/")
++        .privileges(redfish::privileges::deleteMetricReport)
++        .methods(boost::beast::http::verb::delete_)(
++            telemetry::getMetricReportDeleteHandler("MetricReports"));
+ }
+ } // namespace redfish
+diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
+index a0c4f1d..e0505e5 100644
+--- a/redfish-core/lib/metric_report_definition.hpp
++++ b/redfish-core/lib/metric_report_definition.hpp
+@@ -450,38 +450,6 @@ inline void requestRoutesMetricReportDefinition(App& app)
+                  "/redfish/v1/TelemetryService/MetricReportDefinitions/<str>/")
+         .privileges(redfish::privileges::deleteMetricReportDefinitionCollection)
+         .methods(boost::beast::http::verb::delete_)(
+-            [](const crow::Request&,
+-               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+-               const std::string& id)
+-
+-            {
+-                const std::string reportPath = telemetry::getDbusReportPath(id);
+-
+-                crow::connections::systemBus->async_method_call(
+-                    [asyncResp, id](const boost::system::error_code ec) {
+-                        /*
+-                         * boost::system::errc and std::errc are missing value
+-                         * for EBADR error that is defined in Linux.
+-                         */
+-                        if (ec.value() == EBADR)
+-                        {
+-                            messages::resourceNotFound(
+-                                asyncResp->res, "MetricReportDefinition", id);
+-                            return;
+-                        }
+-
+-                        if (ec)
+-                        {
+-                            BMCWEB_LOG_ERROR << "respHandler DBus error " << ec;
+-                            messages::internalError(asyncResp->res);
+-                            return;
+-                        }
+-
+-                        asyncResp->res.result(
+-                            boost::beast::http::status::no_content);
+-                    },
+-                    telemetry::service, reportPath,
+-                    "xyz.openbmc_project.Object.Delete", "Delete");
+-            });
++            telemetry::getMetricReportDeleteHandler("MetricReportDefinition"));
+ }
+ } // namespace redfish
+-- 
+2.25.1

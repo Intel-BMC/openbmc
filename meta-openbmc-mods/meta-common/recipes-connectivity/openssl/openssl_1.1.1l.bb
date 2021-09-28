@@ -19,18 +19,18 @@ SRC_URI = "http://www.openssl.org/source/openssl-${PV}.tar.gz \
            file://reproducible.patch \
            "
 
-SRC_URI_append_class-nativesdk = " \
+SRC_URI:append:class-nativesdk = " \
            file://environment.d-openssl.sh \
            "
 
-SRC_URI[sha256sum] = "892a0875b9872acd04a9fde79b1f943075d5ea162415de3047c327df33fbaee5"
+SRC_URI[sha256sum] = "0b7a3e5e59c34827fe0c3a74b7ec8baef302b98fa80088d7f9153aa16fa76bd1"
 
 inherit lib_package multilib_header multilib_script ptest
 MULTILIB_SCRIPTS = "${PN}-bin:${bindir}/c_rehash"
 
 PACKAGECONFIG ?= ""
-PACKAGECONFIG_class-native = ""
-PACKAGECONFIG_class-nativesdk = ""
+PACKAGECONFIG:class-native = ""
+PACKAGECONFIG:class-nativesdk = ""
 
 PACKAGECONFIG[cryptodev-linux] = "enable-devcryptoeng,disable-devcryptoeng,cryptodev-linux,,cryptodev-module"
 
@@ -40,17 +40,17 @@ do_configure[cleandirs] = "${B}"
 #| ./libcrypto.so: undefined reference to `getcontext'
 #| ./libcrypto.so: undefined reference to `setcontext'
 #| ./libcrypto.so: undefined reference to `makecontext'
-EXTRA_OECONF_append_libc-musl = " no-async"
-EXTRA_OECONF_append_libc-musl_powerpc64 = " no-asm"
+EXTRA_OECONF:append:libc-musl = " no-async"
+EXTRA_OECONF:append:libc-musl:powerpc64 = " no-asm"
 
 # adding devrandom prevents openssl from using getrandom() which is not available on older glibc versions
 # (native versions can be built with newer glibc, but then relocated onto a system with older glibc)
-EXTRA_OECONF_class-native = "--with-rand-seed=os,devrandom"
-EXTRA_OECONF_class-nativesdk = "--with-rand-seed=os,devrandom"
+EXTRA_OECONF:class-native = "--with-rand-seed=os,devrandom"
+EXTRA_OECONF:class-nativesdk = "--with-rand-seed=os,devrandom"
 
 # Relying on hardcoded built-in paths causes openssl-native to not be relocateable from sstate.
-CFLAGS_append_class-native = " -DOPENSSLDIR=/not/builtin -DENGINESDIR=/not/builtin"
-CFLAGS_append_class-nativesdk = " -DOPENSSLDIR=/not/builtin -DENGINESDIR=/not/builtin"
+CFLAGS:append:class-native = " -DOPENSSLDIR=/not/builtin -DENGINESDIR=/not/builtin"
+CFLAGS:append:class-nativesdk = " -DOPENSSLDIR=/not/builtin -DENGINESDIR=/not/builtin"
 
 do_configure () {
 	os=${HOST_OS}
@@ -146,7 +146,7 @@ do_install () {
 	ln -sf ${@oe.path.relative('${libdir}/ssl-1.1', '${sysconfdir}/ssl/openssl.cnf')} ${D}${libdir}/ssl-1.1/openssl.cnf
 }
 
-do_install_append_class-native () {
+do_install:append:class-native () {
 	create_wrapper ${D}${bindir}/openssl \
 	    OPENSSL_CONF=${libdir}/ssl-1.1/openssl.cnf \
 	    SSL_CERT_DIR=${libdir}/ssl-1.1/certs \
@@ -154,7 +154,7 @@ do_install_append_class-native () {
 	    OPENSSL_ENGINES=${libdir}/engines-1.1
 }
 
-do_install_append_class-nativesdk () {
+do_install:append:class-nativesdk () {
 	mkdir -p ${D}${SDKPATHNATIVE}/environment-setup.d
 	install -m 644 ${WORKDIR}/environment.d-openssl.sh ${D}${SDKPATHNATIVE}/environment-setup.d/openssl.sh
 	sed 's|/usr/lib/ssl/|/usr/lib/ssl-1.1/|g' -i ${D}${SDKPATHNATIVE}/environment-setup.d/openssl.sh
@@ -189,18 +189,18 @@ do_install_ptest () {
 
 PACKAGES =+ "libcrypto libssl openssl-conf ${PN}-engines ${PN}-misc"
 
-FILES_libcrypto = "${libdir}/libcrypto${SOLIBS}"
-FILES_libssl = "${libdir}/libssl${SOLIBS}"
-FILES_openssl-conf = "${sysconfdir}/ssl/openssl.cnf"
-FILES_${PN}-engines = "${libdir}/engines-1.1"
-FILES_${PN}-misc = "${libdir}/ssl-1.1/misc"
-FILES_${PN} =+ "${libdir}/ssl-1.1/*"
-FILES_${PN}_append_class-nativesdk = " ${SDKPATHNATIVE}/environment-setup.d/openssl.sh"
+FILES:libcrypto = "${libdir}/libcrypto${SOLIBS}"
+FILES:libssl = "${libdir}/libssl${SOLIBS}"
+FILES:openssl-conf = "${sysconfdir}/ssl/openssl.cnf"
+FILES:${PN}-engines = "${libdir}/engines-1.1"
+FILES:${PN}-misc = "${libdir}/ssl-1.1/misc"
+FILES:${PN} =+ "${libdir}/ssl-1.1/*"
+FILES:${PN}:append:class-nativesdk = " ${SDKPATHNATIVE}/environment-setup.d/openssl.sh"
 
-CONFFILES_openssl-conf = "${sysconfdir}/ssl/openssl.cnf"
+CONFFILES:openssl-conf = "${sysconfdir}/ssl/openssl.cnf"
 
-RRECOMMENDS_libcrypto += "openssl-conf"
-RDEPENDS_${PN}-ptest += "openssl-bin perl perl-modules bash"
+RRECOMMENDS:libcrypto += "openssl-conf"
+RDEPENDS:${PN}-ptest += "openssl-bin perl perl-modules bash"
 
 BBCLASSEXTEND = "native nativesdk"
 

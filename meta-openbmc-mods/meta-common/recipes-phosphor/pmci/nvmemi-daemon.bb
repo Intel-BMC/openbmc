@@ -5,13 +5,13 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
 SRC_URI = "git://github.com/Intel-BMC/nvme-mi.git;protocol=ssh"
-SRCREV = "b0b93949733398d56b2bda5ef57c8a50a477ff47"
+SRCREV = "29b49789236b89910af816e4606aab4126a56a4b"
 S = "${WORKDIR}/git"
 PV = "1.0+git${SRCPV}"
 
 inherit meson systemd
 
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.nvme-mi.service"
+SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.nvme-mi.service"
 DEPENDS = "boost sdbusplus systemd phosphor-logging mctpwplus googletest nlohmann-json"
 
 EXTRA_OEMESON = "-Dyocto_dep='enabled'"

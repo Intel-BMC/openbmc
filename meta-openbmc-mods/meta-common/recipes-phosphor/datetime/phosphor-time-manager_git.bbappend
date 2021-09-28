@@ -1,2 +1,2 @@
-RDEPENDS_${PN}_remove = "phosphor-settings-manager"
-RDEPENDS_${PN} += " settings"
+RDEPENDS:${PN}:remove = "phosphor-settings-manager"
+RDEPENDS:${PN} += " settings"

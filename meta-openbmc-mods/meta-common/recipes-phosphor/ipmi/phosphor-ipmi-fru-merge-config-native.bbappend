@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 SRC_URI += " file://config.yaml"
 
 #override source file before it is used for final FRU file (merged from multiple sources)

@@ -14,7 +14,7 @@ SRCREV = "5f413eec673f3e6e5e754e2c55048abf0a146e5b"
 EXTRA_OECMAKE += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-DBMC_VALIDATION_UNSECURE_FEATURE=ON', '', d)}"
 
 inherit cmake systemd
-SYSTEMD_SERVICE_${PN} = "specialmodemgr.service"
+SYSTEMD_SERVICE:${PN} = "specialmodemgr.service"
 
 DEPENDS += " \
     systemd \
@@ -23,7 +23,7 @@ DEPENDS += " \
     boost \
     libpam \
     "
-RDEPENDS_${PN} += " \
+RDEPENDS:${PN} += " \
     libsystemd \
     sdbusplus \
     phosphor-logging \

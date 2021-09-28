@@ -1,0 +1,313 @@
+From a1e89d356ba5ed594a1494efe8257946e1062396 Mon Sep 17 00:00:00 2001
+From: Lukasz Kazmierczak <lukasz.kazmierczak@intel.com>
+Date: Tue, 31 Aug 2021 14:35:31 +0200
+Subject: [PATCH] Add GET method for TriggerCollection
+
+Added GET method for retrieving list of Triggers from Telemetry service
+
+Tested:
+- Added single Trigger and requested result from bmcweb via
+  /redfish/v1/TelemetryService/Triggers
+- Added multiple Triggers numeric and discrete, and requested results
+  from bmcweb via /redfish/v1/TelemetryService/Triggers
+- Verified uri /redfish/v1/TelemetryService/Triggers by using
+  Redfish-Service-Validator (all passed)
+
+Signed-off-by: Lukasz Kazmierczak <lukasz.kazmierczak@intel.com>
+Change-Id: Ide00eb44901ea1b97b80fc5c5ddfd97e393d4a04
+---
+ redfish-core/include/redfish.hpp              |  2 +
+ .../include/utils/telemetry_utils.hpp         | 40 ++++++++---
+ redfish-core/lib/metric_report.hpp            |  6 +-
+ redfish-core/lib/metric_report_definition.hpp |  6 +-
+ redfish-core/lib/trigger.hpp                  | 31 ++++++++
+ scripts/update_schemas.py                     |  1 +
+ static/redfish/v1/$metadata/index.xml         |  3 +
+ .../v1/schema/TriggersCollection_v1.xml       | 70 +++++++++++++++++++
+ 8 files changed, 144 insertions(+), 15 deletions(-)
+ create mode 100644 redfish-core/lib/trigger.hpp
+ create mode 100644 static/redfish/v1/schema/TriggersCollection_v1.xml
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index 9fb0ffe..99b3fe6 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -42,6 +42,7 @@
+ #include "../lib/task.hpp"
+ #include "../lib/telemetry_service.hpp"
+ #include "../lib/thermal.hpp"
++#include "../lib/trigger.hpp"
+ #include "../lib/update_service.hpp"
+ #include "../lib/virtual_media.hpp"
+ 
+@@ -197,6 +198,7 @@ class RedfishService
+ 
+         hypervisor::requestRoutesHypervisorSystems(app);
+ 
++        requestRoutesTriggerCollection(app);
+         requestRoutesTelemetryService(app);
+         requestRoutesMetricReportDefinitionCollection(app);
+         requestRoutesMetricReportDefinition(app);
+diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
+index c0c5ba3..df1aa68 100644
+--- a/redfish-core/include/utils/telemetry_utils.hpp
++++ b/redfish-core/include/utils/telemetry_utils.hpp
+@@ -9,6 +9,8 @@ namespace telemetry
+ {
+ 
+ constexpr const char* service = "xyz.openbmc_project.Telemetry";
++constexpr const char* reportSubtree =
++    "/xyz/openbmc_project/Telemetry/Reports/TelemetryService";
+ constexpr const char* reportInterface = "xyz.openbmc_project.Telemetry.Report";
+ constexpr const char* metricDefinitionUri =
+     "/redfish/v1/TelemetryService/MetricDefinitions/";
+@@ -16,6 +18,11 @@ constexpr const char* metricReportDefinitionUri =
+     "/redfish/v1/TelemetryService/MetricReportDefinitions/";
+ constexpr const char* metricReportUri =
+     "/redfish/v1/TelemetryService/MetricReports/";
++constexpr const char* triggerSubtree =
++    "/xyz/openbmc_project/Telemetry/Triggers/TelemetryService";
++constexpr const char* triggerInterface =
++    "xyz.openbmc_project.Telemetry.Trigger";
++constexpr const char* triggerUri = "/redfish/v1/TelemetryService/Triggers/";
+ 
+ inline std::optional<nlohmann::json>
+     getMetadataJson(const std::string& metadataStr)
+@@ -57,15 +64,27 @@ inline std::optional<std::string>
+     return res;
+ }
+ 
+-inline void
+-    getReportCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+-                        const std::string& uri)
++struct CollectionParams
+ {
+-    const std::array<const char*, 1> interfaces = {reportInterface};
++    const char* subtree;
++    int depth;
++    std::array<const char*, 1> interfaces;
+ 
++    CollectionParams() = delete;
++    CollectionParams(const char* st, int dp,
++                     const std::array<const char*, 1>& ifaces) :
++        subtree{st},
++        depth{dp}, interfaces{ifaces}
++    {}
++};
++
++inline void getCollection(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                          const std::string& uri,
++                          const CollectionParams& params)
++{
+     crow::connections::systemBus->async_method_call(
+         [asyncResp, uri](const boost::system::error_code ec,
+-                         const std::vector<std::string>& reports) {
++                         const std::vector<std::string>& items) {
+             if (ec == boost::system::errc::io_error)
+             {
+                 asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
+@@ -82,13 +101,13 @@ inline void
+             nlohmann::json& members = asyncResp->res.jsonValue["Members"];
+             members = nlohmann::json::array();
+ 
+-            for (const std::string& report : reports)
++            for (const std::string& item : items)
+             {
+-                sdbusplus::message::object_path path(report);
++                sdbusplus::message::object_path path(item);
+                 std::string name = path.filename();
+                 if (name.empty())
+                 {
+-                    BMCWEB_LOG_ERROR << "Received invalid path: " << report;
++                    BMCWEB_LOG_ERROR << "Received invalid path: " << item;
+                     messages::internalError(asyncResp->res);
+                     return;
+                 }
+@@ -99,9 +118,8 @@ inline void
+         },
+         "xyz.openbmc_project.ObjectMapper",
+         "/xyz/openbmc_project/object_mapper",
+-        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
+-        "/xyz/openbmc_project/Telemetry/Reports/TelemetryService", 1,
+-        interfaces);
++        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", params.subtree,
++        params.depth, params.interfaces);
+ }
+ 
+ inline std::string getDbusReportPath(const std::string& id)
+diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
+index 13bf792..ea4cd62 100644
+--- a/redfish-core/lib/metric_report.hpp
++++ b/redfish-core/lib/metric_report.hpp
+@@ -108,8 +108,10 @@ inline void requestRoutesMetricReportCollection(App& app)
+                     "/redfish/v1/TelemetryService/MetricReports";
+                 asyncResp->res.jsonValue["Name"] = "Metric Report Collection";
+ 
+-                telemetry::getReportCollection(asyncResp,
+-                                               telemetry::metricReportUri);
++                telemetry::getCollection(
++                    asyncResp, telemetry::metricReportUri,
++                    telemetry::CollectionParams(telemetry::reportSubtree, 1,
++                                                {telemetry::reportInterface}));
+             });
+ }
+ 
+diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
+index 7c26787..c97a1df 100644
+--- a/redfish-core/lib/metric_report_definition.hpp
++++ b/redfish-core/lib/metric_report_definition.hpp
+@@ -377,8 +377,10 @@ inline void requestRoutesMetricReportDefinitionCollection(App& app)
+                 asyncResp->res.jsonValue["Name"] =
+                     "Metric Definition Collection";
+ 
+-                telemetry::getReportCollection(
+-                    asyncResp, telemetry::metricReportDefinitionUri);
++                telemetry::getCollection(
++                    asyncResp, telemetry::metricReportDefinitionUri,
++                    telemetry::CollectionParams(telemetry::reportSubtree, 1,
++                                                {telemetry::reportInterface}));
+             });
+ 
+     BMCWEB_ROUTE(app, "/redfish/v1/TelemetryService/MetricReportDefinitions/")
+diff --git a/redfish-core/lib/trigger.hpp b/redfish-core/lib/trigger.hpp
+new file mode 100644
+index 0000000..681b3b4
+--- /dev/null
++++ b/redfish-core/lib/trigger.hpp
+@@ -0,0 +1,31 @@
++#pragma once
++
++#include "utils/telemetry_utils.hpp"
++
++#include <app.hpp>
++#include <registries/privilege_registry.hpp>
++
++namespace redfish
++{
++
++inline void requestRoutesTriggerCollection(App& app)
++{
++    BMCWEB_ROUTE(app, "/redfish/v1/TelemetryService/Triggers/")
++        .privileges(redfish::privileges::getTriggersCollection)
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++                asyncResp->res.jsonValue["@odata.type"] =
++                    "#TriggersCollection.TriggersCollection";
++                asyncResp->res.jsonValue["@odata.id"] =
++                    "/redfish/v1/TelemetryService/Triggers";
++                asyncResp->res.jsonValue["Name"] = "Triggers Collection";
++
++                telemetry::getCollection(
++                    asyncResp, telemetry::triggerUri,
++                    telemetry::CollectionParams(telemetry::triggerSubtree, 1,
++                                                {telemetry::triggerInterface}));
++            });
++}
++
++} // namespace redfish
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index dd39278..d66a59a 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -93,6 +93,7 @@ include_list = [
+     'TaskService',
+     'TelemetryService',
+     'Thermal',
++    'TriggersCollection',
+     'UpdateService',
+     'VLanNetworkInterfaceCollection',
+     'VLanNetworkInterface',
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index 876ebfb..75e3dd4 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2215,6 +2215,9 @@
+         <edmx:Include Namespace="Thermal.v1_7_0"/>
+         <edmx:Include Namespace="Thermal.v1_7_1"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/TriggersCollection_v1.xml">
++        <edmx:Include Namespace="TriggersCollection"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/UpdateService_v1.xml">
+         <edmx:Include Namespace="UpdateService"/>
+         <edmx:Include Namespace="UpdateService.v1_0_0"/>
+diff --git a/static/redfish/v1/schema/TriggersCollection_v1.xml b/static/redfish/v1/schema/TriggersCollection_v1.xml
+new file mode 100644
+index 0000000..399bebd
+--- /dev/null
++++ b/static/redfish/v1/schema/TriggersCollection_v1.xml
+@@ -0,0 +1,70 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!---->
++<!--################################################################################       -->
++<!--# Redfish Schema:  TriggerSetCollection                                                -->
++<!--#                                                                                      -->
++<!--# For a detailed change log, see the README file contained in the DSP8010 bundle,      -->
++<!--# available at http://www.dmtf.org/standards/redfish                                   -->
++<!--# Copyright 2014-2021 DMTF.                                                            -->
++<!--# For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright -->
++<!--################################################################################       -->
++<!---->
++<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
++
++  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
++    <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData"/>
++  </edmx:Reference>
++  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Capabilities.V1.xml">
++    <edmx:Include Namespace="Org.OData.Capabilities.V1" Alias="Capabilities"/>
++  </edmx:Reference>
++  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
++    <edmx:Include Namespace="Resource.v1_0_0"/>
++  </edmx:Reference>
++  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
++    <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
++  </edmx:Reference>
++  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Triggers_v1.xml">
++    <edmx:Include Namespace="Triggers"/>
++  </edmx:Reference>
++
++  <edmx:DataServices>
++
++    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="TriggersCollection">
++      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
++
++      <EntityType Name="TriggersCollection" BaseType="Resource.v1_0_0.ResourceCollection">
++        <Annotation Term="OData.Description" String="The collection of Triggers resource instances."/>
++        <Annotation Term="OData.LongDescription" String="This resource shall represent a resource collection of Triggers instances for a Redfish implementation."/>
++        <Annotation Term="Capabilities.InsertRestrictions">
++          <Record>
++            <PropertyValue Property="Insertable" Bool="true"/>
++            <Annotation Term="OData.Description" String="Create triggers through a POST to the trigger collection."/>
++          </Record>
++        </Annotation>
++        <Annotation Term="Capabilities.UpdateRestrictions">
++          <Record>
++            <PropertyValue Property="Updatable" Bool="false"/>
++          </Record>
++        </Annotation>
++        <Annotation Term="Capabilities.DeleteRestrictions">
++          <Record>
++            <PropertyValue Property="Deletable" Bool="false"/>
++          </Record>
++        </Annotation>
++        <Annotation Term="Redfish.Uris">
++          <Collection>
++            <String>/redfish/v1/TelemetryService/Triggers</String>
++          </Collection>
++        </Annotation>
++        <NavigationProperty Name="Members" Type="Collection(Triggers.Triggers)">
++          <Annotation Term="OData.Permissions" EnumMember="OData.Permission/Read"/>
++          <Annotation Term="OData.Description" String="The members of this collection."/>
++          <Annotation Term="OData.LongDescription" String="This property shall contain an array of links to the members of this collection."/>
++          <Annotation Term="OData.AutoExpandReferences"/>
++          <Annotation Term="Redfish.Required"/>
++        </NavigationProperty>
++      </EntityType>
++
++    </Schema>
++  </edmx:DataServices>
++</edmx:Edmx>
+-- 
+2.25.1
+

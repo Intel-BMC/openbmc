@@ -1,5 +1,5 @@
-FILESEXTRAPATHS_append := ":${THISDIR}/${PN}"
-SRC_URI_append = " file://0001-Blacklist-DIMM-Bus.patch \
+FILESEXTRAPATHS:append := ":${THISDIR}/${PN}"
+SRC_URI:append = " file://0001-Blacklist-DIMM-Bus.patch \
                    file://WC-Baseboard.json \
                    file://WP-Baseboard.json \
                    file://TNP-baseboard.json \
@@ -12,9 +12,9 @@ SRC_URI_append = " file://0001-Blacklist-DIMM-Bus.patch \
                    file://WC-Chassis.json \
                    file://blocklist.json"
 
-RDEPENDS_${PN} += " default-fru"
+RDEPENDS:${PN} += " default-fru"
 
-do_install_append() {
+do_install:append() {
      install -d ${D}/usr/share/entity-manager/configurations
      install -m 0444 ${WORKDIR}/WC-Baseboard.json ${D}/usr/share/entity-manager/configurations
      install -m 0444 ${WORKDIR}/WP-Baseboard.json ${D}/usr/share/entity-manager/configurations

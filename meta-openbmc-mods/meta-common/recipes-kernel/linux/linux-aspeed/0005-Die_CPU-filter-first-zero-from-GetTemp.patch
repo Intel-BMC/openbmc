@@ -1,4 +1,4 @@
-From 0d202fb06b873c5e258658462ac4fc01a673fd83 Mon Sep 17 00:00:00 2001
+From b0740cbafa468ece35d26a797e7cf80f04fb5102 Mon Sep 17 00:00:00 2001
 From: Zhikui Ren <zhikui.ren@intel.com>
 Date: Mon, 11 Jan 2021 16:31:36 -0800
 Subject: [PATCH] Die_CPU: filter first zero from GetTemp
@@ -12,22 +12,22 @@ by the sensor polling period, which is normally 500ms-1s.
 
 Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
 ---
- drivers/hwmon/peci-cputemp.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ drivers/hwmon/peci-cputemp.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
 diff --git a/drivers/hwmon/peci-cputemp.c b/drivers/hwmon/peci-cputemp.c
-index b633ea545644..19002f02bd91 100644
+index c5d92d1d2c25..49670bc80530 100644
 --- a/drivers/hwmon/peci-cputemp.c
 +++ b/drivers/hwmon/peci-cputemp.c
 @@ -15,6 +15,7 @@
  
  struct temp_group {
  	struct peci_sensor_data		die;
-+	u32 die_raw_prev;
++	u32				die_raw_prev;
  	struct peci_sensor_data		dts;
  	struct peci_sensor_data		tcontrol;
  	struct peci_sensor_data		tthrottle;
-@@ -129,6 +130,7 @@ static int get_die_temp(struct peci_cputemp *priv)
+@@ -119,6 +120,7 @@ static int get_die_temp(struct peci_cputemp *priv)
  {
  	struct peci_get_temp_msg msg;
  	int ret;
@@ -35,17 +35,18 @@ index b633ea545644..19002f02bd91 100644
  
  	if (!peci_sensor_need_update(&priv->temp.die))
  		return 0;
-@@ -139,6 +141,19 @@ static int get_die_temp(struct peci_cputemp *priv)
+@@ -129,6 +131,20 @@ static int get_die_temp(struct peci_cputemp *priv)
  	if (ret)
  		return ret;
  
-+	/* GET_TEMP command does not have cc and can return zero during
++	/*
++	 * GET_TEMP command does not have cc and can return zero during
 +	 * cpu reset. Treat the first zero reading as data not available.
 +	 * Consecutive zeros will be returned so true hot condition
 +	 * is not be missed.
 +	 */
 +	if (msg.temp_raw == 0 && priv->temp.die_raw_prev != 0) {
-+		pr_err("peci-cputemp_die: discard first 0 reading from GetTemp\n");
++		dev_err(priv->dev, "discard first 0 reading from GetTemp\n");
 +		discard = true;
 +	}
 +	priv->temp.die_raw_prev = msg.temp_raw;

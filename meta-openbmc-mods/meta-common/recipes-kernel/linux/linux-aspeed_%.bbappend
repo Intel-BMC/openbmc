@@ -1,14 +1,14 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-LINUX_VERSION = "5.10.53"
+LINUX_VERSION = "5.10.60"
 
 KBRANCH = "dev-5.10-intel"
 KSRC = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=${KBRANCH}"
 # Include this as a comment only for downstream auto-bump
 # SRC_URI = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=dev-5.10-intel"
-SRCREV="978d545ce0c53bd45c80a224b56141bcc3389828"
+SRCREV="9c808fc8b3ad7c030fe546b1b5c6c38556fa784a"
 
-do_compile_prepend(){
+do_compile:prepend(){
    # device tree compiler flags
    export DTC_FLAGS=-@
 }
@@ -19,9 +19,12 @@ SRC_URI += " \
         file://0002-soc-aspeed-add-AST2600-A0-specific-fix-into-mbox-dri.patch \
         file://0003-Fix-libmctp-build-error.patch \
         file://0004-Add-a-quick-fix-to-resolve-USB-gadget-DMA-issue.patch \
-        file://1003-Die_CPU-filter-first-zero-from-GetTemp.patch \
-        file://1004-DTS_CPU-filter-first-zero-from-RdPkgConfig-10.patch \
+        file://0005-Die_CPU-filter-first-zero-from-GetTemp.patch \
+        file://0006-DTS_CPU-filter-first-zero-from-RdPkgConfig-10.patch \
+        file://0007-peci-cputemp-filter-the-first-zero-from-RdPkgConfig-.patch \
+        file://0008-vegman-kernel-add-RTC-driver-for-PCHC620.patch \
+        file://0009-ARM-dts-add-rtc-pch-node-into-aspeed-bmc-intel-ast2x.patch \
         "
 
-SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"
+SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://1000-128MB-flashmap-for-PFR.patch', '', d)}"
 SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'file://debug.cfg', '', d)}"

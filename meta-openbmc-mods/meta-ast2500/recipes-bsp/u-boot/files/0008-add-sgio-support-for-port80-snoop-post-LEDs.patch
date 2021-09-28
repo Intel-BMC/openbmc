@@ -145,8 +145,8 @@ index e79235c8d0..c2a8b33aec 100644
 +	value = readl(AST_LPC_BASE + HICRB) | HICRB_EN80HSGIO;
 +	writel(value, AST_LPC_BASE + HICRB);
 +
-+	/* set the gpio clock to pclk/(2*(5+1)) or ~2 MHz */
-+	value = SGPIO_CLK_DIV(256) | SGPIO_BYTES(10) | SGPIO_ENABLE;
++	/* set the gpio clock to 2MHz */
++	value = SGPIO_CLK_DIV(24) | SGPIO_BYTES(10) | SGPIO_ENABLE;
 +	writel(value, AST_GPIO_BASE + GPIO254);
 +}
  

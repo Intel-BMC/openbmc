@@ -12,7 +12,7 @@ inherit cmake systemd
 SRC_URI = "git://github.com/Intel-BMC/provingground.git;protocol=ssh"
 SRCREV = "bee56d62b209088454d166d1efae4825a2b175df"
 
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.SecurityManager.service"
+SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.SecurityManager.service"
 
 DEPENDS += " \
     systemd \

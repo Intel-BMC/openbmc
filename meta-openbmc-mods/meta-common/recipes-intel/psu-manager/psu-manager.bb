@@ -14,7 +14,7 @@ LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 inherit cmake
 inherit systemd
 
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.coldredundancy.service"
+SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.coldredundancy.service"
 
 DEPENDS += " \
     systemd \

@@ -12,4 +12,4 @@ SRC_URI = "git://github.com/rurban/safeclib.git"
 
 COMPATIBLE_HOST = '(x86_64|i.86|powerpc|powerpc64|arm|aarch64).*-linux'
 
-RDEPENDS_${PN} = "perl"
+RDEPENDS:${PN} = "perl"

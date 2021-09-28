@@ -1,7 +1,7 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 inherit obmc-phosphor-systemd
-SYSTEMD_SERVICE_${PN} = "phosphor-pid-control.service"
+SYSTEMD_SERVICE:${PN} = "phosphor-pid-control.service"
 EXTRA_OECONF = "--enable-configure-dbus=yes"
 
 SRC_URI = "git://github.com/openbmc/phosphor-pid-control.git"
@@ -11,4 +11,4 @@ SRC_URI += "\
     file://0001-allow-dbus-sensors-without-thresholds.patch \
     "
 
-FILES_${PN} = "${bindir}/swampd ${bindir}/setsensor"
+FILES:${PN} = "${bindir}/swampd ${bindir}/setsensor"

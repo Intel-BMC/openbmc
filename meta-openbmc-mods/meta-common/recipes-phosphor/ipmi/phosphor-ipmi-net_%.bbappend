@@ -3,21 +3,21 @@ inherit useradd
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 SRC_URI += "git://github.com/openbmc/phosphor-net-ipmid"
-SRCREV = "b88599a2cef6b4fd2272f065a37ce0f70ca8dd38"
+SRCREV = "1c5b3ab05817d62a11f75c2a90b6891b18bf62cc"
 
 USERADD_PACKAGES = "${PN}"
 # add a group called ipmi
-GROUPADD_PARAM_${PN} = "ipmi "
+GROUPADD_PARAM:${PN} = "ipmi "
 
 # Default rmcpp iface is eth0; channel 1
 # Add channel 2 instance (eth1)
 RMCPP_EXTRA = "eth1"
-SYSTEMD_SERVICE_${PN} += " \
+SYSTEMD_SERVICE:${PN} += " \
         ${PN}@${RMCPP_EXTRA}.service \
         ${PN}@${RMCPP_EXTRA}.socket \
         "
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 SRC_URI += " file://10-nice-rules.conf \
              file://0006-Modify-dbus-namespace-of-chassis-control-for-guid.patch \
@@ -25,7 +25,7 @@ SRC_URI += " file://10-nice-rules.conf \
              file://0012-rakp12-Add-username-to-SessionInfo-interface.patch \
            "
 
-do_install_append() {
+do_install:append() {
     mkdir -p ${D}${sysconfdir}/systemd/system/phosphor-ipmi-net@.service.d/
     install -m 0644 ${WORKDIR}/10-nice-rules.conf ${D}${sysconfdir}/systemd/system/phosphor-ipmi-net@.service.d/
 }

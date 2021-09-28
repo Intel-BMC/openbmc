@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI += "file://enable-ssh.sh"
 
@@ -12,11 +12,11 @@ add_manual_ssh_enable() {
    rm ${D}/${systemd_unitdir}/system/dropbear.socket
 }
 
-do_install_append() {
+do_install:append() {
    # Add manual ssh enable script if debug-tweaks is disabled
    ${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', 'add_manual_ssh_enable', d)}
 }
 
-FILES_${PN} += "/usr/share/misc"
-SYSTEMD_SERVICE_${PN} += "dropbearkey.service"
-SYSTEMD_SERVICE_${PN}_remove += " ${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', 'dropbear.socket', d)}"
+FILES:${PN} += "/usr/share/misc"
+SYSTEMD_SERVICE:${PN} += "dropbearkey.service"
+SYSTEMD_SERVICE:${PN}:remove += " ${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', 'dropbear.socket', d)}"

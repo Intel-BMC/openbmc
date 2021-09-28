@@ -34,7 +34,7 @@ index c65adff0d69a..3db7d993d3ca 100644
  2:
 +	/* SCU060:EXTRST1# reset mask selection */
 +	ldr 	r0, =AST_SCU_EXTRST_SEL1
-+	ldr 	r1, =0x6FF1FF1
++	ldr 	r1, =0x6CF1FF1
 +	str 	r1, [r0]
 +
 +	/* SCU070:EXTRST2# reset mask selection */
