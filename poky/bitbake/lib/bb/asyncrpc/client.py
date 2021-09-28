@@ -11,13 +11,14 @@ from . import chunkify, DEFAULT_MAX_CHUNK
 
 
 class AsyncClient(object):
-    def __init__(self, proto_name, proto_version, logger):
+    def __init__(self, proto_name, proto_version, logger, timeout=30):
         self.reader = None
         self.writer = None
         self.max_chunk = DEFAULT_MAX_CHUNK
         self.proto_name = proto_name
         self.proto_version = proto_version
         self.logger = logger
+        self.timeout = timeout
 
     async def connect_tcp(self, address, port):
         async def connect_sock():
@@ -70,14 +71,18 @@ class AsyncClient(object):
 
     async def send_message(self, msg):
         async def get_line():
-            line = await self.reader.readline()
+            try:
+                line = await asyncio.wait_for(self.reader.readline(), self.timeout)
+            except asyncio.TimeoutError:
+                raise ConnectionError("Timed out waiting for server")
+
             if not line:
                 raise ConnectionError("Connection closed")
 
             line = line.decode("utf-8")
 
             if not line.endswith("\n"):
-                raise ConnectionError("Bad message %r" % msg)
+                raise ConnectionError("Bad message %r" % (line))
 
             return line
 
@@ -113,6 +118,16 @@ class Client(object):
     def __init__(self):
         self.client = self._get_async_client()
         self.loop = asyncio.new_event_loop()
+
+        # Override any pre-existing loop.
+        # Without this, the PR server export selftest triggers a hang
+        # when running with Python 3.7.  The drawback is that there is
+        # potential for issues if the PR and hash equiv (or some new)
+        # clients need to both be instantiated in the same process.
+        # This should be revisited if/when Python 3.9 becomes the
+        # minimum required version for BitBake, as it seems not
+        # required (but harmless) with it.
+        asyncio.set_event_loop(self.loop)
 
         self._add_methods('connect_tcp', 'close', 'ping')
 

@@ -99,7 +99,7 @@ selected according to the connected monitor's EDID information and the composite
 mode is defaulted to NTSC using a 4:3 aspect ratio. Check the config.txt for a
 detailed description of options and modes. The following variables are supported in
 local.conf: `HDMI_FORCE_HOTPLUG`, `HDMI_DRIVE`, `HDMI_GROUP`, `HDMI_MODE`,
-`CONFIG_HDMI_BOOST`, `SDTV_MODE`, `SDTV_ASPECT` and `DISPLAY_ROTATE`.
+`HDMI_CVT`, `CONFIG_HDMI_BOOST`, `SDTV_MODE`, `SDTV_ASPECT` and `DISPLAY_ROTATE`.
 
 Example to force HDMI output to 720p in CEA mode:
 
@@ -159,7 +159,7 @@ command (eg. bootz) to be used.
 
 To build an initramfs image:
 
-* Set this 3 kernel variables (in kernel's do_configure_prepend in linux-raspberrypi.inc after the line kernel_configure_variable LOCALVERSION "\"\""
+* Set this 3 kernel variables (in kernel's do_configure:prepend in linux-raspberrypi.inc after the line kernel_configure_variable LOCALVERSION "\"\""
 )
   - kernel_configure_variable BLK_DEV_INITRD y
   - kernel_configure_variable INITRAMFS_SOURCE ""
@@ -195,7 +195,7 @@ by tasks that image building task must depend upon, to ensure that the
 files are available when they are needed, so these component deploy
 tasks must be added to: RPI_SDIMG_EXTRA_DEPENDS.
 
-    RPI_SDIMG_EXTRA_DEPENDS_append = " example:do_deploy"
+    RPI_SDIMG_EXTRA_DEPENDS:append = " example:do_deploy"
 
 ## Enable SPI bus
 
@@ -211,7 +211,7 @@ When using device tree kernels, set this variable to enable I2C:
 
 Furthermore, to auto-load I2C kernel modules set:
 
-    KERNEL_MODULE_AUTOLOAD_rpi += "i2c-dev i2c-bcm2708"
+    KERNEL_MODULE_AUTOLOAD:rpi += "i2c-dev i2c-bcm2708"
 
 ## Enable PiTFT support
 

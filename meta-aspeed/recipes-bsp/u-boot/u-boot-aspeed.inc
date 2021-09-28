@@ -182,7 +182,11 @@ do_install () {
 
 }
 
-FILES_${PN} = "/boot ${sysconfdir} ${datadir}"
+PACKAGE_BEFORE_PN += "${PN}-env"
+
+RPROVIDES:${PN}-env += "u-boot-default-env"
+FILES:${PN} = "/boot ${sysconfdir} ${datadir}"
+RDEPENDS:${PN} += "${PN}-env"
 
 do_deploy () {
     if [ -n "${UBOOT_CONFIG}" ]

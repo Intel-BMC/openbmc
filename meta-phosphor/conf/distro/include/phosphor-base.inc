@@ -12,7 +12,7 @@ DISTROOVERRIDES .= ":openbmc-phosphor"
 
 TCLIBCAPPEND = ""
 
-QEMU_TARGETS ?= "arm aarch64 i386 riscv32 riscv64 x86_64"
+QEMU_TARGETS ?= "arm aarch64 i386 riscv32 riscv64 ppc64le x86_64"
 
 PREMIRRORS ??= "\
 bzr://.*/.*   http://downloads.yoctoproject.org/mirror/sources/ \n \
@@ -62,8 +62,8 @@ OELAYOUT_ABI = "12"
 WARN_TO_ERROR_QA = "already-stripped compile-host-path install-host-path \
                     installed-vs-shipped ldflags pn-overrides rpaths staticdev \
                     useless-rpaths"
-WARN_QA_remove = "${WARN_TO_ERROR_QA}"
-ERROR_QA_append = " ${WARN_TO_ERROR_QA}"
+WARN_QA:remove = "${WARN_TO_ERROR_QA}"
+ERROR_QA:append = " ${WARN_TO_ERROR_QA}"
 
 require conf/distro/include/no-static-libs.inc
 require conf/distro/include/yocto-uninative.inc
@@ -99,8 +99,10 @@ DISTRO_FEATURES_DEFAULT = " \
         ipv4 \
         ipv6 \
         pam \
+        security \
         slp \
         systemd \
+        seccomp \
         "
 
 DISTRO_FEATURES += " \
@@ -112,14 +114,14 @@ MACHINE_FEATURES += " \
         ${OBMC_MACHINE_FEATURES} \
         "
 
-DISTRO_EXTRA_RDEPENDS_remove_qemuarm = "packagegroup-core-device-devel"
+DISTRO_EXTRA_RDEPENDS:remove:qemuarm = "packagegroup-core-device-devel"
 
 include conf/distro/include/openbmc-phosphor/${MACHINE}.inc
 
-IMAGE_CLASSES_append = " image_types_phosphor phosphor-rootfs-postcommands"
-IMAGE_CLASSES_append_npcm7xx = " image_types_phosphor_nuvoton"
+IMAGE_CLASSES:append = " image_types_phosphor phosphor-rootfs-postcommands"
+IMAGE_CLASSES:append:npcm7xx = " image_types_phosphor_nuvoton"
 
-IMAGE_INSTALL_append = " dbus-broker libnss-systemd"
+IMAGE_INSTALL:append = " dbus-broker libnss-systemd"
 
 # Skip the udev database by default.  It adds around 2MB
 # compressed to the root filesystem, and probably doesn't
@@ -129,7 +131,7 @@ BAD_RECOMMENDATIONS += "shared-mime-info"
 
 LAYER_CONF_VERSION ?= "8"
 
-KERNEL_CLASSES_append = " obmc-phosphor-kernel-version"
+KERNEL_CLASSES:append = " obmc-phosphor-kernel-version"
 
 # Some packages have directory trees of YAML files arranged based on
 # canonical organization names.  'xyz/openbmc_project' should be used

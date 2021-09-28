@@ -1011,9 +1011,9 @@ If you plan on customizing a recipe for a particular BSP, you need to do
 the following:
 
 -  Create a ``*.bbappend`` file for the modified recipe. For information on using
-   append files, see the ":ref:`dev-manual/common-tasks:using
-   .bbappend files in your layer`" section in the Yocto Project Development
-   Tasks Manual.
+   append files, see the
+   ":ref:`dev-manual/common-tasks:appending other layers metadata with your layer`"
+   section in the Yocto Project Development Tasks Manual.
 
 -  Ensure your directory structure in the BSP layer that supports your
    machine is such that the OpenEmbedded build system can find it. See
@@ -1042,7 +1042,7 @@ also supports several other machines:
 #. Edit the ``init-ifupdown_1.0.bbappend`` file so that it contains the
    following::
 
-      FILESEXTRAPATHS_prepend := "${THISDIR}/files:"
+      FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
    The append file needs to be in the ``meta-xyz/recipes-core/init-ifupdown``
    directory.
@@ -1266,12 +1266,12 @@ located in the layer ``poky/meta-yocto-bsp/conf/machine`` and is named
    EXTRA_IMAGEDEPENDS += "u-boot"
 
    DEFAULTTUNE ?= "cortexa8hf-neon"
-   include conf/machine/include/tune-cortexa8.inc
+   include conf/machine/include/arm/armv7a/tune-cortexa8.inc
 
    IMAGE_FSTYPES += "tar.bz2 jffs2 wic wic.bmap"
-   EXTRA_IMAGECMD_jffs2 = "-lnp "
+   EXTRA_IMAGECMD:jffs2 = "-lnp "
    WKS_FILE ?= "beaglebone-yocto.wks"
-   IMAGE_INSTALL_append = " kernel-devicetree kernel-image-zimage"
+   IMAGE_INSTALL:append = " kernel-devicetree kernel-image-zimage"
    do_image_wic[depends] += "mtools-native:do_populate_sysroot dosfstools-native:do_populate_sysroot"
 
    SERIAL_CONSOLES ?= "115200;ttyS0 115200;ttyO0"
@@ -1344,7 +1344,7 @@ Project Reference Manual.
    .. note::
 
       The include statement that pulls in the
-      ``conf/machine/include/tune-cortexa8.inc`` file provides many tuning
+      ``conf/machine/include/arm/tune-cortexa8.inc`` file provides many tuning
       possibilities.
 
 -  :term:`IMAGE_FSTYPES`: The
@@ -1458,29 +1458,29 @@ kernel recipe (i.e. ``linux-yocto_5.0.bb``), which is located in
 
 Following is the contents of the append file::
 
-   KBRANCH_genericx86 = "v5.0/standard/base"
-   KBRANCH_genericx86-64 = "v5.0/standard/base"
-   KBRANCH_edgerouter = "v5.0/standard/edgerouter"
-   KBRANCH_beaglebone-yocto = "v5.0/standard/beaglebone"
+   KBRANCH:genericx86 = "v5.0/standard/base"
+   KBRANCH:genericx86-64 = "v5.0/standard/base"
+   KBRANCH:edgerouter = "v5.0/standard/edgerouter"
+   KBRANCH:beaglebone-yocto = "v5.0/standard/beaglebone"
 
-   KMACHINE_genericx86 ?= "common-pc"
-   KMACHINE_genericx86-64 ?= "common-pc-64"
-   KMACHINE_beaglebone-yocto ?= "beaglebone"
+   KMACHINE:genericx86 ?= "common-pc"
+   KMACHINE:genericx86-64 ?= "common-pc-64"
+   KMACHINE:beaglebone-yocto ?= "beaglebone"
 
-   SRCREV_machine_genericx86 ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
-   SRCREV_machine_genericx86-64 ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
-   SRCREV_machine_edgerouter ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
-   SRCREV_machine_beaglebone-yocto ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
+   SRCREV_machine:genericx86 ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
+   SRCREV_machine:genericx86-64 ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
+   SRCREV_machine:edgerouter ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
+   SRCREV_machine:beaglebone-yocto ?= "3df4aae6074e94e794e27fe7f17451d9353cdf3d"
 
-   COMPATIBLE_MACHINE_genericx86 = "genericx86"
-   COMPATIBLE_MACHINE_genericx86-64 = "genericx86-64"
-   COMPATIBLE_MACHINE_edgerouter = "edgerouter"
-   COMPATIBLE_MACHINE_beaglebone-yocto = "beaglebone-yocto"
+   COMPATIBLE_MACHINE:genericx86 = "genericx86"
+   COMPATIBLE_MACHINE:genericx86-64 = "genericx86-64"
+   COMPATIBLE_MACHINE:edgerouter = "edgerouter"
+   COMPATIBLE_MACHINE:beaglebone-yocto = "beaglebone-yocto"
 
-   LINUX_VERSION_genericx86 = "5.0.3"
-   LINUX_VERSION_genericx86-64 = "5.0.3"
-   LINUX_VERSION_edgerouter = "5.0.3"
-   LINUX_VERSION_beaglebone-yocto = "5.0.3"
+   LINUX_VERSION:genericx86 = "5.0.3"
+   LINUX_VERSION:genericx86-64 = "5.0.3"
+   LINUX_VERSION:edgerouter = "5.0.3"
+   LINUX_VERSION:beaglebone-yocto = "5.0.3"
 
 This particular append file works for all the machines that are
 part of the ``meta-yocto-bsp`` layer. The relevant statements are

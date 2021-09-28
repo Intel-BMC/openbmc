@@ -16,7 +16,9 @@ PROVIDES += "${PN}-dev"
 
 PV .= "+git${SRCPV}"
 SRCREV = "64f50dbd5cecdaba785217e2b0aeea3a4f1cdfab"
-SRC_URI = "git://github.com/USCiLab/cereal.git"
+SRC_URI = "git://github.com/USCiLab/cereal.git \
+           file://0001-Use-GNUInstallDirs-instead-of-hard-wiring-install-di.patch \
+           "
 
 S = "${WORKDIR}/git"
 
@@ -24,8 +26,8 @@ inherit cmake pkgconfig
 
 EXTRA_OECMAKE = "-DJUST_INSTALL_CEREAL=ON"
 
-ALLOW_EMPTY_${PN} = "1"
+ALLOW_EMPTY:${PN} = "1"
 
-RDEPENDS_${PN}-dev = ""
+RDEPENDS:${PN}-dev = ""
 
 BBCLASSEXTEND = "native nativesdk"

@@ -27,13 +27,17 @@ import datetime
 
 # ruby-ri-docs, meson:
 #https://autobuilder.yocto.io/pub/repro-fail/oe-reproducible-20210215-0_td9la2/packages/diff-html/
+# rust-llvm:
+#https://autobuilder.yocto.io/pub/repro-fail/oe-reproducible-20210825-kaihham6/
 exclude_packages = [
 	'glide',
 	'go-helloworld',
 	'go-runtime',
 	'go_',
 	'go-',
-	'ruby-ri-docs'
+	'ruby-ri-docs',
+	'rust-llvm-liblto',
+	'rust-llvm-staticdev'
 	]
 
 def is_excluded(package):
@@ -220,7 +224,7 @@ class ReproducibleTests(OESelftestTestCase):
             INHIBIT_PACKAGE_STRIP = "1"
             TMPDIR = "{tmpdir}"
             LICENSE_FLAGS_WHITELIST = "commercial"
-            DISTRO_FEATURES_append = ' systemd pam'
+            DISTRO_FEATURES:append = ' systemd pam'
             USERADDEXTENSION = "useradd-staticids"
             USERADD_ERROR_DYNAMIC = "skip"
             USERADD_UID_TABLES += "files/static-passwd"

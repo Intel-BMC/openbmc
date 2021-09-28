@@ -51,20 +51,20 @@ DEPENDS += " \
         sdbusplus \
         "
 
-RDEPENDS_${PN} += " \
+RDEPENDS:${PN} += " \
         virtual-obmc-image-manager \
         "
 
-FILES_${PN} += "${datadir}/dbus-1/system.d/org.open_power.Software.Host.Updater.conf"
+FILES:${PN} += "${datadir}/dbus-1/system.d/org.open_power.Software.Host.Updater.conf"
 
 S = "${WORKDIR}/git"
 
 SRC_URI += "git://github.com/openbmc/openpower-pnor-code-mgmt"
 
-SRCREV = "5dc5d6cc6796ef038c59e41297349a982c8dd296"
+SRCREV = "0ddd4fad455d4001a6b839cd201c31b9326b9bf1"
 
-DBUS_SERVICE_${PN} += "org.open_power.Software.Host.Updater.service"
+DBUS_SERVICE:${PN} += "org.open_power.Software.Host.Updater.service"
 
-SYSTEMD_SERVICE_${PN} += " \
+SYSTEMD_SERVICE:${PN} += " \
         op-pnor-msl.service \
         "

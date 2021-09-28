@@ -1,4 +1,4 @@
-From 04e94f9a15101daa8f65a9af269d26cda2a24056 Mon Sep 17 00:00:00 2001
+From 0c8935128b39864b07dfee39cfa9d35d48f056aa Mon Sep 17 00:00:00 2001
 From: Alex Kiernan <alex.kiernan@gmail.com>
 Date: Tue, 10 Mar 2020 11:05:20 +0000
 Subject: [PATCH] Handle missing gshadow
@@ -14,8 +14,8 @@ Signed-off-by: Luca Boccassi <luca.boccassi@microsoft.com>
 ---
  src/shared/user-record-nss.c | 20 ++++++++++++++++++++
  src/shared/user-record-nss.h |  4 ++++
- src/shared/userdb.c          |  6 ++++++
- 3 files changed, 30 insertions(+)
+ src/shared/userdb.c          |  7 ++++++-
+ 3 files changed, 30 insertions(+), 1 deletion(-)
 
 diff --git a/src/shared/user-record-nss.c b/src/shared/user-record-nss.c
 index 88b8fc2f8f..a819d41bac 100644
@@ -139,27 +139,27 @@ index 22ab04d6ee..4e52e7a911 100644
  #include <shadow.h>
  
 diff --git a/src/shared/userdb.c b/src/shared/userdb.c
-index 613350bd46..5c821d28cd 100644
+index 91ac7c3832..20881ece84 100644
 --- a/src/shared/userdb.c
 +++ b/src/shared/userdb.c
-@@ -938,13 +938,16 @@ int groupdb_iterator_get(UserDBIterator *iterator, GroupRecord **ret) {
+@@ -1047,13 +1047,15 @@ int groupdb_iterator_get(UserDBIterator *iterator, GroupRecord **ret) {
                  if (gr) {
                          _cleanup_free_ char *buffer = NULL;
                          bool incomplete = false;
 +#if ENABLE_GSHADOW
                          struct sgrp sgrp;
+-
 +#endif
- 
                          if (streq_ptr(gr->gr_name, "root"))
                                  iterator->synthesize_root = false;
                          if (gr->gr_gid == GID_NOBODY)
                                  iterator->synthesize_nobody = false;
  
 +#if ENABLE_GSHADOW
-                         if (!FLAGS_SET(iterator->flags, USERDB_AVOID_SHADOW)) {
+                         if (!FLAGS_SET(iterator->flags, USERDB_SUPPRESS_SHADOW)) {
                                  r = nss_sgrp_for_group(gr, &sgrp, &buffer);
                                  if (r < 0) {
-@@ -957,6 +960,9 @@ int groupdb_iterator_get(UserDBIterator *iterator, GroupRecord **ret) {
+@@ -1066,6 +1068,9 @@ int groupdb_iterator_get(UserDBIterator *iterator, GroupRecord **ret) {
                          }
  
                          r = nss_group_to_group_record(gr, r >= 0 ? &sgrp : NULL, ret);

@@ -27,15 +27,17 @@ POST_CODE_BYTES ?= "1"
 
 SERVICE_FILE = "lpcsnoop.service"
 SYSTEMD_PACKAGES = "${PN}"
-SYSTEMD_SERVICE_${PN} += "${SERVICE_FILE}"
+SYSTEMD_SERVICE:${PN} += "${SERVICE_FILE}"
 
-EXTRA_OEMESON += "-Dsnoop-device=${SNOOP_DEVICE}"
-EXTRA_OEMESON += "-Dpost-code-bytes=${POST_CODE_BYTES}"
-EXTRA_OEMESON += "-Dsystemd-target=multi-user.target"
+EXTRA_OEMESON:append = " \
+    -Dsnoop-device=${SNOOP_DEVICE} \
+    -Dpost-code-bytes=${POST_CODE_BYTES} \
+    -Dsystemd-target=multi-user.target \
+"
 
 POSTCODE_SEVENSEG_DEVICE ?= "seven_seg_disp_val"
 SERVICE_FILE_7SEG = " \
   postcode-7seg@.service \
   postcode-7seg@${POSTCODE_SEVENSEG_DEVICE}.service \
 "
-SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('PACKAGECONFIG', '7seg', '${SERVICE_FILE_7SEG}', '', d)}"
+SYSTEMD_SERVICE:${PN} += "${@bb.utils.contains('PACKAGECONFIG', '7seg', '${SERVICE_FILE_7SEG}', '', d)}"

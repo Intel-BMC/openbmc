@@ -1,6 +1,6 @@
 inherit python3native meson-routines
 
-DEPENDS_append = " meson-native ninja-native"
+DEPENDS:append = " meson-native ninja-native"
 
 # As Meson enforces out-of-tree builds we can just use cleandirs
 B = "${WORKDIR}/build"
@@ -12,7 +12,8 @@ MESON_SOURCEPATH = "${S}"
 def noprefix(var, d):
     return d.getVar(var).replace(d.getVar('prefix') + '/', '', 1)
 
-MESON_BUILDTYPE ?= "plain"
+MESON_BUILDTYPE ?= "${@oe.utils.vartrue('DEBUG_BUILD', 'debug', 'plain', d)}"
+MESON_BUILDTYPE[vardeps] += "DEBUG_BUILD"
 MESONOPTS = " --prefix ${prefix} \
               --buildtype ${MESON_BUILDTYPE} \
               --bindir ${@noprefix('bindir', d)} \
@@ -29,11 +30,11 @@ MESONOPTS = " --prefix ${prefix} \
               --wrap-mode nodownload \
               --native-file ${WORKDIR}/meson.native"
 
-EXTRA_OEMESON_append = " ${PACKAGECONFIG_CONFARGS}"
+EXTRA_OEMESON:append = " ${PACKAGECONFIG_CONFARGS}"
 
 MESON_CROSS_FILE = ""
-MESON_CROSS_FILE_class-target = "--cross-file ${WORKDIR}/meson.cross"
-MESON_CROSS_FILE_class-nativesdk = "--cross-file ${WORKDIR}/meson.cross"
+MESON_CROSS_FILE:class-target = "--cross-file ${WORKDIR}/meson.cross"
+MESON_CROSS_FILE:class-nativesdk = "--cross-file ${WORKDIR}/meson.cross"
 
 addtask write_config before do_configure
 do_write_config[vardeps] += "CC CXX LD AR NM STRIP READELF CFLAGS CXXFLAGS LDFLAGS"

@@ -11,6 +11,7 @@
 import os
 import sys
 import unittest
+import hashlib
 
 from glob import glob
 from shutil import rmtree, copy
@@ -189,8 +190,8 @@ class Wic(WicTestCase):
     def test_iso_image(self):
         """Test creation of hybrid iso image with legacy and EFI boot"""
         config = 'INITRAMFS_IMAGE = "core-image-minimal-initramfs"\n'\
-                 'MACHINE_FEATURES_append = " efi"\n'\
-                 'DEPENDS_pn-core-image-minimal += "syslinux"\n'
+                 'MACHINE_FEATURES:append = " efi"\n'\
+                 'DEPENDS:pn-core-image-minimal += "syslinux"\n'
         self.append_config(config)
         bitbake('core-image-minimal core-image-minimal-initramfs')
         self.remove_config(config)
@@ -216,7 +217,7 @@ class Wic(WicTestCase):
     @only_for_arch(['i586', 'i686', 'x86_64'])
     def test_bootloader_config(self):
         """Test creation of directdisk-bootloader-config image"""
-        config = 'DEPENDS_pn-core-image-minimal += "syslinux"\n'
+        config = 'DEPENDS:pn-core-image-minimal += "syslinux"\n'
         self.append_config(config)
         bitbake('core-image-minimal')
         self.remove_config(config)
@@ -227,7 +228,7 @@ class Wic(WicTestCase):
     @only_for_arch(['i586', 'i686', 'x86_64'])
     def test_systemd_bootdisk(self):
         """Test creation of systemd-bootdisk image"""
-        config = 'MACHINE_FEATURES_append = " efi"\n'
+        config = 'MACHINE_FEATURES:append = " efi"\n'
         self.append_config(config)
         bitbake('core-image-minimal')
         self.remove_config(config)
@@ -259,7 +260,7 @@ class Wic(WicTestCase):
         """Test default output location"""
         for fname in glob("directdisk-*.direct"):
             os.remove(fname)
-        config = 'DEPENDS_pn-core-image-minimal += "syslinux"\n'
+        config = 'DEPENDS:pn-core-image-minimal += "syslinux"\n'
         self.append_config(config)
         bitbake('core-image-minimal')
         self.remove_config(config)
@@ -686,6 +687,63 @@ part /etc --source rootfs --fstype=ext4 --change-directory=etc
                                       % (wks_file, self.resultdir), ignore_status=True).status)
         os.remove(wks_file)
 
+    def test_no_fstab_update(self):
+        """Test --no-fstab-update wks option."""
+
+        oldpath = os.environ['PATH']
+        os.environ['PATH'] = get_bb_var("PATH", "wic-tools")
+
+        # Get stock fstab from base-files recipe
+        self.assertEqual(0, bitbake('base-files -c do_install').status)
+        bf_fstab = os.path.join(get_bb_var('D', 'base-files'), 'etc/fstab')
+        self.assertEqual(True, os.path.exists(bf_fstab))
+        bf_fstab_md5sum = runCmd('md5sum %s 2>/dev/null' % bf_fstab).output.split(" ")[0]
+
+        try:
+            no_fstab_update_path = os.path.join(self.resultdir, 'test-no-fstab-update')
+            os.makedirs(no_fstab_update_path)
+            wks_file = os.path.join(no_fstab_update_path, 'temp.wks')
+            with open(wks_file, 'w') as wks:
+                wks.writelines(['part / --source rootfs --fstype=ext4 --label rootfs\n',
+                                'part /mnt/p2 --source rootfs --rootfs-dir=core-image-minimal ',
+                                '--fstype=ext4 --label p2 --no-fstab-update\n'])
+            runCmd("wic create %s -e core-image-minimal -o %s" \
+                                       % (wks_file, self.resultdir))
+
+            part_fstab_md5sum = []
+            for i in range(1, 3):
+                part = glob(os.path.join(self.resultdir, 'temp-*.direct.p') + str(i))[0]
+                part_fstab = runCmd("debugfs -R 'cat etc/fstab' %s 2>/dev/null" % (part))
+                part_fstab_md5sum.append(hashlib.md5((part_fstab.output + "\n\n").encode('utf-8')).hexdigest())
+
+            # '/etc/fstab' in partition 2 should contain the same stock fstab file
+            # as the one installed by the base-file recipe.
+            self.assertEqual(bf_fstab_md5sum, part_fstab_md5sum[1])
+
+            # '/etc/fstab' in partition 1 should contain an updated fstab file.
+            self.assertNotEqual(bf_fstab_md5sum, part_fstab_md5sum[0])
+
+        finally:
+            os.environ['PATH'] = oldpath
+
+    def test_no_fstab_update_errors(self):
+        """Test --no-fstab-update wks option error handling."""
+        wks_file = 'temp.wks'
+
+        # Absolute argument.
+        with open(wks_file, 'w') as wks:
+            wks.write("part / --source rootfs --fstype=ext4 --no-fstab-update /etc")
+        self.assertNotEqual(0, runCmd("wic create %s -e core-image-minimal -o %s" \
+                                      % (wks_file, self.resultdir), ignore_status=True).status)
+        os.remove(wks_file)
+
+        # Argument pointing to parent directory.
+        with open(wks_file, 'w') as wks:
+            wks.write("part / --source rootfs --fstype=ext4 --no-fstab-update ././..")
+        self.assertNotEqual(0, runCmd("wic create %s -e core-image-minimal -o %s" \
+                                      % (wks_file, self.resultdir), ignore_status=True).status)
+        os.remove(wks_file)
+
 class Wic2(WicTestCase):
 
     def test_bmap_short(self):
@@ -757,7 +815,7 @@ class Wic2(WicTestCase):
     def test_wic_image_type(self):
         """Test building wic images by bitbake"""
         config = 'IMAGE_FSTYPES += "wic"\nWKS_FILE = "wic-image-minimal"\n'\
-                 'MACHINE_FEATURES_append = " efi"\n'
+                 'MACHINE_FEATURES:append = " efi"\n'
         self.append_config(config)
         self.assertEqual(0, bitbake('wic-image-minimal').status)
         self.remove_config(config)
@@ -777,7 +835,7 @@ class Wic2(WicTestCase):
     def test_qemu(self):
         """Test wic-image-minimal under qemu"""
         config = 'IMAGE_FSTYPES += "wic"\nWKS_FILE = "wic-image-minimal"\n'\
-                 'MACHINE_FEATURES_append = " efi"\n'
+                 'MACHINE_FEATURES:append = " efi"\n'
         self.append_config(config)
         self.assertEqual(0, bitbake('wic-image-minimal').status)
         self.remove_config(config)
@@ -1035,7 +1093,7 @@ class Wic2(WicTestCase):
     @only_for_arch(['i586', 'i686', 'x86_64'])
     def test_biosplusefi_plugin_qemu(self):
         """Test biosplusefi plugin in qemu"""
-        config = 'IMAGE_FSTYPES = "wic"\nWKS_FILE = "test_biosplusefi_plugin.wks"\nMACHINE_FEATURES_append = " efi"\n'
+        config = 'IMAGE_FSTYPES = "wic"\nWKS_FILE = "test_biosplusefi_plugin.wks"\nMACHINE_FEATURES:append = " efi"\n'
         self.append_config(config)
         self.assertEqual(0, bitbake('core-image-minimal').status)
         self.remove_config(config)
@@ -1072,7 +1130,7 @@ class Wic2(WicTestCase):
         # If an image hasn't been built yet, directory ${STAGING_DATADIR}/syslinux won't exists and _get_bootimg_dir()
         #   will raise with "Couldn't find correct bootimg_dir"
         # The easiest way to work-around this issue is to make sure we already built an image here, hence the bitbake call
-        config = 'IMAGE_FSTYPES = "wic"\nWKS_FILE = "test_biosplusefi_plugin.wks"\nMACHINE_FEATURES_append = " efi"\n'
+        config = 'IMAGE_FSTYPES = "wic"\nWKS_FILE = "test_biosplusefi_plugin.wks"\nMACHINE_FEATURES:append = " efi"\n'
         self.append_config(config)
         self.assertEqual(0, bitbake('core-image-minimal').status)
         self.remove_config(config)

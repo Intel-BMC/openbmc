@@ -48,6 +48,7 @@ PTESTS_FAST = "\
     pango-ptest \
     parted-ptest \
     python3-atomicwrites-ptest \
+    python3-hypothesis-ptest \
     python3-jinja2-ptest \
     python3-markupsafe-ptest \
     python3-more-itertools-ptest \
@@ -60,8 +61,8 @@ PTESTS_FAST = "\
     wayland-ptest \
     zlib-ptest \
 "
-PTESTS_FAST_remove_mips64 = "qemu-ptest"
-PTESTS_PROBLEMS_append_mips64 = "qemu-ptest"
+PTESTS_FAST:remove:mips64 = "qemu-ptest"
+PTESTS_PROBLEMS:append:mips64 = "qemu-ptest"
 
 PTESTS_SLOW = "\
     babeltrace-ptest \
@@ -84,8 +85,8 @@ PTESTS_SLOW = "\
     valgrind-ptest \
 "
 
-PTESTS_SLOW_remove_riscv64 = "valgrind-ptest"
-PTESTS_PROBLEMS_append_riscv64 = "valgrind-ptest"
+PTESTS_SLOW:remove:riscv64 = "valgrind-ptest"
+PTESTS_PROBLEMS:append:riscv64 = "valgrind-ptest"
 
 #    ruby-ptest \ # Timeout
 #    lz4-ptest \ # Needs a rewrite

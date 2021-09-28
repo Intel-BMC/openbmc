@@ -2,7 +2,7 @@ SUMMARY = "Chassis Power Control service for Intel based platforms"
 DESCRIPTION = "Chassis Power Control service for Intel based platforms"
 
 SRC_URI = "git://github.com/openbmc/x86-power-control.git;protocol=ssh"
-SRCREV = "2a26943210a7b26525638bb9dacfd2868c7cdad7"
+SRCREV = "ec972d8b56fe84f8aa6d18f63e64e3fb0e7a9eaf"
 
 PV = "1.0+git${SRCPV}"
 
@@ -20,9 +20,9 @@ def get_service(d):
     else:
       return " ".join(["xyz.openbmc_project.Chassis.Control.Power@{}.service".format(x) for x in d.getVar('OBMC_HOST_INSTANCES').split()])
 
-SYSTEMD_SERVICE_${PN} = "${@get_service(d)}"
+SYSTEMD_SERVICE:${PN} = "${@get_service(d)}"
 
-SYSTEMD_SERVICE_${PN} += "chassis-system-reset.service \
+SYSTEMD_SERVICE:${PN} += "chassis-system-reset.service \
                          chassis-system-reset.target"
 
 DEPENDS += " \
@@ -33,4 +33,4 @@ DEPENDS += " \
     sdbusplus \
     phosphor-logging \
   "
-FILES_${PN}  += "${systemd_system_unitdir}/xyz.openbmc_project.Chassis.Control.Power@.service"
+FILES:${PN}  += "${systemd_system_unitdir}/xyz.openbmc_project.Chassis.Control.Power@.service"

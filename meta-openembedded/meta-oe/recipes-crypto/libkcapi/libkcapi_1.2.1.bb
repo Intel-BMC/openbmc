@@ -16,8 +16,9 @@ inherit autotools
 PACKAGECONFIG ??= ""
 PACKAGECONFIG[testapp] = "--enable-kcapi-test,,,bash"
 PACKAGECONFIG[apps] = "--enable-kcapi-speed --enable-kcapi-hasher --enable-kcapi-rngapp --enable-kcapi-encapp --enable-kcapi-dgstapp,,,"
+PACKAGECONFIG[hasher_only] = "--enable-kcapi-hasher --disable-lib-kdf --disable-lib-sym --disable-lib-aead --disable-lib-rng,,,"
 
-do_install_append() {
+do_install:append() {
     # bindir contains testapp and apps.  However it is always created, even
     # when no binaries are installed (empty bin_PROGRAMS in Makefile.am),
     rmdir --ignore-fail-on-non-empty ${D}${bindir}
@@ -27,4 +28,6 @@ do_install_append() {
     rm -f ${D}${libdir}/.*.hmac
 }
 
-CPPFLAGS_append_libc-musl_toolchain-clang = " -Wno-error=sign-compare"
+CPPFLAGS:append:libc-musl:toolchain-clang = " -Wno-error=sign-compare"
+
+BBCLASSEXTEND = "native"

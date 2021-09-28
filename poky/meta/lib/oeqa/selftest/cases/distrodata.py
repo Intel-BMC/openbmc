@@ -93,7 +93,7 @@ The following recipes do not have a DESCRIPTION. Please add an entry for DESCRIP
 
         def is_maintainer_exception(entry):
             exceptions = ["musl", "newlib", "linux-yocto", "linux-dummy", "mesa-gl", "libgfortran",
-                          "cve-update-db-native"]
+                          "cve-update-db-native", "rust"]
             for i in exceptions:
                  if i in entry:
                      return True
@@ -110,7 +110,7 @@ The following recipes do not have a DESCRIPTION. Please add an entry for DESCRIP
 
             missing_recipes = []
             recipes = []
-            prefix = "RECIPE_MAINTAINER_pn-"
+            prefix = "RECIPE_MAINTAINER:pn-"
 
             # We could have used all_recipes() here, but this method will find
             # every recipe if we ever move to setting RECIPE_MAINTAINER in recipe files

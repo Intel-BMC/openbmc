@@ -705,6 +705,7 @@ def sstate_package(ss, d):
             pass
         except OSError as e:
             # Handle read-only file systems gracefully
+            import errno
             if e.errno != errno.EROFS:
                 raise e
 
@@ -970,12 +971,11 @@ def sstate_checkhashes(sq_data, d, siginfo=False, currentcount=0, summary=True, 
             tasklist.append((tid, sstatefile))
 
         if tasklist:
+            nproc = min(int(d.getVar("BB_NUMBER_THREADS")), len(tasklist))
+
             if len(tasklist) >= min_tasks:
                 msg = "Checking sstate mirror object availability"
                 bb.event.fire(bb.event.ProcessStarted(msg, len(tasklist)), d)
-
-            import multiprocessing
-            nproc = min(multiprocessing.cpu_count(), len(tasklist))
 
             bb.event.enable_threadlock()
             pool = oe.utils.ThreadedPool(nproc, len(tasklist),
@@ -1018,6 +1018,7 @@ def sstate_checkhashes(sq_data, d, siginfo=False, currentcount=0, summary=True, 
         bb.parse.siggen.checkhashes(sq_data, missed, found, d)
 
     return found
+setscene_depvalid[vardepsexclude] = "SSTATE_EXCLUDEDEPS_SYSROOT"
 
 BB_SETSCENE_DEPVALID = "setscene_depvalid"
 
@@ -1151,6 +1152,7 @@ python sstate_eventhandler() {
                 pass
             except OSError as e:
                 # Handle read-only file systems gracefully
+                import errno
                 if e.errno != errno.EROFS:
                     raise e
 

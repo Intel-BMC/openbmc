@@ -31,22 +31,24 @@ FAN_PACKAGES = " \
         ${PN}-monitor \
 "
 
-ALLOW_EMPTY_${PN} = "1"
+ALLOW_EMPTY:${PN} = "1"
 PACKAGE_BEFORE_PN += "${FAN_PACKAGES}"
 PACKAGECONFIG ?= "presence control monitor"
 SYSTEMD_PACKAGES = "${FAN_PACKAGES}"
+PKG_DEFAULT_MACHINE ??= "${MACHINE}"
+PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 # The control, monitor, and presence apps can either be JSON or YAML driven.
 PACKAGECONFIG[json] = "--enable-json, --disable-json"
 
 # --------------------------------------
 # ${PN}-presence-tach specific configuration
-PACKAGECONFIG[presence] = " \
-        --enable-presence \
-        PRESENCE_CONFIG=${STAGING_DIR_HOST}${presence_datadir}/config.yaml, \
-        --disable-presence, \
-        virtual/phosphor-fan-presence-config \
-        , \
+PACKAGECONFIG[presence] = "--enable-presence \
+    MACHINE=${PKG_DEFAULT_MACHINE} \
+    PRESENCE_CONFIG=${STAGING_DIR_HOST}${presence_datadir}/config.yaml, \
+    --disable-presence, \
+    virtual/phosphor-fan-presence-config \
+    , \
 "
 
 MULTI_USR_TGT = "multi-user.target"
@@ -56,21 +58,26 @@ POWERON_TGT = "obmc-chassis-poweron@{0}.target"
 FMT_TACH = "../${TMPL_TACH}:${POWERON_TGT}.requires/${INSTFMT_TACH}"
 FMT_TACH_MUSR = "../${TMPL_TACH}:${MULTI_USR_TGT}.wants/${INSTFMT_TACH}"
 
-FILES_${PN}-presence-tach = "${bindir}/phosphor-fan-presence-tach"
-SYSTEMD_SERVICE_${PN}-presence-tach += "${TMPL_TACH}"
-SYSTEMD_LINK_${PN}-presence-tach += "${@compose_list(d, 'FMT_TACH', 'OBMC_CHASSIS_INSTANCES')}"
+FILES:${PN}-presence-tach = "${bindir}/phosphor-fan-presence-tach"
+SYSTEMD_SERVICE:${PN}-presence-tach += "${TMPL_TACH}"
+SYSTEMD_LINK:${PN}-presence-tach += "${@compose_list(d, 'FMT_TACH', 'OBMC_CHASSIS_INSTANCES')}"
 
 # JSON mode also gets linked into multi-user
-SYSTEMD_LINK_${PN}-presence-tach += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+SYSTEMD_LINK:${PN}-presence-tach += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
         compose_list(d, 'FMT_TACH_MUSR', 'OBMC_CHASSIS_INSTANCES'), '', d)}"
+
+# Package the JSON config files installed from the repo
+FILES:${PN}-presence-tach += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+    '${datadir}/phosphor-fan-presence/presence/*', '', d)}"
 
 # --------------------------------------
 # ${PN}-control specific configuration
 PACKAGECONFIG[control] = "--enable-control \
-     FAN_DEF_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/fans.yaml \
-     FAN_ZONE_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/zones.yaml \
-     ZONE_EVENTS_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/events.yaml \
-     ZONE_CONDITIONS_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/zone_conditions.yaml, \
+    MACHINE=${PKG_DEFAULT_MACHINE} \
+    FAN_DEF_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/fans.yaml \
+    FAN_ZONE_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/zones.yaml \
+    ZONE_EVENTS_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/events.yaml \
+    ZONE_CONDITIONS_YAML_FILE=${STAGING_DIR_HOST}${control_datadir}/zone_conditions.yaml, \
     --disable-control, \
     virtual/phosphor-fan-control-fan-config \
     phosphor-fan-control-zone-config \
@@ -91,23 +98,29 @@ TMPL_CONTROL_INIT = "phosphor-fan-control-init@.service"
 INSTFMT_CONTROL_INIT = "phosphor-fan-control-init@{0}.service"
 FMT_CONTROL_INIT = "../${TMPL_CONTROL_INIT}:${POWERON_TGT}.wants/${INSTFMT_CONTROL_INIT}"
 
-FILES_${PN}-control = "${bindir}/phosphor-fan-control"
-SYSTEMD_SERVICE_${PN}-control += "${TMPL_CONTROL}"
-SYSTEMD_SERVICE_${PN}-control += "${@bb.utils.contains('PACKAGECONFIG', 'json', '', '${TMPL_CONTROL_INIT}', d)}"
+FILES:${PN}-control = "${bindir}/phosphor-fan-control"
+FILES:${PN}-control += "${bindir}/fanctl"
+SYSTEMD_SERVICE:${PN}-control += "${TMPL_CONTROL}"
+SYSTEMD_SERVICE:${PN}-control += "${@bb.utils.contains('PACKAGECONFIG', 'json', '', '${TMPL_CONTROL_INIT}', d)}"
 
 # JSON: Linked to multi-user and poweron
 # YAML: Linked to fans-ready and fan control-init poweron
-SYSTEMD_LINK_${PN}-control += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+SYSTEMD_LINK:${PN}-control += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
         compose_list(d, 'FMT_CONTROL_MUSR', 'OBMC_CHASSIS_INSTANCES'), \
         compose_list(d, 'FMT_CONTROL', 'OBMC_CHASSIS_INSTANCES'), d)}"
-SYSTEMD_LINK_${PN}-control += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+SYSTEMD_LINK:${PN}-control += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
         compose_list(d, 'FMT_CONTROL_PWRON', 'OBMC_CHASSIS_INSTANCES'), \
         compose_list(d, 'FMT_CONTROL_INIT', 'OBMC_CHASSIS_INSTANCES'), d)}"
+
+# Package the JSON config files installed from the repo
+FILES:${PN}-control += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+    '${datadir}/phosphor-fan-presence/control/*', '', d)}"
 
 # --------------------------------------
 # ${PN}-monitor specific configuration
 PACKAGECONFIG[monitor] = "--enable-monitor \
-     FAN_MONITOR_YAML_FILE=${STAGING_DIR_HOST}${monitor_datadir}/monitor.yaml, \
+    MACHINE=${PKG_DEFAULT_MACHINE} \
+    FAN_MONITOR_YAML_FILE=${STAGING_DIR_HOST}${monitor_datadir}/monitor.yaml, \
     --disable-monitor, \
     phosphor-fan-monitor-config \
     , \
@@ -123,18 +136,22 @@ TMPL_MONITOR_INIT = "phosphor-fan-monitor-init@.service"
 INSTFMT_MONITOR_INIT = "phosphor-fan-monitor-init@{0}.service"
 FMT_MONITOR_INIT = "../${TMPL_MONITOR_INIT}:${POWERON_TGT}.wants/${INSTFMT_MONITOR_INIT}"
 
-FILES_${PN}-monitor = "${bindir}/phosphor-fan-monitor"
-SYSTEMD_SERVICE_${PN}-monitor += "${TMPL_MONITOR}"
-SYSTEMD_SERVICE_${PN}-monitor += "${@bb.utils.contains('PACKAGECONFIG', 'json', '', '${TMPL_MONITOR_INIT}', d)}"
+FILES:${PN}-monitor = "${bindir}/phosphor-fan-monitor"
+SYSTEMD_SERVICE:${PN}-monitor += "${TMPL_MONITOR}"
+SYSTEMD_SERVICE:${PN}-monitor += "${@bb.utils.contains('PACKAGECONFIG', 'json', '', '${TMPL_MONITOR_INIT}', d)}"
 
 # JSON: power on and multi-user links.  YAML: fans-ready and fan monitor init links
-SYSTEMD_LINK_${PN}-monitor += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+SYSTEMD_LINK:${PN}-monitor += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
                                 compose_list(d, 'FMT_MONITOR_PWRON', 'OBMC_CHASSIS_INSTANCES'), \
                                 compose_list(d, 'FMT_MONITOR_FANSREADY', 'OBMC_CHASSIS_INSTANCES'), d)}"
 
-SYSTEMD_LINK_${PN}-monitor += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+SYSTEMD_LINK:${PN}-monitor += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
                                 compose_list(d, 'FMT_MONITOR_MUSR', 'OBMC_CHASSIS_INSTANCES'), \
                                 compose_list(d, 'FMT_MONITOR_INIT', 'OBMC_CHASSIS_INSTANCES'), d)}"
+
+# Package the JSON config files installed from the repo
+FILES:${PN}-monitor += "${@bb.utils.contains('PACKAGECONFIG', 'json', \
+    '${datadir}/phosphor-fan-presence/monitor/*', '', d)}"
 
 # --------------------------------------
 # phosphor-cooling-type specific configuration
@@ -144,6 +161,6 @@ PACKAGECONFIG[cooling-type] = "--enable-cooling-type,--disable-cooling-type,,"
 # ${PN}-sensor-monitor specific configuration
 PACKAGECONFIG[sensor-monitor] = "--enable-sensor-monitor, --disable-sensor-monitor"
 
-FILES_sensor-monitor += " ${bindir}/sensor-monitor"
-SYSTEMD_SERVICE_sensor-monitor += "sensor-monitor.service"
-SYSTEMD_LINK_sensor-monitor += "../sensor-monitor.service:${MULTI_USR_TGT}.wants/sensor-monitor.service"
+FILES:sensor-monitor += " ${bindir}/sensor-monitor"
+SYSTEMD_SERVICE:sensor-monitor += "sensor-monitor.service"
+SYSTEMD_LINK:sensor-monitor += "../sensor-monitor.service:${MULTI_USR_TGT}.wants/sensor-monitor.service"
