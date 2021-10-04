@@ -15,19 +15,23 @@ require ${BPN}-systemd-links.inc
 DEPENDS += " \
         phosphor-logging \
         ${PYTHON_PN}-sdbus++-native \
+        cli11 \
         "
 S = "${WORKDIR}/git"
 
-# This provides below 2 applications that are called into in case
-# of host checkstop and host watchdog timeout respectively.
-APPS = "checkstop watchdog"
+# This provides below applications that are called into in case
+# of host checkstop, host watchdog and host watchdog-timeout respectively.
+APPS =  " \
+        checkstop \
+        watchdog \
+        ${@bb.utils.contains('OBMC_MACHINE_FEATURES', 'phal', '', 'watchdog-timeout', d)} \
+        "
 
 DEBUG_TMPL = "openpower-debug-collector-{0}@.service"
-SYSTEMD_SERVICE_${PN} += "${@compose_list(d, 'DEBUG_TMPL', 'APPS')}"
-
+SYSTEMD_SERVICE:${PN} += "${@compose_list(d, 'DEBUG_TMPL', 'APPS')}"
 
 # Do not depend on phosphor-logging for native build
-DEPENDS_remove_class-native = "phosphor-logging"
+DEPENDS:remove:class-native = "phosphor-logging"
 
 # Do not depend on phosphor-logging for native SDK build
-DEPENDS_remove_class-nativesdk = "phosphor-logging"
+DEPENDS:remove:class-nativesdk = "phosphor-logging"

@@ -2,7 +2,7 @@ SUMMARY = "Check for host in reset to disable the NCSI iface"
 DESCRIPTION = "If the host is in reset, the NCSI NIC will not be \
                available, so this will manually disable the NIC"
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${BPN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${BPN}:"
 
 PV = "1.0"
 
@@ -16,7 +16,7 @@ SRC_URI = "\
 
 inherit obmc-phosphor-systemd
 
-SYSTEMD_SERVICE_${PN} += "${BPN}.service"
+SYSTEMD_SERVICE:${PN} += "${BPN}.service"
 
 do_install() {
     install -d ${D}${bindir}

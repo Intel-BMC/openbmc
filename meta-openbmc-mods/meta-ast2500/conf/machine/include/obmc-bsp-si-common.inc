@@ -8,7 +8,7 @@ EXTRA_IMAGEDEPENDS += "u-boot"
 IMAGE_FSTYPES += "squashfs-xz"
 IMAGE_FSTYPES += "mtd-auto"
 INITRAMFS_FSTYPES = "squashfs-xz"
-EXTRA_IMAGECMD_squashfs-xz_append = "-processors ${BB_NUMBER_THREADS} -b 262144 -Xdict-size 100% -Xbcj arm"
+EXTRA_IMAGECMD:squashfs-xz:append = "-processors ${BB_NUMBER_THREADS} -b 262144 -Xdict-size 100% -Xbcj arm"
 
 KERNEL_CLASSES ?= "kernel-fitimage"
 KERNEL_IMAGETYPES ?= "fitImage"
@@ -19,7 +19,7 @@ UBOOT_SUFFIX ?= "bin"
 MACHINEOVERRIDES =. "openbmc:"
 
 OBMC_PHOSPHOR_IMAGE_OVERLAY= "1"
-OBMC_IMAGE_EXTRA_INSTALL_append = " u-boot-fw-utils-aspeed"
+OBMC_IMAGE_EXTRA_INSTALL:append = " u-boot-fw-utils-aspeed"
 
 IMAGE_CLASSES += "image_types image_types_phosphor_auto qemuboot"
 IMAGE_CLASSES += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'image_types_intel_pfr', '', d)}"

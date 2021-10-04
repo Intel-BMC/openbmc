@@ -1,0 +1,70 @@
+From d622c220351def5c8b3fa5540473a4d3ca685233 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Thu, 29 Jul 2021 11:07:31 -0700
+Subject: [PATCH] peci: cputemp: filter the first zero from RdPkgConfig 16
+
+Peci command GetPkgConfig 16 can return 0 with cc 0x40 after a CPU
+reset. Once pcode run time image is loaded and it returns 0x8000
+as a data not ready. This commit makes it discard the first zero
+reading and return -ENODATA. Consecutive zeros will be returned
+so that real invalid temperature target setting condition will
+still be detected and logged but possibly delayed by the sensor
+polling period which is one second (UPDATE_INTERVAL_DEFAULT).
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+---
+ drivers/hwmon/peci-cputemp.c | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/drivers/hwmon/peci-cputemp.c b/drivers/hwmon/peci-cputemp.c
+index af1c09741120..8d5d579ccb1a 100644
+--- a/drivers/hwmon/peci-cputemp.c
++++ b/drivers/hwmon/peci-cputemp.c
+@@ -21,6 +21,7 @@ struct temp_group {
+ 	struct peci_sensor_data		tcontrol;
+ 	struct peci_sensor_data		tthrottle;
+ 	struct peci_sensor_data		tjmax;
++	u32				temp_target_raw_prev;
+ 	struct peci_sensor_data		module[MODTEMP_CHANNEL_NUMS];
+ };
+ 
+@@ -89,6 +90,8 @@ static int get_temp_targets(struct peci_cputemp *priv)
+ 	s32 tcontrol_margin;
+ 	u8  pkg_cfg[4];
+ 	int ret;
++	bool discard = false;
++	u32 temp_target_raw;
+ 
+ 	/*
+ 	 * Just use only the tcontrol marker to determine if target values need
+@@ -103,6 +106,26 @@ static int get_temp_targets(struct peci_cputemp *priv)
+ 	if (ret)
+ 		return ret;
+ 
++	/*
++	 * There is a small window (500us) for read temperature target
++	 * (RdPkgConfig 16) to return cc 0x40, and temperature target of 0 after
++	 * cpu reset, before runtime image is loaded to set it to 0x8000
++	 * Since update interval of the temperature target value is slower than
++	 * this window, treat the first zero reading as data not available.
++	 * Consecutive zeros will be returned so true invalid temperature target
++	 * setting condition will not be missed.
++	 */
++	temp_target_raw = le32_to_cpup((__le32 *)pkg_cfg);
++	if (temp_target_raw == 0 &&
++	    priv->temp.temp_target_raw_prev != 0) {
++		dev_err(priv->dev,
++			"discard first 0 reading from RdPkgConfig 16\n");
++		discard = true;
++	}
++	priv->temp.temp_target_raw_prev = temp_target_raw;
++	if (discard)
++		return -ENODATA;
++
+ 	priv->temp.tjmax.value = pkg_cfg[2] * 1000;
+ 
+ 	tcontrol_margin = pkg_cfg[1];
+-- 
+2.17.1
+

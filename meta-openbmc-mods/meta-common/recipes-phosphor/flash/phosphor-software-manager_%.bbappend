@@ -1,7 +1,7 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 EXTRA_OEMESON += "-Dfwupd-script=enabled"
 
-SYSTEMD_SERVICE_${PN}-updater += "fwupd@.service"
+SYSTEMD_SERVICE:${PN}-updater += "fwupd@.service"
 
 EXTRA_OEMESON += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-Dpfr-update=enabled', '', d)}"
 

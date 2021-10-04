@@ -9,8 +9,8 @@ PACKAGES = ' \
 
 # Note that python3-cvxopt requires Fortran support. To enable this,
 # add the following to your local.conf:
-# FORTRAN_forcevariable = ",fortran"
-RDEPENDS_packagegroup-meta-python3 = "\
+# FORTRAN:forcevariable = ",fortran"
+RDEPENDS:packagegroup-meta-python3 = "\
     ${@bb.utils.contains("DISTRO_FEATURES", "systemd", "python3-systemd", "", d)} \
     ${@bb.utils.contains("DISTRO_FEATURES", "x11", "python3-blivetgui", "", d)} \
     gyp \
@@ -59,6 +59,7 @@ RDEPENDS_packagegroup-meta-python3 = "\
     python3-blivet \
     python3-booleanpy \
     python3-cachecontrol \
+    python3-cached-property \
     python3-cachetools \
     python3-can \
     python3-cantools \
@@ -271,6 +272,7 @@ RDEPENDS_packagegroup-meta-python3 = "\
     python3-pika \
     python3-pillow \
     python3-pint \
+    python3-pkcs11 \
     python3-pkgconfig \
     python3-ply \
     python3-pocketsphinx \
@@ -465,9 +467,9 @@ RDEPENDS_packagegroup-meta-python3 = "\
     python3-zopeinterface \
     telepathy-python3 \
 "
-RDEPENDS_packagegroup-meta-python3_remove_libc-musl_powerpc64le = "python3-grpcio python3-grpcio-tools"
+RDEPENDS:packagegroup-meta-python3:remove:libc-musl:powerpc64le = "python3-grpcio python3-grpcio-tools"
 
-RDEPENDS_packagegroup-meta-python3-ptest = "\
+RDEPENDS:packagegroup-meta-python3-ptest = "\
     python3-cryptography-ptest \
     python3-jinja2-ptest \
     python3-markupsafe-ptest \

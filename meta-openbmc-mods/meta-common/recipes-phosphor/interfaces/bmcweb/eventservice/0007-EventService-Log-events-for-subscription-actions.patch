@@ -1,6 +1,6 @@
-From dad35d6e6736f1c4ab6d739c62b22923ad749ad7 Mon Sep 17 00:00:00 2001
-From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
-Date: Tue, 13 Jul 2021 12:30:08 +0000
+From b8eb53886106e44e3668857b13f8642d2ad3cfbf Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 27 Aug 2021 16:02:01 +0000
 Subject: [PATCH] EventService: Log events for subscription actions
 
 Log redfish event for below 3 actions
@@ -18,7 +18,7 @@ Tested:
  - Performed all the above actions and verified the redfish event
    messages are logged.
 
-Change-Id: I528293e55b1f3401bc2bb09c11c63ae985fbfedb
+Change-Id: I3745fa6357bd215379781a9818d9acc02a853d79
 Signed-off-by: AppaRao Puli <apparao.puli@intel.com>
 Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
 ---
@@ -27,10 +27,10 @@ Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
  2 files changed, 32 insertions(+), 5 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index a5b37e5..75f5615 100644
+index c3e7f61..e9bdbfa 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -20,6 +20,7 @@
+@@ -21,6 +21,7 @@
  #include "registries/task_event_message_registry.hpp"
  
  #include <sys/inotify.h>
@@ -38,16 +38,16 @@ index a5b37e5..75f5615 100644
  
  #include <boost/asio/io_context.hpp>
  #include <boost/beast/core/span.hpp>
-@@ -813,7 +814,7 @@ class EventServiceManager
-         return;
+@@ -788,7 +789,7 @@ class EventServiceManager
+         }
      }
  
 -    void updateSubscriptionData()
 +    void persistSubscriptionData()
      {
-         // Persist the config and subscription data.
-         nlohmann::json jsonData;
-@@ -910,7 +911,7 @@ class EventServiceManager
+         persistent_data::EventServiceStore::getInstance()
+             .eventServiceConfig.enabled = serviceEnabled;
+@@ -835,7 +836,7 @@ class EventServiceManager
  
          if (updateConfig)
          {
@@ -56,7 +56,7 @@ index a5b37e5..75f5615 100644
          }
  
          if (updateRetryCfg)
-@@ -1005,7 +1006,7 @@ class EventServiceManager
+@@ -947,7 +948,7 @@ class EventServiceManager
  
          if (updateFile)
          {
@@ -65,7 +65,7 @@ index a5b37e5..75f5615 100644
          }
  
  #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
-@@ -1020,6 +1021,13 @@ class EventServiceManager
+@@ -962,6 +963,13 @@ class EventServiceManager
  
          // Set Subscription ID for back trace
          subValue->setSubscriptionId(id);
@@ -79,9 +79,9 @@ index a5b37e5..75f5615 100644
          return id;
      }
  
-@@ -1040,7 +1048,14 @@ class EventServiceManager
-         {
-             subscriptionsMap.erase(obj);
+@@ -986,7 +994,14 @@ class EventServiceManager
+             persistent_data::EventServiceStore::getInstance()
+                 .subscriptionsConfigMap.erase(obj2);
              updateNoOfSubscribersCount();
 -            updateSubscriptionData();
 +
@@ -95,7 +95,7 @@ index a5b37e5..75f5615 100644
          }
      }
  
-@@ -1062,6 +1077,18 @@ class EventServiceManager
+@@ -1008,6 +1023,18 @@ class EventServiceManager
          }
      }
  
@@ -115,10 +115,10 @@ index a5b37e5..75f5615 100644
      {
          return subscriptionsMap.size();
 diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
-index 53a60d3..435c93d 100644
+index 9def549..6a8421f 100644
 --- a/redfish-core/lib/event_service.hpp
 +++ b/redfish-core/lib/event_service.hpp
-@@ -579,7 +579,7 @@ inline void requestRoutesEventDestination(App& app)
+@@ -617,7 +617,7 @@ inline void requestRoutesEventDestination(App& app)
                      subValue->updateRetryPolicy();
                  }
  
@@ -126,7 +126,7 @@ index 53a60d3..435c93d 100644
 +                EventServiceManager::getInstance().updateSubscription(param);
              });
      BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/<str>/")
-         .privileges({{"ConfigureManager"}})
+         // The below privilege is wrong, it should be ConfigureManager OR
 -- 
-2.25.1
+2.17.1
 

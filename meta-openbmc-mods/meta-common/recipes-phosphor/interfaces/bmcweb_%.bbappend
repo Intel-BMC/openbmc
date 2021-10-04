@@ -1,16 +1,16 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "e6a716506447d2d03b99f1cd2007e207a6dfcae0"
+SRCREV = "abb93cdd0a49be03bf2fe95f07823686b289ecd5"
 
 DEPENDS += "boost-url"
-RDEPENDS_${PN} += "phosphor-nslcd-authority-cert-config"
+RDEPENDS:${PN} += "phosphor-nslcd-authority-cert-config"
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 # add a user called bmcweb for the server to assume
 # bmcweb is part of group shadow for non-root pam authentication
-USERADD_PARAM_${PN} = "-r -s /usr/sbin/nologin -d /home/bmcweb -m -G shadow bmcweb"
+USERADD_PARAM:${PN} = "-r -s /usr/sbin/nologin -d /home/bmcweb -m -G shadow bmcweb"
 
-GROUPADD_PARAM_${PN} = "web; redfish "
+GROUPADD_PARAM:${PN} = "web; redfish "
 
 SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0002-Use-chip-id-based-UUID-for-Service-Root.patch \
@@ -28,7 +28,6 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0021-Add-message-registry-entry-for-FirmwareResiliencyErr.patch \
             file://0023-Add-get-IPMI-session-id-s-to-Redfish.patch \
             file://0024-Add-count-sensor-type.patch \
-            file://0025-Revert-Support-new-boot-override-setting-design.patch \
 "
 
 # OOB Bios Config:
@@ -63,15 +62,17 @@ SRC_URI += "file://eventservice/0001-EventService-Fix-retry-handling-for-http-cl
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
 SRC_URI += " file://telemetry/0001-Add-support-for-MetricDefinition-scheme.patch \
              file://telemetry/0002-Sync-Telmetry-service-with-EventService.patch \
-             file://telemetry/0003-Revert-Remove-LogService-from-TelemetryService.patch \
-             file://telemetry/0004-event-service-fix-added-Context-field-to-response.patch \
-             file://telemetry/0005-Switched-bmcweb-to-use-new-telemetry-service-API.patch \
-             file://telemetry/0006-Add-support-for-MetricDefinition-property-in-MetricReport.patch \
-             file://telemetry/0007-Generalize-ReadingType-in-MetricDefinition.patch \
+             file://telemetry/0003-Switched-bmcweb-to-use-new-telemetry-service-API.patch \
+             file://telemetry/0004-Add-support-for-MetricDefinition-property-in-MetricReport.patch \
+             file://telemetry/0005-Add-DELETE-method-for-MetricReport.patch \
+             file://telemetry/0006-Add-GET-method-for-TriggerCollection.patch \
+             file://telemetry/0007-Revert-Remove-LogService-from-TelemetryService.patch \
+             file://telemetry/0008-event-service-fix-added-Context-field-to-response.patch \
+             file://telemetry/0009-Generalize-ReadingType-in-MetricDefinition.patch \
 "
 
 # Temporary fix: Move it to service file
-do_install_append() {
+do_install:append() {
         install -d ${D}/var/lib/bmcweb
         install -d ${D}/etc/ssl/certs/authority
 }
@@ -84,6 +85,6 @@ EXTRA_OEMESON += " -Dvm-nbdproxy=enabled"
 
 # Disable dependency on external nbd-proxy application
 EXTRA_OEMESON += " -Dvm-websocket=disabled"
-RDEPENDS_${PN}_remove += "jsnbd"
+RDEPENDS:${PN}:remove += "jsnbd"
 
 

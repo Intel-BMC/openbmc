@@ -5,6 +5,8 @@ DEPENDS = "alsa-lib zlib jpeg libpng libxext libxft"
 inherit features_check binconfig lib_package gtk-icon-cache mime mime-xdg
 REQUIRED_DISTRO_FEATURES = "x11"
 
+SRC_URI += "file://0003-fluid-CMakeLists.txt-Do-not-export-fluid-target.patch"
+
 EXTRA_OECMAKE = " \
     -DOPTION_BUILD_SHARED_LIBS=ON \
     -DOPTION_USE_THREADS=ON \
@@ -22,23 +24,23 @@ PACKAGECONFIG[xinerama] = "-DOPTION_USE_XINERAMA=ON,-DOPTION_USE_XINERAMA=OFF,li
 PACKAGECONFIG[xfixes] = "-DOPTION_USE_XFIXES=ON,-DOPTION_USE_XFIXES=OFF,libxfixes"
 PACKAGECONFIG[xcursor] = "-DOPTION_USE_XCURSOR=ON,-DOPTION_USE_XCURSOR=OFF,libxcursor"
 
-do_install_append() {
+do_install:append() {
     sed -i -e 's,${STAGING_DIR_HOST},,g' ${D}${bindir}/fltk-config
 }
 
-python populate_packages_prepend () {
+python populate_packages:prepend () {
     if (d.getVar('DEBIAN_NAMES')):
-        d.setVar('PKG_${BPN}', 'libfltk${PV}')
+        d.setVar('PKG:${BPN}', 'libfltk${PV}')
 }
 
 LEAD_SONAME = "libfltk.so"
 
 # .desktop / icons / mime only necessary for fluid app
-FILES_${PN}-bin += " \
+FILES:${PN}-bin += " \
     ${datadir}/applications \
     ${datadir}/icons \
     ${datadir}/mime \
 "
 
 # cmake files
-FILES_${PN}-dev += "${datadir}/fltk"
+FILES:${PN}-dev += "${datadir}/fltk"

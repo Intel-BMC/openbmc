@@ -62,7 +62,7 @@ index 5490cd9974b3..e43959d78ed2 100644
 +        }
 +        else if (activationProgress->progress() == 100)
 +        {
-+            log<level::ERR>("progress == 100...");
++            error("progress == 100...");
 +            if (!redundancyPriority)
 +            {
 +                redundancyPriority =

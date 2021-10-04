@@ -6,7 +6,7 @@ SRC_URI = "\
     "
 LICENSE = "CLOSED"
 
-RDEPENDS_${PN} += "python"
+RDEPENDS:${PN} += "python"
 
 S = "${WORKDIR}"
 

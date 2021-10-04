@@ -1,4 +1,4 @@
-FILESEXTRAPATHS_append := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:append := "${THISDIR}/${PN}:"
 
 SRC_URI += " \
     file://0001-Configure-host-error-monitors-for-meta-wht.patch \

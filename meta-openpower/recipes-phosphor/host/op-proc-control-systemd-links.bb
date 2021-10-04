@@ -6,12 +6,12 @@ LIC_FILES_CHKSUM = "file://${COREBASE}/meta/files/common-licenses/Apache-2.0;md5
 
 inherit allarch
 
-RDEPENDS_${PN} += "op-proc-control"
-RDEPENDS_${PN} += "phosphor-state-manager-obmc-targets"
+RDEPENDS:${PN} += "op-proc-control"
+RDEPENDS:${PN} += "phosphor-state-manager-obmc-targets"
 
-ALLOW_EMPTY_${PN} = "1"
+ALLOW_EMPTY:${PN} = "1"
 
-pkg_postinst_${PN}() {
+pkg_postinst:${PN}() {
 	mkdir -p $D$systemd_system_unitdir/obmc-host-stop@0.target.wants
 	mkdir -p $D$systemd_system_unitdir/obmc-host-force-warm-reboot@0.target.requires
 	mkdir -p $D$systemd_system_unitdir/obmc-host-startmin@0.target.requires
@@ -61,7 +61,17 @@ pkg_postinst_${PN}() {
 		LINK="$D$systemd_system_unitdir/obmc-host-reset@0.target.requires/op-reset-host-check@0.service"
 		TARGET="../op-reset-host-check@.service"
 		ln -s $TARGET $LINK
-    fi
+
+		mkdir -p $D$systemd_system_unitdir/multi-user.target.wants
+		LINK="$D$systemd_system_unitdir/multi-user.target.wants/phal-import-devtree@0.service"
+		TARGET="../phal-import-devtree@.service"
+		ln -s $TARGET $LINK
+
+		mkdir -p $D$systemd_system_unitdir/obmc-host-startmin@0.target.wants
+		LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/phal-export-devtree@0.service"
+		TARGET="../phal-export-devtree@.service"
+		ln -s $TARGET $LINK
+	fi
 
 	# If the memory preserving reboot feature is enabled, set it up
 	if [ "${@bb.utils.filter('DISTRO_FEATURES', 'mpreboot', d)}" = mpreboot ]; then
@@ -89,7 +99,7 @@ pkg_postinst_${PN}() {
 	fi
 }
 
-pkg_prerm_${PN}() {
+pkg_prerm:${PN}() {
 	LINK="$D$systemd_system_unitdir/obmc-host-stop@0.target.wants/op-stop-instructions@0.service"
 	rm $LINK
 	LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.requires/op-cfam-reset.service"
@@ -110,6 +120,12 @@ pkg_prerm_${PN}() {
 		rm $LINK
 
 		LINK="$D$systemd_system_unitdir/obmc-chassis-poweroff@0.target.requires/proc-pre-poweroff@0.service"
+		rm $LINK
+
+		LINK="$D$systemd_system_unitdir/multi-user.target.wants/phal-import-devtree@0.service"
+		rm $LINK
+
+		LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/phal-export-devtree@0.service"
 		rm $LINK
 	fi
 

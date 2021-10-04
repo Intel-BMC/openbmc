@@ -59,6 +59,50 @@ fi
 return 0
 }
 
+# An earlier version of the mac_check utility disabled the netipmid for
+# eth1. This was done to eliminate an error message being logged in the
+# journal for systems that only had a single NIC. The error message is
+# undesirable as it is present in Redfish session log output.
+
+# Systems that have both NICs have also had the eth1 netipmid disabled.
+# The reason for this is failing to specify the correct kernel device
+# tree during the U-Boot kernel boot process. Without the correct
+# device tree, eth1 is not enumerated by the kernel. The mac-check
+# script turned off the netipmid service for eth1.
+
+# The configure_netipmid_svc_eth1 function manages enabling and
+# disabling netipmid for eth1. It is explicit, and does not rely upon
+# previous state to enable or disable the service.
+
+# Note: Enabling the service is independent of the IPMI channel
+# enable/disable command. This means "ipmitool lan set <chid> access
+# off" functions correctly with the netipmid service enabled.
+configure_netipmid_svc_eth1() {
+    if [ -h /sys/class/net/eth1 ]; then
+        if [ $(systemctl is-enabled phosphor-ipmi-net@eth1.socket) == "disabled" ];
+        then
+            /bin/systemctl enable "phosphor-ipmi-net@eth1.socket"
+            /bin/systemctl start "phosphor-ipmi-net@eth1.socket"
+        fi
+        if [ $(systemctl is-enabled phosphor-ipmi-net@eth1.service) =="disabled" ];
+        then
+            /bin/systemctl enable "phosphor-ipmi-net@eth1.service"
+            /bin/systemctl start "phosphor-ipmi-net@eth1.service"
+        fi
+    else
+        if [ $(systemctl is-enabled phosphor-ipmi-net@eth1.socket) == "enabled" ];
+        then
+            /bin/systemctl disable "phosphor-ipmi-net@eth1.socket"
+            /bin/systemctl stop "phosphor-ipmi-net@eth1.socket"
+        fi
+        if [ $(systemctl is-enabled phosphor-ipmi-net@eth1.service) == "enabled" ];
+        then
+            /bin/systemctl disable "phosphor-ipmi-net@eth1.service"
+            /bin/systemctl stop "phosphor-ipmi-net@eth1.service"
+        fi
+    fi
+}
+
 mac_check() {
 	local iface="$1"
 	local envname="$2"
@@ -93,6 +137,8 @@ mac_check() {
 
 create_macdir
 
+configure_netipmid_svc_eth1
+
 error=0
 first_error_seen=0
 
@@ -107,10 +153,6 @@ while read IFACE UBDEV; do
 		if [ $error -ne 0 ] && [ $first_error_seen -eq 0 ]; then
 		    first_error_seen=$error
 		fi
-        else
-            # Disable netipmid if present because eth(x) is not present
-            /bin/systemctl disable "phosphor-ipmi-net@$IFACE.socket"
-            /bin/systemctl disable "phosphor-ipmi-net@$IFACE.service"
 	fi
 done <<-END_CONF
 	eth0 eth1addr

@@ -1178,7 +1178,7 @@ def edit_metadata(meta_lines, variables, varfunc, match_overrides=False):
         variables: a list of variable names to look for. Functions
             may also be specified, but must be specified with '()' at
             the end of the name. Note that the function doesn't have
-            any intrinsic understanding of _append, _prepend, _remove,
+            any intrinsic understanding of :append, :prepend, :remove,
             or overrides, so these are considered as part of the name.
             These values go into a regular expression, so regular
             expression syntax is allowed.
@@ -1681,3 +1681,19 @@ def rename(src, dst):
             shutil.move(src, dst)
         else:
             raise err
+
+@contextmanager
+def environment(**envvars):
+    """
+    Context manager to selectively update the environment with the specified mapping.
+    """
+    backup = dict(os.environ)
+    try:
+        os.environ.update(envvars)
+        yield
+    finally:
+        for var in envvars:
+            if var in backup:
+                os.environ[var] = backup[var]
+            else:
+                del os.environ[var]

@@ -25,7 +25,7 @@ DEPENDS += " \
             boost \
            "
 
-RDEPENDS_${PN} += " \
+RDEPENDS:${PN} += " \
                   libsystemd \
                   sdbusplus \
                   phosphor-logging \

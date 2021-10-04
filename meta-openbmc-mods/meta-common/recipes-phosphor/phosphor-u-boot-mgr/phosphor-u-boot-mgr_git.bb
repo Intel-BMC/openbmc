@@ -13,6 +13,6 @@ SRC_URI = "git://github.com/openbmc/phosphor-u-boot-env-mgr.git;protocol=ssh"
 SRCREV = "1979d3b31a96e9359402ac4d7867ec5dddbece7e"
 
 inherit cmake systemd
-SYSTEMD_SERVICE_${PN} = "xyz.openbmc_project.U_Boot.Environment.Manager.service"
+SYSTEMD_SERVICE:${PN} = "xyz.openbmc_project.U_Boot.Environment.Manager.service"
 
 DEPENDS = "boost sdbusplus phosphor-logging"

@@ -20,14 +20,14 @@ inherit useradd
 USERADD_PACKAGES = "${PN}"
 
 # add a special user asdbg
-USERADD_PARAM_${PN} = "-u 999 asdbg"
+USERADD_PARAM:${PN} = "-u 999 asdbg"
 
 S = "${WORKDIR}/git"
 
-SYSTEMD_SERVICE_${PN} += "com.intel.AtScaleDebug.service"
+SYSTEMD_SERVICE:${PN} += "com.intel.AtScaleDebug.service"
 
 # Specify any options you want to pass to cmake using EXTRA_OECMAKE:
 EXTRA_OECMAKE = "-DBUILD_UT=OFF"
 
-CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
-CFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/"
+CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/"

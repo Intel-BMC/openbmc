@@ -1,5 +1,5 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 SRC_URI = "file://init"
 
-RDEPENDS_${PN} += "bash"
+RDEPENDS:${PN} += "bash"

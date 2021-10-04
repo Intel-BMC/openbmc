@@ -10,11 +10,11 @@ PV = "1.0+git${SRCPV}"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.VirtualMedia.service"
+SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.VirtualMedia.service"
 
 DEPENDS = "udev boost nlohmann-json systemd sdbusplus"
 
-RDEPENDS_${PN} = "nbd-client nbdkit"
+RDEPENDS:${PN} = "nbd-client nbdkit"
 
 inherit cmake systemd
 

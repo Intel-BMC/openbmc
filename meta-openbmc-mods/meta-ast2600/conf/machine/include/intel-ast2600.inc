@@ -1,4 +1,4 @@
-COMPATIBLE_MACHINE_intel-ast2600 = "intel-ast2600"
+COMPATIBLE_MACHINE:intel-ast2600 = "intel-ast2600"
 KMACHINE = "aspeed"
 KERNEL_DEVICETREE = " \
     ${KMACHINE}-bmc-${COMPATIBLE_MACHINE}.dtb \

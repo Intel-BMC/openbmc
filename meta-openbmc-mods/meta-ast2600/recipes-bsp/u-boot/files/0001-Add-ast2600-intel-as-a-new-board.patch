@@ -1,4 +1,4 @@
-From 45d1a40a3fc5fa97c92e59fc36fd98eb047a9bd1 Mon Sep 17 00:00:00 2001
+From 9c65cf5fa3cdbbdf1ac7f8269502ec6564703319 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Thu, 24 Oct 2019 14:06:33 -0700
 Subject: [PATCH] Add ast2600-intel as a new board
@@ -6,6 +6,7 @@ Subject: [PATCH] Add ast2600-intel as a new board
 Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Signed-off-by: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
 ---
  arch/arm/dts/ast2600-intel.dts         | 202 ++++---------
  arch/arm/lib/interrupts.c              |   5 +
@@ -15,11 +16,11 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  board/aspeed/ast2600_intel/ast-irq.c   | 399 +++++++++++++++++++++++++
  board/aspeed/ast2600_intel/ast-irq.h   |   8 +
  board/aspeed/ast2600_intel/ast-timer.c |  59 ++++
- board/aspeed/ast2600_intel/intel.c     | 346 ++++++++++-----------
+ board/aspeed/ast2600_intel/intel.c     | 347 ++++++++++-----------
  cmd/Kconfig                            |   2 +-
  common/autoboot.c                      |  10 +
  configs/ast2600_openbmc_defconfig      |   2 +-
- 12 files changed, 998 insertions(+), 334 deletions(-)
+ 12 files changed, 999 insertions(+), 334 deletions(-)
  create mode 100644 board/aspeed/ast2600_intel/ast-espi.c
  create mode 100644 board/aspeed/ast2600_intel/ast-irq.c
  create mode 100644 board/aspeed/ast2600_intel/ast-irq.h
@@ -1163,10 +1164,10 @@ index 000000000000..cf8c69aba5d3
 +	writel(tctrl, AST_TIMER_BASE + TIMER_CONTROL);
 +}
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index be6dc49a3bc7..092ff8b5c095 100644
+index be6dc49a3bc7..fc0e41a47712 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
-@@ -1,222 +1,192 @@
+@@ -1,222 +1,193 @@
 -// SPDX-License-Identifier: GPL-2.0+
 -/*
 - * Copyright (C) ASPEED Technology Inc.
@@ -1323,6 +1324,7 @@ index be6dc49a3bc7..092ff8b5c095 100644
 +
 +/* HICRB Bits */
 +#define HICRB_EN80HSGIO (1 << 13) /* Enable 80hSGIO */
++#define HICRB_ENSNP0D (1 << 14) /* Enable ACCEPT response for snoop #0 */
 +
 +static void port80h_snoop_init(void)
 +{
@@ -1358,7 +1360,7 @@ index be6dc49a3bc7..092ff8b5c095 100644
 -	val = readl(LPC_HICRB);
 -	val |= LPC_HICRB_80HSGPIO_EN;
 -	writel(val, LPC_HICRB);
-+	value = readl(AST_LPC_BASE + HICRB) | HICRB_EN80HSGIO;
++	value = readl(AST_LPC_BASE + HICRB) | HICRB_EN80HSGIO | HICRB_ENSNP0D;
 +	writel(value, AST_LPC_BASE + HICRB);
  }
  
@@ -1373,29 +1375,35 @@ index be6dc49a3bc7..092ff8b5c095 100644
 +#define SCU_414			0x414 /* Multi-function Pin Control #5 */
  #define SCU_414_SGPM_MASK	GENMASK(27, 24)
  
-+	uint32_t value;
- 	/* set the sgpio clock to pclk/(2*(5+1)) or ~2 MHz */
+-	/* set the sgpio clock to pclk/(2*(5+1)) or ~2 MHz */
 -	u32 val;
 -
 -	val = ((256 << SGPIO_M1_CONF_CLKDIV_SHIFT) & SGPIO_M1_CONF_CLKDIV_MASK) |
 -	      ((10 << SGPIO_M1_PINS_SHIFT) & SGPIO_M1_PINS_MASK) |
 -	      SPGIO_M1_EN;
 -	writel(val, SGPIO_M1_CONF);
--
++	uint32_t value;
++	/* set the sgpio clock to 2MHz */
++	value = SGPIO_CLK_DIV(24) | SGPIO_BYTES(10) | SGPIO_ENABLE;
++	writel(value, AST_GPIO_BASE + GPIO554);
++	writel(readl(SCU_BASE | SCU_414) | SCU_414_SGPM_MASK,
++	       SCU_BASE | SCU_414);
++}
+ 
 -	val = readl(SCU_PINMUX5);
 -	val |= (SCU_PINMUX5_SGPMI  |
 -		SCU_PINMUX5_SGPMO  |
 -		SCU_PINMUX5_SGPMLD |
 -		SCU_PINMUX5_SGPMCK);
 -	writel(val, SCU_PINMUX5);
-+	value = SGPIO_CLK_DIV(256) | SGPIO_BYTES(10) | SGPIO_ENABLE;
-+	writel(value, AST_GPIO_BASE + GPIO554);
-+	writel(readl(SCU_BASE | SCU_414) | SCU_414_SGPM_MASK,
-+	       SCU_BASE | SCU_414);
++static void timer_handler(void *regs)
++{
++	printf("+");
  }
  
 -static void gpio_init(void)
-+static void timer_handler(void *regs)
++extern int arch_interrupt_init_early(void);
++int board_early_init_f(void)
  {
 -	/* Default setting of Y23 pad in AST2600 A1 is HBLED so disable it. */
 -	writel(readl(SCU_PINMUX27) & ~SCU_PINMUX27_HBLED_EN,
@@ -1438,12 +1446,24 @@ index be6dc49a3bc7..092ff8b5c095 100644
 -	/* GPIO G6 is also an open-drain output so set it as an input. */
 -	writel(readl(GPIO_EFGH_DIR) & ~GPIO_EFGH_DIR_G6,
 -	       GPIO_EFGH_DIR);
-+	printf("+");
++	/* This is called before relocation; beware! */
++	/* initialize running timer? timer_init is next in the list but
++	 * I am not sure if it actually does anything... */
++	arch_interrupt_init_early();
++
++	gpio_passthru_init();
++
++	port80h_snoop_init();
++
++	sgpio_init();
++
++	/* TODO: is it too late to enforce HW security registers? */
++	return 0;
  }
  
 -static void espi_init(void)
-+extern int arch_interrupt_init_early(void);
-+int board_early_init_f(void)
++extern void timer_enable(int n, uint32_t freq, interrupt_handler_t *handler);
++int board_early_init_r(void)
  {
 -	u32 reg;
 -
@@ -1488,31 +1508,13 @@ index be6dc49a3bc7..092ff8b5c095 100644
 -	reg = readl(ESPI_CTRL);
 -	reg |= 0x10;
 -	writel(reg, ESPI_CTRL);
-+	/* This is called before relocation; beware! */
-+	/* initialize running timer? timer_init is next in the list but
-+	 * I am not sure if it actually does anything... */
-+	arch_interrupt_init_early();
-+
-+	gpio_passthru_init();
-+
-+	port80h_snoop_init();
-+
-+	sgpio_init();
-+
-+	/* TODO: is it too late to enforce HW security registers? */
-+	return 0;
- }
- 
--int board_early_init_f(void)
-+extern void timer_enable(int n, uint32_t freq, interrupt_handler_t *handler);
-+int board_early_init_r(void)
-+{
 +	debug("board_early_init_r\n");
 +	/* timer_enable(0, 1, timer_handler); */
 +
 +	return 0;
-+}
-+
+ }
+ 
+-int board_early_init_f(void)
 +extern void espi_init(void);
 +int board_late_init(void)
  {

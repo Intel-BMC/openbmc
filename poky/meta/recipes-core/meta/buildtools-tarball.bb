@@ -61,7 +61,7 @@ do_populate_sdk[stamp-extra-info] = "${PACKAGE_ARCH}"
 
 REAL_MULTIMACH_TARGET_SYS = "none"
 
-create_sdk_files_append () {
+create_sdk_files:append () {
 	rm -f ${SDK_OUTPUT}/${SDKPATH}/site-config-*
 	rm -f ${SDK_OUTPUT}/${SDKPATH}/environment-setup-*
 	rm -f ${SDK_OUTPUT}/${SDKPATH}/version-*
@@ -99,3 +99,16 @@ TOOLCHAIN_NEED_CONFIGSITE_CACHE = ""
 
 # The recipe doesn't need any default deps
 INHIBIT_DEFAULT_DEPS = "1"
+
+python do_testsdk() {
+    import oeqa.sdk.testsdk
+    testsdk = oeqa.sdk.testsdk.TestSDK()
+
+    cases_path = os.path.join(os.path.abspath(os.path.dirname(oeqa.sdk.testsdk.__file__)), "buildtools-cases")
+    testsdk.context_executor_class.default_cases = cases_path
+
+    testsdk.run(d)
+}
+addtask testsdk
+do_testsdk[nostamp] = "1"
+do_testsdk[depends] += "xz-native:do_populate_sysroot"

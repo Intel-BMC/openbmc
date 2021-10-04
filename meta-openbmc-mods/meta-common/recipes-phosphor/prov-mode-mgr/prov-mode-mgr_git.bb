@@ -13,6 +13,6 @@ SRC_URI = "git://github.com/Intel-BMC/provisioning-mode-manager.git;protocol=ssh
 SRCREV = "ea03e4e87f5d5f0d873624b46ebc3deabb8d6ebe"
 
 inherit cmake systemd
-SYSTEMD_SERVICE_${PN} = "xyz.openbmc_project.RestrictionMode.Manager.service"
+SYSTEMD_SERVICE:${PN} = "xyz.openbmc_project.RestrictionMode.Manager.service"
 
 DEPENDS = "boost sdbusplus phosphor-logging"

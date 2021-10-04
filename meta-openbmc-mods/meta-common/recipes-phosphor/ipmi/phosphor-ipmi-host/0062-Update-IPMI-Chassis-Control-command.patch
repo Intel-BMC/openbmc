@@ -1,4 +1,4 @@
-From 16eb5d80893406739518e7a56eb5191aa7e68257 Mon Sep 17 00:00:00 2001
+From 99f63d2af9f45badaa8aff4ef958443bea62ede8 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Mon, 3 Jun 2019 17:01:47 -0700
 Subject: [PATCH] Update IPMI Chassis Control command
@@ -21,22 +21,22 @@ ipmitool power soft: soft power-off requested from system software
 Change-Id: Ic9fba3ca4abd9a758eb88f1e6ee09f7ca64ff80a
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- chassishandler.cpp | 206 +++++++++++----------------------------------
- 1 file changed, 50 insertions(+), 156 deletions(-)
+ chassishandler.cpp | 204 +++++++++++----------------------------------
+ 1 file changed, 48 insertions(+), 156 deletions(-)
 
 diff --git a/chassishandler.cpp b/chassishandler.cpp
-index 4ca981d..cd0a13d 100644
+index dfbe004be490..cd0ba3402f84 100644
 --- a/chassishandler.cpp
 +++ b/chassishandler.cpp
-@@ -31,6 +31,7 @@
- #include <xyz/openbmc_project/Control/Boot/Mode/server.hpp>
+@@ -32,6 +32,7 @@
  #include <xyz/openbmc_project/Control/Boot/Source/server.hpp>
+ #include <xyz/openbmc_project/Control/Boot/Type/server.hpp>
  #include <xyz/openbmc_project/Control/Power/RestorePolicy/server.hpp>
 +#include <xyz/openbmc_project/State/Chassis/server.hpp>
  #include <xyz/openbmc_project/State/Host/server.hpp>
  #include <xyz/openbmc_project/State/PowerOnHours/server.hpp>
  
-@@ -813,59 +814,63 @@ ipmi::RspType<> ipmiSetChassisCap(bool intrusion, bool fpLockout,
+@@ -815,59 +816,63 @@ ipmi::RspType<> ipmiSetChassisCap(bool intrusion, bool fpLockout,
  //------------------------------------------
  // Calls into Host State Manager Dbus object
  //------------------------------------------
@@ -137,8 +137,8 @@ index 4ca981d..cd0a13d 100644
  }
  
  //------------------------------------------
-@@ -1298,76 +1303,6 @@ ipmi::RspType<uint4_t, // Restart Cause
-                                  CHANNEL_NOT_SUPPORTED);
+@@ -1302,76 +1307,6 @@ ipmi::RspType<uint4_t, // Restart Cause
+     return ipmi::responseSuccess(cause.value(), reserved, channel);
  }
  
 -//-------------------------------------------------------------
@@ -214,7 +214,7 @@ index 4ca981d..cd0a13d 100644
  /** @brief Implementation of chassis control command
   *
   *  @param - chassisControl command byte
-@@ -1380,63 +1315,22 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
+@@ -1384,66 +1319,22 @@ ipmi::RspType<> ipmiChassisControl(uint8_t chassisControl)
      switch (chassisControl)
      {
          case CMD_POWER_ON:
@@ -259,9 +259,10 @@ index 4ca981d..cd0a13d 100644
              break;
 -
          case CMD_HARD_RESET:
+-            rc = initiate_state_transition(
 +            rc = initiateHostStateTransition(
-+                State::Host::Transition::ForceWarmReboot);
-+            break;
+                 State::Host::Transition::ForceWarmReboot);
+             break;
          case CMD_POWER_CYCLE:
 -            // SPEC has a section that says certain implementations can trigger
 -            // PowerOn if power is Off when a command to power cycle is

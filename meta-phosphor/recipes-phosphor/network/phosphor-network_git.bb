@@ -11,7 +11,7 @@ inherit python3native
 inherit systemd
 
 SRC_URI += "git://github.com/openbmc/phosphor-networkd"
-SRCREV = "1ea359943afbd59168f490778a528c858903b74d"
+SRCREV = "b108fd740fdde4a9f0fe63e63ccdee695f5b92e7"
 
 DEPENDS += "systemd"
 DEPENDS += "sdbusplus ${PYTHON_PN}-sdbus++-native"
@@ -32,9 +32,9 @@ PACKAGECONFIG[sync-mac] = "-Dsync-mac=true,-Dsync-mac=false,nlohmann-json,"
 
 S = "${WORKDIR}/git"
 
-FILES_${PN} += "${datadir}/dbus-1/system.d"
+FILES:${PN} += "${datadir}/dbus-1/system.d"
 
 SYSTEMD_PACKAGES = "${PN}"
-SYSTEMD_SERVICE_${PN} += "xyz.openbmc_project.Network.service"
+SYSTEMD_SERVICE:${PN} += "xyz.openbmc_project.Network.service"
 
-EXTRA_OEMESON += "-Dtests=disabled"
+EXTRA_OEMESON:append = " -Dtests=disabled"

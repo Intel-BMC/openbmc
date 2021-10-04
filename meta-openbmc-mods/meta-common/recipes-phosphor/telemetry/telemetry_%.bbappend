@@ -1,5 +1,5 @@
 SRC_URI = "git://github.com/openbmc/telemetry.git"
-SRCREV = "a74e44f6ef7db43d38eb600fbfee152b31b30514"
+SRCREV = "93064d8fcef2c6fde1f61c0cedacb46b21eab039"
 
 EXTRA_OEMESON += " -Dmax-reports=10"
 EXTRA_OEMESON += " -Dmax-reading-parameters=200"

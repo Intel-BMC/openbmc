@@ -1,6 +1,6 @@
 inherit obmc-phosphor-systemd
 
-FILESEXTRAPATHS_append := "${THISDIR}/files:"
+FILESEXTRAPATHS:append := "${THISDIR}/files:"
 SRC_URI += "file://sssd.conf \
             file://nscd.conf \
             file://locked_groups \
@@ -12,7 +12,7 @@ SYSTEMD_AUTO_ENABLE = "enable"
 
 EXTRA_OECONF += " --enable-pammoddir=${base_libdir}/security"
 
-do_install_append() {
+do_install:append() {
     # sssd creates also the /var/run link. Need to remove it to avoid conflicts
     # with the one created by base-files recipe.
     rm -rf ${D}/var/run
@@ -22,5 +22,5 @@ do_install_append() {
     install -m 0644 ${WORKDIR}/ldb.sh ${D}${sysconfdir}/profile.d
 }
 
-FILES_${PN} += " /lib/security/pam_sss.so "
+FILES:${PN} += " /lib/security/pam_sss.so "
 

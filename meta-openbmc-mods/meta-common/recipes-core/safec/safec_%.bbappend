@@ -1,5 +1,5 @@
-RDEPENDS_${PN} = ""
-do_install_append() {
+RDEPENDS:${PN} = ""
+do_install:append() {
     F=$(find ${D} -name check_for_unsafe_apis)
     if [ -n "${F}" ]; then
         # remove the unused perl script

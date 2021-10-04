@@ -11,7 +11,9 @@ SRC_URI += " \
 	file://run-ptest \
 "
 
-RDEPENDS_${PN}-ptest += " \
+RDEPENDS:${PN}-ptest += " \
+    ${PYTHON_PN}-eventlet \
+    ${PYTHON_PN}-gevent \
 	${PYTHON_PN}-pytest \
 "
 
@@ -20,4 +22,4 @@ do_install_ptest() {
 	cp -rf ${S}/tests/* ${D}${PTEST_PATH}/tests/
 }
 
-RDEPENDS_${PN} += "${PYTHON_PN}-setuptools ${PYTHON_PN}-fcntl"
+RDEPENDS:${PN} += "${PYTHON_PN}-setuptools ${PYTHON_PN}-fcntl"

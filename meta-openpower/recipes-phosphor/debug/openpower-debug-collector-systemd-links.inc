@@ -1,4 +1,4 @@
-pkg_postinst_${PN}_append() {
+pkg_postinst:${PN}:append() {
 	mkdir -p $D$systemd_system_unitdir/obmc-host-crash@0.target.wants
 	mkdir -p $D$systemd_system_unitdir/obmc-host-timeout@0.target.wants
 
@@ -15,18 +15,22 @@ pkg_postinst_${PN}_append() {
 	TARGET="../openpower-debug-collector-watchdog@.service"
 	ln -s $TARGET $LINK
 
-	LINK="$D$systemd_system_unitdir/obmc-host-timeout@0.target.wants/openpower-debug-collector-watchdog-timeout@0.service"
-	TARGET="../openpower-debug-collector-watchdog-timeout.service"
-	ln -s $TARGET $LINK
+	if [ "${@bb.utils.filter('OBMC_MACHINE_FEATURES', 'phal', d)}" != 'phal' ]; then
+		LINK="$D$systemd_system_unitdir/obmc-host-timeout@0.target.wants/openpower-debug-collector-watchdog-timeout@0.service"
+		TARGET="../openpower-debug-collector-watchdog-timeout@.service"
+		ln -s $TARGET $LINK
+	fi
 }
 
-pkg_prerm_${PN}_append() {
+pkg_prerm:${PN}:append() {
 	if [ "${@bb.utils.filter('DISTRO_FEATURES', 'mpreboot', d)}" != mpreboot ]; then
 		LINK="$D$systemd_system_unitdir/obmc-host-crash@0.target.wants/openpower-debug-collector-checkstop@0.service"
 		rm $LINK
 	fi
 	LINK="$D$systemd_system_unitdir/obmc-host-timeout@0.target.wants/openpower-debug-collector-watchdog@0.service"
 	rm $LINK
-	LINK="$D$systemd_system_unitdir/obmc-host-timeout@0.target.wants/openpower-debug-collector-watchdog-timeout@0.service"
-	rm $LINK
+	if [ "${@bb.utils.filter('OBMC_MACHINE_FEATURES', 'phal', d)}" != 'phal' ]; then
+		LINK="$D$systemd_system_unitdir/obmc-host-timeout@0.target.wants/openpower-debug-collector-watchdog-timeout@0.service"
+		rm $LINK
+	fi
 }

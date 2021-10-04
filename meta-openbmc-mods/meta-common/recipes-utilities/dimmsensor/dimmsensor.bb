@@ -13,5 +13,5 @@ S = "${WORKDIR}"
 inherit cmake
 
 # linux-libc-headers guides this way to include custom uapi headers
-CXXFLAGS_append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
+CXXFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
 do_configure[depends] += "virtual/kernel:do_shared_workdir"

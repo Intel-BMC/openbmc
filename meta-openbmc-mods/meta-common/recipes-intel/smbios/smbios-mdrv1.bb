@@ -14,7 +14,7 @@ LIC_FILES_CHKSUM = "file://${S}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 inherit cmake pkgconfig
 inherit obmc-phosphor-systemd
 
-SYSTEMD_SERVICE_${PN} += "smbios-mdrv1.service"
+SYSTEMD_SERVICE:${PN} += "smbios-mdrv1.service"
 
 DEPENDS += " \
     autoconf-archive-native \
@@ -23,7 +23,7 @@ DEPENDS += " \
     phosphor-dbus-interfaces \
     phosphor-logging \
     "
-RDEPENDS_${PN} += " \
+RDEPENDS:${PN} += " \
     libsystemd \
     sdbusplus \
     phosphor-dbus-interfaces \

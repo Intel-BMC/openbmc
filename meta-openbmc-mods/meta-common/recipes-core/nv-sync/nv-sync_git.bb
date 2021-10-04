@@ -12,9 +12,9 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 
 inherit systemd
 
-RDEPENDS_${PN} += "bash"
+RDEPENDS:${PN} += "bash"
 
-FILES_${PN} += "${systemd_system_unitdir}/nv-sync.service \
+FILES:${PN} += "${systemd_system_unitdir}/nv-sync.service \
                 ${libdir}/tmpfiles.d/nv-sync-tmp.conf"
 
 do_install() {
@@ -26,4 +26,4 @@ do_install() {
     install -m 0644 ${WORKDIR}/nv-sync-tmp.conf ${D}${libdir}/tmpfiles.d/
 }
 
-SYSTEMD_SERVICE_${PN} += " nv-sync.service"
+SYSTEMD_SERVICE:${PN} += " nv-sync.service"

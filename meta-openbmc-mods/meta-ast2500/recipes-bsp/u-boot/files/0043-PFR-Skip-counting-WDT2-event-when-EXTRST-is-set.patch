@@ -1,4 +1,4 @@
-From 94cecaf3d944ee0b2a24b5628131db92de7cbaf3 Mon Sep 17 00:00:00 2001
+From fd386708fdea5f1c6c0311077907df55a5ac2c3d Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Wed, 18 Mar 2020 21:47:11 +0530
 Subject: [PATCH] PFR- Skip counting WDT2 event when EXTRST# is set
@@ -19,7 +19,7 @@ Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
-index 511bf32f94ac..66423d9b55a8 100644
+index 07a180a489f5..7b238b59aba3 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
 @@ -137,6 +137,7 @@ static const GPIOValue gpio_table[] = {
@@ -30,7 +30,7 @@ index 511bf32f94ac..66423d9b55a8 100644
  #define POWERON_RESET_BIT BIT(0)
  #define BOOT_FAILURE_LIMIT 0x3
  
-@@ -551,7 +552,8 @@ void ast_g5_intel_late_init(void)
+@@ -565,7 +566,8 @@ void ast_g5_intel_late_init(void)
  
  	boot_failures = get_boot_failures();
  

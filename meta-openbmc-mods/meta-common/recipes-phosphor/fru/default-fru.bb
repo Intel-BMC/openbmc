@@ -4,7 +4,7 @@ DESCRIPTION = "Builds a default FRU file at runtime based on board ID"
 inherit systemd
 inherit cmake
 
-SYSTEMD_SERVICE_${PN} = "SetBaseboardFru.service"
+SYSTEMD_SERVICE:${PN} = "SetBaseboardFru.service"
 
 S = "${WORKDIR}"
 SRC_URI = "file://checkFru.sh \
@@ -20,9 +20,9 @@ LIC_FILES_CHKSUM = "\
     file://mkfru.cpp;beginline=2;endline=14;md5=c451359f18a13ee69602afce1588c01a \
     "
 
-RDEPENDS_${PN} = "bash"
+RDEPENDS:${PN} = "bash"
 
-do_install_append() {
+do_install:append() {
     install -d ${D}${bindir}
     install -m 0755 ${S}/checkFru.sh ${D}/${bindir}/checkFru.sh
     install -m 0755 ${S}/decodeBoardID.sh ${D}/${bindir}/decodeBoardID.sh

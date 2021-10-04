@@ -15,19 +15,19 @@ PR = "r1"
 PV = "0.1+git${SRCPV}"
 
 SRC_URI = "git://github.com/openbmc/openpower-hw-diags"
-SRCREV = "897a6f7d8ea2ac37d4c66ecd067928085d31879b"
+SRCREV = "276e9813915d608358422e12109faf5dabdbe0d0"
 
 S = "${WORKDIR}/git"
 
 inherit meson systemd
 
-SYSTEMD_SERVICE_${PN} = "attn_handler.service"
+SYSTEMD_SERVICE:${PN} = "attn_handler.service"
 
 DEPENDS = "boost libgpiod pdbg phosphor-logging sdbusplus openpower-libhei \
-           nlohmann-json"
+           nlohmann-json valijson"
 
 # This is required so that libhei is installed with the chip data files.
-RDEPENDS_${PN} += "openpower-libhei"
+RDEPENDS:${PN} += "openpower-libhei"
 
 # Conditionally pull in PHAL APIs, if available.
 PACKAGECONFIG ??= "${@bb.utils.filter('OBMC_MACHINE_FEATURES', 'phal', d)}"

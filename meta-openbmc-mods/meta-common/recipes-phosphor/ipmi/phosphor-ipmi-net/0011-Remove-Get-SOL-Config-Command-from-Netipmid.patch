@@ -1,4 +1,4 @@
-From a36f181163974b2da0a954fc97a89fb2cdbd7287 Mon Sep 17 00:00:00 2001
+From adabdfa46aa0db56f40030c7077f991ba1987b04 Mon Sep 17 00:00:00 2001
 From: Cheng C Yang <cheng.c.yang@intel.com>
 Date: Tue, 30 Apr 2019 05:35:31 +0800
 Subject: [PATCH] Remove Get SOL Config Command from Netipmid
@@ -28,21 +28,21 @@ Payload Port                    : 623
 
 Signed-off-by: Cheng C Yang <cheng.c.yang@intel.com>
 ---
- command/sol_cmds.cpp |  91 ----------------------------
- command/sol_cmds.hpp | 168 ---------------------------------------------------
+ command/sol_cmds.cpp |  86 ----------------------
+ command/sol_cmds.hpp | 168 -------------------------------------------
  sol_module.cpp       |   6 --
- 3 files changed, 265 deletions(-)
+ 3 files changed, 260 deletions(-)
 
 diff --git a/command/sol_cmds.cpp b/command/sol_cmds.cpp
-index 804b5ea..8b2d041 100644
+index 81dfc993236c..be2cc81fc9cc 100644
 --- a/command/sol_cmds.cpp
 +++ b/command/sol_cmds.cpp
-@@ -65,97 +65,6 @@ void activating(uint8_t payloadInstance, uint32_t sessionID)
+@@ -69,92 +69,6 @@ void activating(uint8_t payloadInstance, uint32_t sessionID)
                                            outPayload);
  }
  
 -std::vector<uint8_t> getConfParams(const std::vector<uint8_t>& inPayload,
--                                   const message::Handler& handler)
+-                                   std::shared_ptr<message::Handler>& handler)
 -{
 -    std::vector<uint8_t> outPayload(sizeof(GetConfParamsResponse));
 -    auto request =
@@ -60,23 +60,22 @@ index 804b5ea..8b2d041 100644
 -    {
 -        case Parameter::PROGRESS:
 -        {
--            outPayload.push_back(
--                std::get<sol::Manager&>(singletonPool).progress);
+-            outPayload.push_back(sol::Manager::get().progress);
 -            break;
 -        }
 -        case Parameter::ENABLE:
 -        {
--            outPayload.push_back(std::get<sol::Manager&>(singletonPool).enable);
+-            outPayload.push_back(sol::Manager::get().enable);
 -            break;
 -        }
 -        case Parameter::AUTHENTICATION:
 -        {
 -            Auth value{0};
 -
--            value.encrypt = std::get<sol::Manager&>(singletonPool).forceEncrypt;
--            value.auth = std::get<sol::Manager&>(singletonPool).forceAuth;
--            value.privilege = static_cast<uint8_t>(
--                std::get<sol::Manager&>(singletonPool).solMinPrivilege);
+-            value.encrypt = sol::Manager::get().forceEncrypt;
+-            value.auth = sol::Manager::get().forceAuth;
+-            value.privilege =
+-                static_cast<uint8_t>(sol::Manager::get().solMinPrivilege);
 -            auto buffer = reinterpret_cast<const uint8_t*>(&value);
 -
 -            std::copy_n(buffer, sizeof(value), std::back_inserter(outPayload));
@@ -86,11 +85,9 @@ index 804b5ea..8b2d041 100644
 -        {
 -            Accumulate value{0};
 -
--            value.interval = std::get<sol::Manager&>(singletonPool)
--                                 .accumulateInterval.count() /
+-            value.interval = sol::Manager::get().accumulateInterval.count() /
 -                             sol::accIntervalFactor;
--            value.threshold =
--                std::get<sol::Manager&>(singletonPool).sendThreshold;
+-            value.threshold = sol::Manager::get().sendThreshold;
 -            auto buffer = reinterpret_cast<const uint8_t*>(&value);
 -
 -            std::copy_n(buffer, sizeof(value), std::back_inserter(outPayload));
@@ -100,10 +97,9 @@ index 804b5ea..8b2d041 100644
 -        {
 -            Retry value{0};
 -
--            value.count = std::get<sol::Manager&>(singletonPool).retryCount;
--            value.interval =
--                std::get<sol::Manager&>(singletonPool).retryInterval.count() /
--                sol::retryIntervalFactor;
+-            value.count = sol::Manager::get().retryCount;
+-            value.interval = sol::Manager::get().retryInterval.count() /
+-                             sol::retryIntervalFactor;
 -            auto buffer = reinterpret_cast<const uint8_t*>(&value);
 -
 -            std::copy_n(buffer, sizeof(value), std::back_inserter(outPayload));
@@ -119,8 +115,7 @@ index 804b5ea..8b2d041 100644
 -        }
 -        case Parameter::CHANNEL:
 -        {
--            outPayload.push_back(
--                std::get<sol::Manager&>(singletonPool).channel);
+-            outPayload.push_back(sol::Manager::get().channel);
 -            break;
 -        }
 -        case Parameter::NVBITRATE:
@@ -136,7 +131,7 @@ index 804b5ea..8b2d041 100644
  
  } // namespace sol
 diff --git a/command/sol_cmds.hpp b/command/sol_cmds.hpp
-index 182b73e..10cbf25 100644
+index 3e05e0fc035f..9aedfddf0d39 100644
 --- a/command/sol_cmds.hpp
 +++ b/command/sol_cmds.hpp
 @@ -62,174 +62,6 @@ struct ActivatingRequest
@@ -266,7 +261,7 @@ index 182b73e..10cbf25 100644
 - *  @return Response data for the command.
 - */
 -std::vector<uint8_t> setConfParams(const std::vector<uint8_t>& inPayload,
--                                   const message::Handler& handler);
+-                                   std::shared_ptr<message::Handler>& handler);
 -
 -/** @struct GetConfParamsRequest
 - *
@@ -309,16 +304,16 @@ index 182b73e..10cbf25 100644
 - *  @return Response data for the command.
 - */
 -std::vector<uint8_t> getConfParams(const std::vector<uint8_t>& inPayload,
--                                   const message::Handler& handler);
+-                                   std::shared_ptr<message::Handler>& handler);
 -
  } // namespace command
  
  } // namespace sol
 diff --git a/sol_module.cpp b/sol_module.cpp
-index 2b1fb46..6da82c0 100644
+index d9a9a7c9551f..21196d8a2cbf 100644
 --- a/sol_module.cpp
 +++ b/sol_module.cpp
-@@ -42,12 +42,6 @@ void registerCommands()
+@@ -41,12 +41,6 @@ void registerCommands()
           &getPayloadInfo,
           session::Privilege::USER,
           false},
@@ -332,5 +327,5 @@ index 2b1fb46..6da82c0 100644
  
      for (const auto& iter : commands)
 -- 
-2.7.4
+2.17.1
 

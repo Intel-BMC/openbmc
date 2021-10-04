@@ -1,7 +1,7 @@
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "5cf0f99210890d0cd52d5929e919316d238a5701"
+SRCREV = "5ab424a6a4ea56e5fbfad5a1813bed7bfabbd399"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
 
 SRC_URI += "\
@@ -14,9 +14,10 @@ SRC_URI += "\
     file://0006-CPUSensor-create-RequirediTempSensor-if-defined.patch \
     file://0007-Add-support-for-the-energy-hwmon-type.patch \
     file://0008-CPUSensor-additional-debug-message.patch \
+    file://0009-CPUSensor-Create-CPUConfig-for-each-PECI-adapter.patch \
     "
 
-DEPENDS_append = " libgpiod libmctp"
+DEPENDS:append = " libgpiod libmctp"
 
 PACKAGECONFIG += " \
     adcsensor \
@@ -35,11 +36,11 @@ PACKAGECONFIG[nvmesensor] = "-Dnvme=enabled, -Dnvme=disabled"
 # Enable Validation unsecure based on IMAGE_FEATURES
 EXTRA_OEMESON += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'validation-unsecure', '-Dvalidate-unsecure-feature=enabled', '', d)}"
 
-SYSTEMD_SERVICE_${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'nvmesensor', \
+SYSTEMD_SERVICE:${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'nvmesensor', \
                                                'xyz.openbmc_project.nvmesensor.service', \
                                                '', d)}"
 
-do_install_append() {
+do_install:append() {
     svc="xyz.openbmc_project.intrusionsensor.service"
     srcf="${WORKDIR}/intrusionsensor-depend-on-networkd.conf"
     dstf="${D}/etc/systemd/system/${svc}.d/10-depend-on-networkd.conf"

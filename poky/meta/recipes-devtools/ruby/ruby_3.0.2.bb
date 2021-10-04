@@ -1,11 +1,12 @@
 require ruby.inc
 
-DEPENDS_append_libc-musl = " libucontext"
+DEPENDS:append:libc-musl = " libucontext"
 
 SRC_URI += " \
            file://remove_has_include_macros.patch \
            file://run-ptest \
            file://0001-template-Makefile.in-do-not-write-host-cross-cc-item.patch \
+           file://0002-template-Makefile.in-filter-out-f-prefix-map.patch \
            "
 
 SRC_URI[sha256sum] = "5085dee0ad9f06996a8acec7ebea4a8735e6fac22f22e2d98c3f2bc3bef7e6f1"
@@ -26,16 +27,16 @@ EXTRA_OECONF = "\
     --with-pkg-config=pkg-config \
 "
 
-EXTRA_OECONF_append_libc-musl = "\
+EXTRA_OECONF:append:libc-musl = "\
     LIBS='-lucontext' \
     ac_cv_func_isnan=yes \
     ac_cv_func_isinf=yes \
 "
 
-EXTRA_OECONF_append_libc-musl_riscv64 = "\
+EXTRA_OECONF:append:libc-musl:riscv64 = "\
     --with-coroutine=copy \
 "
-EXTRA_OECONF_append_libc-musl_riscv32 = "\
+EXTRA_OECONF:append:libc-musl:riscv32 = "\
     --with-coroutine=copy \
 "
 
@@ -43,7 +44,7 @@ do_install() {
     oe_runmake 'DESTDIR=${D}' install
 }
 
-do_install_append_class-target () {
+do_install:append:class-target () {
     # Find out rbconfig.rb from .installed.list
     rbconfig_rb=`grep rbconfig.rb ${B}/.installed.list`
     # Remove build host directories
@@ -55,6 +56,10 @@ do_install_append_class-target () {
            -e 's:${RECIPE_SYSROOT}::g' \
            -e 's:${BASE_WORKDIR}/${MULTIMACH_TARGET_SYS}::g' \
         ${D}$rbconfig_rb
+
+    sed -i -e 's|${DEBUG_PREFIX_MAP}||g' \
+        ${D}${libdir}/pkgconfig/*.pc
+
 }
 
 do_install_ptest () {
@@ -80,17 +85,17 @@ do_install_ptest () {
 
 PACKAGES =+ "${PN}-ri-docs ${PN}-rdoc"
 
-SUMMARY_${PN}-ri-docs = "ri (Ruby Interactive) documentation for the Ruby standard library"
-RDEPENDS_${PN}-ri-docs = "${PN}"
-FILES_${PN}-ri-docs += "${datadir}/ri"
+SUMMARY:${PN}-ri-docs = "ri (Ruby Interactive) documentation for the Ruby standard library"
+RDEPENDS:${PN}-ri-docs = "${PN}"
+FILES:${PN}-ri-docs += "${datadir}/ri"
 
-SUMMARY_${PN}-rdoc = "RDoc documentation generator from Ruby source"
-RDEPENDS_${PN}-rdoc = "${PN}"
-FILES_${PN}-rdoc += "${libdir}/ruby/*/rdoc ${bindir}/rdoc"
+SUMMARY:${PN}-rdoc = "RDoc documentation generator from Ruby source"
+RDEPENDS:${PN}-rdoc = "${PN}"
+FILES:${PN}-rdoc += "${libdir}/ruby/*/rdoc ${bindir}/rdoc"
 
-FILES_${PN} += "${datadir}/rubygems"
+FILES:${PN} += "${datadir}/rubygems"
 
-FILES_${PN}-ptest_append_class-target = "\
+FILES:${PN}-ptest:append:class-target = "\
     ${libdir}/ruby/include \
     ${libdir}/ruby/${SHRT_VER}.0/*/-test- \
 "

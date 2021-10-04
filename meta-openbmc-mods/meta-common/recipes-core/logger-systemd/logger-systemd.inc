@@ -18,7 +18,7 @@ LIC_FILES_CHKSUM = "file://README.licensing;md5=972a134f1e14b2b060e365df2fab0099
 
 inherit autotools gettext pkgconfig
 DEPENDS = "libcap-ng ncurses virtual/crypt zlib systemd "
-#DEPENDS_intel-ast2500 += " systemd "
+#DEPENDS:intel-ast2500 += " systemd "
 #RDEPENDS_${PN} += " libsystemd"
 
 MAJOR_VERSION = "${@'.'.join(d.getVar('PV').split('.')[0:2])}"
@@ -34,7 +34,7 @@ EXTRA_OECONF = " --disable-nls --disable-all-programs  \
     --enable-logger \
     "
 
-do_install_append () {
+do_install:append () {
     mv ${D}${bindir}/logger ${D}${bindir}/logger-systemd
     rm -rf ${D}${sbindir}
     rm -rf ${D}${base_libdir}

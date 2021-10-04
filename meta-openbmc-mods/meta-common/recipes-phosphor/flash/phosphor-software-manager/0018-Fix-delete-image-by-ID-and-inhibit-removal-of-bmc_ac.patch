@@ -1,7 +1,7 @@
-From 19661c1173d9d82dfbb879f8cc89c05a0883dffa Mon Sep 17 00:00:00 2001
+From 77b861136b6780ce4eabfe9589a0b584e6ed2b43 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Wed, 21 Apr 2021 21:16:47 +0000
-Subject: [PATCH]  Fix delete image by ID and inhibit removal of bmc_active
+Subject: [PATCH] Fix delete image by ID and inhibit removal of bmc_active
 
 Delete image by ID was broken because when hitting the delete dbus
 interface, it recalculated the ID from the parent version, which then
@@ -20,17 +20,17 @@ Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
  image_manager.cpp     |  2 +-
- item_updater.cpp      | 20 +++++++++++++-------
+ item_updater.cpp      | 16 +++++++++++-----
  pfr_image_manager.cpp |  2 +-
  version.cpp           |  2 +-
  version.hpp           | 19 +++++++++++++++----
- 5 files changed, 31 insertions(+), 14 deletions(-)
+ 5 files changed, 29 insertions(+), 12 deletions(-)
 
 diff --git a/image_manager.cpp b/image_manager.cpp
-index 4be357f..311a63f 100644
+index 6334704cd980..4fefd221e6d2 100644
 --- a/image_manager.cpp
 +++ b/image_manager.cpp
-@@ -219,7 +219,7 @@ int Manager::processImage(const std::string& tarFilePath)
+@@ -221,7 +221,7 @@ int Manager::processImage(const std::string& tarFilePath)
      {
          // Create Version object
          auto versionPtr = std::make_unique<Version>(
@@ -40,7 +40,7 @@ index 4be357f..311a63f 100644
              std::bind(&Manager::erase, this, std::placeholders::_1));
          versionPtr->deleteObject =
 diff --git a/item_updater.cpp b/item_updater.cpp
-index 6efd519..6685bf5 100644
+index 26b52b3f7846..3f64feb43c55 100644
 --- a/item_updater.cpp
 +++ b/item_updater.cpp
 @@ -145,7 +145,7 @@ void ItemUpdater::createActivation(sdbusplus::message::message& msg)
@@ -52,7 +52,7 @@ index 6efd519..6685bf5 100644
              std::bind(&ItemUpdater::erase, this, std::placeholders::_1));
          versionPtr->deleteObject =
              std::make_unique<phosphor::software::manager::Delete>(bus, path,
-@@ -263,7 +263,7 @@ void ItemUpdater::processBMCImage()
+@@ -260,7 +260,7 @@ void ItemUpdater::processBMCImage()
  
              // Create Version instance for this version.
              auto versionPtr = std::make_unique<VersionClass>(
@@ -61,23 +61,19 @@ index 6efd519..6685bf5 100644
                  std::bind(&ItemUpdater::erase, this, std::placeholders::_1));
              auto isVersionFunctional = versionPtr->isFunctional();
              if (!isVersionFunctional)
-@@ -338,11 +338,11 @@ void ItemUpdater::erase(std::string entryId)
+@@ -336,9 +336,9 @@ void ItemUpdater::erase(std::string entryId)
      auto it = versions.find(entryId);
      if (it != versions.end())
      {
 -        if (it->second->isFunctional() && ACTIVE_BMC_MAX_ALLOWED > 1)
 +        if (it->second->isFunctional())
          {
--            log<level::ERR>("Error: Version is currently running on the BMC. "
--                            "Unable to remove.",
--                            entry("VERSIONID=%s", entryId.c_str()));
-+            log<level::INFO>("Error: Version is currently running on the BMC. "
-+                             "Unable to remove.",
-+                             entry("VERSIONID=%s", entryId.c_str()));
+-            error(
++            info(
+                 "Version ({VERSIONID}) is currently running on the BMC; unable to remove.",
+                 "VERSIONID", entryId);
              return;
-         }
-     }
-@@ -681,6 +681,12 @@ void ItemUpdater::freeSpace(Activation& caller)
+@@ -679,6 +679,12 @@ void ItemUpdater::freeSpace(Activation& caller)
      std::size_t count = 0;
      for (const auto& iter : activations)
      {
@@ -90,7 +86,7 @@ index 6efd519..6685bf5 100644
          if ((iter.second.get()->activation() ==
               server::Activation::Activations::Active) ||
              (iter.second.get()->activation() ==
-@@ -775,7 +781,7 @@ void ItemUpdater::createBIOSObject()
+@@ -772,7 +778,7 @@ void ItemUpdater::createBIOSObject()
          // Do nothing;
      };
      biosVersion = std::make_unique<VersionClass>(
@@ -100,7 +96,7 @@ index 6efd519..6685bf5 100644
      biosVersion->deleteObject =
          std::make_unique<phosphor::software::manager::Delete>(bus, path,
 diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
-index 55ad21f..e2dcc80 100644
+index 80db63ca4d85..03bc34a3a78b 100644
 --- a/pfr_image_manager.cpp
 +++ b/pfr_image_manager.cpp
 @@ -399,7 +399,7 @@ int Manager::processImage(const std::string& imgFilePath)
@@ -113,10 +109,10 @@ index 55ad21f..e2dcc80 100644
      versionPtr->deleteObject =
          std::make_unique<phosphor::software::manager::Delete>(bus, objPath,
 diff --git a/version.cpp b/version.cpp
-index 04f40c4..44ef571 100644
+index 97f3be94b4aa..5410c38887f8 100644
 --- a/version.cpp
 +++ b/version.cpp
-@@ -206,7 +206,7 @@ void Delete::delete_()
+@@ -208,7 +208,7 @@ void Delete::delete_()
  {
      if (parent.eraseCallback)
      {
@@ -126,7 +122,7 @@ index 04f40c4..44ef571 100644
  }
  
 diff --git a/version.hpp b/version.hpp
-index 8a68cb5..afc589c 100644
+index 8a68cb5f7b1f..afc589c0226c 100644
 --- a/version.hpp
 +++ b/version.hpp
 @@ -77,11 +77,11 @@ class Version : public VersionInherit

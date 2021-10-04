@@ -1,4 +1,4 @@
-From 95f7ca477a8353fa7b99f463de9ee310dda13735 Mon Sep 17 00:00:00 2001
+From 437a2a854303ed4e05344684b1990806464268cd Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Date: Thu, 1 Jul 2021 10:08:27 +0000
 Subject: [PATCH] Invalid status code from InsertMedia REST methods GET,  PUT,
@@ -10,15 +10,16 @@ Not allowed for Legacy and Not found for Proxy.
 
 Change-Id: Ib4c0a3e9a2a8853caa74c59239d9fcfed99c5e8b
 Signed-off-by: Alicja Rybak <alicja.rybak@intel.com>
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
- redfish-core/lib/virtual_media.hpp | 129 +++++++++++++++++++++++++++++
- 1 file changed, 129 insertions(+)
+ redfish-core/lib/virtual_media.hpp | 137 +++++++++++++++++++++++++++++
+ 1 file changed, 137 insertions(+)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index a834c69..186c04b 100644
+index 3b9f7ef..7d77b9f 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
-@@ -28,6 +28,109 @@
+@@ -30,6 +30,117 @@
  
  namespace redfish
  {
@@ -50,6 +51,14 @@ index a834c69..186c04b 100644
 +
 +                return;
 +            }
++
++            if (getObjectType.size() == 0)
++            {
++                BMCWEB_LOG_ERROR << "ObjectMapper : No Service found";
++                aResp->res.result(boost::beast::http::status::not_found);
++                return;
++            }
++
 +            std::string service = getObjectType.begin()->first;
 +            BMCWEB_LOG_DEBUG << "GetObjectType: " << service;
 +
@@ -128,7 +137,7 @@ index a834c69..186c04b 100644
  /**
   * @brief Function extracts transfer protocol name from URI.
   */
-@@ -829,6 +932,32 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+@@ -844,6 +955,32 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
  
  inline void requestNBDVirtualMediaRoutes(App& app)
  {
@@ -160,7 +169,7 @@ index a834c69..186c04b 100644
 +
      BMCWEB_ROUTE(app, "/redfish/v1/Managers/<str>/VirtualMedia/<str>/Actions/"
                        "VirtualMedia.InsertMedia")
-         .privileges({{"ConfigureManager"}})
+         .privileges(redfish::privileges::postVirtualMedia)
 -- 
-2.25.1
+2.17.1
 

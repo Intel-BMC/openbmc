@@ -33,8 +33,8 @@
 
 # If you want to get an image based on directfb without x11 alter
 # DISTRO_FEATURES:
-DISTRO_FEATURES_append = " directfb"
-DISTRO_FEATURES_remove = "x11"
+DISTRO_FEATURES:append = " directfb"
+DISTRO_FEATURES:remove = "x11"
 
 # ENABLE_BINARY_LOCALE_GENERATION controls the generation of binary locale
 # packages at build time using qemu-native. Disabling it (by setting it to 0)
@@ -135,7 +135,7 @@ DISTRO_FEATURES_remove = "x11"
 # Uncomment the following lines to enable multilib builds
 #require conf/multilib.conf
 #MULTILIBS = "multilib:lib32"
-#DEFAULTTUNE_virtclass-multilib-lib32 = "x86"
+#DEFAULTTUNE:virtclass-multilib-lib32 = "x86"
 
 # Set RPM_PREFER_ELF_ARCH to configure preferred ABI when using rpm packaging
 # backend to generate a rootfs, choices are:
@@ -313,7 +313,7 @@ DISTRO_FEATURES_remove = "x11"
 # Note this is not officially supported and is just illustrated here to
 # show an example of how it can be done
 # You'll also need your fortran recipe to depend on libgfortran
-#FORTRAN_forcevariable = ",fortran"
+#FORTRAN:forcevariable = ",fortran"
 
 #
 # Kernel image features
@@ -380,7 +380,7 @@ DISTRO_FEATURES_remove = "x11"
 # Enable LTO system-wide
 #
 #require conf/distro/include/lto.inc
-#DISTRO_FEATURES_append = " lto"
+#DISTRO_FEATURES:append = " lto"
 
 #
 # Set PS1 for SDK

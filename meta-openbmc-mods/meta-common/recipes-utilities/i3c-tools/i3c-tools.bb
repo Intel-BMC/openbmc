@@ -19,7 +19,7 @@ SRC_URI += "\
     file://CMakeLists.txt \
     "
 
-do_configure_prepend() {
+do_configure:prepend() {
     cp -f ${WORKDIR}/CMakeLists.txt ${S}
 }
 

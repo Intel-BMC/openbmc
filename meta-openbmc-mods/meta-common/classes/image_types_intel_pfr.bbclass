@@ -8,7 +8,7 @@ require recipes-core/os-release/version-vars.inc
 
 IMAGE_TYPES += "intel-pfr"
 
-IMAGE_TYPEDEP_intel-pfr = "mtd-auto"
+IMAGE_TYPEDEP:intel-pfr = "mtd-auto"
 IMAGE_TYPES_MASKED += "intel-pfr"
 
 # PFR images directory

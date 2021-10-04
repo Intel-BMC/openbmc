@@ -1,4 +1,4 @@
-IMAGE_INSTALL_append = " \
+IMAGE_INSTALL:append = " \
         mtd-util \
         io-app \
         intel-fw-update \

@@ -30,7 +30,7 @@ IMAGE_FEATURES += " \
         obmc-console \
         "
 
-IMAGE_INSTALL_append = " \
+IMAGE_INSTALL:append = " \
         dbus-broker \
         entity-manager \
         fru-device \
@@ -39,7 +39,6 @@ IMAGE_INSTALL_append = " \
         phosphor-ipmi-ipmb \
         phosphor-node-manager-proxy \
         dbus-sensors \
-        webui-vue \
         at-scale-debug \
         phosphor-pid-control \
         phosphor-host-postd \
@@ -67,7 +66,6 @@ IMAGE_INSTALL_append = " \
         id-led-off \
         hsbp-manager \
         security-registers-check \
-        pch-time-sync \
         nv-sync \
         security-manager \
         multi-node-nl \
@@ -79,13 +77,14 @@ IMAGE_INSTALL_append = " \
         i3c-tools \
         configure-usb-c \
         zip \
+        peci-pcie \
         "
 
-IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
+IMAGE_INSTALL:append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
 
-IMAGE_INSTALL_append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'ncsi-monitor', '', d)}"
+IMAGE_INSTALL:append = " ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'ncsi-monitor', '', d)}"
 
 # this package was flagged as a security risk
-IMAGE_INSTALL_remove += " lrzsz"
+IMAGE_INSTALL:remove += " lrzsz"
 
 BAD_RECOMMENDATIONS += "phosphor-settings-manager"

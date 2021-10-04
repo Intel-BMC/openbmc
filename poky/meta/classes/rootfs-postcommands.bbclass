@@ -23,7 +23,7 @@ ROOTFS_POSTPROCESS_COMMAND += '${@bb.utils.contains("IMAGE_FEATURES", "read-only
 #
 # We do this with _append because the default value might get set later with ?=
 # and we don't want to disable such a default that by setting a value here.
-APPEND_append = '${@bb.utils.contains("IMAGE_FEATURES", "read-only-rootfs", " ro", "", d)}'
+APPEND:append = '${@bb.utils.contains("IMAGE_FEATURES", "read-only-rootfs", " ro", "", d)}'
 
 # Generates test data file with data store variables expanded in json format
 ROOTFS_POSTPROCESS_COMMAND += "write_image_test_data; "
@@ -38,6 +38,8 @@ SYSTEMD_DEFAULT_TARGET ?= '${@bb.utils.contains_any("IMAGE_FEATURES", [ "x11-bas
 ROOTFS_POSTPROCESS_COMMAND += '${@bb.utils.contains("DISTRO_FEATURES", "systemd", "set_systemd_default_target; systemd_create_users;", "", d)}'
 
 ROOTFS_POSTPROCESS_COMMAND += 'empty_var_volatile;'
+
+ROOTFS_POSTPROCESS_COMMAND += '${@bb.utils.contains("DISTRO_FEATURES", "overlayfs", "overlayfs_qa_check;", "", d)}'
 
 inherit image-artifact-names
 
@@ -372,4 +374,27 @@ rootfs_reproducible () {
 			sed -i -e 's@\bmtime="[0-9][0-9]*"@mtime="'${REPRODUCIBLE_TIMESTAMP_ROOTFS}'"@g'
 		fi
 	fi
+}
+
+python overlayfs_qa_check() {
+    from oe.overlayfs import mountUnitName
+
+    # this is a dumb check for unit existence, not its validity
+    overlayMountPoints = d.getVarFlags("OVERLAYFS_MOUNT_POINT")
+    imagepath = d.getVar("IMAGE_ROOTFS")
+    searchpaths = [oe.path.join(imagepath, d.getVar("sysconfdir"), "systemd", "system"),
+                   oe.path.join(imagepath, d.getVar("systemd_system_unitdir"))]
+
+    allUnitExist = True;
+    for mountPoint in overlayMountPoints:
+        path = d.getVarFlag('OVERLAYFS_MOUNT_POINT', mountPoint)
+        unit = mountUnitName(path)
+
+        if not any(os.path.isfile(oe.path.join(dirpath, unit))
+                   for dirpath in searchpaths):
+            bb.warn('Unit name %s not found in systemd unit directories' % unit)
+            allUnitExist = False;
+
+    if not allUnitExist:
+        bb.fatal('Not all mount units are installed by the BSP')
 }

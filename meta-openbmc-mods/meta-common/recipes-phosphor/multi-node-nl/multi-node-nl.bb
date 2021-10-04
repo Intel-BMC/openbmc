@@ -3,8 +3,8 @@ DESCRIPTION = "New systemd target for non-legacy nodes on multi-node platform"
 
 inherit systemd
 
-SYSTEMD_SERVICE_${PN} = "multi-node-nl.target"
-SYSTEMD_SERVICE_${PN} += "nonLegacyNode.service"
+SYSTEMD_SERVICE:${PN} = "multi-node-nl.target"
+SYSTEMD_SERVICE:${PN} += "nonLegacyNode.service"
 
 S = "${WORKDIR}"
 SRC_URI = "file://multi-node-nl.target \
@@ -15,9 +15,9 @@ SRC_URI = "file://multi-node-nl.target \
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fecd0a2940a0d1658"
 
-RDEPENDS_${PN} = "bash"
+RDEPENDS:${PN} = "bash"
 
-do_install_append() {
+do_install:append() {
     install -d ${D}${bindir}
     install -m 0755 ${S}/nonLegacyNode.sh ${D}/${bindir}/nonLegacyNode.sh
 

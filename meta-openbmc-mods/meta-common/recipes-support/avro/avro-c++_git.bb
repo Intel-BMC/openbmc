@@ -7,7 +7,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=43abf34d8b9908494f83c55d213a7f89"
 
 DEPENDS = "boost"
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 BRANCH = "master"
 SRCREV = "f4e2ebaadaf6e6d99b59882233f8024243adb55d"

@@ -1,4 +1,4 @@
-From ae3a9616b44677f20b4ca534c3f55ccb478fdf55 Mon Sep 17 00:00:00 2001
+From 0628db177655e6f890c4da8c7de7c3cd7487d528 Mon Sep 17 00:00:00 2001
 From: Vernon Mauery <vernon.mauery@intel.com>
 Date: Thu, 16 Jul 2020 14:16:28 -0700
 Subject: [PATCH] remove image file on pre-script failures
@@ -19,22 +19,22 @@ Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
  1 file changed, 9 insertions(+)
 
 diff --git a/watch.cpp b/watch.cpp
-index ccdf594..c738945 100644
+index d6c09a946fd0..5d70edbf52b4 100644
 --- a/watch.cpp
 +++ b/watch.cpp
-@@ -106,6 +106,15 @@ int Watch::callback(sd_event_source* /* s */, int fd, uint32_t revents,
+@@ -106,6 +106,12 @@ int Watch::callback(sd_event_source* /* s */, int fd, uint32_t revents,
              {
-                 log<level::ERR>("Error processing image",
-                                 entry("IMAGE=%s", tarballPath.c_str()));
+                 error("Error ({RC}) processing image {IMAGE}", "RC", rc,
+                       "IMAGE", tarballPath);
 +                std::error_code ec{};
 +                fs::remove_all(tarballPath, ec);
 +                if (!ec)
 +                {
-+                    log<level::ERR>(
-+                        "Unable to remove image on processing failure",
-+                        entry("ERROR=%s", ec.message().c_str()),
-+                        entry("IMAGE=%s", tarballPath.c_str()));
++                    error("Unable to remove image on processing failure");
 +                }
              }
          }
  
+-- 
+2.17.1
+

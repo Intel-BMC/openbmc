@@ -1,12 +1,10 @@
 COMPATIBLE_MACHINE = "intel-ast2600"
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files:"
-
-SRCREV = "e1417368fdc3ba45ffde51a4b13290114a643be4"
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files:"
 
 # the meta-phosphor layer adds this patch, which conflicts
 # with the intel layout for environment
 
-SRC_URI_append_intel-ast2600 = " \
+SRC_URI:append:intel-ast2600 = " \
     file://intel.cfg \
     file://0001-Add-ast2600-intel-as-a-new-board.patch \
     file://0002-AST2600-Enable-host-searial-port-clock-configuration.patch \
@@ -44,8 +42,8 @@ SRC_URI_append_intel-ast2600 = " \
     "
 
 # CVE-2020-10648 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2020-10648:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2020-10648:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-image-Correct-comment-for-fit_conf_get_node.patch \
     file://0008-image-Load-the-correct-configuration-in-fit_check_si.patch \
     file://0009-fit_check_sign-Allow-selecting-the-configuration-to-.patch \
@@ -53,56 +51,56 @@ SRC_URI_append_intel-ast2600 = " \
     "
 
 # CVE-2019-11059 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-11059:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2019-11059:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-Fix-ext4-block-group-descriptor-sizing.patch \
     "
 
 # CVE-2019-11690 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-11690:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2019-11690:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-lib-uuid-Fix-unseeded-PRNG-on-RANDOM_UUID-y.patch \
     "
 
 # CVE-2019-13105 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13105:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2019-13105:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-fs-ext4-cache-extent-data.patch \
     file://0002-CVE-2019-13105-ext4-fix-double-free-in-ext4_cache_re.patch \
     "
 
 # CVE-2019-13104 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13104:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2019-13104:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-CVE-2019-13104-ext4-check-for-underflow-in-ext4fs_re.patch \
     "
 
 # CVE-2019-13106 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2019-13106:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2019-13106:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-CVE-2019-13106-ext4-fix-out-of-bounds-memset.patch \
     "
 
 # CVE-2021-27097 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2021-27097:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2021-27097:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-image-Adjust-the-workings-of-fit_check_format.patch \
     file://0002-image-Add-an-option-to-do-a-full-check-of-the-FIT.patch \
     "
 
 # CVE-2021-27138 vulnerability fix
-FILESEXTRAPATHS_append_intel-ast2600:= "${THISDIR}/files/CVE-2021-27138:"
-SRC_URI_append_intel-ast2600 = " \
+FILESEXTRAPATHS:append:intel-ast2600:= "${THISDIR}/files/CVE-2021-27138:"
+SRC_URI:append:intel-ast2600 = " \
     file://0001-image-Check-for-unit-addresses-in-FITs.patch \
     "
 
 PFR_SRC_URI = " \
     file://0043-AST2600-PFR-u-boot-env-changes-as-per-PFR-BMC-image.patch \
     "
-SRC_URI_append_intel-ast2600 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
+SRC_URI:append:intel-ast2600 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
 
-do_install_append () {
+do_install:append () {
     install -m 0644 ${WORKDIR}/fw_env.config ${D}${sysconfdir}/fw_env.config
     install -m 0644 ${WORKDIR}/fw_env.config ${S}/tools/env/fw_env.config
 }
-RDEPENDS_${PN} = "udev-aspeed-mtd-partitions"
+RDEPENDS:${PN} = "udev-aspeed-mtd-partitions"

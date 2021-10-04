@@ -1,1 +1,1 @@
-RRECOMMENDS_${PN}_append = " vim cmake sdbusplus"
+RRECOMMENDS:${PN}:append = " vim cmake sdbusplus"

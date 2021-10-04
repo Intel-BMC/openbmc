@@ -1,4 +1,4 @@
-From 56a1cafcf68c624ca9ea9de6c38080603e80ea0d Mon Sep 17 00:00:00 2001
+From 1c879ae1f822f59d74cec9dd7ed10790279ad65b Mon Sep 17 00:00:00 2001
 From: James Feist <james.feist@linux.intel.com>
 Date: Wed, 31 Jul 2019 16:01:49 -0700
 Subject: [PATCH] Reboot into UBOOT on Watchdog Failures
@@ -17,7 +17,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 61 insertions(+)
 
 diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
-index a644010dd339..2db162bc9d4c 100644
+index 7664ac0ddfc6..24ae48fc62e7 100644
 --- a/board/aspeed/ast2600_intel/intel.c
 +++ b/board/aspeed/ast2600_intel/intel.c
 @@ -9,6 +9,55 @@
@@ -87,7 +87,7 @@ index a644010dd339..2db162bc9d4c 100644
  	/* check ffuj to abort the autoboot */
  	value = read_ffuj();
  	printf("FFUJ: %d\n", value);
-@@ -460,6 +513,7 @@ int board_late_init(void)
+@@ -473,6 +526,7 @@ int board_late_init(void)
  #define REV_ID_AST2600A0	0x05000303	/* AST2600 A0 */
  #define ONE_MSEC_IN_USEC	1000
  	char value[11];
@@ -95,7 +95,7 @@ index a644010dd339..2db162bc9d4c 100644
  
  	if (readl(SCU_BASE | SCU_014) == REV_ID_AST2600A0)
  		timer_enable(0, ONE_MSEC_IN_USEC, timer_callback, (void *)0);
-@@ -475,6 +529,13 @@ int board_late_init(void)
+@@ -488,6 +542,13 @@ int board_late_init(void)
  	snprintf(value, sizeof(value), "0x%x", gd->reset_reason);
  	update_bootargs_cmd("resetreason", value);
  

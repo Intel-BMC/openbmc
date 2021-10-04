@@ -14,6 +14,6 @@ SRC_URI = "git://github.com/Intel-BMC/host-misc-comm-manager.git;protocol=ssh"
 SRCREV = "da65b239e6622fbf913a904480fe3ff87ee02dec"
 
 inherit cmake systemd
-SYSTEMD_SERVICE_${PN} = "xyz.openbmc_project.Host.Misc.Manager.service"
+SYSTEMD_SERVICE:${PN} = "xyz.openbmc_project.Host.Misc.Manager.service"
 
 DEPENDS = "boost sdbusplus phosphor-logging"

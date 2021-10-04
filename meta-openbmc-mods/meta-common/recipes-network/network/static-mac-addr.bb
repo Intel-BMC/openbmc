@@ -2,7 +2,7 @@ SUMMARY = "Enforce static MAC addresses"
 DESCRIPTION = "Set a priority on MAC addresses to run with: \
                factory-specified > u-boot-specified > random"
 
-FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
 PV = "1.0"
 
@@ -16,7 +16,7 @@ SRC_URI = "\
 
 inherit obmc-phosphor-systemd
 
-SYSTEMD_SERVICE_${PN} += "${PN}.service"
+SYSTEMD_SERVICE:${PN} += "${PN}.service"
 
 do_install() {
     install -d ${D}${bindir}
