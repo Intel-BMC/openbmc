@@ -36,6 +36,7 @@ SRC_URI += "file://biosconfig/0001-Define-Redfish-interface-Registries-Bios.patc
             file://biosconfig/0003-Add-support-to-ResetBios-action.patch \
             file://biosconfig/0004-Add-support-to-ChangePassword-action.patch \
             file://biosconfig/0005-Fix-remove-bios-user-pwd-change-option-via-Redfish.patch \
+            file://biosconfig/0006-Add-fix-for-broken-feature-Pending-Attributes.patch \
 "
 
 # Virtual Media: Backend code is not upstreamed so downstream only patches.
@@ -57,6 +58,7 @@ SRC_URI += "file://eventservice/0001-EventService-Fix-retry-handling-for-http-cl
             file://eventservice/0007-EventService-Log-events-for-subscription-actions.patch \
             file://eventservice/0008-Add-checks-on-Event-Subscription-input-parameters.patch \
             file://eventservice/0009-Restructure-Redifsh-EventLog-Transmit-code-flow.patch \
+            file://eventservice/0010-Remove-Terminated-Event-Subscriptions.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
@@ -64,11 +66,11 @@ SRC_URI += " file://telemetry/0001-Add-support-for-MetricDefinition-scheme.patch
              file://telemetry/0002-Sync-Telmetry-service-with-EventService.patch \
              file://telemetry/0003-Switched-bmcweb-to-use-new-telemetry-service-API.patch \
              file://telemetry/0004-Add-support-for-MetricDefinition-property-in-MetricReport.patch \
-             file://telemetry/0005-Add-DELETE-method-for-MetricReport.patch \
-             file://telemetry/0006-Add-GET-method-for-TriggerCollection.patch \
-             file://telemetry/0007-Revert-Remove-LogService-from-TelemetryService.patch \
-             file://telemetry/0008-event-service-fix-added-Context-field-to-response.patch \
-             file://telemetry/0009-Generalize-ReadingType-in-MetricDefinition.patch \
+             file://telemetry/0005-Add-GET-method-for-TriggerCollection.patch \
+             file://telemetry/0006-Revert-Remove-LogService-from-TelemetryService.patch \
+             file://telemetry/0007-event-service-fix-added-Context-field-to-response.patch \
+             file://telemetry/0008-Generalize-ReadingType-in-MetricDefinition.patch \
+             file://telemetry/0009-Add-support-for-deleting-terminated-subscriptions.patch \
 "
 
 # Temporary fix: Move it to service file
@@ -76,6 +78,10 @@ do_install:append() {
         install -d ${D}/var/lib/bmcweb
         install -d ${D}/etc/ssl/certs/authority
 }
+
+# Temporary fix:Enable new power and thermal subsystem
+EXTRA_OEMESON += " -Dredfish-new-powersubsystem-thermalsubsystem=enabled"
+EXTRA_OEMESON += " -Dredfish-allow-deprecated-power-thermal=disabled"
 
 # Enable PFR support
 EXTRA_OEMESON += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-Dredfish-provisioning-feature=enabled', '', d)}"

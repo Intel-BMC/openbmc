@@ -1,0 +1,34 @@
+From 7aeedcb63c6d83e7ad61b55a7098c2e6381a917c Mon Sep 17 00:00:00 2001
+From: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+Date: Sun, 12 Sep 2021 19:16:59 +0000
+Subject: [PATCH] Remove u-boot delay before autoboot in release image
+
+Removed the delay in u-boot which allowed the user to stop
+automatically booting to kernel in release image by changing
+the delay value to negative.
+
+Tested:
+After the fix, unable to stop the release image at u-boot
+and prevent autoboot.
+
+Signed-off-by: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+---
+ include/configs/aspeed-common.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/configs/aspeed-common.h b/include/configs/aspeed-common.h
+index 2be63a5c66..9707a49f90 100644
+--- a/include/configs/aspeed-common.h
++++ b/include/configs/aspeed-common.h
+@@ -85,6 +85,8 @@
+ 
+ #define CONFIG_ENV_SECT_SIZE	(4 << 10)
+ 
++#define CONFIG_BOOTDELAY	-2
++
+ /*
+  * Ethernet related
+  */
+-- 
+2.17.1
+

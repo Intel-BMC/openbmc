@@ -3,6 +3,7 @@ SRCREV = "bd78df6be9f677136ca190d50101c328267ddcd2"
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 SRC_URI += "file://0001-Add-dbus-method-SlotIpmbRequest.patch \
            file://0002-Add-log-count-limitation-to-requestAdd.patch \
+           file://0003-Fix-for-clearing-outstanding-requests.patch \
            file://ipmb-channels.json \
            "
 

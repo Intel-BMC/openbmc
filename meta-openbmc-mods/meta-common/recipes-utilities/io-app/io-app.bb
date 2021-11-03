@@ -9,9 +9,6 @@ LIC_FILES_CHKSUM += "\
     "
 
 SRC_URI = "\
-    file://CMakeLists.txt \
-    file://io-app.c \
+    file://CMakeLists.txt;subdir=${BP} \
+    file://io-app.c;subdir=${BP} \
     "
-
-S = "${WORKDIR}"
-

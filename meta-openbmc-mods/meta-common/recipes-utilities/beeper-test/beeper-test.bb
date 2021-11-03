@@ -9,9 +9,6 @@ LIC_FILES_CHKSUM += "\
     "
 
 SRC_URI = "\
-    file://CMakeLists.txt \
-    file://beeper-test.cpp \
+    file://CMakeLists.txt;subdir=${BP} \
+    file://beeper-test.cpp;subdir=${BP} \
     "
-
-S = "${WORKDIR}"
-

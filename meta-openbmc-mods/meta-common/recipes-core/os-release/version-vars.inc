@@ -53,12 +53,12 @@ python() {
                          'describe --long --abbrev=6 ' +
                          '--match \'{}-[0-9]*\.[0-9]*\''.format(gen))
 
-    # If no tag in meta-openbmc-mods, provide default version
+    # If no tag, provide default version
     if meta_vers.startswith('fatal:'):
-        meta_vers = '{}-0.0-0'.format(gen)
+        meta_vers = '{}-0.0-0-g0'.format(gen)
 
     meta_hash = irun_git(d, mibase, 'rev-parse HEAD')
-    # If no hash from meta-openbmc-mods, provide default
+    # If no hash, provide default
     if meta_hash.startswith('fatal:'):
         meta_hash = '00000000'
     version_id = '{}-{}'.format(meta_vers, obmc_hash[0:7])

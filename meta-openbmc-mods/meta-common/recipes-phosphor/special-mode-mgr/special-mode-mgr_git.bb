@@ -22,6 +22,7 @@ DEPENDS += " \
     phosphor-logging \
     boost \
     libpam \
+    libgpiod \
     "
 RDEPENDS:${PN} += " \
     libsystemd \

@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=bcd9ada3a943f58551867d72893cc9ab"
 
 SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "02b272fb17a5fe835311818e9194eb0cd49db20c"
+SRCREV = "c76742e725d7a1ebbee8a2d95168da8a53f0b2e1"
 
 S = "${WORKDIR}/git/mctp_wrapper"
 

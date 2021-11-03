@@ -19,7 +19,6 @@ LIC_FILES_CHKSUM = "file://README.licensing;md5=972a134f1e14b2b060e365df2fab0099
 inherit autotools gettext pkgconfig
 DEPENDS = "libcap-ng ncurses virtual/crypt zlib systemd "
 #DEPENDS:intel-ast2500 += " systemd "
-#RDEPENDS_${PN} += " libsystemd"
 
 MAJOR_VERSION = "${@'.'.join(d.getVar('PV').split('.')[0:2])}"
 SRC_URI = "${KERNELORG_MIRROR}/linux/utils/util-linux/v${MAJOR_VERSION}/util-linux-${MAJOR_VERSION}.tar.xz \
