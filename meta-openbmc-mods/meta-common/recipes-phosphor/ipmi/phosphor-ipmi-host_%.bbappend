@@ -18,15 +18,11 @@ EXTRA_OECONF:append = " --disable-ipmi-whitelist"
 RDEPENDS:${PN}:remove = "clear-once"
 
 # remove the softpoweroff service since we do not need it
-SYSTEMD_SERVICE:${PN}:remove += " \
+SYSTEMD_SERVICE:${PN}:remove = " \
     xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service"
 
-SYSTEMD_LINK_${PN}:remove += " \
+SYSTEMD_LINK:${PN}:remove = " \
     ../xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service:obmc-host-shutdown@0.target.requires/xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service \
-    "
-FILES:${PN}:remove = " \
-    ${D}${systemd_unitdir}/system/obmc-host-shutdown@0.target.requires/ \
-    ${D}${systemd_unitdir}/system/obmc-host-shutdown@0.target.requires/xyz.openbmc_project.Ipmi.Internal.SoftPowerOff.service \
     "
 
 do_compile:prepend(){

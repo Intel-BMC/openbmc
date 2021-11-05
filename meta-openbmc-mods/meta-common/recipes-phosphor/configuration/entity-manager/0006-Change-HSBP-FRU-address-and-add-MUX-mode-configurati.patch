@@ -1,0 +1,96 @@
+From 0ece2ae628f6d4ee57319dc7e153680cdddff1d2 Mon Sep 17 00:00:00 2001
+From: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+Date: Sun, 12 Sep 2021 22:21:55 +0000
+Subject: [PATCH] Change HSBP FRU address and add MUX mode configuration
+
+Changed the HSBP EEPROM FRU address according to Hardware
+rework and added the MUX idle mode configuration as
+"Disconnect". The later will keep MUX channel mode in
+disconnected state after the channel is accessed.
+
+Tested:
+1. Detected and read the HSBP EEPROM FRU with new address
+on reworked board.
+2. Confirmed the idle state of MUX channel after it is
+accessed is disconnected, this solved the bad read
+caused by reading multiple buses of different MUXes at
+same time.
+
+Signed-off-by: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+---
+ configurations/F2U8X25 HSBP.json | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/configurations/F2U8X25 HSBP.json b/configurations/F2U8X25 HSBP.json
+index e2eedfa..60e7817 100644
+--- a/configurations/F2U8X25 HSBP.json	
++++ b/configurations/F2U8X25 HSBP.json	
+@@ -16,6 +16,7 @@
+                     "Drive_3",
+                     "Drive_4"
+                 ],
++                "MuxIdleMode": "Disconnect",
+                 "Name": "Drive Mux 1",
+                 "Type": "PCA9546Mux"
+             },
+@@ -28,6 +29,7 @@
+                     "Drive_7",
+                     "Drive_8"
+                 ],
++                "MuxIdleMode": "Disconnect",
+                 "Name": "Drive Mux 2",
+                 "Type": "PCA9546Mux"
+             },
+@@ -65,7 +67,7 @@
+             }
+         ],
+         "Name": "F2U8X25 HSBP 1",
+-        "Probe": "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'F2U8X25PCIHSBP', 'ADDRESS': 80})",
++        "Probe": "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'F2U8X25PCIHSBP', 'ADDRESS': 84})",
+         "Type": "Board",
+         "xyz.openbmc_project.Inventory.Decorator.Asset": {
+             "Manufacturer": "$BOARD_MANUFACTURER",
+@@ -91,6 +93,7 @@
+                     "Drive_11",
+                     "Drive_12"
+                 ],
++                "MuxIdleMode": "Disconnect",
+                 "Name": "Drive Mux 3",
+                 "Type": "PCA9546Mux"
+             },
+@@ -103,6 +106,7 @@
+                     "Drive_15",
+                     "Drive_16"
+                 ],
++                "MuxIdleMode": "Disconnect",
+                 "Name": "Drive Mux 4",
+                 "Type": "PCA9546Mux"
+             },
+@@ -140,7 +144,7 @@
+             }
+         ],
+         "Name": "F2U8X25 HSBP 2",
+-        "Probe": "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'F2U8X25PCIHSBP', 'ADDRESS': 83})",
++        "Probe": "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'F2U8X25PCIHSBP', 'ADDRESS': 87})",
+         "Type": "Board",
+         "xyz.openbmc_project.Inventory.Decorator.Asset": {
+             "Manufacturer": "$BOARD_MANUFACTURER",
+@@ -166,6 +170,7 @@
+                     "Drive_19",
+                     "Drive_20"
+                 ],
++                "MuxIdleMode": "Disconnect",
+                 "Name": "Drive Mux 5",
+                 "Type": "PCA9546Mux"
+             },
+@@ -178,6 +183,7 @@
+                     "Drive_23",
+                     "Drive_24"
+                 ],
++                "MuxIdleMode": "Disconnect",
+                 "Name": "Drive Mux 6",
+                 "Type": "PCA9546Mux"
+             },
+-- 
+2.17.1
+

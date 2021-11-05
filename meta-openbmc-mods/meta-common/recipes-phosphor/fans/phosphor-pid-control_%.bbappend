@@ -5,7 +5,7 @@ SYSTEMD_SERVICE:${PN} = "phosphor-pid-control.service"
 EXTRA_OECONF = "--enable-configure-dbus=yes"
 
 SRC_URI = "git://github.com/openbmc/phosphor-pid-control.git"
-SRCREV = "f7575a70018c09962500da8f4ba6883253651f62"
+SRCREV = "e7507a8b55136accc501408d691bd816abc4833f"
 
 SRC_URI += "\
     file://0001-allow-dbus-sensors-without-thresholds.patch \

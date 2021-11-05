@@ -97,7 +97,13 @@ SRC_URI:append:intel-ast2600 = " \
 PFR_SRC_URI = " \
     file://0043-AST2600-PFR-u-boot-env-changes-as-per-PFR-BMC-image.patch \
     "
+
+AUTOBOOT_SRC_URI = " \
+    file://0035-Remove-u-boot-delay-before-autoboot-in-release-image.patch \
+    "
+
 SRC_URI:append:intel-ast2600 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
+SRC_URI:append:intel-ast2600 += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', AUTOBOOT_SRC_URI, d)}"
 
 do_install:append () {
     install -m 0644 ${WORKDIR}/fw_env.config ${D}${sysconfdir}/fw_env.config

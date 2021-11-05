@@ -14,17 +14,17 @@ Current revisions:
 - Add support for MetricDefinition property in MetricReport
   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/44512/9
 
-- Add DELETE method for MetricReport
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/45688/5
-
 - Add GET method for TriggerCollection
-  file://telemetry/0006-Add-GET-method-for-TriggerCollection.patch
+  file://telemetry/0005-Add-GET-method-for-TriggerCollection.patch
 
 - LogService field, actual implementation will be upstreamed with triggers feature
-  file://telemetry/0007-Revert-Remove-LogService-from-TelemetryService.patch
+  file://telemetry/0006-Revert-Remove-LogService-from-TelemetryService.patch
 
 - Event service fix for Context field
-  file://telemetry/0008-event-service-fix-added-Context-field-to-response.patch
+  file://telemetry/0007-event-service-fix-added-Context-field-to-response.patch
 
 - Generalize ReadingType in MetricDefinition
-  file://telemetry/0009-Generalize-ReadingType-in-MetricDefinition.patch
+  file://telemetry/0008-Generalize-ReadingType-in-MetricDefinition.patch
+
+- Add support for deleting terminated subscriptions
+  file://telemetry/0009-Add-support-for-deleting-terminated-subscriptions.patch

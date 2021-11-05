@@ -9,4 +9,4 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fecd0a2940a0d1658"
 
 SYSTEMD_SERVICE:${PN} += "system-watchdog.service"
-SYSTEMD_ENVIRONMENT_FILE_${PN} += "obmc/system-watchdog/system-watchdog.conf"
+SYSTEMD_ENVIRONMENT_FILE:${PN} += "obmc/system-watchdog/system-watchdog.conf"

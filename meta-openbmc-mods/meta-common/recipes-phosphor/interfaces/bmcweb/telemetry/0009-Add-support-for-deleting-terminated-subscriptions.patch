@@ -1,0 +1,46 @@
+From ef83a4fb14648edc6c8370363ff88fb6f060a43b Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Mon, 20 Sep 2021 21:55:57 +0530
+Subject: [PATCH] Add support for deleting terminated subscriptions
+
+Added functionality to delete/remove event subscription(s) which are
+configured to Terminate after retries.
+
+Currently, when an Event is subscribed with Retry Policy as
+"TerminateAfterRetries", the state of the connection is set to
+"Terminated" after retrying, but the Subscription is not removed.
+This commit adds the functionality to detect terminated connection and
+remove the respective subscription.
+
+This commit adds this check for metric reports.
+
+Tested:
+ - Created a Subscription with
+   DeliveryRetryPolicy: "TerminateAfterRetries"
+ - Received Events successfully on Event listener
+ - Once the Event listener was stopped, the Subscription was
+   removed/deleted after retries.
+
+Change-Id: I3cb0af5bc24411cddcdb3d1d9de25e8e9144106c
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ redfish-core/include/event_service_manager.hpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index c9e2812..c2fefb3 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -1535,6 +1535,9 @@ class EventServiceManager
+ 
+                 std::variant<telemetry::TimestampReadings>& readings =
+                     found->second;
++
++                this->deleteTerminatedSubcriptions();
++
+                 for (const auto& it :
+                      EventServiceManager::getInstance().subscriptionsMap)
+                 {
+-- 
+2.17.1
+
