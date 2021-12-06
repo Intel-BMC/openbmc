@@ -1,0 +1,120 @@
+From 4df4b592b1dc4fb0c333e69881593bae1164ae40 Mon Sep 17 00:00:00 2001
+From: Iwona Winiarska <iwona.winiarska@intel.com>
+Date: Tue, 5 Oct 2021 22:37:15 +0200
+Subject: [PATCH] mctpd: pcie: Don't try to register ourselves as a remote
+ endpoint
+
+BMC reads routing tables returned by MCTP bus owner and bridges and uses
+it to resolve endpoint ID and provide basic information about endpoints
+in MCTP network.
+Our endpoint is not a remote endpoint and we don't need
+to query any information about ourselves over the network.
+Let's skip registering BMC as a remote endpoint to avoid sending packets
+to ourselves.
+
+Add a negative test case verifying that BMC is not exposed on D-Bus.
+Fix existing tests that check if endpoints are registered correctly by
+skipping endpoint that equals own endpoint ID.
+
+Tested:
+Verified if we don't skip registering BMC as a remote endpoint unit test
+with the new test case fail. If the fix is applied, all tests pass.
+
+Change-Id: I41dd56bd5793f717b4983ef0a47c0b94ab80db0a
+Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
+---
+ mctpd/src/PCIeBinding.cpp                 |  9 ++++++++-
+ mctpd/tests/test-pcie_binding-devices.cpp | 23 ++++++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/mctpd/src/PCIeBinding.cpp b/mctpd/src/PCIeBinding.cpp
+index 44c01d9..5f40382 100644
+--- a/mctpd/src/PCIeBinding.cpp
++++ b/mctpd/src/PCIeBinding.cpp
+@@ -339,11 +339,18 @@ void PCIeBinding::processRoutingTableChanges(
+         if (find(routingTable.begin(), routingTable.end(), routingEntry) ==
+             routingTable.end())
+         {
++            mctp_eid_t remoteEid = std::get<0>(routingEntry);
++
++            if (remoteEid == ownEid)
++            {
++                continue;
++            }
++
+             std::vector<uint8_t> prvDataCopy = prvData;
+             mctp_astpcie_pkt_private* pciePrivate =
+                 reinterpret_cast<mctp_astpcie_pkt_private*>(prvDataCopy.data());
+             pciePrivate->remote_id = std::get<1>(routingEntry);
+-            registerEndpoint(yield, prvDataCopy, std::get<0>(routingEntry),
++            registerEndpoint(yield, prvDataCopy, remoteEid,
+                              getBindingMode(routingEntry));
+         }
+     }
+diff --git a/mctpd/tests/test-pcie_binding-devices.cpp b/mctpd/tests/test-pcie_binding-devices.cpp
+index 2d7823f..b717beb 100644
+--- a/mctpd/tests/test-pcie_binding-devices.cpp
++++ b/mctpd/tests/test-pcie_binding-devices.cpp
+@@ -228,10 +228,22 @@ class PCIeDevicePopulationTest : public PCIeDiscoveredTestBase,
+     std::vector<EndpointParam> endpoints;
+ };
+ 
++TEST_P(PCIeDevicePopulationTest, VeirfyOwnEidNotRegistered)
++{
++    for (const auto& iface : bus->backdoor.interfaces)
++    {
++        ASSERT_NE(iface->path, "/xyz/openbmc_project/mctp/device/" +
++                                   std::to_string(assignedEid));
++    }
++}
++
+ TEST_P(PCIeDevicePopulationTest, VerifyEndpointInterface)
+ {
+     for (const auto& endpoint : endpoints)
+     {
++        if (endpoint.eid == assignedEid)
++            continue;
++
+         auto endpointIface = bus->backdoor.get_interface(
+             endpoint.path, mctp_endpoint::interface);
+ 
+@@ -246,6 +258,9 @@ TEST_P(PCIeDevicePopulationTest, VerifyMsgTypesInterface)
+ {
+     for (const auto& endpoint : endpoints)
+     {
++        if (endpoint.eid == assignedEid)
++            continue;
++
+         auto msgTypesIface = bus->backdoor.get_interface(
+             endpoint.path, mctp_msg_types::interface);
+ 
+@@ -263,6 +278,9 @@ TEST_P(PCIeDevicePopulationTest, VerifyUuidInterface)
+ {
+     for (const auto& endpoint : endpoints)
+     {
++        if (endpoint.eid == assignedEid)
++            continue;
++
+         auto uuidIface = bus->backdoor.get_interface(
+             endpoint.path, "xyz.openbmc_project.Common.UUID");
+ 
+@@ -292,6 +310,9 @@ TEST_P(PCIeDevicePopulationTest, OddDevicesRemoved)
+     // Verify that proper EIDs are left
+     for (auto& endpoint : endpoints)
+     {
++        if (endpoint.eid == assignedEid)
++            continue;
++
+         auto ifacesCount = std::count_if(
+             bus->backdoor.interfaces.begin(), bus->backdoor.interfaces.end(),
+             [&](auto& iface) { return endpoint.path == iface->path; });
+@@ -316,4 +337,4 @@ TEST_P(PCIeDevicePopulationTest, OddDevicesRemoved)
+ }
+ 
+ INSTANTIATE_TEST_SUITE_P(AddRemovalTests, PCIeDevicePopulationTest,
+-                         ::testing::Values(2, 10, 100, 200, 254));
+\ No newline at end of file
++                         ::testing::Values(2, 10, 100, 200, 254));
+-- 
+2.17.1
+

@@ -28,6 +28,7 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0021-Add-message-registry-entry-for-FirmwareResiliencyErr.patch \
             file://0023-Add-get-IPMI-session-id-s-to-Redfish.patch \
             file://0024-Add-count-sensor-type.patch \
+            file://0025-Add-Model-CoreCount-to-ProcessorSummary.patch \
 "
 
 # OOB Bios Config:
@@ -78,10 +79,6 @@ do_install:append() {
         install -d ${D}/var/lib/bmcweb
         install -d ${D}/etc/ssl/certs/authority
 }
-
-# Temporary fix:Enable new power and thermal subsystem
-EXTRA_OEMESON += " -Dredfish-new-powersubsystem-thermalsubsystem=enabled"
-EXTRA_OEMESON += " -Dredfish-allow-deprecated-power-thermal=disabled"
 
 # Enable PFR support
 EXTRA_OEMESON += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-Dredfish-provisioning-feature=enabled', '', d)}"
