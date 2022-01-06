@@ -7,7 +7,7 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 
 inherit native
 
-DEPENDS += " intel-blocksign-native"
+DEPENDS += " intel-pfr-signing-utility-native"
 
 SRC_URI = " \
            file://pfr_image.py \

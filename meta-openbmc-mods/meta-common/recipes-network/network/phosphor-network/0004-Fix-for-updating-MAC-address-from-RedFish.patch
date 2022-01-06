@@ -1,4 +1,4 @@
-From f6240a81c0ed87c128d454fa9c4023b9062efe5e Mon Sep 17 00:00:00 2001
+From cbd034daf844529eb7f098c990dc8f44c12f6b97 Mon Sep 17 00:00:00 2001
 From: sunitakx <sunitax.kumari@linux.intel.com>
 Date: Tue, 13 Jul 2021 12:54:01 +0000
 Subject: [PATCH] Fix for updating MAC address from RedFish
@@ -25,16 +25,17 @@ Body:
 Response code: {"200 OK"} received.
 
 Signed-off-by: sunitakx <sunitax.kumari@linux.intel.com>
+Signed-off-by: Ramya Narayana <ramyax.narayana@intel.com>
 ---
- src/ethernet_interface.cpp | 19 +++++++++++++------
+ src/ethernet_interface.cpp | 17 ++++++++++++-----
  src/ethernet_interface.hpp |  5 +++++
- 2 files changed, 18 insertions(+), 6 deletions(-)
+ 2 files changed, 17 insertions(+), 5 deletions(-)
 
 diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
-index 666173e6587e..95bc8db9cd3a 100644
+index 1145773..129905e 100644
 --- a/src/ethernet_interface.cpp
 +++ b/src/ethernet_interface.cpp
-@@ -144,6 +144,8 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
+@@ -143,6 +143,8 @@ EthernetInterface::EthernetInterface(sdbusplus::bus::bus& bus,
      {
          this->emit_object_added();
      }
@@ -43,18 +44,17 @@ index 666173e6587e..95bc8db9cd3a 100644
  }
  
  static IP::Protocol convertFamily(int family)
-@@ -1129,8 +1131,18 @@ void EthernetInterface::writeDHCPSection(std::fstream& stream)
+@@ -1209,8 +1211,17 @@ void EthernetInterface::writeDHCPSection(std::fstream& stream)
      }
  }
  
 +void EthernetInterface::macAddressTimeoutHandler()
 +{
 +    macUpdateTimer->stop();
-+    // TODO: would remove the call below and
-+    // just restart systemd-netwokd
-+    // through https://github.com/systemd/systemd/issues/6696
-+    execute("/sbin/ip", "ip", "link", "set", "dev", interfaceName().c_str(),
-+            "down");
++    // The MAC and LLADDRs will only update if the NIC is already down
++    EthernetIntfSocket eifSocket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
++    setNICAdminState(eifSocket.sock, interfaceName().c_str(), false);
++    manager.reloadConfigs();
 +}
  std::string EthernetInterface::macAddress(std::string value)
  {
@@ -62,22 +62,22 @@ index 666173e6587e..95bc8db9cd3a 100644
      ether_addr newMAC;
      try
      {
-@@ -1164,12 +1176,7 @@ std::string EthernetInterface::macAddress(std::string value)
+@@ -1244,12 +1255,8 @@ std::string EthernetInterface::macAddress(std::string value)
              intf->MacAddressIntf::macAddress(validMAC);
          }
          MacAddressIntf::macAddress(validMAC);
 -
--        // TODO: would remove the call below and
--        //      just restart systemd-netwokd
--        //      through https://github.com/systemd/systemd/issues/6696
--        execute("/sbin/ip", "ip", "link", "set", "dev", interface.c_str(),
--                "down");
 +        macUpdateTimer->start(usec);
-         manager.writeToConfigurationFile();
+         writeConfigurationFile();
+-        // The MAC and LLADDRs will only update if the NIC is already down
+-        EthernetIntfSocket eifSocket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+-        setNICAdminState(eifSocket.sock, interface.c_str(), false);
+-        manager.reloadConfigs();
      }
  
+ #ifdef HAVE_UBOOT_ENV
 diff --git a/src/ethernet_interface.hpp b/src/ethernet_interface.hpp
-index 6c7bd69ef987..acf6b6792b75 100644
+index fa5c889..70f4756 100644
 --- a/src/ethernet_interface.hpp
 +++ b/src/ethernet_interface.hpp
 @@ -11,11 +11,14 @@
@@ -95,7 +95,7 @@ index 6c7bd69ef987..acf6b6792b75 100644
  namespace phosphor
  {
  namespace network
-@@ -83,6 +86,8 @@ class EthernetInterface : public Ifaces
+@@ -84,6 +87,8 @@ class EthernetInterface : public Ifaces
      EthernetInterface& operator=(EthernetInterface&&) = delete;
      virtual ~EthernetInterface() = default;
  

@@ -1,4 +1,4 @@
-From d303bfdd6778c43096401ff78fab70f9041cd4cf Mon Sep 17 00:00:00 2001
+From 1abf9a1d336eed835472fe933210d3be7ad5ba7a Mon Sep 17 00:00:00 2001
 From: Karol Wachowski <karol.wachowski@intel.com>
 Date: Thu, 11 Feb 2021 08:35:41 +0000
 Subject: [PATCH] Add ConnectedVia property to virtual media item template
@@ -12,12 +12,12 @@ Signed-off-by: Karol Wachowski <karol.wachowski@intel.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index c45fed2..aa7c639 100644
+index 57c2bd2..de1cc94 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
-@@ -193,6 +193,7 @@ static nlohmann::json vmItemTemplate(const std::string& name,
-     item["@odata.id"] =
-         "/redfish/v1/Managers/" + name + "/VirtualMedia/" + resName;
+@@ -200,6 +200,7 @@ inline nlohmann::json vmItemTemplate(const std::string& name,
+     item["@odata.id"] = std::move(id);
+ 
      item["@odata.type"] = "#VirtualMedia.v1_3_0.VirtualMedia";
 +    item["ConnectedVia"] = "NotConnected";
      item["Name"] = "Virtual Removable Media";

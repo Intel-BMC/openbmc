@@ -1,5 +1,5 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/pfr-manager"
-SRCREV = "bcc7ce1f418c1a16a7868fee62499fa677242254"
+SRCREV = "8491692089f9295cf2efab456d4747f3cf1fb098"
 DEPENDS += " libgpiod \
            "

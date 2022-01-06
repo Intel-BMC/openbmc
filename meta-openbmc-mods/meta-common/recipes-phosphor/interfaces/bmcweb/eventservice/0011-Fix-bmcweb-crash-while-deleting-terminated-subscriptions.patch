@@ -1,0 +1,141 @@
+From 5b87bb61b58e92a8c5af37a7959347747409a65c Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Thu, 14 Oct 2021 02:56:11 +0530
+Subject: [PATCH] Fix bmcweb crash while deleting terminated subscriptions
+
+This commit fixes bmcweb crash while deleting the terminated
+subscriptions. In the earlier implementation, detection of subscription
+to be deleted and the deletion(erase) was happening in the same loop.
+Due to this, if the Subscription to be deleted is the last one in the
+list, the loop will enter into infinite loop. The fix is to keep the
+detection and deletion loop separate.
+Also, this commit adds code to :
+ - Delete from persistent storage
+ - Add journal entry for deleted entry
+ - update number of subcribers and update persistent storage.
+
+Apart from this, this commit also moves the retry timer check to the top
+to avoid multiple calls to close when the retry count is 3 and timer is
+running.
+
+Tested:
+ - Checked journal logs to confirm each retry is actually spanned to be
+   30 secs
+ - Verified Journal entry for deleted subscription after retires.
+ - Verified Event service functionality by making three subscriptions:
+   retry for ever, terminate after retires and suspend after retries.
+
+Change-Id: I425a6c749923ce86c457a36394deb0fbbee232db
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ http/http_client.hpp                          | 11 ++--
+ .../include/event_service_manager.hpp         | 59 ++++++++++++++++---
+ 2 files changed, 58 insertions(+), 12 deletions(-)
+
+diff --git a/http/http_client.hpp b/http/http_client.hpp
+index 54ae2c3..162cb09 100644
+--- a/http/http_client.hpp
++++ b/http/http_client.hpp
+@@ -367,6 +367,12 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+ 
+     void waitAndRetry()
+     {
++        if (runningTimer)
++        {
++            BMCWEB_LOG_DEBUG << "Retry timer is already running.";
++            return;
++        }
++
+         if (retryCount >= maxRetryAttempts)
+         {
+             BMCWEB_LOG_ERROR << "Maximum number of retries reached.";
+@@ -393,11 +399,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+             return;
+         }
+ 
+-        if (runningTimer)
+-        {
+-            BMCWEB_LOG_DEBUG << "Retry timer is already running.";
+-            return;
+-        }
+         runningTimer = true;
+ 
+         retryCount++;
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 363adb0..7af7a4d 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -857,18 +857,63 @@ class EventServiceManager
+ 
+     void deleteTerminatedSubcriptions()
+     {
+-        boost::container::flat_map<std::string,
+-                                   std::shared_ptr<Subscription>>::iterator it =
+-            subscriptionsMap.begin();
+-        while (it != subscriptionsMap.end())
++        BMCWEB_LOG_ERROR << "Map size Before Delete : "
++                         << subscriptionsMap.size();
++
++        std::vector<std::string> deleteIds;
++
++        // Determine Subscription ID's to be deleted.
++        for (const auto& it : subscriptionsMap)
+         {
+-            std::shared_ptr<Subscription> entry = it->second;
++            std::shared_ptr<Subscription> entry = it.second;
+             if (entry->isTerminated())
+             {
+-                subscriptionsMap.erase(it);
++                deleteIds.emplace_back(it.first);
++            }
++        }
++
++        // Delete the Terminated Subcriptions
++        for (std::string& id : deleteIds)
++        {
++            auto map1 = subscriptionsMap.find(id);
++            if (map1 != subscriptionsMap.end())
++            {
++                subscriptionsMap.erase(map1);
++                auto map2 = persistent_data::EventServiceStore::getInstance()
++                                .subscriptionsConfigMap.find(id);
++                if (map2 != persistent_data::EventServiceStore::getInstance()
++                                .subscriptionsConfigMap.end())
++                {
++                    persistent_data::EventServiceStore::getInstance()
++                        .subscriptionsConfigMap.erase(map2);
++                }
++                else
++                {
++                    BMCWEB_LOG_ERROR << "Couldn't find ID: " << id
++                                     << " in subscriptionsConfigMap";
++                }
++
++                /* Log event for subscription delete. */
++                sd_journal_send("MESSAGE=Event subscription removed.(Id = %s)",
++                                id.c_str(), "PRIORITY=%i", LOG_INFO,
++                                "REDFISH_MESSAGE_ID=%s",
++                                "OpenBMC.0.1.EventSubscriptionRemoved",
++                                "REDFISH_MESSAGE_ARGS=%s", id.c_str(), NULL);
++            }
++            else
++            {
++                BMCWEB_LOG_ERROR << "Couldn't find ID: " << id
++                                 << " in subscriptionsMap";
+             }
+-            it++;
+         }
++        if (deleteIds.size())
++        {
++            updateNoOfSubscribersCount();
++            persistSubscriptionData();
++        }
++
++        BMCWEB_LOG_ERROR << "Map size After Delete : "
++                         << subscriptionsMap.size();
+     }
+ 
+     void updateNoOfSubscribersCount()
+-- 
+2.17.1
+

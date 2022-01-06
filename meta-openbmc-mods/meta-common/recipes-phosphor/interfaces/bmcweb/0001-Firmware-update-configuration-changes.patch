@@ -1,4 +1,4 @@
-From c65d6f4a6d2939335608957fba25e5c8a445813e Mon Sep 17 00:00:00 2001
+From 7c005c318a12c53ed887b3081bd4b34ea0213053 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
 Date: Mon, 28 Jun 2021 21:56:18 +0530
 Subject: [PATCH] Firmware update configuration changes
@@ -39,18 +39,20 @@ Tested:
 
  - Successfully ran redfish validater with no new errors.
 
+Change-Id: I25ef6d64af3f1dcea3acba93d7fd2b505130142e
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- redfish-core/lib/update_service.hpp           | 456 ++++++++++++++----
+ redfish-core/lib/update_service.hpp           | 462 ++++++++++++++----
  static/redfish/v1/$metadata/index.xml         |   3 +
  .../JsonSchemas/OemUpdateService/index.json   |  69 +++
  .../redfish/v1/schema/OemUpdateService_v1.xml |  40 ++
- 4 files changed, 481 insertions(+), 87 deletions(-)
+ 4 files changed, 484 insertions(+), 90 deletions(-)
  create mode 100644 static/redfish/v1/JsonSchemas/OemUpdateService/index.json
  create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index 663d48b..70c58d4 100644
+index e420130..b3270f0 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
 @@ -26,7 +26,9 @@
@@ -211,9 +213,9 @@ index 663d48b..70c58d4 100644
      softwareInterfaceAdded(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 +                           const std::vector<std::string> imgUriTargets,
                             sdbusplus::message::message& m,
-                            const crow::Request& req)
+                            task::Payload&& payload)
  {
-@@ -76,22 +181,24 @@ static void
+@@ -76,23 +181,25 @@ static void
  
      m.read(objPath, interfacesProperties);
  
@@ -228,11 +230,15 @@ index 663d48b..70c58d4 100644
          {
              // Retrieve service and activate
              crow::connections::systemBus->async_method_call(
--                [objPath, asyncResp,
+-                [objPath, asyncResp, payload(std::move(payload))](
 +                [objPath, asyncResp, imgTargets{imgUriTargets},
-                  req](const boost::system::error_code errorCode,
-                       const std::vector<std::pair<
-                           std::string, std::vector<std::string>>>& objInfo) {
++                 payload(std::move(payload))](
+                     const boost::system::error_code errorCode,
+-                    const std::vector<
+-                        std::pair<std::string, std::vector<std::string>>>&
+-                        objInfo) mutable {
++                    const std::vector<std::pair<
++                        std::string, std::vector<std::string>>>& objInfo) {
                      if (errorCode)
                      {
 -                        BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
@@ -242,7 +248,7 @@ index 663d48b..70c58d4 100644
                          BMCWEB_LOG_DEBUG << "error msg = "
                                           << errorCode.message();
                          if (asyncResp)
-@@ -118,7 +225,7 @@ static void
+@@ -119,7 +226,7 @@ static void
                      // is added
                      fwAvailableTimer = nullptr;
  
@@ -251,7 +257,7 @@ index 663d48b..70c58d4 100644
                      if (asyncResp)
                      {
                          std::shared_ptr<task::TaskData> task =
-@@ -250,8 +357,7 @@ static void
+@@ -251,8 +358,7 @@ static void
                  "xyz.openbmc_project.ObjectMapper",
                  "/xyz/openbmc_project/object_mapper",
                  "xyz.openbmc_project.ObjectMapper", "GetObject", objPath.str,
@@ -261,7 +267,7 @@ index 663d48b..70c58d4 100644
          }
      }
  }
-@@ -261,7 +367,7 @@ static void
+@@ -262,7 +368,7 @@ static void
  static void monitorForSoftwareAvailable(
      const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
      const crow::Request& req, const std::string& url,
@@ -270,20 +276,22 @@ index 663d48b..70c58d4 100644
  {
      // Only allow one FW update at a time
      if (fwUpdateInProgress != false)
-@@ -301,9 +407,10 @@ static void monitorForSoftwareAvailable(
+@@ -301,11 +407,12 @@ static void monitorForSoftwareAvailable(
+                 redfish::messages::internalError(asyncResp->res);
              }
          });
- 
--    auto callback = [asyncResp, req](sdbusplus::message::message& m) {
++
+     task::Payload payload(req);
+-    auto callback = [asyncResp,
 +    auto callback = [asyncResp, imgTargets{imgUriTargets},
-+                     req](sdbusplus::message::message& m) {
+                      payload](sdbusplus::message::message& m) mutable {
          BMCWEB_LOG_DEBUG << "Match fired";
--        softwareInterfaceAdded(asyncResp, m, req);
-+        softwareInterfaceAdded(asyncResp, imgTargets, m, req);
+-        softwareInterfaceAdded(asyncResp, m, std::move(payload));
++        softwareInterfaceAdded(asyncResp, imgTargets, m, std::move(payload));
      };
  
      fwUpdateInProgress = true;
-@@ -468,12 +575,15 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
+@@ -470,12 +577,15 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
              std::string fwFile = imageURI.substr(separator + 1);
              BMCWEB_LOG_DEBUG << "Server: " << tftpServer + " File: " << fwFile;
  
@@ -300,7 +308,7 @@ index 663d48b..70c58d4 100644
  
              // TFTP can take up to 10 minutes depending on image size and
              // connection speed. Return to caller as soon as the TFTP operation
-@@ -522,6 +632,9 @@ inline void requestRoutesUpdateService(App& app)
+@@ -524,6 +634,9 @@ inline void requestRoutesUpdateService(App& app)
              asyncResp->res.jsonValue["Name"] = "Update Service";
              asyncResp->res.jsonValue["HttpPushUri"] =
                  "/redfish/v1/UpdateService";
@@ -310,7 +318,7 @@ index 663d48b..70c58d4 100644
              // UpdateService cannot be disabled
              asyncResp->res.jsonValue["ServiceEnabled"] = true;
              asyncResp->res.jsonValue["FirmwareInventory"] = {
-@@ -536,7 +649,8 @@ inline void requestRoutesUpdateService(App& app)
+@@ -538,7 +651,8 @@ inline void requestRoutesUpdateService(App& app)
                  asyncResp->res
                      .jsonValue["Actions"]["#UpdateService.SimpleUpdate"];
              updateSvcSimpleUpdate["target"] =
@@ -320,7 +328,7 @@ index 663d48b..70c58d4 100644
              updateSvcSimpleUpdate["TransferProtocol@Redfish.AllowableValues"] =
                  {"TFTP"};
  #endif
-@@ -578,89 +692,258 @@ inline void requestRoutesUpdateService(App& app)
+@@ -580,89 +694,258 @@ inline void requestRoutesUpdateService(App& app)
                  "/xyz/openbmc_project/software/apply_time",
                  "org.freedesktop.DBus.Properties", "Get",
                  "xyz.openbmc_project.Software.ApplyTime", "RequestedApplyTime");
@@ -457,13 +465,13 @@ index 663d48b..70c58d4 100644
 -                                                 applyTime))
 +                        std::string applyTimeNewVal;
 +                        if (applyTime == "Immediate")
-+                        {
+                         {
 +                            applyTimeNewVal =
 +                                "xyz.openbmc_project.Software.ApplyTime."
 +                                "RequestedApplyTimes.Immediate";
 +                        }
 +                        else if (applyTime == "OnReset")
-                         {
++                        {
 +                            applyTimeNewVal =
 +                                "xyz.openbmc_project.Software.ApplyTime."
 +                                "RequestedApplyTimes.OnReset";
@@ -636,7 +644,7 @@ index 663d48b..70c58d4 100644
      BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
          .privileges(redfish::privileges::postUpdateService)
          .methods(boost::beast::http::verb::post)(
-@@ -670,7 +953,8 @@ inline void requestRoutesUpdateService(App& app)
+@@ -672,7 +955,8 @@ inline void requestRoutesUpdateService(App& app)
  
                  // Setup callback for when new software detected
                  monitorForSoftwareAvailable(asyncResp, req,
@@ -646,7 +654,7 @@ index 663d48b..70c58d4 100644
  
                  std::string filepath("/tmp/images/" +
                                       boost::uuids::to_string(
-@@ -683,7 +967,7 @@ inline void requestRoutesUpdateService(App& app)
+@@ -685,7 +969,7 @@ inline void requestRoutesUpdateService(App& app)
                  out.close();
                  BMCWEB_LOG_DEBUG << "file upload complete!!";
              });
@@ -655,7 +663,7 @@ index 663d48b..70c58d4 100644
  
  inline void requestRoutesSoftwareInventoryCollection(App& app)
  {
-@@ -746,8 +1030,7 @@ inline void requestRoutesSoftwareInventoryCollection(App& app)
+@@ -748,8 +1032,7 @@ inline void requestRoutesSoftwareInventoryCollection(App& app)
                      "/xyz/openbmc_project/object_mapper",
                      "xyz.openbmc_project.ObjectMapper", "GetSubTree",
                      "/xyz/openbmc_project/software", static_cast<int32_t>(0),
@@ -665,7 +673,7 @@ index 663d48b..70c58d4 100644
              });
  }
  /* Fill related item links (i.e. bmc, bios) in for inventory */
-@@ -911,7 +1194,7 @@ inline void requestRoutesSoftwareInventory(App& app)
+@@ -913,7 +1196,7 @@ inline void requestRoutesSoftwareInventory(App& app)
                              },
                              obj.second[0].first, obj.first,
                              "org.freedesktop.DBus.Properties", "GetAll",
@@ -674,7 +682,7 @@ index 663d48b..70c58d4 100644
                      }
                      if (!found)
                      {
-@@ -935,8 +1218,7 @@ inline void requestRoutesSoftwareInventory(App& app)
+@@ -937,8 +1220,7 @@ inline void requestRoutesSoftwareInventory(App& app)
                  "/xyz/openbmc_project/object_mapper",
                  "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
                  static_cast<int32_t>(0),
@@ -685,10 +693,10 @@ index 663d48b..70c58d4 100644
  }
  
 diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
-index eba38bf..876ebfb 100644
+index 66b6faf..f0919c9 100644
 --- a/static/redfish/v1/$metadata/index.xml
 +++ b/static/redfish/v1/$metadata/index.xml
-@@ -2346,6 +2346,9 @@
+@@ -2444,6 +2444,9 @@
      <edmx:Reference Uri="/redfish/v1/schema/OemComputerSystem_v1.xml">
          <edmx:Include Namespace="OemComputerSystem"/>
      </edmx:Reference>

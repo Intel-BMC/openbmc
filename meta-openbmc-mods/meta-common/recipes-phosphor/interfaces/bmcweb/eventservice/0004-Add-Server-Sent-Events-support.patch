@@ -1,4 +1,4 @@
-From 54bdd897bd416fef4c043224b398b1b6d47fd271 Mon Sep 17 00:00:00 2001
+From d7a2660f200c38e74bfcbfe55b8da1b8bed08833 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Fri, 12 Mar 2021 18:53:25 +0000
 Subject: [PATCH] Add Server-Sent-Events support
@@ -21,47 +21,37 @@ Tested:
 
 Change-Id: I36956565cbba30c2007852c9471f477f6d1736e9
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
- http/http_connection.hpp   |  14 +-
+ http/http_connection.hpp   |  10 +-
  http/http_response.hpp     |   7 +-
  http/routing.hpp           |  71 ++++++++++
  http/server_sent_event.hpp | 279 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 365 insertions(+), 6 deletions(-)
+ 4 files changed, 362 insertions(+), 5 deletions(-)
  create mode 100644 http/server_sent_event.hpp
 
 diff --git a/http/http_connection.hpp b/http/http_connection.hpp
-index a1a7045..90535c5 100644
+index 8e53afa..a1bbfce 100644
 --- a/http/http_connection.hpp
 +++ b/http/http_connection.hpp
-@@ -331,7 +331,7 @@ class Connection :
-         BMCWEB_LOG_INFO << "Request: "
-                         << " " << this << " HTTP/" << req->version() / 10 << "."
-                         << req->version() % 10 << ' ' << req->methodString()
--                        << " " << req->target() << " " << req->ipAddress;
-+                        << " " << req->url << " " << req->ipAddress;
+@@ -378,11 +378,13 @@ class Connection :
+                               [self] { self->completeRequest(); });
+         });
  
-         needToCallAfterHandlers = false;
- 
-@@ -350,11 +350,15 @@ class Connection :
-                     boost::asio::post(self->adaptor.get_executor(),
-                                       [self] { self->completeRequest(); });
-                 });
--                if (req->isUpgrade() &&
--                    boost::iequals(
--                        req->getHeaderValue(boost::beast::http::field::upgrade),
--                        "websocket"))
-+
-+                if ((req->isUpgrade() &&
-+                     boost::iequals(req->getHeaderValue(
-+                                        boost::beast::http::field::upgrade),
-+                                    "websocket")) ||
-+                    (req->url == "/sse"))
-                 {
-+                    BMCWEB_LOG_DEBUG << "Request: " << this
-+                                     << " is getting upgraded";
-                     handler->handleUpgrade(*req, res, std::move(adaptor));
-                     // delete lambda with self shared_ptr
-                     // to enable connection destruction
+-        if (thisReq.isUpgrade() &&
+-            boost::iequals(
+-                thisReq.getHeaderValue(boost::beast::http::field::upgrade),
+-                "websocket"))
++        if ((thisReq.isUpgrade() &&
++             boost::iequals(
++                 thisReq.getHeaderValue(boost::beast::http::field::upgrade),
++                 "websocket")) ||
++            (req->url == "/sse"))
+         {
++            BMCWEB_LOG_DEBUG << "Request: " << this << " is getting upgraded";
+             handler->handleUpgrade(thisReq, res, std::move(adaptor));
+             // delete lambda with self shared_ptr
+             // to enable connection destruction
 diff --git a/http/http_response.hpp b/http/http_response.hpp
 index a983d4a..07b0265 100644
 --- a/http/http_response.hpp
@@ -93,7 +83,7 @@ index a983d4a..07b0265 100644
      // In case of a JSON object, set the Content-Type header
      void jsonMode()
 diff --git a/http/routing.hpp b/http/routing.hpp
-index d2a10b2..25e4ce8 100644
+index 5d9c8e3..bfff107 100644
 --- a/http/routing.hpp
 +++ b/http/routing.hpp
 @@ -6,6 +6,7 @@

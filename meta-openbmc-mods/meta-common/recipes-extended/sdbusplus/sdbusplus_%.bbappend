@@ -4,3 +4,6 @@ SRC_URI += " \
              file://0001-Revert-server-Check-return-code-for-sd_bus_add_objec.patch \
              file://0002-Skip-decoding-some-dbus-identifiers.patch \
            "
+
+# Temporary pin to resolve build breaks
+SRCREV="dfb5642201699dc42a7dda12d72718a8b9568151"

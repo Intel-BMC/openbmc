@@ -6,7 +6,7 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=b77c43ae4eaf67bd73fb6452b2f113a3"
 SRC_URI = "git://github.com/Intel-BMC/mtd-util;protocol=ssh"
 
 PV = "1.0+git${SRCPV}"
-SRCREV = "3e12f8493b8f261c2e6df607b3ffab2f5875e642"
+SRCREV = "708072b62a3cecb520eeaacac88b4f2c2e101fe4"
 
 
 S = "${WORKDIR}/git"

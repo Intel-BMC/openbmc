@@ -47,7 +47,6 @@ IMAGE_INSTALL:append = " \
         smbios-mdrv2 \
         obmc-ikvm \
         system-watchdog \
-        frb2-watchdog \
         srvcfg-manager \
         callback-manager \
         phosphor-post-code-manager \

@@ -1,0 +1,100 @@
+From 8d3eb2a57a70715b2cc6088904e8be007ab921b2 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Fri, 27 Aug 2021 11:44:02 -0700
+Subject: [PATCH 1/4] log redfish errors on all pfr image auth failures
+
+Previous code was doing a 'mtd-util pfr authenticate' prior to manually
+calculating and comparing the hashes. This is incorrect behavior. There
+is no need to manually calculate hashes since that is part of the pfr
+authentication process.
+
+An unintended side effect of this is that if pfr authenticate fails for
+some reason other than hash compare, the redfish log does not happen.
+
+Tested: phosphor-version-software-mananger logs a redfish log on rom id
+        mismatch as expected.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@intel.com>
+---
+ pfr_image_manager.cpp | 51 +++++--------------------------------------
+ 1 file changed, 5 insertions(+), 46 deletions(-)
+
+diff --git a/pfr_image_manager.cpp b/pfr_image_manager.cpp
+index ce850cb..aa96a99 100644
+--- a/pfr_image_manager.cpp
++++ b/pfr_image_manager.cpp
+@@ -53,13 +53,10 @@ int Manager::verifyImage(const std::filesystem::path imgPath,
+     uint8_t imgType = 0;
+     uint32_t imgMagic = 0;
+     uint8_t verData[2] = {0};
+-    uint32_t hashLen = 0;
+     struct pfrImgBlock0 block0Data = {};
+ 
+     std::string imageName;
+ 
+-    EVP_MD_CTX* ctx;
+-
+     if (std::filesystem::exists(imgPath))
+     {
+         try
+@@ -227,52 +224,14 @@ int Manager::verifyImage(const std::filesystem::path imgPath,
+                     ImageFail::FAIL(
+                         "Security violation: image authentication failure"),
+                     ImageFail::PATH(imgPath.c_str()));
+-                return -1;
+-            }
+-
+-            imgFile.seekg(pfmPos,
+-                          std::ios::beg); // Version is at 0x806 in the PFM
+-            imgFile.read(reinterpret_cast<char*>(&verData), sizeof(verData));
+-            imgFile.close();
+-
+-            auto size = std::filesystem::file_size(imgPath);
+-
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Image Size", phosphor::logging::entry("IMAGESIZE=0x%x",
+-                                                       static_cast<int>(size)));
+-
+-            // Adds all digest algorithms to the internal table
+-            OpenSSL_add_all_digests();
+-
+-            ctx = EVP_MD_CTX_create();
+-            EVP_DigestInit(ctx, EVP_sha256());
+ 
+-            // Hash the image file and update the digest
+-            auto dataPtr = mapFile(imgPath, size);
+-
+-            EVP_DigestUpdate(ctx, ((uint8_t*)dataPtr() + lengthBlk0Blk1),
+-                             (size - lengthBlk0Blk1));
+-
+-            std::vector<uint8_t> digest(EVP_MD_size(EVP_sha256()));
+-            std::vector<uint8_t> expectedDigest(block0Data.hash256,
+-                                                &block0Data.hash256[0] + 32);
+-
+-            EVP_DigestFinal(ctx, digest.data(), &hashLen);
+-            EVP_MD_CTX_destroy(ctx);
+-
+-            std::string redfishMsgID = "OpenBMC.0.1";
+-
+-            if (expectedDigest != digest)
+-            {
+-                redfishMsgID += ".GeneralFirmwareSecurityViolation";
++                constexpr const char* redfishMsgID =
++                    "OpenBMC.0.1.GeneralFirmwareSecurityViolation";
+                 sd_journal_send("MESSAGE=%s",
+-                                "Firmware image HASH verification failed",
++                                "Firmware image authentication failed",
+                                 "PRIORITY=%i", LOG_ERR, "REDFISH_MESSAGE_ID=%s",
+-                                redfishMsgID.c_str(), "REDFISH_MESSAGE_ARGS=%s",
+-                                "Image HASH check fail", NULL);
+-                phosphor::logging::report<ImageFailure>(
+-                    ImageFail::FAIL("Security violation: hash mismatch"),
+-                    ImageFail::PATH(imgPath.c_str()));
++                                redfishMsgID, "REDFISH_MESSAGE_ARGS=%s",
++                                "Image authentication check fail", NULL);
+                 return -1;
+             }
+ 
+-- 
+2.17.1
+

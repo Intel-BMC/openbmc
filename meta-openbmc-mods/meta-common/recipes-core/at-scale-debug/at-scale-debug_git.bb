@@ -30,4 +30,12 @@ SYSTEMD_SERVICE:${PN} += "com.intel.AtScaleDebug.service"
 EXTRA_OECMAKE = "-DBUILD_UT=OFF"
 
 CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/uapi"
-CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include/"
+CFLAGS:append = " -I ${STAGING_KERNEL_DIR}/include"
+
+# Copying the depricated header from kernel as a temporary fix to resolve build breaks.
+# It should be removed later after fixing the header dependency in this repository.
+SRC_URI += "file://asm/rwonce.h"
+do_configure:prepend() {
+    cp -r ${WORKDIR}/asm ${S}/asm
+}
+CFLAGS:append = " -I ${S}"

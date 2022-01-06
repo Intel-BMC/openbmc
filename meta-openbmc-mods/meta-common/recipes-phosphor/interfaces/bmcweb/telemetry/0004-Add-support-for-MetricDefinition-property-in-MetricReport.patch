@@ -1,6 +1,6 @@
-From 79b3d35b864a2b545b4c9b2ac9390ea5dec169f5 Mon Sep 17 00:00:00 2001
-From: Szymon Dompke <szymon.dompke@intel.com>
-Date: Mon, 28 Jun 2021 11:10:23 +0200
+From dab3c96f9e39a89d7c359e22655650c7c16952ec Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 12 Oct 2021 08:06:13 +0000
 Subject: [PATCH] Add support for MetricDefinition property in MetricReport
 
 Added MetricDefinition as part of MetricValues array returned by
@@ -73,19 +73,19 @@ Signed-off-by: Szymon Dompke <szymon.dompke@intel.com>
  4 files changed, 95 insertions(+), 15 deletions(-)
 
 diff --git a/meson.build b/meson.build
-index f6a66f1..6b5d9af 100644
+index 6b6a8ab..218ea49 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -355,6 +355,8 @@ srcfiles_unittest = ['include/ut/dbus_utility_test.cpp',
-                      'redfish-core/ut/time_utils_test.cpp',
-                      'http/ut/utility_test.cpp']
+@@ -377,6 +377,8 @@ srcfiles_unittest = [
+   'http/ut/utility_test.cpp'
+ ]
  
-+srcfiles_unittest_dependencies = ['redfish-core/src/error_messages.cpp']
++srcfiles_unittest_dependencies = ['redfish-core/src/error_messages.cpp', 'src/boost_url.cpp']
 +
  # Gather the Configuration data
  
  conf_data = configuration_data()
-@@ -412,7 +414,7 @@ executable('bmcweb',srcfiles_bmcweb,
+@@ -434,7 +436,7 @@ executable('bmcweb',srcfiles_bmcweb,
  if(get_option('tests').enabled())
    foreach src_test : srcfiles_unittest
      testname = src_test.split('/')[-1].split('.')[0]
@@ -251,7 +251,7 @@ index 7fe281d..13bf792 100644
  }
  } // namespace telemetry
 diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
-index cb7ea15..44c2129 100644
+index 7405e5a..9850b24 100644
 --- a/redfish-core/lib/sensors.hpp
 +++ b/redfish-core/lib/sensors.hpp
 @@ -21,6 +21,8 @@
@@ -265,3 +265,4 @@ index cb7ea15..44c2129 100644
  
 -- 
 2.25.1
+

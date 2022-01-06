@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
 SRC_URI = "git://github.com/Intel-BMC/nvme-mi.git;protocol=ssh"
-SRCREV = "29b49789236b89910af816e4606aab4126a56a4b"
+SRCREV = "c3d5021fb60cd46d5c948c69f3d57ac9648b5be5"
 S = "${WORKDIR}/git"
 PV = "1.0+git${SRCPV}"
 

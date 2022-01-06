@@ -1,0 +1,109 @@
+From 6483f0af926391e8d1f256ba0f23f3640260cfd1 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Mon, 18 Oct 2021 22:52:17 +0530
+Subject: [PATCH] Move privileges to separate entity
+
+The privilege property of a rule is currently part of RuleParameterTraits
+structure. Moving this property (member function) out into a separate
+entity PrivilegeParameterTraits.
+This move is required to enable inheriting this entity into Weksockets
+and SseSockets.
+
+Tested:
+ - bmcweb is functional and is responding to Redfish URI's
+ - User Privilege check for URI's is functional.
+
+Change-Id: I288ab12258c15ae5a626f4409fc3b4a9cc574ea3
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ http/routing.hpp | 53 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 23 deletions(-)
+
+diff --git a/http/routing.hpp b/http/routing.hpp
+index 858f146..acc99dc 100644
+--- a/http/routing.hpp
++++ b/http/routing.hpp
+@@ -102,6 +102,8 @@ class BaseRule
+     friend class Router;
+     template <typename T>
+     friend struct RuleParameterTraits;
++    template <typename T>
++    friend struct PrivilegeParameterTraits;
+ };
+ 
+ namespace detail
+@@ -316,6 +318,33 @@ struct Wrapped
+ } // namespace routing_handler_call_helper
+ } // namespace detail
+ 
++template <typename T>
++struct PrivilegeParameterTraits
++{
++    using self_t = T;
++    self_t& privileges(
++        const std::initializer_list<std::initializer_list<const char*>>& p)
++    {
++        self_t* self = static_cast<self_t*>(this);
++        for (const std::initializer_list<const char*>& privilege : p)
++        {
++            self->privilegesSet.emplace_back(privilege);
++        }
++        return *self;
++    }
++
++    template <size_t N, typename... MethodArgs>
++    self_t& privileges(const std::array<redfish::Privileges, N>& p)
++    {
++        self_t* self = static_cast<self_t*>(this);
++        for (const redfish::Privileges& privilege : p)
++        {
++            self->privilegesSet.emplace_back(privilege);
++        }
++        return *self;
++    }
++};
++
+ class WebSocketRule : public BaseRule
+ {
+     using self_t = WebSocketRule;
+@@ -462,7 +491,7 @@ class SseSocketRule : public BaseRule
+ };
+ 
+ template <typename T>
+-struct RuleParameterTraits
++struct RuleParameterTraits : public PrivilegeParameterTraits<T>
+ {
+     using self_t = T;
+     WebSocketRule& websocket()
+@@ -503,28 +532,6 @@ struct RuleParameterTraits
+         self->methodsBitfield |= 1U << static_cast<size_t>(method);
+         return *self;
+     }
+-
+-    self_t& privileges(
+-        const std::initializer_list<std::initializer_list<const char*>>& p)
+-    {
+-        self_t* self = static_cast<self_t*>(this);
+-        for (const std::initializer_list<const char*>& privilege : p)
+-        {
+-            self->privilegesSet.emplace_back(privilege);
+-        }
+-        return *self;
+-    }
+-
+-    template <size_t N, typename... MethodArgs>
+-    self_t& privileges(const std::array<redfish::Privileges, N>& p)
+-    {
+-        self_t* self = static_cast<self_t*>(this);
+-        for (const redfish::Privileges& privilege : p)
+-        {
+-            self->privilegesSet.emplace_back(privilege);
+-        }
+-        return *self;
+-    }
+ };
+ 
+ class DynamicRule : public BaseRule, public RuleParameterTraits<DynamicRule>
+-- 
+2.17.1
+

@@ -6,7 +6,7 @@ After=dev-%i.device
 [Service]
 ExecStartPre=/usr/bin/sol-option-check.sh
 ExecStart=/usr/bin/env obmc-console-server --config {sysconfdir}/obmc-console.conf %i
-ExecStopPost=/bin/sh -c 'echo -n "0" > /sys/bus/platform/drivers/aspeed-uart-routing/1e78909c.uart_routing/raw'
+ExecStopPost=/bin/sh -c 'echo -n "0" > /sys/bus/platform/drivers/aspeed-uart-routing/1e789098.uart-routing/hicra'
 SyslogIdentifier=obmc-console-server
 Restart=always
 

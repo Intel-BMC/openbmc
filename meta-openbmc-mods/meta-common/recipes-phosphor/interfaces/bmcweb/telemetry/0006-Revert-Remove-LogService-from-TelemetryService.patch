@@ -1,6 +1,6 @@
-From 472ac5f15a19917042852b243e8b668b3ab49e32 Mon Sep 17 00:00:00 2001
+From da575aaf0bdcb15be261d58314cf7bbbcd92dd74 Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
-Date: Tue, 22 Jun 2021 13:59:48 +0000
+Date: Tue, 12 Oct 2021 08:08:06 +0000
 Subject: [PATCH] Revert "Remove LogService from TelemetryService"
 
 This reverts commit 2b3da45876aac57a36d3093379a992d699e7e396.
@@ -9,18 +9,18 @@ This reverts commit 2b3da45876aac57a36d3093379a992d699e7e396.
  1 file changed, 2 insertions(+)
 
 diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
-index 37221c3..f3a1efb 100644
+index 027b51b..49471fe 100644
 --- a/redfish-core/lib/telemetry_service.hpp
 +++ b/redfish-core/lib/telemetry_service.hpp
-@@ -30,6 +30,8 @@ inline void requestRoutesTelemetryService(App& app)
-                 "/redfish/v1/TelemetryService/MetricReports";
-             asyncResp->res.jsonValue["MetricDefinitions"]["@odata.id"] =
-                 "/redfish/v1/TelemetryService/MetricDefinitions";
-+            asyncResp->res.jsonValue["LogService"]["@odata.id"] =
-+                "/redfish/v1/Managers/bmc/LogServices/Journal";
+@@ -24,6 +24,8 @@ inline void handleTelemetryServiceGet(
+         "/redfish/v1/TelemetryService/MetricReports";
+     asyncResp->res.jsonValue["MetricDefinitions"]["@odata.id"] =
+         "/redfish/v1/TelemetryService/MetricDefinitions";
++    asyncResp->res.jsonValue["LogService"]["@odata.id"] =
++        "/redfish/v1/Managers/bmc/LogServices/Journal";
  
-             crow::connections::systemBus->async_method_call(
-                 [asyncResp](
+     crow::connections::systemBus->async_method_call(
+         [asyncResp](const boost::system::error_code ec,
 -- 
 2.25.1
 

@@ -11,7 +11,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
 SRC_URI = "git://github.com/Intel-BMC/host-misc-comm-manager.git;protocol=ssh"
 
-SRCREV = "da65b239e6622fbf913a904480fe3ff87ee02dec"
+SRCREV = "470facc6e94ecbd01ca9c3f0749ae603dffff0e9"
 
 inherit cmake systemd
 SYSTEMD_SERVICE:${PN} = "xyz.openbmc_project.Host.Misc.Manager.service"

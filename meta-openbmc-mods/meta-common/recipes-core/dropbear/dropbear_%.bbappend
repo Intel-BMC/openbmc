@@ -1,22 +1,12 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-SRC_URI += "file://enable-ssh.sh"
-
-add_manual_ssh_enable() {
-   install -d ${D}/usr/share/misc
-   install -m 0755 ${D}/${systemd_unitdir}/system/dropbear@.service ${D}/usr/share/misc/dropbear@.service
-   install -m 0755 ${D}/${systemd_unitdir}/system/dropbear.socket ${D}/usr/share/misc/dropbear.socket
-   install -m 0755 ${WORKDIR}/enable-ssh.sh ${D}${bindir}/enable-ssh.sh
-   # Remove dropbear service and socket by default, if debug-tweaks is disabled
-   rm ${D}/${systemd_unitdir}/system/dropbear@.service
-   rm ${D}/${systemd_unitdir}/system/dropbear.socket
-}
+SRC_URI += "file://enable-ssh.sh \
+            file://0001-Enable-UART-mux-setting-before-SOL-activation-via-SS.patch \
+            "
 
 do_install:append() {
-   # Add manual ssh enable script if debug-tweaks is disabled
-   ${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', 'add_manual_ssh_enable', d)}
+    install -m 0755 ${WORKDIR}/enable-ssh.sh ${D}${bindir}/
 }
 
-FILES:${PN} += "/usr/share/misc"
-SYSTEMD_SERVICE:${PN} += "dropbearkey.service"
-SYSTEMD_SERVICE:${PN}:remove += " ${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', 'dropbear.socket', d)}"
+# Enable dropbear.socket and dropbearkey.service only for debug-tweaks
+SYSTEMD_AUTO_ENABLE:${PN} = "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'enable', 'disable', d)}"

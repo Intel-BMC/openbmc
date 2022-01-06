@@ -8,6 +8,7 @@ SRC_URI:append = " \
            file://csk_pub.pem \
            file://rk_pub.pem \
            file://rk_prv.pem \
+           file://rk_cert.pem \
           "
 
 do_install:append () {
@@ -18,5 +19,6 @@ do_install:append () {
         install -m 400 ${WORKDIR}/csk_pub.pem ${D}/${datadir}/pfrconfig/csk_pub.pem
         install -m 400 ${WORKDIR}/rk_pub.pem ${D}/${datadir}/pfrconfig/rk_pub.pem
         install -m 400 ${WORKDIR}/rk_prv.pem ${D}/${datadir}/pfrconfig/rk_prv.pem
+        install -m 0644 ${WORKDIR}/rk_cert.pem ${D}/${datadir}/pfrconfig/rk_cert.pem
 }
 

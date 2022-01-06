@@ -24,6 +24,7 @@ SRC_URI_PFR = " \
     file://0016-Process-PLDM-image-type.patch \
     file://0017-Fix-build-error.patch \
     file://0018-Fix-delete-image-by-ID-and-inhibit-removal-of-bmc_ac.patch \
+    file://0019-log-redfish-errors-on-all-pfr-image-auth-failures.patch \
     "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', SRC_URI_PFR, '', d)}"

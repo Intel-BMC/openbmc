@@ -2,7 +2,7 @@
 
 inherit obmc-phosphor-full-fitimage
 inherit image_types_phosphor_auto
-DEPENDS += "obmc-intel-pfr-image-native python3-native intel-blocksign-native"
+DEPENDS += "obmc-intel-pfr-image-native python3-native intel-pfr-signing-utility-native"
 
 require recipes-core/os-release/version-vars.inc
 
@@ -41,13 +41,14 @@ do_image_pfr_internal () {
     local unsigned_cap_bin="bmc_unsigned_cap${bld_suffix}.bin"
     local unsigned_cap_align_bin="bmc_unsigned_cap${bld_suffix}.bin_aligned"
     local output_bin="image-mtd-pfr${bld_suffix}"
+	local SIGN_UTILITY=${PFR_SCRIPT_DIR}/intel-pfr-signing-utility
 
     # python script that does creating PFM & BMC unsigned, compressed image (from BMC 128MB raw binary file).
     ${PFR_SCRIPT_DIR}/pfr_image.py -m ${PFR_CFG_DIR}/${manifest_json} -i ${DEPLOY_DIR_IMAGE}/image-mtd -n ${build_version} -b ${build_number} \
         -h ${build_hash} -s ${SHA} -o ${output_bin}
 
     # sign the PFM region
-    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/${pfmconfig_xml} -o ${PFR_IMAGES_DIR}/${pfm_signed_bin} ${PFR_IMAGES_DIR}/pfm.bin -v
+    ${SIGN_UTILITY} -c ${PFR_CFG_DIR}/${pfmconfig_xml} -o ${PFR_IMAGES_DIR}/${pfm_signed_bin} ${PFR_IMAGES_DIR}/pfm.bin -v
 
     # Add the signed PFM to rom image
     dd bs=1k conv=notrunc seek=${PFM_OFFSET_PAGE} if=${PFR_IMAGES_DIR}/${pfm_signed_bin} of=${PFR_IMAGES_DIR}/${output_bin}
@@ -60,7 +61,7 @@ do_image_pfr_internal () {
     dd if=${PFR_IMAGES_DIR}/bmc_compressed.bin bs=1k >> ${PFR_IMAGES_DIR}/${unsigned_cap_bin}
 
     # Sign the BMC update capsule
-    ${PFR_SCRIPT_DIR}/blocksign -c ${PFR_CFG_DIR}/${bmcconfig_xml} -o ${PFR_IMAGES_DIR}/${signed_cap_bin} ${PFR_IMAGES_DIR}/${unsigned_cap_bin} -v
+    ${SIGN_UTILITY} -c ${PFR_CFG_DIR}/${bmcconfig_xml} -o ${PFR_IMAGES_DIR}/${signed_cap_bin} ${PFR_IMAGES_DIR}/${unsigned_cap_bin} -v
 
     # Add the signed bmc update capsule to full rom image @ 0x2a00000
     dd bs=1k conv=notrunc seek=${RC_IMAGE_PAGE} if=${PFR_IMAGES_DIR}/${signed_cap_bin} of=${PFR_IMAGES_DIR}/${output_bin}
@@ -118,7 +119,7 @@ do_image_pfr[vardepsexclude] += "do_image_pfr_internal DATE DATETIME BUILD_SEGD"
 do_image_pfr[vardeps] += "IPMI_MAJOR IPMI_MINOR IPMI_AUX13 IPMI_AUX14 IPMI_AUX15 IPMI_AUX16"
 do_image_pfr[depends] += " \
                          obmc-intel-pfr-image-native:do_populate_sysroot \
-                         intel-blocksign-native:do_populate_sysroot \
+                         intel-pfr-signing-utility-native:do_populate_sysroot \
                          "
 
 python() {

@@ -1,4 +1,4 @@
-From fb337f868543f72bd8ba24db3c4b09b4c1d888ab Mon Sep 17 00:00:00 2001
+From 94a0ae774933b7801d0c8d843b3ac3a39a5e5646 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Adrian=20Ambro=C5=BCewicz?= <adrian.ambrozewicz@intel.com>
 Date: Fri, 30 Jul 2021 15:25:29 +0200
 Subject: [PATCH] Add 'count' sensor type
@@ -13,7 +13,7 @@ Testing:
  1 file changed, 1 insertion(+)
 
 diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
-index cb7ea15..d72a572 100644
+index 45a1eb6..7405e5a 100644
 --- a/redfish-core/lib/sensors.hpp
 +++ b/redfish-core/lib/sensors.hpp
 @@ -63,6 +63,7 @@ static const boost::container::flat_map<std::string_view,
@@ -22,8 +22,8 @@ index cb7ea15..d72a572 100644
                 "/xyz/openbmc_project/sensors/current",
 +               "/xyz/openbmc_project/sensors/count",
                 "/xyz/openbmc_project/sensors/airflow",
-                "/xyz/openbmc_project/sensors/utilization"}},
-              {node::thermal,
+ #ifdef BMCWEB_NEW_POWERSUBSYSTEM_THERMALSUBSYSTEM
+                "/xyz/openbmc_project/sensors/voltage",
 -- 
-2.25.1
+2.17.1
 
