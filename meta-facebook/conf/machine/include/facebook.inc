@@ -1,4 +1,6 @@
-OBMC_MACHINE_FEATURES += "\
+DISTROOVERRIDES .= ":facebook"
+
+MACHINE_FEATURES += "\
         obmc-bmc-state-mgmt \
         obmc-phosphor-fan-mgmt \
         obmc-phosphor-flash-mgmt \
@@ -14,4 +16,5 @@ PREFERRED_PROVIDER_virtual/obmc-system-mgmt = "packagegroup-fb-apps"
 
 IMAGE_FEATURES:remove = "obmc-ikvm"
 
-OVERRIDES .= ":facebook"
+# Most of our hardware uses the default ttyS4 but at 57600.
+SERIAL_CONSOLES:facebook = "57600;ttyS4"
