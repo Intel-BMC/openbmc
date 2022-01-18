@@ -1,6 +1,9 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
+#SRC_URI += "git://github.com/openbmc/phosphor-host-ipmid"
+SRCREV = "78fe1b14f60d55ae335369fb2c6e81ed9ac6d865"
+
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0010-fix-get-system-GUID-ipmi-command.patch \
             file://0053-Fix-keep-looping-issue-when-entering-OS.patch \

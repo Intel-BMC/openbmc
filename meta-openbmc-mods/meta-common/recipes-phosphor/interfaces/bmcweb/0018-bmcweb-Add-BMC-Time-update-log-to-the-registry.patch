@@ -1,7 +1,7 @@
-From 3ec1f79d1cb29724e345586f0baefca81d98d3ae Mon Sep 17 00:00:00 2001
+From eeac51ebaaad82bb4ac65a029c81c221e32b33ea Mon Sep 17 00:00:00 2001
 From: mansijos <mansi.joshi@intel.com>
 Date: Wed, 26 May 2021 17:40:04 +0530
-Subject: [PATCH] [bmcweb] Add BMC Time update log to the registry
+Subject: [PATCH] Add BMC Time update log to the registry
 
 Add message in registry to log an event that indicates BMC time
 is set via NTP, Host or Manually.
@@ -20,19 +20,19 @@ Signed-off-by: mansijos <mansi.joshi@intel.com>
  1 file changed, 34 insertions(+), 1 deletion(-)
 
 diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
-index 2f981db..a00d235 100644
+index 1e493ca..967713f 100644
 --- a/redfish-core/include/registries/openbmc_message_registry.hpp
 +++ b/redfish-core/include/registries/openbmc_message_registry.hpp
 @@ -29,7 +29,7 @@ const Header header = {
      "0.2.0",
      "OpenBMC",
  };
--constexpr std::array<MessageEntry, 193> registry = {
-+constexpr std::array<MessageEntry, 196> registry = {
+-constexpr std::array<MessageEntry, 194> registry = {
++constexpr std::array<MessageEntry, 197> registry = {
      MessageEntry{
          "ADDDCCorrectable",
          {
-@@ -286,6 +286,39 @@ constexpr std::array<MessageEntry, 193> registry = {
+@@ -286,6 +286,39 @@ constexpr std::array<MessageEntry, 194> registry = {
                       {},
                       "None.",
                   }},

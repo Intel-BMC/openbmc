@@ -25,7 +25,7 @@ index cdb19901e82d..9c4ae8821074 100644
  
  static bool doingWrite = false;
  
-+constexpr char const* uartMuxCtrlPath = "/sys/bus/platform/drivers/aspeed-uart-routing/1e78909c.uart_routing/raw";
++constexpr char const* uartMuxCtrlPath = "/sys/bus/platform/drivers/aspeed-uart-routing/1e789098.uart-routing/hicra";
 +constexpr char const* uartMuxCtrlVal = "0x03450003";
 +
  inline void doWrite()

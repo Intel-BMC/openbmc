@@ -1,4 +1,4 @@
-From 8f850ea8745aa7aafcb504aa50686ba00fdfcfee Mon Sep 17 00:00:00 2001
+From 221aaf1431a01fefb5e7df2461a1c691738a50a7 Mon Sep 17 00:00:00 2001
 From: Zhikui Ren <zhikui.ren@intel.com>
 Date: Fri, 19 Feb 2021 12:14:05 -0800
 Subject: [PATCH] Fan Tach Sensor Threshold Ignore Zero
@@ -22,22 +22,18 @@ No cr event for the missing fans.
 
 Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
 ---
- src/TachSensor.cpp | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+ src/TachSensor.cpp | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
 diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
-index 1ec979f..b17be98 100644
+index c375dbf..e85a2a2 100644
 --- a/src/TachSensor.cpp
 +++ b/src/TachSensor.cpp
-@@ -185,12 +185,18 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
+@@ -186,10 +186,16 @@ void TachSensor::checkThresholds(void)
+     // WA - treat value <= 0 as not present
+     bool status = false;
  
- void TachSensor::checkThresholds(void)
- {
--    bool status = thresholds::checkThresholds(this);
--
 -    if (redundancy && *redundancy)
-+    // WA - treat value <= 0 as not present
-+    bool status = false;
 +    if (value > 0)
      {
 -        (*redundancy)

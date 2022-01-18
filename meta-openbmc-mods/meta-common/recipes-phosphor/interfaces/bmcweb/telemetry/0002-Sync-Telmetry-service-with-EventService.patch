@@ -1,4 +1,4 @@
-From 77e8a0b5037a555b1520823b667595ac8780c675 Mon Sep 17 00:00:00 2001
+From 541353a4e4b06de42b6a9a400629f5a5fba04e86 Mon Sep 17 00:00:00 2001
 From: "Wludzik, Jozef" <jozef.wludzik@intel.com>
 Date: Tue, 15 Dec 2020 12:30:31 +0100
 Subject: [PATCH] Sync Telmetry service with EventService
@@ -16,13 +16,14 @@ Tested:
 
 Change-Id: I2fc1841a6c9259a8bff30b34bddc0d4aabd41912
 Signed-off-by: Wludzik, Jozef <jozef.wludzik@intel.com>
+Signed-off-by: Lukasz Kazmierczak <lukasz.kazmierczak@intel.com>
 ---
  .../include/event_service_manager.hpp         | 156 ++++++------------
  redfish-core/lib/metric_report.hpp            |  28 ++--
  2 files changed, 69 insertions(+), 115 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index d89b789..4faaddd 100644
+index 3f398d7..cf9f658 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -14,6 +14,7 @@
@@ -212,12 +213,12 @@ index d89b789..4faaddd 100644
 +                    });
 +                if (found == props.end())
 +                {
-+                    BMCWEB_LOG_ERROR
++                    BMCWEB_LOG_INFO
 +                        << "Failed to get Readings from Report properties";
 +                    return;
 +                }
 +
-+                std::variant<telemetry::TimestampReadings>& readings =
++                const std::variant<telemetry::TimestampReadings>& readings =
 +                    found->second;
 +                for (const auto& it :
 +                     EventServiceManager::getInstance().subscriptionsMap)

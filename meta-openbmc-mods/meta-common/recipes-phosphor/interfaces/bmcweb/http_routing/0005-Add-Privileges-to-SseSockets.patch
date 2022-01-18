@@ -1,0 +1,63 @@
+From 0ceb343809ff498cbfa389c54a158d255a2cca88 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Mon, 18 Oct 2021 23:02:00 +0530
+Subject: [PATCH] Add Privileges to SseSockets
+
+This commit adds Privileges to Ssesockets.
+In the current implementation, once a rule is upgraded (i.e. from
+BaseRule to SseSocket), there is no provision to add priviliges.
+In this commit, SseSocket inherits PrivilegeParameterTraits to
+enable privileges.
+
+Also, in the earlier implementation, .privilege() was called after
+BMCWEB_ROUTE(). This results in adding those privileges to the Base
+rule that is created. By moving the privileges() below websocket(),
+the privileges are applied to the Ssesocket.
+
+Tested:
+ - SSE Subscription was successful with Admin and Operator Users
+ - SSE Subscription was rejected while using Readonly User
+ - websocket_test.py Passed
+ - Admin and Operator users were able to access KVM on WebUI
+ - Readonly User was unable to access KVM on WebUI
+
+Change-Id: I41739401893b1c2bf718e11ec7676d69f954c98f
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ http/routing.hpp             | 4 +++-
+ include/eventservice_sse.hpp | 3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/http/routing.hpp b/http/routing.hpp
+index 6ea3185..13174b2 100644
+--- a/http/routing.hpp
++++ b/http/routing.hpp
+@@ -430,7 +430,9 @@ class WebSocketRule :
+     std::function<void(crow::websocket::Connection&)> errorHandler;
+ };
+ 
+-class SseSocketRule : public BaseRule
++class SseSocketRule :
++    public BaseRule,
++    public PrivilegeParameterTraits<SseSocketRule>
+ {
+     using self_t = SseSocketRule;
+ 
+diff --git a/include/eventservice_sse.hpp b/include/eventservice_sse.hpp
+index 2f22f98..f880344 100644
+--- a/include/eventservice_sse.hpp
++++ b/include/eventservice_sse.hpp
+@@ -192,8 +192,9 @@ static void deleteSubscription(std::shared_ptr<crow::SseConnection>& conn)
+ inline void requestRoutes(App& app)
+ {
+     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/SSE")
+-        .privileges({{"ConfigureComponents", "ConfigureManager"}})
+         .serverSentEvent()
++        .privileges(redfish::privileges::
++                        privilegeSetConfigureManagerOrConfigureComponents)
+         .onopen([](std::shared_ptr<crow::SseConnection>& conn,
+                    const crow::Request& req, crow::Response& res) {
+             BMCWEB_LOG_DEBUG << "Connection " << conn << " opened.";
+-- 
+2.17.1
+

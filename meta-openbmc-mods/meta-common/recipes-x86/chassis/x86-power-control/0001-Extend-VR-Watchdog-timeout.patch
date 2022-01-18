@@ -1,4 +1,4 @@
-From 540836801f4ab5e8be9703d2c1350e988b2ccc1f Mon Sep 17 00:00:00 2001
+From df6782d834b3c502a9b71e946fdbbfb4513b4d96 Mon Sep 17 00:00:00 2001
 From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
 Date: Thu, 11 Jun 2020 13:00:15 -0700
 Subject: [PATCH] Extend VR Watchdog timeout
@@ -11,14 +11,14 @@ City.
 Change-Id: I9658b4ead6d9bf8eaa30e4aeb9f1d56c2f2187d3
 Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
 ---
- power-control-x86/config/power-config-host0.json | 2 +-
+ config/power-config-host0.json | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/power-control-x86/config/power-config-host0.json b/power-control-x86/config/power-config-host0.json
-index ca9a86a..f579c2b 100644
---- a/power-control-x86/config/power-config-host0.json
-+++ b/power-control-x86/config/power-config-host0.json
-@@ -18,7 +18,7 @@
+diff --git a/config/power-config-host0.json b/config/power-config-host0.json
+index ed91470..12c3309 100644
+--- a/config/power-config-host0.json
++++ b/config/power-config-host0.json
+@@ -78,7 +78,7 @@
        "ForceOffPulseMs": 15000,
        "ResetPulseMs": 500,
        "PowerCycleMs": 5000,
@@ -28,5 +28,5 @@ index ca9a86a..f579c2b 100644
        "GracefulPowerOffS": 300,
        "WarmResetCheckMs": 500,
 -- 
-2.17.1
+2.25.1
 

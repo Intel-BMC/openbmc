@@ -55,12 +55,24 @@ python() {
 
     # If no tag, provide default version
     if meta_vers.startswith('fatal:'):
-        meta_vers = '{}-0.0-0-g0'.format(gen)
+        ver_list = obmc_vers.split('-')
+        obmc_tag_list = ver_list[1].split('.')
+        obmc_major_revision = 0
+        obmc_minor_revision = 0
+        obmc_minor_spare = 0
+        try:
+            obmc_major_revision = int(obmc_tag_list[0])
+            obmc_minor_revision = int(obmc_tag_list[1])
+            obmc_minor_spare = int(ver_list[2])
+        except ValueError:
+            bb.warn("Invalid obmc_vers: {}".format(obmc_vers))
+        meta_vers = '{}-{}.{}-{}-g{}'.format(gen,obmc_major_revision,
+                    obmc_minor_revision,obmc_minor_spare,obmc_hash[0:6])
 
     meta_hash = irun_git(d, mibase, 'rev-parse HEAD')
     # If no hash, provide default
     if meta_hash.startswith('fatal:'):
-        meta_hash = '00000000'
+        meta_hash = obmc_hash[0:7]
     version_id = '{}-{}'.format(meta_vers, obmc_hash[0:7])
     if version_id:
         d.setVar('VERSION_ID', version_id)

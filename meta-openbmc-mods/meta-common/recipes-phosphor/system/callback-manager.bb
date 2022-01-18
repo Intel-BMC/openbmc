@@ -7,7 +7,7 @@ inherit cmake systemd
 DEPENDS = "boost sdbusplus"
 
 PV = "0.1+git${SRCPV}"
-SRCREV = "1a9dde9b193a34392ab11a14d9cd0310f9abb930"
+SRCREV = "0c5059f685f6df0704a4b773f2e617cf10d03210"
 
 S = "${WORKDIR}/git/callback-manager"
 

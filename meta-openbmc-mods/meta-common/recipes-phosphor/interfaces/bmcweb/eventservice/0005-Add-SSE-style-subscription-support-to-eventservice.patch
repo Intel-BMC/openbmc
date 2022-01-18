@@ -1,4 +1,4 @@
-From 36c1391749e19e4a25ca6e57d369457f48e6bb11 Mon Sep 17 00:00:00 2001
+From 799e47842e179f7c752712004f0e96d3219eee11 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 16 Mar 2021 15:37:24 +0000
 Subject: [PATCH] Add SSE style subscription support to eventservice
@@ -18,33 +18,33 @@ Tested:
    response.
  - Ran RedfishValidation and its passed.
 
-Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
-Signed-off-by: Nitin Wankhade <nitinx.arunrao.wankhade@intel.com>
 Change-Id: I7f4b7a34974080739c4ba968ed570489af0474de
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
  http/http_connection.hpp                      |   2 +-
  include/eventservice_sse.hpp                  |  75 +++++
- .../include/event_service_manager.hpp         | 111 +++++--
+ .../include/event_service_manager.hpp         | 109 +++++--
  redfish-core/include/server_sent_events.hpp   | 290 ------------------
  redfish-core/lib/event_service.hpp            |   8 +-
  src/webserver_main.cpp                        |   2 +
- 6 files changed, 165 insertions(+), 323 deletions(-)
+ 6 files changed, 164 insertions(+), 322 deletions(-)
  create mode 100644 include/eventservice_sse.hpp
  delete mode 100644 redfish-core/include/server_sent_events.hpp
 
 diff --git a/http/http_connection.hpp b/http/http_connection.hpp
-index 90535c5..37c0a0b 100644
+index a1bbfce..2d08501 100644
 --- a/http/http_connection.hpp
 +++ b/http/http_connection.hpp
-@@ -355,7 +355,7 @@ class Connection :
-                      boost::iequals(req->getHeaderValue(
-                                         boost::beast::http::field::upgrade),
-                                     "websocket")) ||
--                    (req->url == "/sse"))
-+                    (req->url == "/redfish/v1/EventService/Subscriptions/SSE"))
-                 {
-                     BMCWEB_LOG_DEBUG << "Request: " << this
-                                      << " is getting upgraded";
+@@ -382,7 +382,7 @@ class Connection :
+              boost::iequals(
+                  thisReq.getHeaderValue(boost::beast::http::field::upgrade),
+                  "websocket")) ||
+-            (req->url == "/sse"))
++            (req->url == "/redfish/v1/EventService/Subscriptions/SSE"))
+         {
+             BMCWEB_LOG_DEBUG << "Request: " << this << " is getting upgraded";
+             handler->handleUpgrade(thisReq, res, std::move(adaptor));
 diff --git a/include/eventservice_sse.hpp b/include/eventservice_sse.hpp
 new file mode 100644
 index 0000000..14daf00
@@ -127,7 +127,7 @@ index 0000000..14daf00
 +} // namespace eventservice_sse
 +} // namespace redfish
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index ca46aa7..9397271 100644
+index 3f398d7..dd833ce 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -22,15 +22,17 @@
@@ -217,23 +217,23 @@ index ca46aa7..9397271 100644
  
      ~Subscription() = default;
  
-@@ -412,13 +412,14 @@ class Subscription : public persistent_data::UserSubscription
-             }
-             conn->addHeaders(reqHeaders);
-             conn->sendData(msg);
--            this->eventSeqNum++;
-         }
+@@ -417,7 +417,7 @@ class Subscription : public persistent_data::UserSubscription
  
          if (sseConn != nullptr)
          {
 -            sseConn->sendData(eventSeqNum, msg);
 +            sseConn->sendEvent(std::to_string(eventSeqNum), msg);
          }
-+
-+        this->eventSeqNum++;
      }
  
-     void sendTestEventLog()
+@@ -508,6 +508,7 @@ class Subscription : public persistent_data::UserSubscription
+ 
+         this->sendEvent(
+             msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
++        this->eventSeqNum++;
+     }
+ #endif
+ 
 @@ -578,14 +579,39 @@ class Subscription : public persistent_data::UserSubscription
          return eventSeqNum;
      }
@@ -622,7 +622,7 @@ index 7613d7b..0000000
 -
 -} // namespace crow
 diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
-index 67ad014..f8a2dac 100644
+index 8609862..249e594 100644
 --- a/redfish-core/lib/event_service.hpp
 +++ b/redfish-core/lib/event_service.hpp
 @@ -37,8 +37,6 @@ static constexpr const std::array<const char*, 1> supportedResourceTypes = {

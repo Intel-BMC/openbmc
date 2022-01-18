@@ -18,7 +18,11 @@ PFR_EN = "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr', '', d)}"
 SRC_URI += "file://fwupd.sh"
 SRC_URI += "file://usb-ctrl"
 
-FILES:${PN} += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '${datadir}/pfr', '', d)}"
+DEPENDS += "obmc-intel-pfr-image-native"
+
+# runtime authentication of some features requires the root key certificate
+FILES:${PN} += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '${datadir}/pfr/rk_cert.pem', '', d)}"
+PFR_CFG_DIR = "${STAGING_DIR_NATIVE}${datadir}/pfrconfig"
 
 do_install() {
         install -d ${D}${bindir}
@@ -26,7 +30,7 @@ do_install() {
         install -m 0755 ${WORKDIR}/usb-ctrl ${D}${bindir}
 
         if [ "${PFR_EN}" = "pfr" ]; then
-            install -d ${D}${datadir}
-            touch ${D}${datadir}/pfr
+            install -d ${D}${datadir}/pfr
+            install -m 0644 ${PFR_CFG_DIR}/rk_cert.pem ${D}${datadir}/pfr
         fi
 }

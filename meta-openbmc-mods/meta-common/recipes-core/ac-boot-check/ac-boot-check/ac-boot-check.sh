@@ -21,3 +21,6 @@ done < /proc/cmdline
 
 busctl set-property xyz.openbmc_project.Settings /xyz/openbmc_project/control/host0/ac_boot xyz.openbmc_project.Common.ACBoot ACBoot s "$ACBOOT"
 
+source /etc/os-release
+
+echo "VERSION INFO - BMC - ${VERSION_ID}"

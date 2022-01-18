@@ -16,6 +16,9 @@ SYSTEMD_SERVICE:${PN} += " \
   ncsid@.service \
   nic-hostful@.target \
   nic-hostless@.target \
+  update-ra-gw@.service \
+  update-ra-neighbor@.service \
+  update-ra-neighbor@.timer \
   update-static-neighbors@.service \
   update-static-neighbors@.timer \
   "

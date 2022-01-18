@@ -1,4 +1,4 @@
-From 3ee7fe58b2acec0a6ae4eabad91a9dd609268870 Mon Sep 17 00:00:00 2001
+From b6863f9a0c1c36705eba0c3181541f67cd1a202a Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 Date: Wed, 14 Jul 2021 09:04:42 +0000
 Subject: [PATCH] Revert "Disable nbd proxy from the build"
@@ -15,21 +15,21 @@ Change-Id: I19a88b30c1074dd376f2df8f5668245b638b881f
  2 files changed, 4 insertions(+), 9 deletions(-)
 
 diff --git a/meson.build b/meson.build
-index bdc514b..19364a8 100644
+index 650a5ec..5738b10 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -78,7 +78,8 @@ feature_map = {
- 'rest'                            : '-DBMCWEB_ENABLE_DBUS_REST',
- 'static-hosting'                  : '-DBMCWEB_ENABLE_STATIC_HOSTING',
- 'insecure-tftp-update'            : '-DBMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE',
--#'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
-+'validate-unsecure-feature'       : '-DBMCWEB_ENABLE_VALIDATION_UNSECURE_FEATURE',
-+'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
- 'vm-websocket'                    : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
+@@ -83,7 +83,8 @@ feature_map = {
+   'rest'                            : '-DBMCWEB_ENABLE_DBUS_REST',
+   'static-hosting'                  : '-DBMCWEB_ENABLE_STATIC_HOSTING',
+   'insecure-tftp-update'            : '-DBMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE',
+-  #'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
++  'validate-unsecure-feature'       : '-DBMCWEB_ENABLE_VALIDATION_UNSECURE_FEATURE',
++  'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
+   'vm-websocket'                    : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
  }
  
 diff --git a/meson_options.txt b/meson_options.txt
-index 0ab31b8..ea0f2fc 100644
+index ff5b887..645f224 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
 @@ -3,14 +3,7 @@ option('yocto-deps', type: 'feature', value: 'disabled', description : 'Use YOCT
@@ -48,7 +48,7 @@ index 0ab31b8..ea0f2fc 100644
  option('rest', type : 'feature', value : 'enabled', description : '''Enable Phosphor REST (D-Bus) APIs. Paths directly map Phosphor D-Bus object paths, for example, \'/xyz/openbmc_project/logging/entry/enumerate\'. See https://github.com/openbmc/docs/blob/master/rest-api.md.''')
  option('redfish', type : 'feature',value : 'enabled', description: 'Enable Redfish APIs.  Paths are under \'/redfish/v1/\'. See https://github.com/openbmc/bmcweb/blob/master/DEVELOPING.md#redfish.')
  option('host-serial-socket', type : 'feature', value : 'enabled', description : 'Enable host serial console WebSocket. Path is \'/console0\'.  See https://github.com/openbmc/docs/blob/master/console.md.')
-@@ -37,6 +30,7 @@ option ('https_port', type : 'integer', min : 1, max : 65535, value : 443, descr
+@@ -39,6 +32,7 @@ option ('https_port', type : 'integer', min : 1, max : 65535, value : 443, descr
  # the implications of doing so.In general, enabling these options will cause security
  # problems of varying degrees
  
@@ -57,5 +57,5 @@ index 0ab31b8..ea0f2fc 100644
  option ('insecure-disable-ssl', type : 'feature', value : 'disabled', description : 'Disable SSL ports. Should be set to false for production systems.')
  option ('insecure-disable-auth', type : 'feature', value : 'disabled', description : 'Disable authentication on all ports. Should be set to false for production systems')
 -- 
-2.25.1
+2.17.1
 

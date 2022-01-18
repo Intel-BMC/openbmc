@@ -1,4 +1,4 @@
-From 7282ab7756cdb8c844bef9affd8a8e894828678c Mon Sep 17 00:00:00 2001
+From 40895934bdedb978e8cfd47930ae5a190e19b440 Mon Sep 17 00:00:00 2001
 From: Ayushi Smriti <smriti.ayushi@intel.com>
 Date: Mon, 10 May 2021 12:32:30 +0530
 Subject: [PATCH] Add msg registry for subscription related actions
@@ -18,19 +18,19 @@ Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
  1 file changed, 40 insertions(+), 1 deletion(-)
 
 diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
-index e12a138..2f981db 100644
+index 87b2913..1e493ca 100644
 --- a/redfish-core/include/registries/openbmc_message_registry.hpp
 +++ b/redfish-core/include/registries/openbmc_message_registry.hpp
 @@ -29,7 +29,7 @@ const Header header = {
      "0.2.0",
      "OpenBMC",
  };
--constexpr std::array<MessageEntry, 190> registry = {
-+constexpr std::array<MessageEntry, 193> registry = {
+-constexpr std::array<MessageEntry, 191> registry = {
++constexpr std::array<MessageEntry, 194> registry = {
      MessageEntry{
          "ADDDCCorrectable",
          {
-@@ -417,6 +417,45 @@ constexpr std::array<MessageEntry, 190> registry = {
+@@ -417,6 +417,45 @@ constexpr std::array<MessageEntry, 191> registry = {
                       {},
                       "None.",
                   }},

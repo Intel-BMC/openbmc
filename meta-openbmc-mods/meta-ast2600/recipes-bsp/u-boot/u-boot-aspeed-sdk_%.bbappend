@@ -39,6 +39,8 @@ SRC_URI:append:intel-ast2600 = " \
     file://0032-Disable-eSPI-initialization-in-u-boot-for-normal-boo.patch \
     file://0033-Disable-debug-interfaces.patch \
     file://0034-Implement-the-IPMI-commands-in-FFUJ-mode-in-u-boot.patch \
+    file://0036-Disable-BMC-MMIO-Decode-on-VGA-SCU-register-bit.patch \
+    file://0037-Enable-I2C-clock-stretching-and-multi-master-support.patch \
     "
 
 # CVE-2020-10648 vulnerability fix

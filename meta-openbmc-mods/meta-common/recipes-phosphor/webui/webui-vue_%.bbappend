@@ -1,12 +1,15 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/webui-vue.git"
-SRCREV = "6a192d526c9efebf7a614a9aa473eee62e555fc5"
+SRCREV = "2a2e1021f48e2a939859ba7f4ae86c5de6df5655"
 
 FILESEXTRAPATHS:append := "${THISDIR}/${PN}:"
 SRC_URI += " \
-    file://0001-Undo-the-unrelated-package-changes-from-the-axios-up.patch \
+    file://login-company-logo.svg \
+    file://logo-header.svg \
     "
 
 do_compile:prepend() {
   cp -vf ${S}/.env.intel ${S}/.env
+  cp -vf ${WORKDIR}/login-company-logo.svg ${S}/src/assets/images
+  cp -vf ${WORKDIR}/logo-header.svg ${S}/src/assets/images
 }

@@ -1,0 +1,57 @@
+From a7a8bf2f7df17f69a407abe21a14b3f0f2c7338c Mon Sep 17 00:00:00 2001
+From: Chia-Wei Wang <chiawei_wang@aspeedtech.com>
+Date: Mon, 31 May 2021 15:39:59 +0800
+Subject: [PATCH] serial/8250_aspeed: Make port type fixed
+
+Make the UART port type fixed to 16550A to
+avoid redundant probing.
+
+Signed-off-by: Chia-Wei Wang <chiawei_wang@aspeedtech.com>
+Change-Id: Id179725b1cd475cd52c18c43b6c312dcd912fc20
+---
+ drivers/tty/serial/8250/8250_aspeed.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/tty/serial/8250/8250_aspeed.c b/drivers/tty/serial/8250/8250_aspeed.c
+index fc14c86d3761..bb3955bb8c24 100644
+--- a/drivers/tty/serial/8250/8250_aspeed.c
++++ b/drivers/tty/serial/8250/8250_aspeed.c
+@@ -25,12 +25,12 @@
+ 
+ /* offsets for the aspeed virtual uart registers */
+ #define VUART_GCRA	0x20
+-#define 	VUART_GCRA_VUART_EN			BIT(0)
+-#define 	VUART_GCRA_SIRQ_POLARITY			BIT(1)
+-#define 	VUART_GCRA_DISABLE_HOST_TX_DISCARD	BIT(5)
++#define   VUART_GCRA_VUART_EN			BIT(0)
++#define   VUART_GCRA_SIRQ_POLARITY		BIT(1)
++#define   VUART_GCRA_DISABLE_HOST_TX_DISCARD	BIT(5)
+ #define VUART_GCRB	0x24
+-#define 	VUART_GCRB_HOST_SIRQ_MASK		GENMASK(7, 4)
+-#define 	VUART_GCRB_HOST_SIRQ_SHIFT		4
++#define   VUART_GCRB_HOST_SIRQ_MASK		GENMASK(7, 4)
++#define   VUART_GCRB_HOST_SIRQ_SHIFT		4
+ #define VUART_ADDRL	0x28
+ #define VUART_ADDRH	0x2c
+ 
+@@ -429,7 +429,7 @@ static int ast8250_probe(struct platform_device *pdev)
+ 
+ 	spin_lock_init(&port->lock);
+ 	port->dev = dev;
+-	port->type = PORT_16550;
++	port->type = PORT_16550A;
+ 	port->irq = irq;
+ 	port->line = of_alias_get_id(dev->of_node, "serial");
+ 	port->handle_irq = ast8250_handle_irq;
+@@ -439,7 +439,7 @@ static int ast8250_probe(struct platform_device *pdev)
+ 	port->uartclk = clk_get_rate(data->clk);
+ 	port->regshift = 2;
+ 	port->iotype = UPIO_MEM32;
+-	port->flags = UPF_FIXED_PORT | UPF_SHARE_IRQ;
++	port->flags = UPF_FIXED_TYPE | UPF_FIXED_PORT | UPF_SHARE_IRQ;
+ 	port->startup = ast8250_startup;
+ 	port->shutdown = ast8250_shutdown;
+ 	port->private_data = data;
+-- 
+2.17.1
+

@@ -13,11 +13,11 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=175792518e4ac015ab6696d16c4f607e"
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
 
 PV = "1.0+git${SRCPV}"
-SRCREV = "c0bd5e4b37f65ce29a392594d1ef240c64c99734"
+SRCREV = "8682c5ad05a9dff8ba3575ff5c4e8ceb535f6c5e"
 
 S = "${WORKDIR}/git"
 
-inherit meson ptest
+inherit pkgconfig meson ptest
 
 SRC_URI += " \
     file://run-ptest \

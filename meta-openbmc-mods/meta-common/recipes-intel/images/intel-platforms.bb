@@ -7,6 +7,7 @@ inherit ${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'image_types_intel_pf
 
 DEPENDS += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'obmc-intel-pfr-image-native', '', d)}"
 DEPENDS += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'pfr-manager', '', d)}"
+DEPENDS += "dtc-native"
 
 FEATURE_PACKAGES_obmc-sensors = ""
 FEATURE_PACKAGES_obmc-debug-collector = ""

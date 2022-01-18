@@ -1,6 +1,6 @@
-From adaa5cb4c494148430b90edb248260eb2e66bca7 Mon Sep 17 00:00:00 2001
-From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
-Date: Wed, 8 Sep 2021 15:42:52 +0530
+From f665ba085bb2310f008b7534f827fb401ad973c2 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 12 Oct 2021 08:19:51 +0000
 Subject: [PATCH] Delete/Remove Terminated Event Subscription(s)
 
 Added functionality to delete/remove event subscription(s) which are
@@ -23,14 +23,14 @@ Change-Id: If447acb2db74fb29a5d1cfe6194b77cda82bc8a1
 Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
  http/http_client.hpp                          | 43 +++++++++++++++----
- .../include/event_service_manager.hpp         | 37 ++++++++++++++++
- 2 files changed, 71 insertions(+), 9 deletions(-)
+ .../include/event_service_manager.hpp         | 36 ++++++++++++++++
+ 2 files changed, 70 insertions(+), 9 deletions(-)
 
 diff --git a/http/http_client.hpp b/http/http_client.hpp
-index aaf1b2d..4f62c40 100644
+index 5e7ff47..54ae2c3 100644
 --- a/http/http_client.hpp
 +++ b/http/http_client.hpp
-@@ -56,6 +56,8 @@ enum class ConnState
+@@ -55,6 +55,8 @@ enum class ConnState
      closeInProgress,
      closed,
      suspended,
@@ -39,7 +39,7 @@ index aaf1b2d..4f62c40 100644
      terminated,
      abortConnection,
      retry
-@@ -263,7 +265,14 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -288,7 +290,14 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
      }
      void doClose()
      {
@@ -55,7 +55,7 @@ index aaf1b2d..4f62c40 100644
  
          // Set the timeout on the tcp stream socket for the async operation
          conn.expires_after(std::chrono::seconds(30));
-@@ -293,8 +302,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -318,8 +327,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                  }
                  self->conn.close();
  
@@ -69,7 +69,7 @@ index aaf1b2d..4f62c40 100644
                  {
                      self->state = ConnState::closed;
                      self->handleConnState();
-@@ -316,8 +328,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -341,8 +353,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              }
              conn.close();
  
@@ -83,7 +83,7 @@ index aaf1b2d..4f62c40 100644
              {
                  state = ConnState::closed;
                  handleConnState();
-@@ -340,8 +355,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -365,8 +380,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              BMCWEB_LOG_DEBUG << "Retry policy: " << retryPolicyAction;
              if (retryPolicyAction == "TerminateAfterRetries")
              {
@@ -93,7 +93,7 @@ index aaf1b2d..4f62c40 100644
              }
              if (retryPolicyAction == "SuspendRetries")
              {
-@@ -392,6 +406,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -423,6 +437,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              case ConnState::sendInProgress:
              case ConnState::recvInProgress:
              case ConnState::closeInProgress:
@@ -101,7 +101,7 @@ index aaf1b2d..4f62c40 100644
              {
                  BMCWEB_LOG_DEBUG << "Async operation is already in progress";
                  break;
-@@ -413,7 +428,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -439,7 +454,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                  break;
              }
              case ConnState::suspended:
@@ -110,7 +110,7 @@ index aaf1b2d..4f62c40 100644
              {
                  doClose();
                  break;
-@@ -480,7 +495,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -506,7 +521,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
      }
      void sendData(const std::string& data)
      {
@@ -120,7 +120,7 @@ index aaf1b2d..4f62c40 100644
          {
              return;
          }
-@@ -489,6 +505,15 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -524,6 +540,15 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
          return;
      }
  
@@ -137,7 +137,7 @@ index aaf1b2d..4f62c40 100644
          const std::vector<std::pair<std::string, std::string>>& httpHeaders)
      {
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 8d7067b..79618f6 100644
+index 6f60a31..363adb0 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -591,6 +591,14 @@ class Subscription : public persistent_data::UserSubscription
@@ -254,5 +254,5 @@ index 8d7067b..79618f6 100644
          {
              std::shared_ptr<Subscription> entry = it.second;
 -- 
-2.17.1
+2.25.1
 

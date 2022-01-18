@@ -1,8 +1,7 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "abb93cdd0a49be03bf2fe95f07823686b289ecd5"
+SRCREV = "b7ff344535c42af074c60bfb272ef66a2ba157b4"
 
 DEPENDS += "boost-url"
-RDEPENDS:${PN} += "phosphor-nslcd-authority-cert-config"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
@@ -25,9 +24,9 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0018-bmcweb-Add-BMC-Time-update-log-to-the-registry.patch \
             file://0019-Add-generic-message-PropertySizeExceeded.patch \
             file://0020-Redfish-Deny-set-AccountLockDuration-to-zero.patch \
-            file://0021-Add-message-registry-entry-for-FirmwareResiliencyErr.patch \
             file://0023-Add-get-IPMI-session-id-s-to-Redfish.patch \
             file://0024-Add-count-sensor-type.patch \
+            file://0025-Add-Model-CoreCount-to-ProcessorSummary.patch \
 "
 
 # OOB Bios Config:
@@ -50,7 +49,7 @@ SRC_URI += "file://vm/0001-Revert-Disable-nbd-proxy-from-the-build.patch \
 "
 
 # EventService: Temporary pulled to downstream. See eventservice\README for details
-SRC_URI += "file://eventservice/0001-EventService-Fix-retry-handling-for-http-client.patch \
+SRC_URI += "file://eventservice/0001-Add-unmerged-changes-for-http-retry-support.patch \
             file://eventservice/0002-EventService-https-client-support.patch \
             file://eventservice/0004-Add-Server-Sent-Events-support.patch \
             file://eventservice/0005-Add-SSE-style-subscription-support-to-eventservice.patch \
@@ -59,6 +58,7 @@ SRC_URI += "file://eventservice/0001-EventService-Fix-retry-handling-for-http-cl
             file://eventservice/0008-Add-checks-on-Event-Subscription-input-parameters.patch \
             file://eventservice/0009-Restructure-Redifsh-EventLog-Transmit-code-flow.patch \
             file://eventservice/0010-Remove-Terminated-Event-Subscriptions.patch \
+            file://eventservice/0011-Fix-bmcweb-crash-while-deleting-terminated-subscriptions.patch \
 "
 
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
@@ -69,8 +69,15 @@ SRC_URI += " file://telemetry/0001-Add-support-for-MetricDefinition-scheme.patch
              file://telemetry/0005-Add-GET-method-for-TriggerCollection.patch \
              file://telemetry/0006-Revert-Remove-LogService-from-TelemetryService.patch \
              file://telemetry/0007-event-service-fix-added-Context-field-to-response.patch \
-             file://telemetry/0008-Generalize-ReadingType-in-MetricDefinition.patch \
              file://telemetry/0009-Add-support-for-deleting-terminated-subscriptions.patch \
+"
+
+# Temporary downstream patch for routing and privilege changes
+SRC_URI += " file://http_routing/0001-Add-asyncResp-support-during-handleUpgrade.patch \
+             file://http_routing/0002-Move-privileges-to-separate-entity.patch \
+             file://http_routing/0003-Add-Support-for-privilege-check-in-handleUpgrade.patch \
+             file://http_routing/0004-Add-Privileges-to-Websockets.patch \
+             file://http_routing/0005-Add-Privileges-to-SseSockets.patch \
 "
 
 # Temporary fix: Move it to service file
@@ -78,10 +85,6 @@ do_install:append() {
         install -d ${D}/var/lib/bmcweb
         install -d ${D}/etc/ssl/certs/authority
 }
-
-# Temporary fix:Enable new power and thermal subsystem
-EXTRA_OEMESON += " -Dredfish-new-powersubsystem-thermalsubsystem=enabled"
-EXTRA_OEMESON += " -Dredfish-allow-deprecated-power-thermal=disabled"
 
 # Enable PFR support
 EXTRA_OEMESON += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-Dredfish-provisioning-feature=enabled', '', d)}"
