@@ -1,4 +1,4 @@
-From c045d0ace218a8f0c9e9af0b04aed24ec733fc79 Mon Sep 17 00:00:00 2001
+From 805ae6679f49d0d7a3a6448af97f3cb639b9634f Mon Sep 17 00:00:00 2001
 From: Zhikui Ren <zhikui.ren@intel.com>
 Date: Tue, 22 Jun 2021 14:49:44 -0700
 Subject: [PATCH] CPUSensor: additional debug message
@@ -24,10 +24,10 @@ Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
  2 files changed, 7 insertions(+), 5 deletions(-)
 
 diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
-index 0621e04..65acdac 100644
+index fefd89a..de33f9b 100644
 --- a/src/CPUSensor.cpp
 +++ b/src/CPUSensor.cpp
-@@ -300,6 +300,7 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+@@ -315,6 +315,7 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
                                     : std::numeric_limits<double>::quiet_NaN();
              if (gTcontrol != privTcontrol)
              {
@@ -35,7 +35,7 @@ index 0621e04..65acdac 100644
                  privTcontrol = gTcontrol;
  
                  if (!thresholds.empty())
-@@ -318,6 +319,10 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+@@ -333,6 +334,10 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
                                  thresholds::updateThresholds(this);
                              }
                          }
@@ -47,10 +47,10 @@ index 0621e04..65acdac 100644
                      else
                      {
 diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
-index 78ded55..283dacf 100644
+index 84df7cf..d1e04eb 100644
 --- a/src/Thresholds.cpp
 +++ b/src/Thresholds.cpp
-@@ -583,11 +583,8 @@ bool parseThresholdsFromAttr(
+@@ -592,11 +592,8 @@ bool parseThresholdsFromAttr(
                  if (auto val = readFile(attrPath, scaleFactor))
                  {
                      *val += offset;

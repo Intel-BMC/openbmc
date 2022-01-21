@@ -27,6 +27,8 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0023-Add-get-IPMI-session-id-s-to-Redfish.patch \
             file://0024-Add-count-sensor-type.patch \
             file://0025-Add-Model-CoreCount-to-ProcessorSummary.patch \
+            file://0026-Fix-Query-Parameters-issue.patch \
+            file://0027-Workaround-Increase-timer-queue-size-and-reduce-time.patch \
 "
 
 # OOB Bios Config:

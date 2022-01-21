@@ -1,4 +1,4 @@
-From 2516d67f8bb5ecd241b8dcdec3f8c58d0e3c4744 Mon Sep 17 00:00:00 2001
+From 021b17af775b58a61661f75af595b71625509241 Mon Sep 17 00:00:00 2001
 From: Wojciech Dembinski <wojciech.dembinski@intel.com>
 Date: Mon, 7 Dec 2020 19:23:10 +0100
 Subject: [PATCH] Add check for min/max received from hwmon files
@@ -21,7 +21,7 @@ Change-Id: Ia061f849b0f434812f822ed1902c8964d4c64b45
  1 file changed, 26 insertions(+), 24 deletions(-)
 
 diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
-index 2356821..01f5eb6 100644
+index cd1038f..16c3686 100644
 --- a/src/CPUSensor.cpp
 +++ b/src/CPUSensor.cpp
 @@ -1,5 +1,5 @@
@@ -31,7 +31,7 @@ index 2356821..01f5eb6 100644
  //
  // Licensed under the Apache License, Version 2.0 (the "License");
  // you may not use this file except in compliance with the License.
-@@ -146,19 +146,22 @@ void CPUSensor::setupRead(void)
+@@ -166,19 +166,22 @@ void CPUSensor::setupRead(void)
  
  void CPUSensor::updateMinMaxValues(void)
  {
@@ -62,7 +62,7 @@ index 2356821..01f5eb6 100644
  
      if (auto fileParts = splitFileName(path))
      {
-@@ -168,26 +171,25 @@ void CPUSensor::updateMinMaxValues(void)
+@@ -188,26 +191,25 @@ void CPUSensor::updateMinMaxValues(void)
          {
              for (const auto& vectorItem : mapIt->second)
              {

@@ -1,4 +1,4 @@
-From 262682632ee493d0b6593540cfc902d11286b7c3 Mon Sep 17 00:00:00 2001
+From c420a04ec18e9d62e11a69a0d5e88762b2a141a3 Mon Sep 17 00:00:00 2001
 From: Iwona Winiarska <iwona.winiarska@intel.com>
 Date: Tue, 13 Jul 2021 15:16:16 +0200
 Subject: [PATCH] CPUSensor: Create CPUConfig for each PECI adapter
@@ -27,7 +27,7 @@ Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
  1 file changed, 90 insertions(+)
 
 diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
-index 744ca50..6850df7 100644
+index a64d39c..32cb6b3 100644
 --- a/src/CPUSensorMain.cpp
 +++ b/src/CPUSensorMain.cpp
 @@ -33,6 +33,7 @@
@@ -143,5 +143,5 @@ index 744ca50..6850df7 100644
          }
      }
 -- 
-2.31.1
+2.17.1
 
