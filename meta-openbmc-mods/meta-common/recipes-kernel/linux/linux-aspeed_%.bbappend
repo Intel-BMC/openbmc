@@ -264,5 +264,23 @@ SRC_URI += " \
     file://0001-dm-ioctl-fix-out-of-bounds-array-access-when-no-devi.patch \
     "
 
+# CVE-2021-22555 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2021-22555:"
+SRC_URI += " \
+    file://0001-netfilter-x_tables-fix-compat-match-target-pad-out-o.patch \
+    "
+
+# CVE-2021-3679 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2021-3679:"
+SRC_URI += " \
+    file://0001-tracing-Fix-bug-in-rb_per_cpu_empty-that-might-cause.patch \
+    "
+
+# CVE-2020-21781 vulnerability fix
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}/CVE-2020-21781:"
+SRC_URI += " \
+    file://0001-ARM-ensure-the-signal-page-contains-defined-contents.patch \
+    "
+
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://0005-128MB-flashmap-for-PFR.patch', '', d)}"
 SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'file://debug.cfg', '', d)}"

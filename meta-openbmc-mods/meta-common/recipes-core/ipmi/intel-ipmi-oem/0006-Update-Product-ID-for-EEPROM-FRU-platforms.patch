@@ -1,4 +1,4 @@
-From a9899d878d49c5d37810f2d97a68ae9d1de1a390 Mon Sep 17 00:00:00 2001
+From e3324be962eae4f42d6262998b413e4b6e51991d Mon Sep 17 00:00:00 2001
 From: Anoop S <anoopx.s@intel.com>
 Date: Fri, 2 Oct 2020 13:32:05 +0000
 Subject: [PATCH] Update Product ID for EEPROM FRU platforms.
@@ -32,12 +32,14 @@ Tested-by:
 
 Signed-off-by: Anoop S <anoopx.s@intel.com>
 Signed-off-by: Saravanan Palanisamy <saravanan.palanisamy@linux.intel.com>
+
+%% original patch: 0006-Update-Product-ID-for-EEPROM-FRU-platforms.patch
 ---
- src/appcommands.cpp | 137 ++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 131 insertions(+), 6 deletions(-)
+ src/appcommands.cpp | 142 ++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 136 insertions(+), 6 deletions(-)
 
 diff --git a/src/appcommands.cpp b/src/appcommands.cpp
-index 10e3d13..d5b5c50 100644
+index 10e3d13..6e3df64 100644
 --- a/src/appcommands.cpp
 +++ b/src/appcommands.cpp
 @@ -16,6 +16,7 @@
@@ -60,47 +62,8 @@ index 10e3d13..d5b5c50 100644
  
  int initBMCDeviceState(ipmi::Context::ptr ctx)
  {
-@@ -286,7 +292,6 @@ RspType<uint8_t,  // Device ID
-     static bool devIdInitialized = false;
-     static bool bmcStateInitialized = false;
-     const char* filename = "/usr/share/ipmi-providers/dev_id.json";
--    const char* prodIdFilename = "/var/cache/private/prodID";
-     if (!fwVerInitialized)
-     {
-         std::string versionString;
-@@ -351,13 +356,13 @@ RspType<uint8_t,  // Device ID
-         // boot time. Avoid using DBus to get the Product ID. The Product ID is
-         // stored in a non-volatile file now. The /usr/bin/checkFru.sh script,
-         // run during bootup, will populate the productIdFile.
--        std::fstream prodIdFile(prodIdFilename);
-+        std::fstream prodIdFile(prodIdFilename, std::ios::in);
-         if (prodIdFile.is_open())
-         {
--            std::string id = "0x00";
--            char* end;
--            prodIdFile.getline(&id[0], id.size() + 1);
--            devId.prodId = std::strtol(&id[0], &end, 0);
-+            uint16_t id = 0x00;
-+            // id will become 0xFFFF (Reserved) if prodIdFile has invalid data.
-+            prodIdFile >> std::hex >> id;
-+            devId.prodId = id;
-             devIdInitialized = true;
-         }
-         else
-@@ -377,17 +382,137 @@ RspType<uint8_t,  // Device ID
-         }
-     }
- 
-+    // Update the productId, if required.
-+    if (!devId.prodId && productId)
-+    {
-+        devId.prodId = productId;
-+        baseBoardUpdatedSignal.reset();
-+    }
-     return ipmi::responseSuccess(devId.id, devId.revision, devId.fwMajor,
-                                  bmcDeviceBusy, devId.fwMinor, devId.ipmiVer,
-                                  devId.addnDevSupport, devId.manufId,
-                                  devId.prodId, devId.aux);
+@@ -256,6 +262,118 @@ std::optional<MetaRevision> convertIntelVersion(std::string& s)
+     return std::nullopt;
  }
  
 +static void getProductId(const std::string& baseboardObjPath)
@@ -215,8 +178,55 @@ index 10e3d13..d5b5c50 100644
 +    return;
 +}
 +
- static void registerAPPFunctions(void)
- {
+ RspType<uint8_t,  // Device ID
+         uint8_t,  // Device Revision
+         uint7_t,  // Firmware Revision Major
+@@ -286,7 +404,6 @@ RspType<uint8_t,  // Device ID
+     static bool devIdInitialized = false;
+     static bool bmcStateInitialized = false;
+     const char* filename = "/usr/share/ipmi-providers/dev_id.json";
+-    const char* prodIdFilename = "/var/cache/private/prodID";
+     if (!fwVerInitialized)
+     {
+         std::string versionString;
+@@ -351,13 +468,13 @@ RspType<uint8_t,  // Device ID
+         // boot time. Avoid using DBus to get the Product ID. The Product ID is
+         // stored in a non-volatile file now. The /usr/bin/checkFru.sh script,
+         // run during bootup, will populate the productIdFile.
+-        std::fstream prodIdFile(prodIdFilename);
++        std::fstream prodIdFile(prodIdFilename, std::ios::in);
+         if (prodIdFile.is_open())
+         {
+-            std::string id = "0x00";
+-            char* end;
+-            prodIdFile.getline(&id[0], id.size() + 1);
+-            devId.prodId = std::strtol(&id[0], &end, 0);
++            uint16_t id = 0x00;
++            // id will become 0xFFFF (Reserved) if prodIdFile has invalid data.
++            prodIdFile >> std::hex >> id;
++            devId.prodId = id;
+             devIdInitialized = true;
+         }
+         else
+@@ -377,6 +494,17 @@ RspType<uint8_t,  // Device ID
+         }
+     }
+ 
++    if (!devId.prodId)
++    {
++        baseBoardUpdatedSignal.reset();
++        getProductIdFromBoard();
++    }
++    // Update the productId, if required.
++    if (!devId.prodId && productId)
++    {
++        devId.prodId = productId;
++        baseBoardUpdatedSignal.reset();
++    }
+     return ipmi::responseSuccess(devId.id, devId.revision, devId.fwMajor,
+                                  bmcDeviceBusy, devId.fwMinor, devId.ipmiVer,
+                                  devId.addnDevSupport, devId.manufId,
+@@ -388,6 +516,8 @@ static void registerAPPFunctions(void)
      // <Get Device ID>
      registerHandler(prioOemBase, netFnApp, app::cmdGetDeviceId, Privilege::User,
                      ipmiAppGetDeviceId);
