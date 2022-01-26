@@ -1,0 +1,44 @@
+From e40f454d5784570d497449775ae9f77f77973353 Mon Sep 17 00:00:00 2001
+From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
+Date: Sat, 4 Dec 2021 01:28:38 +0530
+Subject: [PATCH] Fix Query Parameters issue
+
+Due to upstream change https://github.com/openbmc/bmcweb/commit/59b98b2222fddbea3d6f678d9e94006521f0c381,
+none of the query parameters are functional in bmcweb.
+
+This commit adds the code required to copy the query parameters to
+the crow request which is the actual request object used for handling
+incoming URI requests.
+
+Tested:
+GET on https://<BMC_IP>/redfish/v1/Systems/system/LogServices/EventLog/Entries
+and https://<BMC_IP>/redfish/v1/Systems/system/LogServices/EventLog/Entries?skip=1000
+
+Gave different logs indication correct functionality of skip query
+parameter
+
+https://<BMC_IP>/redfish/v1/EventService/Subscriptions/SSE?$filter=(MessageId%20eq%20SELEntryAddedsaf)
+Succesfully returned error indicating correct functionality of
+query parameters as SELEntryAddedsaf is an invalid message id.
+
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ http/http_connection.hpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/http/http_connection.hpp b/http/http_connection.hpp
+index cdd3707..940b8b8 100644
+--- a/http/http_connection.hpp
++++ b/http/http_connection.hpp
+@@ -339,6 +339,7 @@ class Connection :
+         try
+         {
+             thisReq.urlView = boost::urls::url_view(thisReq.target());
++            thisReq.urlParams = thisReq.urlView.params();
+             thisReq.url = thisReq.urlView.encoded_path();
+         }
+         catch (std::exception& p)
+-- 
+2.17.1
+

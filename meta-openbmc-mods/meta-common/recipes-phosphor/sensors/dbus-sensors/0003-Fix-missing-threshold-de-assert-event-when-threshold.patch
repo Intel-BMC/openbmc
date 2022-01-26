@@ -1,4 +1,4 @@
-From db4353de222b51726c8e3c765cc8f1df4ad67687 Mon Sep 17 00:00:00 2001
+From d477be5da32c62fc30096a99d1e601ed7c42a10c Mon Sep 17 00:00:00 2001
 From: Zhikui Ren <zhikui.ren@intel.com>
 Date: Tue, 22 Jun 2021 11:35:12 -0700
 Subject: [PATCH] Fix missing de-assert event when threshold changes
@@ -46,10 +46,10 @@ Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
  3 files changed, 19 insertions(+), 5 deletions(-)
 
 diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
-index af63f72..fd507d0 100644
+index 209d68e..640fdb4 100644
 --- a/include/Thresholds.hpp
 +++ b/include/Thresholds.hpp
-@@ -44,7 +44,7 @@ struct Threshold
+@@ -47,7 +47,7 @@ struct Threshold
  
  void assertThresholds(Sensor* sensor, double assertValue,
                        thresholds::Level level, thresholds::Direction direction,
@@ -59,18 +59,18 @@ index af63f72..fd507d0 100644
  struct TimerUsed
  {
 diff --git a/include/sensor.hpp b/include/sensor.hpp
-index b98241b..6235674 100644
+index d38bcde..b8cfd66 100644
 --- a/include/sensor.hpp
 +++ b/include/sensor.hpp
-@@ -71,6 +71,7 @@ struct Sensor
-     std::shared_ptr<sdbusplus::asio::dbus_interface> operationalInterface;
+@@ -81,6 +81,7 @@ struct Sensor
+     std::shared_ptr<sdbusplus::asio::dbus_interface> valueMutabilityInterface;
      double value = std::numeric_limits<double>::quiet_NaN();
      double rawValue = std::numeric_limits<double>::quiet_NaN();
 +    bool hadValidValue = false;
      bool overriddenState = false;
      bool internalSet = false;
      double hysteresisTrigger;
-@@ -432,6 +433,7 @@ struct Sensor
+@@ -462,6 +463,7 @@ struct Sensor
          {
              markFunctional(true);
              markAvailable(true);
@@ -79,10 +79,10 @@ index b98241b..6235674 100644
      }
  
 diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
-index 821083a..da0d650 100644
+index 0581f21..84df7cf 100644
 --- a/src/Thresholds.cpp
 +++ b/src/Thresholds.cpp
-@@ -418,10 +418,19 @@ bool checkThresholds(Sensor* sensor)
+@@ -426,10 +426,19 @@ bool checkThresholds(Sensor* sensor)
  {
      bool status = true;
      std::vector<ChangeParam> changes = checkThresholds(sensor, sensor->value);
@@ -103,7 +103,7 @@ index 821083a..da0d650 100644
          if (change.threshold.level == thresholds::Level::CRITICAL &&
              change.asserted)
          {
-@@ -443,6 +452,7 @@ void checkThresholdsPowerDelay(const std::weak_ptr<Sensor>& weakSensor,
+@@ -451,6 +460,7 @@ void checkThresholdsPowerDelay(const std::weak_ptr<Sensor>& weakSensor,
  
      Sensor* sensor = sensorPtr.get();
      std::vector<ChangeParam> changes = checkThresholds(sensor, sensor->value);
@@ -111,7 +111,7 @@ index 821083a..da0d650 100644
      for (const auto& change : changes)
      {
          // When CPU is powered off, some volatges are expected to
-@@ -467,13 +477,13 @@ void checkThresholdsPowerDelay(const std::weak_ptr<Sensor>& weakSensor,
+@@ -475,13 +485,13 @@ void checkThresholdsPowerDelay(const std::weak_ptr<Sensor>& weakSensor,
              }
          }
          assertThresholds(sensor, change.assertValue, change.threshold.level,
@@ -127,7 +127,7 @@ index 821083a..da0d650 100644
  {
      std::string property;
      std::shared_ptr<sdbusplus::asio::dbus_interface> interface;
-@@ -513,7 +523,9 @@ void assertThresholds(Sensor* sensor, double assertValue,
+@@ -521,7 +531,9 @@ void assertThresholds(Sensor* sensor, double assertValue,
          return;
      }
  

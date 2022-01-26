@@ -1,4 +1,4 @@
-From f85dd776301371892ff5197c1995bf2224dd87ab Mon Sep 17 00:00:00 2001
+From 07f431e2d58e6e41482141c32a4cc2e9b62755d8 Mon Sep 17 00:00:00 2001
 From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
 Date: Mon, 22 Feb 2021 15:57:20 -0800
 Subject: [PATCH] Fix PECI ioctl number
@@ -12,7 +12,7 @@ Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/include/linux/peci-ioctl.h b/include/linux/peci-ioctl.h
-index e5b4b8bd3275..1f44edf4fc04 100644
+index e5b4b8b..1f44edf 100644
 --- a/include/linux/peci-ioctl.h
 +++ b/include/linux/peci-ioctl.h
 @@ -601,7 +601,7 @@ struct peci_crashdump_get_frame_msg {

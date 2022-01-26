@@ -1,0 +1,46 @@
+From e829c49701c3fe613d2ae57e45b9aad7b64cf569 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Fri, 3 Dec 2021 08:48:53 -0800
+Subject: [PATCH] Workaround: Increase timer queue size and reduce timeout
+
+It appears that the EWS logout issue is caused when this timer
+queue fills up on larger operations.  As recommended by the bmcweb
+maintainers in Discord, this change adds a workaround that both
+increases the size of the queue and reduces the timeout to clear
+it more quickly to avoid filling the queue.
+
+The issue is under investigation upstream to remove this workaround
+in favor of the real fix.
+
+Tested:
+Confirmed that loading the Overview, Event Logs, Inventory, and
+Sensor pages repeatedly does not log out and return to the
+login page.
+
+Change-Id: Ifa210e36ab8992225fde66acf6b6b0db5f32a3b4
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ http/timer_queue.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/http/timer_queue.hpp b/http/timer_queue.hpp
+index 24a4ab4c..ff61e328 100644
+--- a/http/timer_queue.hpp
++++ b/http/timer_queue.hpp
+@@ -11,11 +11,11 @@
+ namespace crow
+ {
+ 
+-constexpr const size_t timerQueueTimeoutSeconds = 5;
++constexpr const size_t timerQueueTimeoutSeconds = 1;
+ namespace detail
+ {
+ 
+-constexpr const size_t maxSize = 100;
++constexpr const size_t maxSize = 400;
+ // fast timer queue for fixed tick value.
+ class TimerQueue
+ {
+-- 
+2.17.1
+
