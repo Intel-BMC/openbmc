@@ -51,6 +51,8 @@ SRC_URI =  "${GLIBC_GIT_URI};branch=${SRCBRANCH};name=glibc \
            file://0035-Fix-build-error.patch \
            file://0036-Use-__pthread_attr_copy-in-mq_notify-bug-27896.patch \
            file://0037-Fix-use-of-__pthread_attr_copy-in-mq_notify-bug-27896.patch \
+           file://0038-CVE-2021-38604-fix-NULL-pointer-dereference-bug-28213.patch \
+           file://0039-CVE-2021-35942-handle-overflow-in-positional-parameter-number-bug-28011.patch \
            "
 S = "${WORKDIR}/git"
 B = "${WORKDIR}/build-${TARGET_SYS}"

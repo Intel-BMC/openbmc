@@ -3,8 +3,12 @@
 NVMP=/tmp/.rwfs
 SOMP=/var/sofs
 
+clean_var_volatile_tmp() {
+    rm -rf $NVMP/.overlay/var/volatile/tmp/* || :
+}
+
 do_sync() {
-    rsync -a --delete /tmp/.overlay/ $NVMP/.overlay
+    rsync -a --delete --exclude='**/var/volatile/tmp/**' /tmp/.overlay/ $NVMP/.overlay
     sync $NVMP/.overlay
 }
 
@@ -24,6 +28,8 @@ trap stop_nv EXIT
 # make sure the mount points are RW
 mount -o remount,rw $NVMP
 mount -o remount,rw $SOMP
+
+clean_var_volatile_tmp
 
 # Run rsync periodically to sync the overlay to NV storage
 while true; do
