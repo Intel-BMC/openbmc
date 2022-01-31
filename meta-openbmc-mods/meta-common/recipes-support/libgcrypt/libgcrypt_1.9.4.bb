@@ -11,7 +11,7 @@ LICENSE_dumpsexp-dev = "GPLv3+"
 
 LIC_FILES_CHKSUM = "file://COPYING;md5=94d55d512a9ba36caa9b7df079bae19f \
                     file://COPYING.LIB;md5=bbb461211a33b134d42ed5ee802b37ff \
-                    file://LICENSES;md5=840e3bcb754e5046ffeda7619034cbd8"
+                    file://LICENSES;md5=42fa35a25e138166cc40588387f9159d"
 
 DEPENDS = "libgpg-error"
 
@@ -21,13 +21,13 @@ SRC_URI = "${GNUPG_MIRROR}/libgcrypt/libgcrypt-${PV}.tar.bz2 \
            file://0003-tests-bench-slope.c-workaround-ICE-failure-on-mips-w.patch \
            file://0002-libgcrypt-fix-building-error-with-O2-in-sysroot-path.patch \
            file://0004-tests-Makefile.am-fix-undefined-reference-to-pthread.patch \
-           file://0001-Prefetch-GCM-look-up-tables.patch \
-           file://0002-AES-move-look-up-tables-to-.data-section-and-unshare.patch \
-           file://0003-GCM-move-look-up-table-to-.data-section-and-unshare-.patch \
-           file://determinism.patch \
+           file://0001-Makefile.am-add-a-missing-space.patch \
 "
-SRC_URI[md5sum] = "252045343c586e5261134c91330f5b90"
-SRC_URI[sha256sum] = "895de2bb981dd127f0821d1ce13fadf7d760f9fa7737648b15f2c1fe13cc5af5"
+SRC_URI[md5sum] = "edc7becfe09c75d8f95ff7623e40c52e"
+SRC_URI[sha256sum] = "ea849c83a72454e3ed4267697e8ca03390aee972ab421e7df69dfe42b65caaf7"
+
+# Below whitelisted CVEs are disputed and not affecting crypto libraries for any distro.
+CVE_CHECK_WHITELIST += "CVE-2018-12433 CVE-2018-12438"
 
 BINCONFIG = "${bindir}/libgcrypt-config"
 

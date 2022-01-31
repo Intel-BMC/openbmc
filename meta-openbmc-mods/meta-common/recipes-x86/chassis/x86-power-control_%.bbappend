@@ -8,4 +8,5 @@ SRC_URI += " \
         file://0001-Extend-VR-Watchdog-timeout.patch \
         file://0002-save-current-power-state-in-tmp-file.patch \
         file://0003-Improve-graceful-power-state-handling.patch \
+        file://0004-Protect-POST-Complete-GPIO-read.patch \
         "

@@ -5,7 +5,10 @@ FRUPATH="/etc/fru"
 PRODIDPATH="/var/cache/private"
 fruFile="$FRUPATH/baseboard.fru.bin"
 prodIDFile="$PRODIDPATH/prodID"
-eepromFru=false
+
+if [ -f $fruFile -a -f $prodIDFile ]; then
+    exit 0
+fi
 
 read_id() {
     local idx=0
@@ -20,33 +23,9 @@ read_id() {
     echo $result
 }
 
-# Check 'Chassis Info Area' exists or not by checking its offset value in the
-# FRU Common Header. If exists, return 0 (success).
-chassis_area_found(){
-    local eepromBus="3"
-    local eepromAddr="0x56"
-    local eepromReadOffset="0x02"
-    local chassisAreaOffset="0"
-
-    chassisAreaOffset=$(eeprog /dev/i2c-$eepromBus $eepromAddr -f -q -r $eepromReadOffset -x | awk '{print $2}')
-    if [ $chassisAreaOffset != "00" ]; then
-        return 0
-    fi
-    return 1
-}
-
-if [ -f $fruFile -a -f $prodIDFile ] &&
-    grep -q 'CPU part\s*: 0xc07' /proc/cpuinfo; then
-    exit 0
-fi
-
 BOARD_ID=$(read_id)
 if grep -q 'CPU part\s*: 0xb76' /proc/cpuinfo; then
     # AST2500
-    if [ -f $fruFile -a -f $prodIDFile -a $BOARD_ID -ne 0 ]; then
-        exit 0
-    fi
-
     case $BOARD_ID in
         12) NAME="D50TNP1SB"
             PRODID="0x99";;
@@ -62,13 +41,6 @@ if grep -q 'CPU part\s*: 0xb76' /proc/cpuinfo; then
             PRODID="0x98";;
         62) NAME="WilsonPoint"
             PRODID="0x9a";;
-         0) PRODID="0x00"
-            eepromFru=true
-            rm -f $fruFile
-            if ! chassis_area_found || [ -f /etc/bc_fru_write_fails ]; then
-                nohup rewriteFru.sh &
-            fi
-            ;;
         *)  NAME="S2600WFT"
             PRODID="0x7b";;
     esac
@@ -93,13 +65,6 @@ then
     echo $PRODID >$prodIDFile
 fi
 
-if $eepromFru;
-then
-    # Wait for rewriteFru.sh child process to finish.
-    wait
-    exit 0
-fi
-
 if [ ! -f $fruFile ]
 then
     cd /tmp
@@ -107,4 +72,5 @@ then
     mkfru $NAME
     mv $NAME.fru.bin $fruFile
 fi
+
 

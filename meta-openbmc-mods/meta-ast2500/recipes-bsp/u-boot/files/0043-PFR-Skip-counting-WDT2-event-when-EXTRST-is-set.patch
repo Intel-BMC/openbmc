@@ -22,15 +22,15 @@ diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-int
 index 6a0d6556bc..c5aded759d 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -136,6 +136,7 @@ static const GPIOValue gpio_table[] = {
+@@ -145,6 +145,7 @@ static const GPIOValue gpio_table[] = {
  #define HOST_SERIAL_B_HIGH_SPEED (1 << 1)
  
  #define WATCHDOG_RESET_BIT 0x8
 +#define EXTRST_RESET_BIT 0x2
  #define BOOT_FAILURE_LIMIT 0x3
-
- #define COOPER_CITY_BOARD_ID 40
-@@ -552,7 +553,8 @@ void ast_g5_intel_late_init(void)
+ 
+ #define BRIGHTON_CITY_BOARD_ID 0
+@@ -572,7 +573,8 @@ void ast_g5_intel_late_init(void)
  
  	boot_failures = get_boot_failures();
  
