@@ -41,10 +41,12 @@ SRC_URI_append_intel-ast2500 = " \
     file://0037-aspeed-ast-scu.c-fix-MAC1LINK-and-MAC2LINK-pin-pads-.patch \
     file://0038-Increase-default-fan-speed-for-cooper-city.patch \
     file://0040-Initialize-the-BMC-host-mailbox-at-reset-time.patch \
+    file://0042-Disable-PCIe-L1-settings-for-BrightonCity-BRC.patch \
     file://0044-net-phy-realtek-Change-LED-configuration.patch \
     file://0045-Apply-WDT1-2-reset-mask-to-reset-needed-controller.patch \
     file://0046-Enable-FMC-DMA-for-memmove.patch \
     file://0047-ast2500-parse-reset-reason.patch \
+    file://0048-Enable-AST2500-KCS-Channel-3-in-uboot.patch \
     file://0049-Add-WDT-to-u-boot-to-cover-booting-failures.patch \
     file://0051-Add-Aspeed-DRAM-stress-test-command.patch \
     file://0052-Fix-issue-on-host-console-is-broken-due-to-BMC-reset.patch \

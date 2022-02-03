@@ -14,6 +14,8 @@ PATCHRESOLVE = "noop"
 # Before exporting the conf, please uncomment the below line
 # for building Intel PFR compliant images.
 #IMAGE_FSTYPES += "intel-pfr"
+# Comment below line, if you want to build only -SP images.
+BUILD_SEGD = "yes"
 
 BB_DISKMON_DIRS = "\
     STOPTASKS,${TMPDIR},1G,100K \

@@ -1,0 +1,86 @@
+From 509e93eefa42f3df09e4b6270fac19fff6ba5ad2 Mon Sep 17 00:00:00 2001
+From: Saravanan Palanisamy <saravanan.palanisamy@intel.com>
+Date: Mon, 31 Aug 2020 20:34:58 +0000
+Subject: [PATCH] Enable AST2500 KCS Channel#3 in uboot.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add AST2500 workaround to solve the issue described in Test Case:#1.
+
+Tested:
+1. Make BMC initialize later after BIOS, and check KCS works.
+  a. Hold BMC in u-boot (through Esc key and not through FFUJ mode).
+  b. Power on the Host and allow it to boot to UEFI shell
+  c. Try accessing CA2 port (used for KCS), through mm command:
+     (mm CA2 -w 1 -IO -n), as expected we are seeing 0xFF as data.
+     (No issues here, because KCS channel is not enabled yet from BMC).
+  d. Now, without disturbing the host system, allow BMC to boot to Linux
+    (Basically KCS Channel #3 are properly enabled with 0xCA2 address).
+  e. Now try accessing CA2 port (used for KCS “mm CA2 -w 1 -IO -n”.
+  f. Able to access the data fine, and KCS communication works as expected
+     Without this fix, this access will fail with 0xFF error.
+2. Test BMC BIOS KCS communication works fine in BC, WC baseboards after
+  a. AC power on
+  b. Host reset
+  c. BMC reset
+  by Verifying following:
+  i.   cmdtool.efi 20 18 1
+  ii.  CA2 port access by mm command.
+  iii. Get Device ID success in BIOS bootlogs (Except BC board, BIOS fix WIP.)
+
+Signed-off-by: Saravanan Palanisamy <saravanan.palanisamy@intel.com>
+Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
+Change-Id: Ic0fe1fee0eefb2663965f7052b5b7e4ff1fede27
+---
+ board/aspeed/ast-g5/ast-g5-intel.c | 15 +++++++++++++++
+ board/aspeed/ast-g5/ast-g5-kcs.c   |  8 ++++++++
+ 2 files changed, 23 insertions(+)
+
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 775c7947cd..c46bd70b71 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -709,5 +709,20 @@ void ast_g5_intel(void)
+ 		if (platform_id == COOPER_CITY_BOARD_ID)
+ 			set_pwm_duty_cycle(ELEVATED_PWM_DUTY_VALUE);
+ 		/* TODO: need to stop the booting here. */
++	} else {
++		/*
++		 * AST2500 SW workaround:
++		 * When eSPI-LPC bridge HW stays in the LPC I/O port
++		 * decoding error state, controllers behind the bridge
++		 * cannot be enabled. Thereby, these controller should
++		 * be enabled early to avoid the decoding error.
++		 *
++		 * This workaround enables only the eSPI/LPC controllers which
++		 * commonly interacts with Host at the early stage, the KCS@Channel3.
++		 * Note: CA2h port will be still initialized in Linux.
++		 * Enabling this only for BRC board for now.
++		 */
++		if (platform_id == BRIGHTON_CITY_BOARD_ID)
++			enable_kcs_channel3_alone();
+ 	}
+ }
+diff --git a/board/aspeed/ast-g5/ast-g5-kcs.c b/board/aspeed/ast-g5/ast-g5-kcs.c
+index 98bf69ba85..38d13d4620 100644
+--- a/board/aspeed/ast-g5/ast-g5-kcs.c
++++ b/board/aspeed/ast-g5/ast-g5-kcs.c
+@@ -411,6 +411,14 @@ static void enable_kcs_channel(u16 channel_num, u16 enable)
+ 	}
+ }
+ 
++void enable_kcs_channel3_alone(void)
++{
++	u8 val;
++
++	val = readb(AST_LPC_BASE + LPC_HICR0) | BIT_LPC3E;
++	writeb(val, AST_LPC_BASE + LPC_HICR0);
++}
++
+ void kcs_init(void)
+ {
+ 	/* Initialize the KCS channels. */
+-- 
+2.17.1
+

@@ -1,0 +1,219 @@
+From 247bb976d0852af0a2e2c1fb6730876c01895487 Mon Sep 17 00:00:00 2001
+From: rrv <rashmi.r.v@intel.com>
+Date: Fri, 15 Oct 2021 10:29:01 +0530
+Subject: [PATCH] Protect POST Complete GPIO read
+
+In BRC/MRC platforms, due to ME BIOS limitation,
+PostComplete GPIO pin cannot be locked. Hence
+to nullify the impact to BMC, this change makes sure
+that Post Complete monitor is based on espi reset.
+for BRC and MRC platforms.
+
+Tested:
+
+Checked the OperatingSystemState property during all
+conditions of AC ON, AC  cycle, DC cycle, DC OFF and DC ON,
+and BMC reset. It works as expected.
+
+Signed-off-by: rrv <rashmi.r.v@intel.com>
+---
+ power-control-x86/src/power_control.cpp | 155 ++++++++++++++++++++++++
+ 1 file changed, 155 insertions(+)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 5a8487e..28b296d 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -18,6 +18,7 @@
+ #include <sys/sysinfo.h>
+ #include <systemd/sd-journal.h>
+ 
++#include <boost/algorithm/string/predicate.hpp>
+ #include <boost/asio/posix/stream_descriptor.hpp>
+ #include <boost/container/flat_map.hpp>
+ #include <boost/container/flat_set.hpp>
+@@ -112,6 +113,11 @@ static gpiod::line nmiOutLine;
+ 
+ static constexpr uint8_t beepPowerFail = 8;
+ 
++static uint16_t productId = 0;
++static constexpr uint16_t brcId = 160;
++static constexpr uint16_t mrcId = 161;
++static std::unique_ptr<sdbusplus::bus::match::match> productIdMatch;
++
+ static void beep(const uint8_t& beepPriority)
+ {
+     std::cerr << "Beep with priority: " << (unsigned)beepPriority << "\n";
+@@ -2029,6 +2035,11 @@ static void postCompleteHandler()
+     {
+         sendPowerControlEvent(Event::postCompleteAssert);
+         osIface->set_property("OperatingSystemState", std::string("Standby"));
++        // return only when MRC or BRC platforms
++        if (productId == brcId || productId == mrcId)
++        {
++            return;
++        }
+     }
+     else
+     {
+@@ -2047,6 +2058,147 @@ static void postCompleteHandler()
+             postCompleteHandler();
+         });
+ }
++
++static void getEspiPlatformReset()
++{
++
++    static std::unique_ptr<sdbusplus::bus::match::match> eSpiMatch =
++        std::make_unique<sdbusplus::bus::match::match>(
++            *conn,
++            "type='signal',interface='org.freedesktop.DBus.Properties',"
++            "member='PropertiesChanged',arg0namespace='xyz.openbmc_project."
++            "State.Host.Misc'",
++            [](sdbusplus::message::message& msg) {
++                std::string interfaceName;
++                boost::container::flat_map<std::string,
++                                           std::variant<bool, std::string>>
++                    propertiesChanged;
++                try
++                {
++                    msg.read(interfaceName, propertiesChanged);
++                    if (propertiesChanged.begin()->first == "ESpiPlatformReset")
++                    {
++                        bool value =
++                            std::get<bool>(propertiesChanged.begin()->second);
++                        phosphor::logging::log<phosphor::logging::level::INFO>(
++                            "ESpiPlatformReset propertiesChanged",
++                            phosphor::logging::entry("VALUE= %d", value));
++                        if (value)
++                        {
++                            postCompleteHandler();
++                        }
++                    }
++                }
++                catch (std::exception& e)
++                {
++                    std::cerr << "Unable to read  ESpiPlatformReset \n";
++                    return;
++                }
++            });
++}
++
++static void getProductId(const std::string& baseboardObjPath)
++{
++    // Check if it's already on DBus
++    conn->async_method_call(
++        [](boost::system::error_code ec,
++           const std::variant<uint64_t>& prodIdProperty) {
++            if (ec)
++            {
++                return;
++            }
++            const uint64_t* prodId = std::get_if<uint64_t>(&prodIdProperty);
++            if (prodId == nullptr)
++            {
++                std::cerr << "Unable to read power restore delay value\n";
++                return;
++            }
++            // Reset the signal
++            productIdMatch.reset();
++            productId = static_cast<uint16_t>(*prodId);
++            if (productId == brcId || productId == mrcId)
++            {
++                getEspiPlatformReset();
++            };
++        },
++        "xyz.openbmc_project.EntityManager", baseboardObjPath,
++        "org.freedesktop.DBus.Properties", "Get",
++        "xyz.openbmc_project.Inventory.Item.Board.Motherboard", "ProductId");
++}
++
++static void checkProductId()
++{
++    productIdMatch = std::make_unique<sdbusplus::bus::match::match>(
++        *conn,
++        "type='signal',interface='org.freedesktop.DBus.Properties',"
++        "member='PropertiesChanged',arg0namespace='xyz.openbmc_project."
++        "Inventory.Item.Board.Motherboard'",
++        [](sdbusplus::message::message& msg) {
++            std::string interfaceName;
++            boost::container::flat_map<std::string,
++                                       std::variant<uint64_t, std::string>>
++                propertiesChanged;
++            try
++            {
++                msg.read(interfaceName, propertiesChanged);
++                if (propertiesChanged.begin()->first == "ProductId")
++                {
++                    productId = static_cast<uint16_t>(
++                        std::get<uint64_t>(propertiesChanged.begin()->second));
++                    phosphor::logging::log<phosphor::logging::level::INFO>(
++                        "ProductId propertiesChanged",
++                        phosphor::logging::entry(" PRODUCTID= %d", productId));
++                }
++            }
++            catch (std::exception& e)
++            {
++                std::cerr << "Unable to read  ProductId \n";
++                productIdMatch.reset();
++                return;
++            }
++            // Reset the signal
++            productIdMatch.reset();
++            // monitor the eSpiplatform reset only BRC OR MRC
++            // platforms
++            if (productId == brcId || productId == mrcId)
++            {
++                getEspiPlatformReset();
++            }
++        });
++
++    // get the MRC/BRC board path.
++    conn->async_method_call(
++        [](boost::system::error_code ec, std::vector<std::string>& subtree) {
++            if (ec)
++            {
++                phosphor::logging::log<phosphor::logging::level::ERR>(
++                    "dbus call failed in getSubTree of board interface.",
++                    phosphor::logging::entry("ERROR=%s", ec.message().c_str()));
++                return;
++            }
++            const std::string match = "board";
++            for (const std::string& objpath : subtree)
++            {
++                // Iterate over all retrieved ObjectPaths.
++                if (!boost::ends_with(objpath, match))
++                {
++                    // Just move to next path.
++                    continue;
++                }
++
++                // Baseboard object path found
++                getProductId(objpath);
++                return;
++            }
++        },
++        "xyz.openbmc_project.ObjectMapper",
++        "/xyz/openbmc_project/object_mapper",
++        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
++        "/xyz/openbmc_project/inventory", 0,
++        std::array<const char*, 1>{
++            "xyz.openbmc_project.Inventory.Item.Board.Motherboard"});
++}
++
+ } // namespace power_control
+ 
+ int main(int argc, char* argv[])
+@@ -2123,6 +2275,9 @@ int main(int argc, char* argv[])
+         "ID_BUTTON", power_control::idButtonHandler,
+         power_control::idButtonLine, power_control::idButtonEvent);
+ 
++    // Read productId from Dbus and check
++    power_control::checkProductId();
++
+     // Request POST_COMPLETE GPIO events
+     if (!power_control::requestGPIOEvents(
+             "POST_COMPLETE", power_control::postCompleteHandler,
+-- 
+2.17.1
+

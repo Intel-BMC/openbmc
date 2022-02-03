@@ -19,19 +19,19 @@ diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-int
 index c46bd70b71b2..91dae91d02e4 100644
 --- a/board/aspeed/ast-g5/ast-g5-intel.c
 +++ b/board/aspeed/ast-g5/ast-g5-intel.c
-@@ -140,6 +140,8 @@ static const GPIOValue gpio_table[] = {
-
+@@ -149,6 +149,8 @@ static const GPIOValue gpio_table[] = {
+ #define BRIGHTON_CITY_BOARD_ID 0
  #define COOPER_CITY_BOARD_ID 40
  
 +#define USE_SOC_UART_DEBUG
 +
  static int get_boot_failures(void)
  {
-        return getenv_ulong("bootfailures", 10, 0);
-@@ -660,9 +662,15 @@ extern void espi_init(void);
- extern void kcs_init(void);
- void ast_g5_intel(void)
+ 	return getenv_ulong("bootfailures", 10, 0);
+@@ -683,9 +685,15 @@ void ast_g5_intel(void)
  {
+ 	int platform_id;
+ 
 +#ifdef USE_SOC_UART_DEBUG
 +	/* Enable uart port debug function */
 +	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) &
