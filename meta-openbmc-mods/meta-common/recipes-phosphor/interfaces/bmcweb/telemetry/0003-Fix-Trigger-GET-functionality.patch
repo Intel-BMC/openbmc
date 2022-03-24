@@ -1,0 +1,127 @@
+From cc10d221a17e1136bf3ec7f62583a4ca44212adc Mon Sep 17 00:00:00 2001
+From: Szymon Dompke <szymon.dompke@intel.com>
+Date: Tue, 22 Feb 2022 13:58:00 +0100
+Subject: [PATCH] Fix Trigger GET functionality
+
+This change is fixing 2 issues related to GET on Trigger schema:
+- Links to MetricReportDefintions were not parsed properly. Dbus is
+  returning collection of strings prefixed with "TelemetryService/".
+  This prefix was supposed to be removed.
+- In case of error occurring during internal data parsing, GET could
+  return both "Internal Error" message and incomplete Trigger
+  representation. By swapping few lines of code, this issue is fixed:
+  now either error is returned or full Trigger representation, but never
+  both of them.
+
+Testing done:
+- Links are now returning proper uris of existing MRD.
+- Internal Error is returned for malformed data returned by service.
+- Other Trigger GET functionality remained unchanged.
+
+Signed-off-by: Szymon Dompke <szymon.dompke@intel.com>
+Change-Id: I81ebbf3889a152199bef7230de56a73bb112731b
+---
+ redfish-core/lib/trigger.hpp | 65 ++++++++++++++++++++++--------------
+ 1 file changed, 40 insertions(+), 25 deletions(-)
+
+diff --git a/redfish-core/lib/trigger.hpp b/redfish-core/lib/trigger.hpp
+index da6a5db..5e0897e 100644
+--- a/redfish-core/lib/trigger.hpp
++++ b/redfish-core/lib/trigger.hpp
+@@ -137,20 +137,29 @@ inline std::optional<nlohmann::json>
+     return std::make_optional(thresholds);
+ }
+ 
+-inline nlohmann::json
++inline std::optional<nlohmann::json>
+     getMetricReportDefinitions(const std::vector<std::string>& reportNames)
+ {
+     nlohmann::json reports = nlohmann::json::array();
++
+     for (const std::string& name : reportNames)
+     {
+-        reports.push_back(
+-            {{"@odata.id",
+-              crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
+-                                           "MetricReportDefinitions", name)
+-                  .string()}});
++        sdbusplus::message::object_path path(name);
++        if (path.parent_path() != "TelemetryService")
++        {
++            BMCWEB_LOG_ERROR << "Property ReportNames contains invalid value: "
++                             << name;
++            return std::nullopt;
++        }
++        reports.push_back({
++            {"@odata.id", crow::utility::urlFromPieces(
++                              "redfish", "v1", "TelemetryService",
++                              "MetricReportDefinitions", path.filename())
++                              .string()},
++        });
+     }
+ 
+-    return reports;
++    return std::make_optional(reports);
+ }
+ 
+ inline std::vector<std::string>
+@@ -215,12 +224,23 @@ inline bool fillTrigger(
+         return false;
+     }
+ 
+-    json["@odata.type"] = "#Triggers.v1_2_0.Triggers";
+-    json["@odata.id"] = crow::utility::urlFromPieces(
+-                            "redfish", "v1", "TelemetryService", "Triggers", id)
+-                            .string();
+-    json["Id"] = id;
+-    json["Name"] = *name;
++    std::optional<std::vector<std::string>> triggerActions =
++        getTriggerActions(*actions);
++    if (!triggerActions)
++    {
++        BMCWEB_LOG_ERROR << "Property TriggerActions is invalid in Trigger: "
++                         << id;
++        return false;
++    }
++
++    std::optional<nlohmann::json> linkedReports =
++        getMetricReportDefinitions(*reports);
++    if (!linkedReports)
++    {
++        BMCWEB_LOG_ERROR << "Property ReportNames is invalid in Trigger: "
++                         << id;
++        return false;
++    }
+ 
+     if (*discrete)
+     {
+@@ -257,20 +277,15 @@ inline bool fillTrigger(
+         json["MetricType"] = "Numeric";
+     }
+ 
+-    std::optional<std::vector<std::string>> triggerActions =
+-        getTriggerActions(*actions);
+-
+-    if (!triggerActions)
+-    {
+-        BMCWEB_LOG_ERROR << "Property TriggerActions is invalid in Trigger: "
+-                         << id;
+-        return false;
+-    }
+-
++    json["@odata.type"] = "#Triggers.v1_2_0.Triggers";
++    json["@odata.id"] = crow::utility::urlFromPieces(
++                            "redfish", "v1", "TelemetryService", "Triggers", id)
++                            .string();
++    json["Id"] = id;
++    json["Name"] = *name;
+     json["TriggerActions"] = *triggerActions;
+     json["MetricProperties"] = getMetricProperties(*sensors);
+-    json["Links"]["MetricReportDefinitions"] =
+-        getMetricReportDefinitions(*reports);
++    json["Links"]["MetricReportDefinitions"] = *linkedReports;
+ 
+     return true;
+ }
+-- 
+2.25.1

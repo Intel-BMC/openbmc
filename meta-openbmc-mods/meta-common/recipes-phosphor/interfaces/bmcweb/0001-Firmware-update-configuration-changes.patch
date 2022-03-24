@@ -1,0 +1,691 @@
+From 4baa1fbf5d2deedfc4144e3fd36c8547c3902c98 Mon Sep 17 00:00:00 2001
+From: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Date: Fri, 3 Dec 2021 05:25:02 +0530
+Subject: [PATCH] Firmware update configuration changes
+
+This commit will provide user to PATCH the below firmware update
+attributes before uploding the firmware image.
+
+1. This will have PATCH support for 'HttpPushUriTargets' and
+'HttpPushUriTargetsBusy' attributes. These attributes enables
+'HttpPushUri' to distinguish between the firmware update targets.
+
+2. ApplyOptions are used to specify firmware update specific options
+such as ClearConfig which is used while activating the updated
+firmware. This setting is maintained in a local static variable
+when set using PATCH method. Its used in activate image as input
+parameter. This attribute is added as Oem as the default
+UpdateService interface doesn't specify any relevant or appropriate
+attribute for this.
+
+Tested:
+ - GET on "/redfish/v1/UpdateService", got below response
+.........
+  "HttpPushUriTargets": [],
+  "HttpPushUriTargetsBusy": false
+........
+
+ - PATCH on "/redfish/v1/UpdateService" and works fine.
+{
+   "HttpPushUriTargets": ["bmc_recovery"],
+   "HttpPushUriTargetsBusy": true
+}
+
+ - Did Firmware update and verified end to end functionality
+   for both bmc active and backup images.
+
+ - Tested setting ClearConfig to true or false using PATCH
+   method.
+
+ - Successfully ran redfish validater with no new errors.
+
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+---
+ redfish-core/lib/update_service.hpp           | 343 ++++++++++++++++--
+ static/redfish/v1/$metadata/index.xml         |   3 +
+ .../JsonSchemas/OemUpdateService/index.json   |  69 ++++
+ .../redfish/v1/schema/OemUpdateService_v1.xml |  40 ++
+ 4 files changed, 426 insertions(+), 29 deletions(-)
+ create mode 100644 static/redfish/v1/JsonSchemas/OemUpdateService/index.json
+ create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
+
+diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
+index 6c61e40..3161427 100644
+--- a/redfish-core/lib/update_service.hpp
++++ b/redfish-core/lib/update_service.hpp
+@@ -26,7 +26,9 @@
+ 
+ namespace redfish
+ {
+-
++// params for multiple firmware targets
++std::vector<std::string> httpPushUriTargets;
++bool httpPushUriTargetBusy = false;
+ // Match signals added on software path
+ static std::unique_ptr<sdbusplus::bus::match::match> fwUpdateMatcher;
+ static std::unique_ptr<sdbusplus::bus::match::match> fwUpdateErrorMatcher;
+@@ -34,6 +36,17 @@ static std::unique_ptr<sdbusplus::bus::match::match> fwUpdateErrorMatcher;
+ static bool fwUpdateInProgress = false;
+ // Timer for software available
+ static std::unique_ptr<boost::asio::steady_timer> fwAvailableTimer;
++static constexpr const char* versionIntf =
++    "xyz.openbmc_project.Software.Version";
++static constexpr const char* activationIntf =
++    "xyz.openbmc_project.Software.Activation";
++static constexpr const char* reqActivationPropName = "RequestedActivation";
++static constexpr const char* reqActivationsActive =
++    "xyz.openbmc_project.Software.Activation.RequestedActivations.Active";
++static constexpr const char* reqActivationsStandBySpare =
++    "xyz.openbmc_project.Software.Activation.RequestedActivations.StandbySpare";
++static constexpr const char* activationsStandBySpare =
++    "xyz.openbmc_project.Software.Activation.Activations.StandbySpare";
+ 
+ inline static void cleanUp()
+ {
+@@ -42,27 +55,120 @@ inline static void cleanUp()
+     fwUpdateErrorMatcher = nullptr;
+ }
+ inline static void activateImage(const std::string& objPath,
+-                                 const std::string& service)
++                                 const std::string& service,
++                                 const std::vector<std::string>& imgUriTargets)
+ {
+     BMCWEB_LOG_DEBUG << "Activate image for " << objPath << " " << service;
++    // If targets is empty, it will apply to the active.
++    if (imgUriTargets.size() == 0)
++    {
++        crow::connections::systemBus->async_method_call(
++            [](const boost::system::error_code errorCode) {
++                if (errorCode)
++                {
++                    BMCWEB_LOG_DEBUG
++                        << "RequestedActivation failed: error_code = "
++                        << errorCode;
++                    BMCWEB_LOG_DEBUG << "error msg = " << errorCode.message();
++                }
++            },
++            service, objPath, "org.freedesktop.DBus.Properties", "Set",
++            activationIntf, reqActivationPropName,
++            std::variant<std::string>(reqActivationsActive));
++        return;
++    }
++
++    // TODO: Now we support only one target becuase software-manager
++    // code support one activation per object. It will be enhanced
++    // to multiple targets for single image in future. For now,
++    // consider first target alone.
+     crow::connections::systemBus->async_method_call(
+-        [](const boost::system::error_code errorCode) {
+-            if (errorCode)
++        [objPath, service, imgTarget{imgUriTargets[0]}](
++            const boost::system::error_code ec,
++            const crow::openbmc_mapper::GetSubTreeType& subtree) {
++            if (ec || !subtree.size())
+             {
+-                BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
+-                BMCWEB_LOG_DEBUG << "error msg = " << errorCode.message();
++                return;
++            }
++
++            for (const auto& [invObjPath, invDict] : subtree)
++            {
++                std::size_t idPos = invObjPath.rfind("/");
++                if ((idPos == std::string::npos) ||
++                    ((idPos + 1) >= invObjPath.size()))
++                {
++                    BMCWEB_LOG_DEBUG << "Can't parse firmware ID!!";
++                    return;
++                }
++                std::string swId = invObjPath.substr(idPos + 1);
++
++                if (swId != imgTarget)
++                {
++                    continue;
++                }
++
++                if (invDict.size() < 1)
++                {
++                    continue;
++                }
++                BMCWEB_LOG_DEBUG << "Image target matched with object "
++                                 << invObjPath;
++                crow::connections::systemBus->async_method_call(
++                    [objPath,
++                     service](const boost::system::error_code error_code,
++                              const std::variant<std::string> value) {
++                        if (error_code)
++                        {
++                            BMCWEB_LOG_DEBUG
++                                << "Error in querying activation value";
++                            // not all fwtypes are updateable,
++                            // this is ok
++                            return;
++                        }
++                        std::string activationValue =
++                            std::get<std::string>(value);
++                        BMCWEB_LOG_DEBUG << "Activation Value: "
++                                         << activationValue;
++                        std::string reqActivation = reqActivationsActive;
++                        if (activationValue == activationsStandBySpare)
++                        {
++                            reqActivation = reqActivationsStandBySpare;
++                        }
++                        BMCWEB_LOG_DEBUG
++                            << "Setting RequestedActivation value as "
++                            << reqActivation << " for " << service << " "
++                            << objPath;
++                        crow::connections::systemBus->async_method_call(
++                            [](const boost::system::error_code error_code) {
++                                if (error_code)
++                                {
++                                    BMCWEB_LOG_DEBUG
++                                        << "RequestedActivation failed: ec = "
++                                        << error_code;
++                                }
++                                return;
++                            },
++                            service, objPath, "org.freedesktop.DBus.Properties",
++                            "Set", activationIntf, reqActivationPropName,
++                            std::variant<std::string>(reqActivation));
++                    },
++                    invDict[0].first,
++                    "/xyz/openbmc_project/software/" + imgTarget,
++                    "org.freedesktop.DBus.Properties", "Get", activationIntf,
++                    "Activation");
+             }
+         },
+-        service, objPath, "org.freedesktop.DBus.Properties", "Set",
+-        "xyz.openbmc_project.Software.Activation", "RequestedActivation",
+-        dbus::utility::DbusVariantType(
+-            "xyz.openbmc_project.Software.Activation.RequestedActivations.Active"));
++        "xyz.openbmc_project.ObjectMapper",
++        "/xyz/openbmc_project/object_mapper",
++        "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
++        static_cast<int32_t>(0), std::array<const char*, 1>{versionIntf});
+ }
+ 
+ // Note that asyncResp can be either a valid pointer or nullptr. If nullptr
+ // then no asyncResp updates will occur
+ static void
+     softwareInterfaceAdded(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                           const std::vector<std::string> imgUriTargets,
+                            sdbusplus::message::message& m,
+                            task::Payload&& payload)
+ {
+@@ -75,23 +181,26 @@ static void
+ 
+     m.read(objPath, interfacesProperties);
+ 
+-    BMCWEB_LOG_DEBUG << "obj path = " << objPath.str;
++    BMCWEB_LOG_DEBUG << "Software Interface Added. obj path = " << objPath.str;
+     for (auto& interface : interfacesProperties)
+     {
+         BMCWEB_LOG_DEBUG << "interface = " << interface.first;
+ 
+-        if (interface.first == "xyz.openbmc_project.Software.Activation")
++        if (interface.first == activationIntf)
+         {
+             // Retrieve service and activate
+             crow::connections::systemBus->async_method_call(
+-                [objPath, asyncResp, payload(std::move(payload))](
++                [objPath, asyncResp, imgTargets{imgUriTargets},
++                 payload(std::move(payload))](
+                     const boost::system::error_code errorCode,
+                     const std::vector<
+                         std::pair<std::string, std::vector<std::string>>>&
+                         objInfo) mutable {
+                     if (errorCode)
+                     {
+-                        BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
++                        BMCWEB_LOG_DEBUG
++                            << "GetSoftwareObject path failed: error_code = "
++                            << errorCode;
+                         BMCWEB_LOG_DEBUG << "error msg = "
+                                          << errorCode.message();
+                         if (asyncResp)
+@@ -118,7 +227,7 @@ static void
+                     // is added
+                     fwAvailableTimer = nullptr;
+ 
+-                    activateImage(objPath.str, objInfo[0].first);
++                    activateImage(objPath.str, objInfo[0].first, imgTargets);
+                     if (asyncResp)
+                     {
+                         std::shared_ptr<task::TaskData> task =
+@@ -249,8 +358,7 @@ static void
+                 "xyz.openbmc_project.ObjectMapper",
+                 "/xyz/openbmc_project/object_mapper",
+                 "xyz.openbmc_project.ObjectMapper", "GetObject", objPath.str,
+-                std::array<const char*, 1>{
+-                    "xyz.openbmc_project.Software.Activation"});
++                std::array<const char*, 1>{activationIntf});
+         }
+     }
+ }
+@@ -260,7 +368,7 @@ static void
+ static void monitorForSoftwareAvailable(
+     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+     const crow::Request& req, const std::string& url,
+-    int timeoutTimeSeconds = 10)
++    const std::vector<std::string>& imgUriTargets, int timeoutTimeSeconds = 10)
+ {
+     // Only allow one FW update at a time
+     if (fwUpdateInProgress)
+@@ -300,10 +408,10 @@ static void monitorForSoftwareAvailable(
+             }
+         });
+     task::Payload payload(req);
+-    auto callback = [asyncResp,
++    auto callback = [asyncResp, imgTargets{imgUriTargets},
+                      payload](sdbusplus::message::message& m) mutable {
+         BMCWEB_LOG_DEBUG << "Match fired";
+-        softwareInterfaceAdded(asyncResp, m, std::move(payload));
++        softwareInterfaceAdded(asyncResp, imgTargets, m, std::move(payload));
+     };
+ 
+     fwUpdateInProgress = true;
+@@ -485,12 +593,15 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
+             std::string fwFile = imageURI.substr(separator + 1);
+             BMCWEB_LOG_DEBUG << "Server: " << tftpServer + " File: " << fwFile;
+ 
++            // We will pass empty targets and its handled in activation.
++            std::vector<std::string> httpUriTargets;
++
+             // Setup callback for when new software detected
+             // Give TFTP 10 minutes to complete
+             monitorForSoftwareAvailable(
+                 asyncResp, req,
+                 "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate",
+-                600);
++                httpUriTargets, 600);
+ 
+             // TFTP can take up to 10 minutes depending on image size and
+             // connection speed. Return to caller as soon as the TFTP operation
+@@ -539,6 +650,9 @@ inline void requestRoutesUpdateService(App& app)
+             asyncResp->res.jsonValue["Name"] = "Update Service";
+             asyncResp->res.jsonValue["HttpPushUri"] =
+                 "/redfish/v1/UpdateService";
++            asyncResp->res.jsonValue["HttpPushUriTargets"] = httpPushUriTargets;
++            asyncResp->res.jsonValue["HttpPushUriTargetsBusy"] =
++                httpPushUriTargetBusy;
+             // UpdateService cannot be disabled
+             asyncResp->res.jsonValue["ServiceEnabled"] = true;
+             asyncResp->res.jsonValue["FirmwareInventory"] = {
+@@ -590,6 +704,34 @@ inline void requestRoutesUpdateService(App& app)
+                             "OnReset";
+                     }
+                 });
++
++            // Get the ApplyOptions value
++            crow::connections::systemBus->async_method_call(
++                [asyncResp](const boost::system::error_code ec,
++                            const std::variant<bool> applyOption) {
++                    if (ec)
++                    {
++                        BMCWEB_LOG_DEBUG << "DBUS response error " << ec;
++                        messages::internalError(asyncResp->res);
++                        return;
++                    }
++
++                    const bool* b = std::get_if<bool>(&applyOption);
++
++                    if (b)
++                    {
++                        asyncResp->res
++                            .jsonValue["Oem"]["ApplyOptions"]["@odata.type"] =
++                            "#OemUpdateService.ApplyOptions";
++                        asyncResp->res
++                            .jsonValue["Oem"]["ApplyOptions"]["ClearConfig"] =
++                            *b;
++                    }
++                },
++                "xyz.openbmc_project.Software.BMC.Updater",
++                "/xyz/openbmc_project/software",
++                "org.freedesktop.DBus.Properties", "Get",
++                "xyz.openbmc_project.Software.ApplyOptions", "ClearConfig");
+         });
+     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
+         .privileges(redfish::privileges::patchUpdateService)
+@@ -600,12 +742,60 @@ inline void requestRoutesUpdateService(App& app)
+             BMCWEB_LOG_DEBUG << "doPatch...";
+ 
+             std::optional<nlohmann::json> pushUriOptions;
+-            if (!json_util::readJsonPatch(req, asyncResp->res,
+-                                          "HttpPushUriOptions", pushUriOptions))
++            std::optional<std::vector<std::string>> imgTargets;
++            std::optional<bool> imgTargetBusy;
++            std::optional<nlohmann::json> oemProps;
++            if (!json_util::readJsonPatch(
++                    req, asyncResp->res, "HttpPushUriOptions", pushUriOptions,
++                    "HttpPushUriTargets", imgTargets, "HttpPushUriTargetsBusy",
++                    imgTargetBusy, "Oem", oemProps))
+             {
++                BMCWEB_LOG_DEBUG
++                    << "UpdateService doPatch: Invalid request body";
+                 return;
+             }
+ 
++            if (oemProps)
++            {
++                std::optional<nlohmann::json> applyOptions;
++
++                if (!json_util::readJson(*oemProps, asyncResp->res,
++                                         "ApplyOptions", applyOptions))
++                {
++                    return;
++                }
++
++                if (applyOptions)
++                {
++                    std::optional<bool> clearConfig;
++                    if (!json_util::readJson(*applyOptions, asyncResp->res,
++                                             "ClearConfig", clearConfig))
++                    {
++                        return;
++                    }
++
++                    if (clearConfig)
++                    {
++                        // Set the requested image apply time value
++                        crow::connections::systemBus->async_method_call(
++                            [asyncResp](const boost::system::error_code ec) {
++                                if (ec)
++                                {
++                                    BMCWEB_LOG_ERROR
++                                        << "D-Bus responses error: " << ec;
++                                    messages::internalError(asyncResp->res);
++                                    return;
++                                }
++                                messages::success(asyncResp->res);
++                            },
++                            "xyz.openbmc_project.Software.BMC.Updater",
++                            "/xyz/openbmc_project/software",
++                            "org.freedesktop.DBus.Properties", "Set",
++                            "xyz.openbmc_project.Software.ApplyOptions",
++                            "ClearConfig", std::variant<bool>{*clearConfig});
++                    }
++                }
++            }
+             if (pushUriOptions)
+             {
+                 std::optional<nlohmann::json> pushUriApplyTime;
+@@ -668,6 +858,102 @@ inline void requestRoutesUpdateService(App& app)
+                     }
+                 }
+             }
++            if (imgTargetBusy)
++            {
++                if ((httpPushUriTargetBusy) && (*imgTargetBusy))
++                {
++                    BMCWEB_LOG_DEBUG
++                        << "Other client has reserved the HttpPushUriTargets "
++                           "property for firmware updates.";
++                    messages::resourceInUse(asyncResp->res);
++                    return;
++                }
++
++                if (imgTargets)
++                {
++                    if (!(*imgTargetBusy))
++                    {
++                        BMCWEB_LOG_DEBUG
++                            << "UpdateService doPatch: httpPushUriTargetBusy "
++                               "should be "
++                               "true before setting httpPushUriTargets";
++                        messages::invalidObject(asyncResp->res,
++                                                crow::utility::urlFromPieces(
++                                                    "HttpPushUriTargetsBusy"));
++                        return;
++                    }
++                    if ((*imgTargets).size() != 0)
++                    {
++                        // TODO: Now we support max one target becuase
++                        // software-manager code support one activation per
++                        // object. It will be enhanced to multiple targets for
++                        // single image in future. For now, consider first
++                        // target alone.
++                        if ((*imgTargets).size() != 1)
++                        {
++                            messages::invalidObject(
++                                asyncResp->res, crow::utility::urlFromPieces(
++                                                    "HttpPushUriTargets"));
++                            return;
++                        }
++                        crow::connections::systemBus->async_method_call(
++                            [asyncResp, uriTargets{*imgTargets},
++                             targetBusy{*imgTargetBusy}](
++                                const boost::system::error_code ec,
++                                const std::vector<std::string> swInvPaths) {
++                                if (ec)
++                                {
++                                    return;
++                                }
++
++                                bool swInvObjFound = false;
++                                for (const std::string& path : swInvPaths)
++                                {
++                                    std::size_t idPos = path.rfind("/");
++                                    if ((idPos == std::string::npos) ||
++                                        ((idPos + 1) >= path.size()))
++                                    {
++                                        messages::internalError(asyncResp->res);
++                                        BMCWEB_LOG_DEBUG
++                                            << "Can't parse firmware ID!!";
++                                        return;
++                                    }
++                                    std::string swId = path.substr(idPos + 1);
++
++                                    if (swId == uriTargets[0])
++                                    {
++                                        swInvObjFound = true;
++                                        break;
++                                    }
++                                }
++                                if (!swInvObjFound)
++                                {
++                                    messages::invalidObject(
++                                        asyncResp->res,
++                                        crow::utility::urlFromPieces(
++                                            "HttpPushUriTargets"));
++                                    return;
++                                }
++                                httpPushUriTargetBusy = targetBusy;
++                                httpPushUriTargets = uriTargets;
++                            },
++                            "xyz.openbmc_project.ObjectMapper",
++                            "/xyz/openbmc_project/object_mapper",
++                            "xyz.openbmc_project.ObjectMapper",
++                            "GetSubTreePaths", "/", static_cast<int32_t>(0),
++                            std::array<const char*, 1>{versionIntf});
++                    }
++                    else
++                    {
++                        httpPushUriTargetBusy = *imgTargetBusy;
++                        httpPushUriTargets = *imgTargets;
++                    }
++                }
++                else
++                {
++                    httpPushUriTargetBusy = *imgTargetBusy;
++                }
++            }
+         });
+     BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
+         .privileges(redfish::privileges::postUpdateService)
+@@ -678,7 +964,8 @@ inline void requestRoutesUpdateService(App& app)
+ 
+                 // Setup callback for when new software detected
+                 monitorForSoftwareAvailable(asyncResp, req,
+-                                            "/redfish/v1/UpdateService");
++                                            "/redfish/v1/UpdateService",
++                                            httpPushUriTargets);
+ 
+                 std::string filepath("/tmp/images/" +
+                                      boost::uuids::to_string(
+@@ -754,8 +1041,7 @@ inline void requestRoutesSoftwareInventoryCollection(App& app)
+                 "/xyz/openbmc_project/object_mapper",
+                 "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+                 "/xyz/openbmc_project/software", static_cast<int32_t>(0),
+-                std::array<const char*, 1>{
+-                    "xyz.openbmc_project.Software.Version"});
++                std::array<const char*, 1>{versionIntf});
+         });
+ }
+ /* Fill related item links (i.e. bmc, bios) in for inventory */
+@@ -923,7 +1209,7 @@ inline void requestRoutesSoftwareInventory(App& app)
+                             },
+                             obj.second[0].first, obj.first,
+                             "org.freedesktop.DBus.Properties", "GetAll",
+-                            "xyz.openbmc_project.Software.Version");
++                            versionIntf);
+                     }
+                     if (!found)
+                     {
+@@ -948,8 +1234,7 @@ inline void requestRoutesSoftwareInventory(App& app)
+                 "/xyz/openbmc_project/object_mapper",
+                 "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
+                 static_cast<int32_t>(0),
+-                std::array<const char*, 1>{
+-                    "xyz.openbmc_project.Software.Version"});
++                std::array<const char*, 1>{versionIntf});
+         });
+ }
+ 
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index 49835a7..1a6767b 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2575,6 +2575,9 @@
+     <edmx:Reference Uri="/redfish/v1/schema/OemComputerSystem_v1.xml">
+         <edmx:Include Namespace="OemComputerSystem"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/OemUpdateService_v1.xml">
++        <edmx:Include Namespace="OemUpdateService"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/OemVirtualMedia_v1.xml">
+         <edmx:Include Namespace="OemVirtualMedia"/>
+         <edmx:Include Namespace="OemVirtualMedia.v1_0_0"/>
+diff --git a/static/redfish/v1/JsonSchemas/OemUpdateService/index.json b/static/redfish/v1/JsonSchemas/OemUpdateService/index.json
+new file mode 100644
+index 0000000..74e39cd
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/OemUpdateService/index.json
+@@ -0,0 +1,69 @@
++{
++    "$id": "http://redfish.dmtf.org/schemas/v1/OemUpdateService.json",
++    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
++    "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
++    "definitions": {
++        "ApplyOptions": {
++            "additionalProperties": false,
++            "description": "An indication by boolean value whether to update firmware configuration along with firmware image update.",
++            "patternProperties": {
++                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
++                    "description": "This property shall specify a valid odata or Redfish property.",
++                    "type": [
++                        "array",
++                        "boolean",
++                        "integer",
++                        "number",
++                        "null",
++                        "object",
++                        "string"
++                    ]
++                }
++            },
++            "properties": {
++                "ClearConfig": {
++                    "description": "This indicates whether to update firmware configuration or not.",
++                    "longDescription": "The value of this property is used to indicate the firmware configuration update.",
++                    "readonly": false,
++                    "type": [
++                        "boolean",
++                        "null"
++                    ]
++                }
++            },
++            "type": "object"
++        },
++        "Oem": {
++            "additionalProperties": true,
++            "description": "OemUpdateService Oem properties.",
++            "patternProperties": {
++                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
++                    "description": "This property shall specify a valid odata or Redfish property.",
++                    "type": [
++                        "array",
++                        "boolean",
++                        "integer",
++                        "number",
++                        "null",
++                        "object",
++                        "string"
++                    ]
++                }
++            },
++            "properties": {
++                "ApplyOptions": {
++                    "anyOf": [
++                        {
++                            "$ref": "#/definitions/ApplyOptions"
++                        },
++                        {
++                            "type": "null"
++                        }
++                    ]
++                }
++            },
++            "type": "object"
++        }
++    },
++    "title": "#OemUpdateService"
++}
+diff --git a/static/redfish/v1/schema/OemUpdateService_v1.xml b/static/redfish/v1/schema/OemUpdateService_v1.xml
+new file mode 100644
+index 0000000..cbb7aa4
+--- /dev/null
++++ b/static/redfish/v1/schema/OemUpdateService_v1.xml
+@@ -0,0 +1,40 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
++    <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
++        <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData" />
++    </edmx:Reference>
++    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
++        <edmx:Include Namespace="Validation.v1_0_0" Alias="Validation"/>
++        <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
++    </edmx:Reference>
++    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/UpdateService_v1.xml">
++        <edmx:Include Namespace="UpdateService"/>
++        <edmx:Include Namespace="UpdateService.v1_4_0"/>
++    </edmx:Reference>
++    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
++        <edmx:Include Namespace="Resource"/>
++        <edmx:Include Namespace="Resource.v1_0_0"/>
++    </edmx:Reference>
++
++    <edmx:DataServices>
++        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemUpdateService">
++            <ComplexType Name="Oem" BaseType="Resource.OemObject">
++                <Annotation Term="OData.AdditionalProperties" Bool="true" />
++                <Annotation Term="OData.Description" String="OemUpdateService Oem properties." />
++                <Annotation Term="OData.AutoExpand"/>
++                <Property Name="ApplyOptions" Type="OemUpdateService.ApplyOptions"/>
++            </ComplexType>
++
++            <ComplexType Name="ApplyOptions" BaseType="Resource.OemObject">
++                <Annotation Term="OData.AdditionalProperties" Bool="false" />
++                <Annotation Term="OData.Description" String="An indication by boolean value whether to update firmware configuration along with firmware image update." />
++                <Property Name="ClearConfig" Type="Edm.Boolean">
++                    <Annotation Term="OData.Permissions" EnumMember="OData.Permission/ReadWrite"/>
++                    <Annotation Term="OData.Description" String="This indicates whether to update firmware configuration or not."/>
++                    <Annotation Term="OData.LongDescription" String="The value of this property is used to indicate the firmware configuration update."/>
++                </Property>
++            </ComplexType>
++
++        </Schema>
++    </edmx:DataServices>
++</edmx:Edmx>
+-- 
+2.25.1
+

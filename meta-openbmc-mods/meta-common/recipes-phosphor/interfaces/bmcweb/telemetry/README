@@ -1,0 +1,24 @@
+These patches are mirror of upstream TelemetryService implementation.
+Until change is integrated they will be manually merged here to enable feature in Intel builds.
+
+Current revisions:
+- LogService field, actual implementation will be upstreamed with triggers feature
+  file://telemetry/0001-Revert-Remove-LogService-from-TelemetryService.patch
+
+- ref: use url_view for telemetry uris
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/51650/7
+
+- Fix Trigger GET functionality
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/51521/9
+
+- Add support for POST on TriggersCollection
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/44935/27
+
+- Switched bmcweb to use new telemetry service API
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/44270/39
+
+- Add PUT and PATCH for MetricReportDefinition
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/49796/13
+
+- Add Links/Triggers to MetricReportDefinition
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/51723/1

@@ -1,0 +1,37 @@
+Eventservice specific patches: Temporary pulling down
+the upstream patches. These will be remove as soon as
+thee gets merged upstream.
+
+Upstream revision information:
+ - EventService : Add unmerged changes for http retry support (Downstream patch)
+   file://eventservice/0001-Add-unmerged-changes-for-http-retry-support.patch
+
+ - EventService: https client support
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/31735/40 (Rebased on latest bmcweb)
+
+ - Add Server-Sent-Events support
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41258/9
+
+ - Add SSE style subscription support to eventservice
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41319/10
+
+ - Add EventService SSE filter support
+   https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/41349/7 (Modified boost::urls::query_params_view to boost::urls::url_view::params_type)
+
+ - EventService Log events for subscription actions (Downstream patch)
+   file://eventservice/0007-EventService-Log-events-for-subscription-actions.patch
+
+ - Add checks on Event-Subscription input parameters (Downstream patch)
+   file://eventservice/0008-Add-checks-on-Event-Subscription-input-parameters.patch
+
+ - Remove Terminated Event Subscriptions (Downstream patch)
+   file://eventservice/0010-Remove-Terminated-Event-Subscriptions.patch
+
+ - Fix bmcweb crash while deleting terminated subscriptions (Downstream patch)
+   file://eventservice/0011-Fix-bmcweb-crash-while-deleting-terminated-subscriptions.patch
+
+ - Add support for deleting terminated subscriptions
+   file://eventservice/0012-Add-support-for-deleting-terminated-subscriptions.patch
+
+ - event service fix added Context field to response
+   file://eventservice/0013-event-service-fix-added-Context-field-to-response.patch

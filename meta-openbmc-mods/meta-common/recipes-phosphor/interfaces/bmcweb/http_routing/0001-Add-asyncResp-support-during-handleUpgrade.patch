@@ -1,0 +1,194 @@
+From aa8aed7069c3654d288b8198d1cd21fadb6e2a36 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Mon, 18 Oct 2021 22:45:37 +0530
+Subject: [PATCH] Add asyncResp support during handleUpgrade
+
+The current implementation uses the earlier method of using the response
+object and calling response.end() to initiate completion handler.
+This commit modifies the implementation to use asyncResp, where the
+completion handler gets called asynchronously as the response object
+goes out of scope.
+
+Tested :
+ - websocket_test.py Passed
+ - KVM was functional in WebUI.
+ - POST to /redfish/v1/EventService/Subscriptions/SSE returned an error
+   message as expected and the connection was kept alive.
+ - GET on /redfish/v1/EventService/Subscriptions/SSE (SSE subscription)
+   was successful. The existing connection was successfully closed and
+   upgraded to SSE connection.
+
+Change-Id: I2d76b34a49a6432c507d939b21b37c1ced761f8e
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ http/app.hpp             |  6 ++++--
+ http/http_connection.hpp | 30 +++++++++++++++++++++++----
+ http/routing.hpp         | 37 +++++++++++++++++++++----------------
+ 3 files changed, 51 insertions(+), 22 deletions(-)
+
+diff --git a/http/app.hpp b/http/app.hpp
+index c1472e5..7e946dc 100644
+--- a/http/app.hpp
++++ b/http/app.hpp
+@@ -51,9 +51,11 @@ class App
+     App& operator=(const App&&) = delete;
+ 
+     template <typename Adaptor>
+-    void handleUpgrade(const Request& req, Response& res, Adaptor&& adaptor)
++    void handleUpgrade(const Request& req,
++                       const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                       Adaptor&& adaptor)
+     {
+-        router.handleUpgrade(req, res, std::forward<Adaptor>(adaptor));
++        router.handleUpgrade(req, asyncResp, std::forward<Adaptor>(adaptor));
+     }
+ 
+     void handle(Request& req,
+diff --git a/http/http_connection.hpp b/http/http_connection.hpp
+index 8d76b25..9911ced 100644
+--- a/http/http_connection.hpp
++++ b/http/http_connection.hpp
+@@ -381,10 +381,32 @@ class Connection :
+             (req->url == "/redfish/v1/EventService/Subscriptions/SSE"))
+         {
+             BMCWEB_LOG_DEBUG << "Request: " << this << " is getting upgraded";
+-            handler->handleUpgrade(thisReq, res, std::move(adaptor));
+-            // delete lambda with self shared_ptr
+-            // to enable connection destruction
+-            asyncResp->res.setCompleteRequestHandler(nullptr);
++            asyncResp->res.setCompleteRequestHandler(
++                [self(shared_from_this())](crow::Response& thisRes) {
++                    if (self->res.resultInt() != 200)
++                    {
++                        // When any error occurs during handle upgradation,
++                        // the result in response will be set to respective
++                        // error. By default the Result will be OK (200),
++                        // which implies successful handle upgrade. Response
++                        // needs to be sent over this connection only on
++                        // failure.
++                        boost::asio::post(self->adaptor.get_executor(),
++                                          [self, &thisRes] {
++                                              self->completeRequest(thisRes);
++                                          });
++                    }
++                    else
++                    {
++                        // Set Complete request handler to NULL to remove
++                        // the shared pointer of connection to enable
++                        // connection destruction. As the connection would
++                        // get upgraded, we wouldn't need this connection
++                        // any longer
++                        self->res.setCompleteRequestHandler(nullptr);
++                    }
++                });
++            handler->handleUpgrade(thisReq, asyncResp, std::move(adaptor));
+             return;
+         }
+         handler->handle(thisReq, asyncResp);
+diff --git a/http/routing.hpp b/http/routing.hpp
+index 552e1cf..4bb81f2 100644
+--- a/http/routing.hpp
++++ b/http/routing.hpp
+@@ -1215,12 +1215,13 @@ class Router
+     }
+ 
+     template <typename Adaptor>
+-    void handleUpgrade(const Request& req, Response& res, Adaptor&& adaptor)
++    void handleUpgrade(const Request& req,
++                       const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                       Adaptor&& adaptor)
+     {
+         if (static_cast<size_t>(req.method()) >= perMethods.size())
+         {
+-            res.result(boost::beast::http::status::not_found);
+-            res.end();
++            asyncResp->res.result(boost::beast::http::status::not_found);
+             return;
+         }
+ 
+@@ -1233,8 +1234,7 @@ class Router
+         if (ruleIndex == 0U)
+         {
+             BMCWEB_LOG_DEBUG << "Cannot match rules " << req.url;
+-            res.result(boost::beast::http::status::not_found);
+-            res.end();
++            asyncResp->res.result(boost::beast::http::status::not_found);
+             return;
+         }
+ 
+@@ -1247,23 +1247,24 @@ class Router
+         {
+             BMCWEB_LOG_INFO << "Redirecting to a url with trailing slash: "
+                             << req.url;
+-            res.result(boost::beast::http::status::moved_permanently);
++            asyncResp->res.result(
++                boost::beast::http::status::moved_permanently);
+ 
+             // TODO absolute url building
+             if (req.getHeaderValue("Host").empty())
+             {
+-                res.addHeader("Location", std::string(req.url) + "/");
++                asyncResp->res.addHeader("Location",
++                                         std::string(req.url) + "/");
+             }
+             else
+             {
+-                res.addHeader(
++                asyncResp->res.addHeader(
+                     "Location",
+                     req.isSecure
+                         ? "https://"
+                         : "http://" + std::string(req.getHeaderValue("Host")) +
+                               std::string(req.url) + "/");
+             }
+-            res.end();
+             return;
+         }
+ 
+@@ -1274,8 +1275,7 @@ class Router
+                              << " with " << req.methodString() << "("
+                              << static_cast<uint32_t>(req.method()) << ") / "
+                              << rules[ruleIndex]->getMethods();
+-            res.result(boost::beast::http::status::not_found);
+-            res.end();
++            asyncResp->res.result(boost::beast::http::status::not_found);
+             return;
+         }
+ 
+@@ -1286,14 +1286,19 @@ class Router
+         // any uncaught exceptions become 500s
+         try
+         {
+-            rules[ruleIndex]->handleUpgrade(req, res,
++            // Creating temporary response object to call handleUpgrade
++            // We cannot pass the asyncResp as it will be destroyed
++            // The response object is not initialized as handleUpgrade wouldn't
++            // be using this object
++            crow::Response resp;
++            rules[ruleIndex]->handleUpgrade(req, resp,
+                                             std::forward<Adaptor>(adaptor));
+         }
+         catch (const std::exception& e)
+         {
+             BMCWEB_LOG_ERROR << "An uncaught exception occurred: " << e.what();
+-            res.result(boost::beast::http::status::internal_server_error);
+-            res.end();
++            asyncResp->res.result(
++                boost::beast::http::status::internal_server_error);
+             return;
+         }
+         catch (...)
+@@ -1301,8 +1306,8 @@ class Router
+             BMCWEB_LOG_ERROR
+                 << "An uncaught exception occurred. The type was unknown "
+                    "so no information was available.";
+-            res.result(boost::beast::http::status::internal_server_error);
+-            res.end();
++            asyncResp->res.result(
++                boost::beast::http::status::internal_server_error);
+             return;
+         }
+     }
+-- 
+2.17.1
+

@@ -1,0 +1,74 @@
+From 034920eca21bc25899565484928ee72025e21ff8 Mon Sep 17 00:00:00 2001
+From: Wiktor Golgowski <wiktor.golgowski@linux.intel.com>
+Date: Thu, 30 Apr 2020 11:09:35 +0200
+Subject: [PATCH] Use chip id-based UUID for Service Root.
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If the sysfs-provided chip id is available, it will be used as
+payload to generate Service Root UUID from hardcoded namespace.
+
+Tested:
+Generated UUID is consistent between BMC image reflashes.
+If the sysfs node is not available, code falls back to randomly
+generated UUID.
+
+Signed-off-by: Wiktor Gołgowski <wiktor.golgowski@linux.intel.com>
+---
+ include/persistent_data.hpp | 32 +++++++++++++++++++++++++++++---
+ 1 file changed, 29 insertions(+), 3 deletions(-)
+
+diff --git a/include/persistent_data.hpp b/include/persistent_data.hpp
+index 24f7afd..8826b06 100644
+--- a/include/persistent_data.hpp
++++ b/include/persistent_data.hpp
+@@ -25,6 +25,10 @@ class ConfigFile
+   public:
+     // todo(ed) should read this from a fixed location somewhere, not CWD
+     static constexpr const char* filename = "bmcweb_persistent_data.json";
++    static constexpr const char* chipIdSysfsNode = "/sys/devices/platform"
++    "/ahb/ahb:apb/1e6e2000.syscon/1e6e2000.syscon:misc_control/chip_id";
++    static constexpr const char* UuidNs = "{b7b0553a-54cc-4162-982d-"
++    "944847ed76f5}";
+ 
+     ConfigFile()
+     {
+@@ -144,9 +148,31 @@ class ConfigFile
+ 
+         if (systemUuid.empty())
+         {
+-            systemUuid =
+-                boost::uuids::to_string(boost::uuids::random_generator()());
+-            needWrite = true;
++            // Try to retrieve chip id-based uuid.
++            std::ifstream chipIdFile(chipIdSysfsNode);
++            if (chipIdFile.is_open())
++            {
++                std::string chipId;
++                std::getline(chipIdFile, chipId);
++                if (!chipId.empty())
++                {
++                    boost::uuids::name_generator_sha1 gen(
++                        boost::uuids::string_generator()(UuidNs));
++                    systemUuid = boost::uuids::to_string(gen(chipId.c_str()));
++                    needWrite = true;
++                }
++                else
++                {
++                    BMCWEB_LOG_ERROR << "Cannot get chip id-based System UUID.";
++                }
++            }
++            // If the above fails, generate random uuid.
++            if (systemUuid.empty())
++            {
++                systemUuid =
++                    boost::uuids::to_string(boost::uuids::random_generator()());
++                needWrite = true;
++            }
+         }
+         if (fileRevision < jsonRevision)
+         {
+-- 
+2.17.1
+

@@ -1,0 +1,26 @@
+From 71b55e9773c387d6510650e7cf64f050a853ac77 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 30 Nov 2021 16:29:12 +0100
+Subject: [PATCH] Revert "Remove LogService from TelemetryService"
+
+This reverts commit 2b3da45876aac57a36d3093379a992d699e7e396.
+---
+ redfish-core/lib/telemetry_service.hpp   |   2 +
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/redfish-core/lib/telemetry_service.hpp b/redfish-core/lib/telemetry_service.hpp
+index b79a5cd..e3e4a25 100644
+--- a/redfish-core/lib/telemetry_service.hpp
++++ b/redfish-core/lib/telemetry_service.hpp
+@@ -25,6 +25,8 @@ inline void handleTelemetryServiceGet(
+         "/redfish/v1/TelemetryService/MetricReports";
+     asyncResp->res.jsonValue["Triggers"]["@odata.id"] =
+         "/redfish/v1/TelemetryService/Triggers";
++    asyncResp->res.jsonValue["LogService"]["@odata.id"] =
++        "/redfish/v1/Managers/bmc/LogServices/Journal";
+ 
+     crow::connections::systemBus->async_method_call(
+         [asyncResp](const boost::system::error_code ec,
+-- 
+2.25.1
+

@@ -1,0 +1,133 @@
+From ec3349511d66a7136a054c1a4e7a6f24ea3b6722 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Fri, 27 Aug 2021 16:02:01 +0000
+Subject: [PATCH] EventService: Log events for subscription actions
+
+Log redfish event for below 3 actions
+ - Add new subscription
+ - Update existing subscription properties
+ - Delete existing subscription
+in order to notify the subscribed clients on the subscription related
+information.
+
+Modified method name accordingly to indicate the clear purpose and
+added updateSubscription method with subscription id param
+to log event for subscription update.
+
+Tested:
+ - Performed all the above actions and verified the redfish event
+   messages are logged.
+
+Change-Id: I3745fa6357bd215379781a9818d9acc02a853d79
+Signed-off-by: AppaRao Puli <apparao.puli@intel.com>
+Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ .../include/event_service_manager.hpp         | 35 ++++++++++++++++---
+ redfish-core/lib/event_service.hpp            |  2 +-
+ 2 files changed, 32 insertions(+), 5 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index f2b7803..5483a74 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -21,6 +21,7 @@
+ #include "registries/task_event_message_registry.hpp"
+ 
+ #include <sys/inotify.h>
++#include <systemd/sd-journal.h>
+ 
+ #include <boost/asio/io_context.hpp>
+ #include <boost/beast/core/span.hpp>
+@@ -782,7 +783,7 @@ class EventServiceManager
+         }
+     }
+ 
+-    void updateSubscriptionData() const
++    void persistSubscriptionData()
+     {
+         persistent_data::EventServiceStore::getInstance()
+             .eventServiceConfig.enabled = serviceEnabled;
+@@ -829,7 +830,7 @@ class EventServiceManager
+ 
+         if (updateConfig)
+         {
+-            updateSubscriptionData();
++            persistSubscriptionData();
+         }
+ 
+         if (updateRetryCfg)
+@@ -941,7 +942,7 @@ class EventServiceManager
+ 
+         if (updateFile)
+         {
+-            updateSubscriptionData();
++            persistSubscriptionData();
+         }
+ 
+ #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
+@@ -957,6 +958,13 @@ class EventServiceManager
+ 
+         // Set Subscription ID for back trace
+         subValue->setSubscriptionId(id);
++
++        /* Log event for subscription addition */
++        sd_journal_send("MESSAGE=Event subscription added(Id: %s)", id.c_str(),
++                        "PRIORITY=%i", LOG_INFO, "REDFISH_MESSAGE_ID=%s",
++                        "OpenBMC.0.1.EventSubscriptionAdded",
++                        "REDFISH_MESSAGE_ARGS=%s", id.c_str(), NULL);
++
+         return id;
+     }
+ 
+@@ -981,7 +989,14 @@ class EventServiceManager
+             persistent_data::EventServiceStore::getInstance()
+                 .subscriptionsConfigMap.erase(obj2);
+             updateNoOfSubscribersCount();
+-            updateSubscriptionData();
++
++            persistSubscriptionData();
++            /* Log event for subscription delete. */
++            sd_journal_send("MESSAGE=Event subscription removed.(Id = %s)",
++                            id.c_str(), "PRIORITY=%i", LOG_INFO,
++                            "REDFISH_MESSAGE_ID=%s",
++                            "OpenBMC.0.1.EventSubscriptionRemoved",
++                            "REDFISH_MESSAGE_ARGS=%s", id.c_str(), NULL);
+         }
+     }
+ 
+@@ -1003,6 +1018,18 @@ class EventServiceManager
+         }
+     }
+ 
++    void updateSubscription(const std::string& id)
++    {
++        persistSubscriptionData();
++
++        /* Log event for subscription update. */
++        sd_journal_send("MESSAGE=Event subscription updated.(Id = %s)",
++                        id.c_str(), "PRIORITY=%i", LOG_INFO,
++                        "REDFISH_MESSAGE_ID=%s",
++                        "OpenBMC.0.1.EventSubscriptionUpdated",
++                        "REDFISH_MESSAGE_ARGS=%s", id.c_str(), NULL);
++    }
++
+     size_t getNumberOfSubscriptions()
+     {
+         return subscriptionsMap.size();
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index ab85796..91ce22c 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -630,7 +630,7 @@ inline void requestRoutesEventDestination(App& app)
+                     subValue->updateRetryPolicy();
+                 }
+ 
+-                EventServiceManager::getInstance().updateSubscriptionData();
++                EventServiceManager::getInstance().updateSubscription(param);
+             });
+     BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/<str>/")
+         // The below privilege is wrong, it should be ConfigureManager OR
+-- 
+2.17.1
+

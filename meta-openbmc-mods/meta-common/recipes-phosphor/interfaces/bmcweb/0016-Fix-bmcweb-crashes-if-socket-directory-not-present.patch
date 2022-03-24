@@ -1,0 +1,44 @@
+From ae7b8d17579a0d5aae28e568d179bda779137fed Mon Sep 17 00:00:00 2001
+From: Nidhin MS <nidhin.ms@intel.com>
+Date: Wed, 14 Apr 2021 11:28:44 +0530
+Subject: [PATCH] Fix: bmcweb crashes if socket directory not present
+
+When trying to mount virtual media image bmcweb tries to create unix
+socket and if the parent directory does not exist
+stream_protocol::acceptor throws error and bmcweb crashes. Fix the same
+
+Tested:
+Removed directory and mounted the vm image. bmcweb crash was not
+observed
+
+Change-Id: I3aea1d8e197c06238f425a97435c01d3c80552a9
+Signed-off-by: Nidhin MS <nidhin.ms@intel.com>
+---
+ include/nbd_proxy.hpp | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/include/nbd_proxy.hpp b/include/nbd_proxy.hpp
+index afb6493..b451f3a 100644
+--- a/include/nbd_proxy.hpp
++++ b/include/nbd_proxy.hpp
+@@ -385,6 +385,17 @@ inline void requestRoutes(App& app)
+                     // If the socket file exists (i.e. after bmcweb crash),
+                     // we cannot reuse it.
+                     std::remove((*socketValue).c_str());
++                    std::filesystem::path socketPath(*socketValue);
++                    std::error_code fsErr;
++                    if (!std::filesystem::exists(socketPath.parent_path(),
++                                                 fsErr))
++                    {
++                        BMCWEB_LOG_ERROR
++                            << "VirtualMedia socket directory not present. "
++                            << socketPath.parent_path();
++                        conn.close("Unable to create unix socket");
++                        return;
++                    }
+ 
+                     sessions[&conn] = std::make_shared<NbdProxyServer>(
+                         conn, *socketValue, *endpointValue,
+-- 
+2.25.1
+

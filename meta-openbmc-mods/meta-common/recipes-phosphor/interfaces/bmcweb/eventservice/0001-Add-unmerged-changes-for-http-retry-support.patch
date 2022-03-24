@@ -1,0 +1,163 @@
+From d5ade2d2032d7bb0c17c92e957c2a4f6e77af2ee Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Mon, 6 Dec 2021 19:49:01 +0000
+Subject: [PATCH] Add unmerged changes for http retry support
+
+The http retry support added upstream as a single patch was slpit into
+3 patches, but only 2 of them was merged.
+This commit pulls in the differentail changes required to complete the
+entire http retry support. and also allow for other subsequent patches
+to be appplied easily.
+
+Change-Id: I43e68eeffb8d69c289dd306c1c7cafc87ad766a0
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ http/http_client.hpp                          | 32 ++++++++++++++++---
+ .../include/event_service_manager.hpp         | 26 +++++++++------
+ redfish-core/lib/event_service.hpp            |  1 +
+ 3 files changed, 45 insertions(+), 14 deletions(-)
+
+diff --git a/http/http_client.hpp b/http/http_client.hpp
+index 5f352d3..f0152db 100644
+--- a/http/http_client.hpp
++++ b/http/http_client.hpp
+@@ -188,6 +188,17 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+                 BMCWEB_LOG_DEBUG << "recvMessage() data: "
+                                  << self->parser->get();
+ 
++                // Check if the response and header are received
++                if (!self->parser->is_done())
++                {
++                    // The parser failed to receive the response
++                    BMCWEB_LOG_ERROR
++                        << "recvMessage() parser failed to receive response";
++                    self->state = ConnState::recvFailed;
++                    self->handleConnState();
++                    return;
++                }
++
+                 unsigned int respCode = self->parser->get().result_int();
+                 BMCWEB_LOG_DEBUG << "recvMessage() Header Response Code: "
+                                  << respCode;
+@@ -379,15 +390,17 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+   public:
+     explicit HttpClient(boost::asio::io_context& ioc, const std::string& id,
+                         const std::string& destIP, const std::string& destPort,
+-                        const std::string& destUri,
+-                        const boost::beast::http::fields& httpHeader) :
++                        const std::string& destUri) :
+         conn(ioc),
+-        timer(ioc),
+-        req(boost::beast::http::verb::post, destUri, 11, "", httpHeader),
+-        subId(id), host(destIP), port(destPort)
++        timer(ioc), req(boost::beast::http::verb::post, destUri, 11), subId(id),
++        host(destIP), port(destPort)
+     {
++        // Set the request header
+         req.set(boost::beast::http::field::host, host);
++        req.set(boost::beast::http::field::content_type, "application/json");
+         req.keep_alive(true);
++
++        requestDataQueue.set_capacity(maxRequestQueueSize);
+     }
+ 
+     void sendData(const std::string& data)
+@@ -408,6 +421,15 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+         }
+     }
+ 
++    void setHeaders(const boost::beast::http::fields& httpHeaders)
++    {
++        // Set custom headers
++        for (const auto& header : httpHeaders)
++        {
++            req.set(header.name(), header.value());
++        }
++    }
++
+     void setRetryConfig(const uint32_t retryAttempts,
+                         const uint32_t retryTimeoutInterval)
+     {
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index e879f9e..75380dc 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -370,7 +370,10 @@ class Subscription : public persistent_data::UserSubscription
+         eventSeqNum(1),
+         host(inHost), port(inPort), path(inPath), uriProto(inUriProto)
+     {
+-        // Subscription constructor
++        // create the HttpClient connection
++        conn = std::make_shared<crow::HttpClient>(
++            crow::connections::systemBus->get_io_context(), id, host, port,
++            path);
+     }
+ 
+     Subscription(const std::shared_ptr<boost::beast::tcp_stream>& adaptor) :
+@@ -391,17 +394,12 @@ class Subscription : public persistent_data::UserSubscription
+             return false;
+         }
+ 
+-        if (conn == nullptr)
++        if (conn != nullptr)
+         {
+-            // create the HttpClient connection
+-            conn = std::make_shared<crow::HttpClient>(
+-                crow::connections::systemBus->get_io_context(), id, host, port,
+-                path, httpHeaders);
++            conn->sendData(msg);
++            eventSeqNum++;
+         }
+ 
+-        conn->sendData(msg);
+-        eventSeqNum++;
+-
+         if (sseConn != nullptr)
+         {
+             sseConn->sendData(eventSeqNum, msg);
+@@ -548,6 +546,14 @@ class Subscription : public persistent_data::UserSubscription
+         }
+     }
+ 
++    void updatehttpHeaders()
++    {
++        if (conn != nullptr)
++        {
++            conn->setHeaders(httpHeaders);
++        }
++    }
++
+     uint64_t getEventSeqNum() const
+     {
+         return eventSeqNum;
+@@ -661,6 +667,7 @@ class EventServiceManager
+             // Update retry configuration.
+             subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
+             subValue->updateRetryPolicy();
++            subValue->updatehttpHeaders();
+         }
+     }
+ 
+@@ -915,6 +922,7 @@ class EventServiceManager
+         // Update retry configuration.
+         subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
+         subValue->updateRetryPolicy();
++        subValue->updatehttpHeaders();
+ 
+         return id;
+     }
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 9ce2f05..0903874 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -619,6 +619,7 @@ inline void requestRoutesEventDestination(App& app)
+                         }
+                     }
+                     subValue->httpHeaders = fields;
++                    subValue->updatehttpHeaders();
+                 }
+ 
+                 if (retryPolicy)
+-- 
+2.17.1
+

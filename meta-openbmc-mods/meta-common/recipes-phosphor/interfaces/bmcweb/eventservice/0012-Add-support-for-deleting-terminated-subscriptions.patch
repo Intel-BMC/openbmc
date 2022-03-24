@@ -1,0 +1,66 @@
+From b132263ef2f3bb3fd2766154c00b7b00c1e49fb6 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 7 Dec 2021 09:48:07 +0100
+Subject: [PATCH] Add support for deleting terminated subscriptions
+
+Added functionality to delete/remove event subscription(s) which are
+configured to Terminate after retries.
+
+Currently, when an Event is subscribed with Retry Policy as
+"TerminateAfterRetries", the state of the connection is set to
+"Terminated" after retrying, but the Subscription is not removed.
+This commit adds the functionality to detect terminated connection and
+remove the respective subscription.
+
+This commit adds this check for metric reports.
+
+Tested:
+ - Created a Subscription with
+   DeliveryRetryPolicy: "TerminateAfterRetries"
+ - Received Events successfully on Event listener
+ - Once the Event listener was stopped, the Subscription was
+   removed/deleted after retries.
+
+Change-Id: I3cb0af5bc24411cddcdb3d1d9de25e8e9144106c
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ redfish-core/include/event_service_manager.hpp | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index c68b707..6a93fc0 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -1486,7 +1486,7 @@ class EventServiceManager
+     }
+ 
+ #endif
+-    static void getReadingsForReport(sdbusplus::message::message& msg)
++    void getReadingsForReport(sdbusplus::message::message& msg)
+     {
+         if (msg.is_method_error())
+         {
+@@ -1525,6 +1525,8 @@ class EventServiceManager
+             return;
+         }
+ 
++        deleteTerminatedSubcriptions();
++
+         for (const auto& it :
+              EventServiceManager::getInstance().subscriptionsMap)
+         {
+@@ -1560,7 +1562,10 @@ class EventServiceManager
+                                "arg0=xyz.openbmc_project.Telemetry.Report";
+ 
+         matchTelemetryMonitor = std::make_shared<sdbusplus::bus::match::match>(
+-            *crow::connections::systemBus, matchStr, getReadingsForReport);
++            *crow::connections::systemBus, matchStr,
++            [this](sdbusplus::message::message& msg) {
++                getReadingsForReport(msg);
++            });
+     }
+ };
+ 
+-- 
+2.25.1
+

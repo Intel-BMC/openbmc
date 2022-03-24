@@ -1,0 +1,108 @@
+From bd71b3bd6b58b6c94bbeaeffb31631d4f5393578 Mon Sep 17 00:00:00 2001
+From: Ali Ahmed <ama213000@gmail.com>
+Date: Fri, 3 Sep 2021 02:33:43 -0500
+Subject: [PATCH] Add Model to ProcessorSummary
+
+In Redfish ComputerSystem schema, the ProcessorSummary parameter
+lists summary information of the Processors on the system. This commit
+adds the 'Model' property to ProcessorSummary.
+
+If the CPU Models are different, then the 'Model' field takes the first
+entry in alphabetical order.
+
+Testing:
+1. Redfish Validator Testing successfully passed.
+2. Curl testing:
+
+curl -k -H "X-Auth-Token: $tok" https://$bmc/redfish/v1/Systems/system
+
+...
+  "ProcessorSummary": {
+    "CoreCount": 24,
+    "Count": 2,
+    "Model": "test_name",
+    "Status": {
+      "Health": "OK",
+      "HealthRollup": "OK",
+      "State": "Disabled"
+    }
+  },
+...
+
+Change-Id: I39cbf6ed35c35ce3a3551c9689237d5023775326
+Signed-off-by: Ali Ahmed <ama213000@gmail.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/lib/systems.hpp | 47 +++++++++++++++++++++++++++++++-----
+ 1 file changed, 41 insertions(+), 6 deletions(-)
+
+diff --git a/redfish-core/lib/systems.hpp b/redfish-core/lib/systems.hpp
+index 62bd11b0..1b343693 100644
+--- a/redfish-core/lib/systems.hpp
++++ b/redfish-core/lib/systems.hpp
+@@ -165,21 +165,56 @@ inline void getProcessorProperties(
+ 
+     for (const auto& property : properties)
+     {
++        if (property.first == "Family")
++        {
++            // Get the CPU Model
++            const std::string* modelStr =
++                std::get_if<std::string>(&property.second);
++            if (!modelStr)
++            {
++                BMCWEB_LOG_DEBUG << "Failed to get CPU Family";
++                // Skip it and continue with other properties
++                continue;
++            }
++            if ((*modelStr).size() < 1)
++            {
++                BMCWEB_LOG_DEBUG << "Empty CPU Family info, skipping...";
++                continue;
++            }
++            nlohmann::json& prevModel =
++                aResp->res.jsonValue["ProcessorSummary"]["Model"];
++            std::string* prevModelPtr = prevModel.get_ptr<std::string*>();
+ 
+-        // TODO: Get Model
++            // If CPU Models are different, use the first entry in
++            // alphabetical order
+ 
+-        // Get CoreCount
+-        if (property.first == "CoreCount")
++            // If Model has never been set
++            // before, set it to *modelStr
++            if (prevModelPtr == nullptr)
++            {
++                prevModel = *modelStr;
++            }
++            // If Model has been set before, only change if new Model is
++            // higher in alphabetical order
++            else
++            {
++                if (*modelStr < *prevModelPtr)
++                {
++                    prevModel = *modelStr;
++                }
++            }
++        }
++        else if (property.first == "CoreCount")
+         {
+-
+             // Get CPU CoreCount and add it to the total
+             const uint16_t* coreCountVal =
+                 std::get_if<uint16_t>(&property.second);
+ 
+             if (coreCountVal == nullptr)
+             {
+-                messages::internalError(aResp->res);
+-                return;
++                BMCWEB_LOG_DEBUG << "Failed to get CPU Core count";
++                // Skip it and continue with other properties
++                continue;
+             }
+ 
+             nlohmann::json& coreCount =
+-- 
+2.25.1
+

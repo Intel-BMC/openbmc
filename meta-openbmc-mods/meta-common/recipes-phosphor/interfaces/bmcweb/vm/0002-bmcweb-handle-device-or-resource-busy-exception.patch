@@ -1,0 +1,215 @@
+From d951041df370dd4c7068b3883d5cc8ef39d044da Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Fri, 23 Jul 2021 12:07:02 +0000
+Subject: [PATCH] bmcweb handle device or resource busy exception
+
+Use async_method_call_timed() for mount/unmount dbus oprations.
+Long mount/unmount times are supported by VirtualMedia service,
+this works because of settable timeout property, available for each block
+device.
+Default dbus calls will timeout when mount/unmount timeout is long enough.
+
+Get mount/unmount timeout property and use it for mount/unmount calls.
+Add handling of device or resource busy exception (EBUSY) that
+can be thrown by VirtualMedia service during Mount/Unmount dbus operations.
+
+Tested: Verified that after mounting non-existing HTTPS resource
+        in proxy mode, VirtualMedia recovers restoring ready state
+        and returns EBUSY during that transition.
+        Verfied that resources can be mounted/unmounted in both legacy
+        and proxy mode.
+Signed-off-by: Karol Wachowski <karol.wachowski@intel.com>
+Change-Id: Ica62c34db0cce24c4c6169fc661edfde49e948d0
+---
+ redfish-core/lib/virtual_media.hpp | 143 +++++++++++++++++++++--------
+ 1 file changed, 106 insertions(+), 37 deletions(-)
+
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index b0e3b38..779e948 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -26,6 +26,8 @@
+ #include <boost/url/url_view.hpp>
+ #include <registries/privilege_registry.hpp>
+ 
++#include <chrono>
++
+ namespace redfish
+ {
+ /**
+@@ -143,6 +145,26 @@ inline void
+     }
+ }
+ 
++/**
++ * @brief parses Timeout property and converts to microseconds
++ */
++static std::optional<uint64_t>
++    vmParseTimeoutProperty(const std::variant<int>& timeoutProperty)
++{
++    const int* timeoutValue = std::get_if<int>(&timeoutProperty);
++    if (timeoutValue)
++    {
++        constexpr int timeoutMarginSeconds = 10;
++        return std::chrono::duration_cast<std::chrono::microseconds>(
++                   std::chrono::seconds(*timeoutValue + timeoutMarginSeconds))
++            .count();
++    }
++    else
++    {
++        return std::nullopt;
++    }
++}
++
+ /**
+  * @brief Fill template for Virtual Media Item.
+  */
+@@ -702,22 +724,58 @@ inline void doMountVmLegacy(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+     }
+ 
+     crow::connections::systemBus->async_method_call(
+-        [asyncResp, secretPipe](const boost::system::error_code ec,
+-                                bool success) {
++        [asyncResp, service, name, imageUrl, rw, unixFd,
++         secretPipe](const boost::system::error_code ec,
++                     const std::variant<int> timeoutProperty) {
+             if (ec)
+             {
+                 BMCWEB_LOG_ERROR << "Bad D-Bus request error: " << ec;
+                 messages::internalError(asyncResp->res);
++                return;
+             }
+-            else if (!success)
++
++            auto timeout = vmParseTimeoutProperty(timeoutProperty);
++            if (timeout == std::nullopt)
+             {
+-                BMCWEB_LOG_ERROR << "Service responded with error";
+-                messages::generalError(asyncResp->res);
++                BMCWEB_LOG_ERROR << "Timeout property is empty.";
++                messages::internalError(asyncResp->res);
++                return;
+             }
++
++            crow::connections::systemBus->async_method_call_timed(
++                [asyncResp, secretPipe](const boost::system::error_code ec,
++                                        bool success) {
++                    if (ec)
++                    {
++                        BMCWEB_LOG_ERROR << "Bad D-Bus request error: " << ec;
++                        if (ec == boost::system::errc::device_or_resource_busy)
++                        {
++                            messages::resourceInUse(asyncResp->res);
++                        }
++                        else if (ec == boost::system::errc::permission_denied)
++                        {
++                            messages::accessDenied(asyncResp->res,
++                                                   crow::utility::urlFromPieces(
++                                                       "VirtualMedia.Insert"));
++                        }
++                        else
++                        {
++                            messages::internalError(asyncResp->res);
++                        }
++                    }
++                    else if (!success)
++                    {
++                        BMCWEB_LOG_ERROR << "Service responded with error ";
++                        messages::generalError(asyncResp->res);
++                    }
++                },
++                service, "/xyz/openbmc_project/VirtualMedia/Legacy/" + name,
++                "xyz.openbmc_project.VirtualMedia.Legacy", "Mount", *timeout,
++                imageUrl, rw, unixFd);
+         },
+         service, "/xyz/openbmc_project/VirtualMedia/Legacy/" + name,
+-        "xyz.openbmc_project.VirtualMedia.Legacy", "Mount", imageUrl, rw,
+-        unixFd);
++        "org.freedesktop.DBus.Properties", "Get",
++        "xyz.openbmc_project.VirtualMedia.MountPoint", "Timeout");
+ }
+ 
+ /**
+@@ -729,38 +787,49 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                        const std::string& service, const std::string& name,
+                        bool legacy)
+ {
++    const std::string vmMode = legacy ? "Legacy" : "Proxy";
++    const std::string objectPath =
++        "/xyz/openbmc_project/VirtualMedia/" + vmMode + "/" + name;
++    const std::string ifaceName = "xyz.openbmc_project.VirtualMedia." + vmMode;
+ 
+-    // Legacy mount requires parameter with image
+-    if (legacy)
+-    {
+-        crow::connections::systemBus->async_method_call(
+-            [asyncResp](const boost::system::error_code ec) {
+-                if (ec)
+-                {
+-                    BMCWEB_LOG_ERROR << "Bad D-Bus request error: " << ec;
+-
+-                    messages::internalError(asyncResp->res);
+-                    return;
+-                }
+-            },
+-            service, "/xyz/openbmc_project/VirtualMedia/Legacy/" + name,
+-            "xyz.openbmc_project.VirtualMedia.Legacy", "Unmount");
+-    }
+-    else // proxy
+-    {
+-        crow::connections::systemBus->async_method_call(
+-            [asyncResp](const boost::system::error_code ec) {
+-                if (ec)
+-                {
+-                    BMCWEB_LOG_ERROR << "Bad D-Bus request error: " << ec;
++    crow::connections::systemBus->async_method_call(
++        [asyncResp, service, name, objectPath,
++         ifaceName](const boost::system::error_code ec,
++                    const std::variant<int> timeoutProperty) {
++            if (ec)
++            {
++                BMCWEB_LOG_ERROR << "Bad D-Bus request error: " << ec;
++                messages::internalError(asyncResp->res);
++                return;
++            }
+ 
+-                    messages::internalError(asyncResp->res);
+-                    return;
+-                }
+-            },
+-            service, "/xyz/openbmc_project/VirtualMedia/Proxy/" + name,
+-            "xyz.openbmc_project.VirtualMedia.Proxy", "Unmount");
+-    }
++            auto timeout = vmParseTimeoutProperty(timeoutProperty);
++            if (timeout == std::nullopt)
++            {
++                BMCWEB_LOG_ERROR << "Timeout property is empty.";
++                messages::internalError(asyncResp->res);
++                return;
++            }
++            crow::connections::systemBus->async_method_call_timed(
++                [asyncResp](const boost::system::error_code ec) {
++                    if (ec)
++                    {
++                        BMCWEB_LOG_ERROR << "Bad D-Bus request error: " << ec;
++                        if (ec == boost::system::errc::device_or_resource_busy)
++                        {
++                            messages::resourceInUse(asyncResp->res);
++                        }
++                        else
++                        {
++                            messages::internalError(asyncResp->res);
++                        }
++                        return;
++                    }
++                },
++                service, objectPath, ifaceName, "Unmount", *timeout);
++        },
++        service, objectPath, "org.freedesktop.DBus.Properties", "Get",
++        "xyz.openbmc_project.VirtualMedia.MountPoint", "Timeout");
+ }
+ 
+ struct InsertMediaActionParams
+-- 
+2.25.1
+

@@ -1,0 +1,60 @@
+From 971aa5058ac4bb626eeadf8b00738737748ed549 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 29 Jun 2021 15:25:38 +0000
+Subject: [PATCH] managers: add attributes for Manager.CommandShell
+
+Issue: ConnectTypesSupported, ServiceEnabled and
+       MaxConcurrentSessions Attributes are missing for
+       Manager.CommandShell, though Requirement mandates it.
+
+Fix: Added missing attributes to Manager.CommandShell
+
+Tested:
+1. Verified redfish validator passed
+2. Get bmc details from Redfish
+Redfish URI: https://<BMC IP>/redfish/v1/Managers/bmc
+Response:
+{
+    "@odata.id": "/redfish/v1/Managers/bmc",
+    "@odata.type": "#Manager.v1_9_0.Manager",
+....
+....
+    "CommandShell": {
+        "ConnectTypesSupported": [
+            "SSH",
+            "IPMI"
+        ],
+        "MaxConcurrentSessions": 4,
+        "ServiceEnabled": true
+    },
+....
+....
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: I2a56db912fc81064098f7aa9f4d110ac3baf361d
+---
+ redfish-core/lib/managers.hpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/redfish-core/lib/managers.hpp b/redfish-core/lib/managers.hpp
+index b286f19..186003b 100644
+--- a/redfish-core/lib/managers.hpp
++++ b/redfish-core/lib/managers.hpp
+@@ -1998,6 +1998,14 @@ inline void requestRoutesManager(App& app)
+                 15;
+             asyncResp->res.jsonValue["SerialConsole"]["ConnectTypesSupported"] =
+                 {"IPMI", "SSH"};
++
++            // Fill in CommandShell info
++            asyncResp->res.jsonValue["CommandShell"]["ServiceEnabled"] = true;
++            asyncResp->res.jsonValue["CommandShell"]["MaxConcurrentSessions"] =
++                4;
++            asyncResp->res.jsonValue["CommandShell"]["ConnectTypesSupported"] =
++                {"SSH", "IPMI"};
++
+ #ifdef BMCWEB_ENABLE_KVM
+             // Fill in GraphicalConsole info
+             asyncResp->res.jsonValue["GraphicalConsole"]["ServiceEnabled"] =
+-- 
+2.25.1
+

@@ -1,0 +1,53 @@
+From b7adca60dd69ac9566dc8f417065e244198fc711 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Wed, 6 Oct 2021 22:27:20 +0000
+Subject: [PATCH] Add support to ResetBios action
+
+Tested:
+
+Bios reset flag can be modified throw redfish
+POST https://IP_ADDR/redfish/v1/Systems/system/Bios/Actions/Bios.ResetBios
+
+Change-Id: Ic719c55705e5f634539b3dd858b60922e505a8d0
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+---
+ redfish-core/lib/bios.hpp | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
+index f5aa7b7..f613613 100644
+--- a/redfish-core/lib/bios.hpp
++++ b/redfish-core/lib/bios.hpp
+@@ -648,17 +648,23 @@ inline void
+     handleBiosResetPost(const crow::Request&,
+                         const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
+ {
++    std::string resetFlag =
++        "xyz.openbmc_project.BIOSConfig.Manager.ResetFlag.FactoryDefaults";
++
+     crow::connections::systemBus->async_method_call(
+         [asyncResp](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                BMCWEB_LOG_ERROR << "Failed to reset bios: " << ec;
++                BMCWEB_LOG_ERROR << "doPost bios reset got error " << ec;
+                 messages::internalError(asyncResp->res);
+                 return;
+             }
+         },
+-        "org.open_power.Software.Host.Updater", "/xyz/openbmc_project/software",
+-        "xyz.openbmc_project.Common.FactoryReset", "Reset");
++        "xyz.openbmc_project.BIOSConfigManager",
++        "/xyz/openbmc_project/bios_config/manager",
++        "org.freedesktop.DBus.Properties", "Set",
++        "xyz.openbmc_project.BIOSConfig.Manager", "ResetBIOSSettings",
++        std::variant<std::string>(resetFlag));
+ }
+ 
+ inline void requestRoutesBiosReset(App& app)
+-- 
+2.17.1
+

@@ -1,0 +1,107 @@
+From 0343399b0a609384da302272576a9c409f3b2794 Mon Sep 17 00:00:00 2001
+From: Szymon Dompke <szymon.dompke@intel.com>
+Date: Mon, 21 Mar 2022 17:40:36 +0100
+Subject: [PATCH] Add Links/Triggers to MetricReportDefinition
+
+This change is adding Triggers property to Links when GET is called on
+MetricReportDefinition. It contains array of @odata.id pointing to
+Trigger resource if it is also linking to given MRD.
+
+Testing done:
+- Links/Trigger property is returned by GET request on
+  /redfish/v1/TelemetryService/MetricReportDefinitions/<str>/
+
+Signed-off-by: Szymon Dompke <szymon.dompke@intel.com>
+Change-Id: I5accf4b50324437b0b185003200078ad2c7020b0
+---
+ redfish-core/lib/metric_report_definition.hpp | 46 +++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+
+diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
+index e6b08a1..9ee6013 100644
+--- a/redfish-core/lib/metric_report_definition.hpp
++++ b/redfish-core/lib/metric_report_definition.hpp
+@@ -88,6 +88,31 @@ inline bool verifyCommonErrors(crow::Response& res, const std::string& id,
+     return true;
+ }
+ 
++inline std::optional<nlohmann::json>
++    getLinkedTriggers(const std::vector<std::string>& triggerIds)
++{
++    nlohmann::json triggers = nlohmann::json::array();
++
++    for (const std::string& id : triggerIds)
++    {
++        sdbusplus::message::object_path path(id);
++        if (path.parent_path() != "TelemetryService")
++        {
++            BMCWEB_LOG_ERROR << "Property TriggerIds contains invalid value: "
++                             << id;
++            return std::nullopt;
++        }
++        triggers.push_back({
++            {"@odata.id",
++             crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
++                                          "Triggers", path.filename())
++                 .string()},
++        });
++    }
++
++    return std::make_optional(triggers);
++}
++
+ inline void fillReportDefinition(
+     const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, const std::string& id,
+     const std::vector<std::pair<std::string, dbus::utility::DbusVariantType>>&
+@@ -101,6 +126,7 @@ inline void fillReportDefinition(
+     const uint64_t* appendLimit = nullptr;
+     const uint64_t* interval = nullptr;
+     const bool* enabled = nullptr;
++    const std::vector<std::string>* triggerIds = nullptr;
+ 
+     for (const auto& [key, var] : properties)
+     {
+@@ -136,6 +162,10 @@ inline void fillReportDefinition(
+         {
+             enabled = std::get_if<bool>(&var);
+         }
++        else if (key == "TriggerIds")
++        {
++            triggerIds = std::get_if<std::vector<std::string>>(&var);
++        }
+     }
+ 
+     std::vector<std::string> redfishReportActions;
+@@ -156,6 +186,17 @@ inline void fillReportDefinition(
+         }
+     }
+ 
++    std::optional<nlohmann::json> linkedTriggers;
++    if (triggerIds != nullptr)
++    {
++        linkedTriggers = getLinkedTriggers(*triggerIds);
++        if (!linkedTriggers)
++        {
++            messages::internalError(asyncResp->res);
++            return;
++        }
++    }
++
+     asyncResp->res.jsonValue["@odata.type"] =
+         "#MetricReportDefinition.v1_3_0.MetricReportDefinition";
+     asyncResp->res.jsonValue["@odata.id"] =
+@@ -231,6 +272,11 @@ inline void fillReportDefinition(
+                  {"CollectionTimeScope", collectionTimeScope}});
+         }
+     }
++
++    if (triggerIds != nullptr)
++    {
++        asyncResp->res.jsonValue["Links"]["Triggers"] = *linkedTriggers;
++    }
+ }
+ 
+ struct MetricArgs
+-- 
+2.25.1
+

@@ -1,0 +1,193 @@
+From a6d32959d5420f3fdca0d391feb54ac89f65dca3 Mon Sep 17 00:00:00 2001
+From: Szymon Dompke <szymon.dompke@intel.com>
+Date: Tue, 1 Mar 2022 16:34:08 +0100
+Subject: [PATCH] ref: use url_view for telemetry uris
+
+This change refactor telemetry code to use bmcweb utility function for
+uri construction, which is safe and preferred way, instead of string
+operations.
+
+Testing done:
+- Some basic GET operations done on Telemetry, no regression.
+
+Signed-off-by: Szymon Dompke <szymon.dompke@intel.com>
+Change-Id: I6de5d79a078944d398357f27dc0c201c130c4302
+---
+ redfish-core/include/event_service_manager.hpp |  6 ++++--
+ redfish-core/include/utils/telemetry_utils.hpp |  5 +----
+ redfish-core/lib/metric_report.hpp             | 14 +++++++++++---
+ redfish-core/lib/metric_report_definition.hpp  | 13 ++++++++++---
+ redfish-core/lib/trigger.hpp                   | 15 +++++++++------
+ 5 files changed, 35 insertions(+), 18 deletions(-)
+
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index e879f9e..0ed404f 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -505,14 +505,16 @@ class Subscription : public persistent_data::UserSubscription
+     void filterAndSendReports(const std::string& reportId,
+                               const telemetry::TimestampReadings& var)
+     {
+-        std::string mrdUri = telemetry::metricReportDefinitionUri + ("/" + id);
++        boost::urls::url mrdUri =
++            crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
++                                         "MetricReportDefinitions", reportId);
+ 
+         // Empty list means no filter. Send everything.
+         if (!metricReportDefinitions.empty())
+         {
+             if (std::find(metricReportDefinitions.begin(),
+                           metricReportDefinitions.end(),
+-                          mrdUri) == metricReportDefinitions.end())
++                          mrdUri.string()) == metricReportDefinitions.end())
+             {
+                 return;
+             }
+diff --git a/redfish-core/include/utils/telemetry_utils.hpp b/redfish-core/include/utils/telemetry_utils.hpp
+index 8aeff0d..6930d0a 100644
+--- a/redfish-core/include/utils/telemetry_utils.hpp
++++ b/redfish-core/include/utils/telemetry_utils.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include "dbus_utility.hpp"
++#include "utility.hpp"
+ 
+ namespace redfish
+ {
+@@ -9,10 +10,6 @@ namespace telemetry
+ {
+ constexpr const char* service = "xyz.openbmc_project.Telemetry";
+ constexpr const char* reportInterface = "xyz.openbmc_project.Telemetry.Report";
+-constexpr const char* metricReportDefinitionUri =
+-    "/redfish/v1/TelemetryService/MetricReportDefinitions";
+-constexpr const char* metricReportUri =
+-    "/redfish/v1/TelemetryService/MetricReports";
+ 
+ inline std::string getDbusReportPath(const std::string& id)
+ {
+diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
+index 89bd8db..2fb8d82 100644
+--- a/redfish-core/lib/metric_report.hpp
++++ b/redfish-core/lib/metric_report.hpp
+@@ -14,6 +14,9 @@ namespace redfish
+ namespace telemetry
+ {
+ 
++constexpr const char* metricReportUri =
++    "/redfish/v1/TelemetryService/MetricReports";
++
+ using Readings =
+     std::vector<std::tuple<std::string, std::string, double, uint64_t>>;
+ using TimestampReadings = std::tuple<uint64_t, Readings>;
+@@ -39,11 +42,16 @@ inline bool fillReport(nlohmann::json& json, const std::string& id,
+                        const TimestampReadings& timestampReadings)
+ {
+     json["@odata.type"] = "#MetricReport.v1_3_0.MetricReport";
+-    json["@odata.id"] = telemetry::metricReportUri + std::string("/") + id;
++    json["@odata.id"] =
++        crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
++                                     "MetricReports", id)
++            .string();
+     json["Id"] = id;
+     json["Name"] = id;
+     json["MetricReportDefinition"]["@odata.id"] =
+-        telemetry::metricReportDefinitionUri + std::string("/") + id;
++        crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
++                                     "MetricReportDefinitions", id)
++            .string();
+ 
+     const auto& [timestamp, readings] = timestampReadings;
+     json["Timestamp"] = crow::utility::getDateTimeUintMs(timestamp);
+@@ -62,7 +70,7 @@ inline void requestRoutesMetricReportCollection(App& app)
+                 asyncResp->res.jsonValue["@odata.type"] =
+                     "#MetricReportCollection.MetricReportCollection";
+                 asyncResp->res.jsonValue["@odata.id"] =
+-                    "/redfish/v1/TelemetryService/MetricReports";
++                    telemetry::metricReportUri;
+                 asyncResp->res.jsonValue["Name"] = "Metric Report Collection";
+                 const std::vector<const char*> interfaces{
+                     telemetry::reportInterface};
+diff --git a/redfish-core/lib/metric_report_definition.hpp b/redfish-core/lib/metric_report_definition.hpp
+index ab7c88b..1a520f3 100644
+--- a/redfish-core/lib/metric_report_definition.hpp
++++ b/redfish-core/lib/metric_report_definition.hpp
+@@ -18,6 +18,9 @@ namespace redfish
+ namespace telemetry
+ {
+ 
++constexpr const char* metricReportDefinitionUri =
++    "/redfish/v1/TelemetryService/MetricReportDefinitions";
++
+ using ReadingParameters =
+     std::vector<std::tuple<sdbusplus::message::object_path, std::string,
+                            std::string, std::string>>;
+@@ -30,11 +33,15 @@ inline void fillReportDefinition(
+     asyncResp->res.jsonValue["@odata.type"] =
+         "#MetricReportDefinition.v1_3_0.MetricReportDefinition";
+     asyncResp->res.jsonValue["@odata.id"] =
+-        telemetry::metricReportDefinitionUri + std::string("/") + id;
++        crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
++                                     "MetricReportDefinitions", id)
++            .string();
+     asyncResp->res.jsonValue["Id"] = id;
+     asyncResp->res.jsonValue["Name"] = id;
+     asyncResp->res.jsonValue["MetricReport"]["@odata.id"] =
+-        telemetry::metricReportUri + std::string("/") + id;
++        crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
++                                     "MetricReports", id)
++            .string();
+     asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
+     asyncResp->res.jsonValue["ReportUpdates"] = "Overwrite";
+ 
+@@ -365,7 +372,7 @@ inline void requestRoutesMetricReportDefinitionCollection(App& app)
+                     "#MetricReportDefinitionCollection."
+                     "MetricReportDefinitionCollection";
+                 asyncResp->res.jsonValue["@odata.id"] =
+-                    "/redfish/v1/TelemetryService/MetricReportDefinitions";
++                    telemetry::metricReportDefinitionUri;
+                 asyncResp->res.jsonValue["Name"] =
+                     "Metric Definition Collection";
+                 const std::vector<const char*> interfaces{
+diff --git a/redfish-core/lib/trigger.hpp b/redfish-core/lib/trigger.hpp
+index cdd5781..da6a5db 100644
+--- a/redfish-core/lib/trigger.hpp
++++ b/redfish-core/lib/trigger.hpp
+@@ -143,9 +143,11 @@ inline nlohmann::json
+     nlohmann::json reports = nlohmann::json::array();
+     for (const std::string& name : reportNames)
+     {
+-        reports.push_back({
+-            {"@odata.id", metricReportDefinitionUri + std::string("/") + name},
+-        });
++        reports.push_back(
++            {{"@odata.id",
++              crow::utility::urlFromPieces("redfish", "v1", "TelemetryService",
++                                           "MetricReportDefinitions", name)
++                  .string()}});
+     }
+ 
+     return reports;
+@@ -214,7 +216,9 @@ inline bool fillTrigger(
+     }
+ 
+     json["@odata.type"] = "#Triggers.v1_2_0.Triggers";
+-    json["@odata.id"] = triggerUri + std::string("/") + id;
++    json["@odata.id"] = crow::utility::urlFromPieces(
++                            "redfish", "v1", "TelemetryService", "Triggers", id)
++                            .string();
+     json["Id"] = id;
+     json["Name"] = *name;
+ 
+@@ -282,8 +286,7 @@ inline void requestRoutesTriggerCollection(App& app)
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                 asyncResp->res.jsonValue["@odata.type"] =
+                     "#TriggersCollection.TriggersCollection";
+-                asyncResp->res.jsonValue["@odata.id"] =
+-                    "/redfish/v1/TelemetryService/Triggers";
++                asyncResp->res.jsonValue["@odata.id"] = telemetry::triggerUri;
+                 asyncResp->res.jsonValue["Name"] = "Triggers Collection";
+                 const std::vector<const char*> interfaces{
+                     telemetry::triggerInterface};
+-- 
+2.25.1

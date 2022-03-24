@@ -1,0 +1,78 @@
+From a7769b0d85bb6c88f5eeaf70d56939d173a1cd80 Mon Sep 17 00:00:00 2001
+From: Ayushi Smriti <smriti.ayushi@intel.com>
+Date: Mon, 10 May 2021 12:32:30 +0530
+Subject: [PATCH] Add msg registry for subscription related actions
+
+For subscription event message log purpose, added message registry
+entry for event service subscription related actions- add, update
+and delete.
+
+Tested:
+ - Message registry entry appears in the log for the corresponding
+   subscription action.
+
+Signed-off-by: AppaRao Puli <apparao.puli@intel.com>
+Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
+---
+ .../registries/openbmc_message_registry.hpp   | 38 ++++++++++++++++++-
+ 1 file changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 8f66d7d..bedaf6a 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -29,7 +29,7 @@ const Header header = {
+     "0.3.1",
+     "OpenBMC",
+ };
+-constexpr std::array<MessageEntry, 192> registry = {
++constexpr std::array<MessageEntry, 195> registry = {
+     MessageEntry{
+         "ADDDCCorrectable",
+         {
+@@ -392,6 +392,42 @@ constexpr std::array<MessageEntry, 192> registry = {
+                      {},
+                      "None.",
+                  }},
++    MessageEntry{
++        "EventSubscriptionAdded",
++        {
++            "Indicates that an Event subscription with specific id was added.",
++            "Event subscription with id %1 was added.",
++            "OK",
++            1,
++            {
++                "string",
++            },
++            "None.",
++        }},
++    MessageEntry{
++        "EventSubscriptionRemoved",
++        {
++            "Indicates that an Event subscription with specific id was removed.",
++            "Event subscription with id %1 was removed.",
++            "OK",
++            1,
++            {
++                "string",
++            },
++            "None.",
++        }},
++    MessageEntry{
++        "EventSubscriptionUpdated",
++        {
++            "Indicates that an Event subscription with specific id was updated.",
++            "Event subscription with id %1 was updated.",
++            "OK",
++            1,
++            {
++                "string",
++            },
++            "None.",
++        }},
+     MessageEntry{"FanInserted",
+                  {
+                      "Indicates that a system fan has been inserted.",
+-- 
+2.25.1
+

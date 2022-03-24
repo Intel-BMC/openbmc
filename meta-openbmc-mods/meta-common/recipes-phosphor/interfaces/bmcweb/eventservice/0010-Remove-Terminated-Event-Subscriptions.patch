@@ -1,0 +1,267 @@
+From fc4b7e964f5f26e7af2eb19f120b1762b70b8179 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Tue, 12 Oct 2021 08:19:51 +0000
+Subject: [PATCH] Delete/Remove Terminated Event Subscription(s)
+
+Added functionality to delete/remove event subscription(s) which are
+configured to Terminate after retries.
+
+Currently, when an Event is subscribed with Retry Policy as
+"TerminateAfterRetries", the state of the connection is set to
+"Terminated" after retrying, but the Subscription is not removed.
+This commit adds the functionality to detect terminated connection and
+remove the respective subscription.
+
+Tested:
+ - Created a Subscription with
+   DeliveryRetryPolicy: "TerminateAfterRetries"
+ - Received Events successfully on Event listener
+ - Once the Event listener was stopped, the Subscription was
+   removed/deleted after retries.
+
+Change-Id: If447acb2db74fb29a5d1cfe6194b77cda82bc8a1
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+---
+ http/http_client.hpp                          | 48 +++++++++++++++----
+ .../include/event_service_manager.hpp         | 36 ++++++++++++++
+ 2 files changed, 75 insertions(+), 9 deletions(-)
+
+diff --git a/http/http_client.hpp b/http/http_client.hpp
+index 7328eae..db99faa 100644
+--- a/http/http_client.hpp
++++ b/http/http_client.hpp
+@@ -56,6 +56,8 @@ enum class ConnState
+     closeInProgress,
+     closed,
+     suspended,
++    terminate,
++    terminateInProgress,
+     terminated,
+     abortConnection,
+     retry
+@@ -290,7 +292,14 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+     }
+     void doClose()
+     {
+-        state = ConnState::closeInProgress;
++        if (state == ConnState::terminate)
++        {
++            state = ConnState::terminateInProgress;
++        }
++        else if (state != ConnState::suspended)
++        {
++            state = ConnState::closeInProgress;
++        }
+ 
+         // Set the timeout on the tcp stream socket for the async operation
+         conn.expires_after(std::chrono::seconds(30));
+@@ -320,8 +329,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+                 }
+                 self->conn.close();
+ 
+-                if ((self->state != ConnState::suspended) &&
+-                    (self->state != ConnState::terminated))
++                if (self->state == ConnState::terminateInProgress)
++                {
++                    self->state = ConnState::terminated;
++                }
++                else if (self->state == ConnState::closeInProgress)
+                 {
+                     self->state = ConnState::closed;
+                     self->handleConnState();
+@@ -343,8 +355,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+             }
+             conn.close();
+ 
+-            if ((state != ConnState::suspended) &&
+-                (state != ConnState::terminated))
++            if (state == ConnState::terminateInProgress)
++            {
++                state = ConnState::terminated;
++            }
++            else if (state == ConnState::closeInProgress)
+             {
+                 state = ConnState::closed;
+                 handleConnState();
+@@ -367,8 +382,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+             BMCWEB_LOG_DEBUG << "Retry policy: " << retryPolicyAction;
+             if (retryPolicyAction == "TerminateAfterRetries")
+             {
+-                // TODO: delete subscription
+-                state = ConnState::terminated;
++                state = ConnState::terminate;
+             }
+             if (retryPolicyAction == "SuspendRetries")
+             {
+@@ -424,6 +438,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+             case ConnState::sendInProgress:
+             case ConnState::recvInProgress:
+             case ConnState::closeInProgress:
++            case ConnState::terminateInProgress:
+             {
+                 BMCWEB_LOG_DEBUG << "Async operation is already in progress";
+                 break;
+@@ -440,11 +455,16 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+                 break;
+             }
+             case ConnState::suspended:
+-            case ConnState::terminated:
++            case ConnState::terminate:
+             {
+                 doClose();
+                 break;
+             }
++            case ConnState::terminated:
++            {
++                BMCWEB_LOG_DEBUG << "Connection Terminated";
++                break;
++            }
+             case ConnState::resolveFailed:
+             case ConnState::connectFailed:
+             case ConnState::handshakeFailed:
+@@ -504,7 +524,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+ 
+     void sendData(const std::string& data)
+     {
+-        if ((state == ConnState::suspended) || (state == ConnState::terminated))
++        if ((state == ConnState::terminate) ||
++            (state == ConnState::terminated) || (state == ConnState::suspended))
+         {
+             return;
+         }
+@@ -520,6 +541,15 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+         }
+     }
+ 
++    bool isTerminated()
++    {
++        if (state == ConnState::terminated)
++        {
++            return true;
++        }
++        return false;
++    }
++
+     void setHeaders(const boost::beast::http::fields& httpHeaders)
+     {
+         // Set custom headers
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 5483a74..92abaa5 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -590,6 +590,14 @@ class Subscription : public persistent_data::UserSubscription
+         return std::nullopt;
+     }
+ 
++    bool isTerminated()
++    {
++        if (conn != nullptr)
++            return conn->isTerminated();
++
++        return false;
++    }
++
+   private:
+     std::shared_ptr<crow::SseConnection> sseConn = nullptr;
+     uint64_t eventSeqNum;
+@@ -845,6 +853,22 @@ class EventServiceManager
+         }
+     }
+ 
++    void deleteTerminatedSubcriptions()
++    {
++        boost::container::flat_map<std::string,
++                                   std::shared_ptr<Subscription>>::iterator it =
++            subscriptionsMap.begin();
++        while (it != subscriptionsMap.end())
++        {
++            std::shared_ptr<Subscription> entry = it->second;
++            if (entry->isTerminated())
++            {
++                subscriptionsMap.erase(it);
++            }
++            it++;
++        }
++    }
++
+     void updateNoOfSubscribersCount()
+     {
+         size_t eventLogSubCount = 0;
+@@ -879,6 +903,7 @@ class EventServiceManager
+ 
+     std::shared_ptr<Subscription> getSubscription(const std::string& id)
+     {
++        deleteTerminatedSubcriptions();
+         auto obj = subscriptionsMap.find(id);
+         if (obj == subscriptionsMap.end())
+         {
+@@ -970,6 +995,7 @@ class EventServiceManager
+ 
+     bool isSubscriptionExist(const std::string& id)
+     {
++        deleteTerminatedSubcriptions();
+         auto obj = subscriptionsMap.find(id);
+         if (obj == subscriptionsMap.end())
+         {
+@@ -1032,6 +1058,7 @@ class EventServiceManager
+ 
+     size_t getNumberOfSubscriptions()
+     {
++        deleteTerminatedSubcriptions();
+         return subscriptionsMap.size();
+     }
+ 
+@@ -1048,6 +1075,7 @@ class EventServiceManager
+ 
+     std::vector<std::string> getAllIDs()
+     {
++        deleteTerminatedSubcriptions();
+         std::vector<std::string> idList;
+         for (const auto& it : subscriptionsMap)
+         {
+@@ -1058,6 +1086,7 @@ class EventServiceManager
+ 
+     bool isDestinationExist(const std::string& destUrl)
+     {
++        deleteTerminatedSubcriptions();
+         for (const auto& it : subscriptionsMap)
+         {
+             std::shared_ptr<Subscription> entry = it.second;
+@@ -1072,6 +1101,7 @@ class EventServiceManager
+ 
+     bool sendTestEventLog()
+     {
++        deleteTerminatedSubcriptions();
+         for (const auto& it : this->subscriptionsMap)
+         {
+             std::shared_ptr<Subscription> entry = it.second;
+@@ -1108,6 +1138,8 @@ class EventServiceManager
+         }
+         eventRecord.push_back(eventMessage);
+ 
++        deleteTerminatedSubcriptions();
++
+         for (const auto& it : this->subscriptionsMap)
+         {
+             std::shared_ptr<Subscription> entry = it.second;
+@@ -1151,6 +1183,8 @@ class EventServiceManager
+     }
+     void sendBroadcastMsg(const std::string& broadcastMsg)
+     {
++        deleteTerminatedSubcriptions();
++
+         for (const auto& it : this->subscriptionsMap)
+         {
+             std::shared_ptr<Subscription> entry = it.second;
+@@ -1263,6 +1297,8 @@ class EventServiceManager
+             return;
+         }
+ 
++        deleteTerminatedSubcriptions();
++
+         for (const auto& it : this->subscriptionsMap)
+         {
+             std::shared_ptr<Subscription> entry = it.second;
+-- 
+2.17.1
+

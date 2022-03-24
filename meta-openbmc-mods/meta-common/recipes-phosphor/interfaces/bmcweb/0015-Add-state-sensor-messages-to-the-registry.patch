@@ -1,0 +1,95 @@
+From b76ee9de6bc994e4ea1d65b797785a7b9e2f994c Mon Sep 17 00:00:00 2001
+From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
+Date: Wed, 27 Jan 2021 18:22:58 +0530
+Subject: [PATCH] Add state sensor messages to the registry
+
+Add messages to registry to indicate state sensor state change.
+
+Tested:
+Build and redfish validator passes.
+Logged these events and confirmed that they appear as expected on
+Redfish.
+GET: https://<BMC IP>/redfish/v1/Systems/system/LogServices/EventLog/Entries/1612528180
+{
+    "@odata.id": "/redfish/v1/Systems/system/LogServices/EventLog/Entries/1612528180",
+    "@odata.type": "#LogEntry.v1_4_0.LogEntry",
+    "Created": "2021-02-05T12:29:40+00:00",
+    "EntryType": "Event",
+    "Id": "1612528180",
+    "Message": "Operational Fault Status of Card_health_1 state sensor changed from Error to Normal.",
+    "MessageArgs": [
+        "Operational Fault Status",
+        "Card_health_1",
+        "Error",
+        "Normal"
+    ],
+    "MessageId": "OpenBMC.0.1.StateSensorNormal",
+    "Name": "System Event Log Entry",
+    "Severity": "OK"
+}
+
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+---
+ .../registries/openbmc_message_registry.hpp   | 33 +++++++++++++++++--
+ 1 file changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 9a8c0f6..8f66d7d 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -29,7 +29,7 @@ const Header header = {
+     "0.3.1",
+     "OpenBMC",
+ };
+-constexpr std::array<MessageEntry, 189> registry = {
++constexpr std::array<MessageEntry, 192> registry = {
+     MessageEntry{
+         "ADDDCCorrectable",
+         {
+@@ -2155,6 +2155,36 @@ constexpr std::array<MessageEntry, 189> registry = {
+                      {},
+                      "None.",
+                  }},
++    MessageEntry{
++        "StateSensorNormal",
++        {
++            "Indicates that a state sensor has changed state to normal.",
++            "%1 of %2 state sensor changed from %3 to %4.",
++            "OK",
++            4,
++            {"string", "string", "string", "string"},
++            "None.",
++        }},
++    MessageEntry{
++        "StateSensorWarning",
++        {
++            "Indicates that a state sensor has changed state to warning.",
++            "%1 of %2 state sensor changed from %3 to %4.",
++            "Warning",
++            4,
++            {"string", "string", "string", "string"},
++            "Check sensor subsystem for errors.",
++        }},
++    MessageEntry{
++        "StateSensorCritical",
++        {
++            "Indicates that a state sensor has changed state to critical.",
++            "%1 of %2 state sensor changed from %3 to %4.",
++            "Critical",
++            4,
++            {"string", "string", "string", "string"},
++            "Check sensor subsystem for errors.",
++        }},
+     MessageEntry{"SystemInterfaceDisabledProvisioned",
+                  {
+                      "Indicates that the system interface is in the disabled "
+@@ -2239,6 +2269,5 @@ constexpr std::array<MessageEntry, 189> registry = {
+             {"string"},
+             "None.",
+         }},
+-
+ };
+ } // namespace redfish::registries::openbmc
+-- 
+2.25.1
+

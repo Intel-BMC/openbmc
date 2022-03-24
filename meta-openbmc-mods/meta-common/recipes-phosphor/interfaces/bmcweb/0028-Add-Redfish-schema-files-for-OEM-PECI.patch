@@ -1,0 +1,216 @@
+From cf40628193cfbb77580b60d1c7da0c34c0bb3d8f Mon Sep 17 00:00:00 2001
+From: yes <smriti.ayushi@intel.com>
+Date: Mon, 7 Feb 2022 22:56:42 +0530
+Subject: [PATCH] Add Redfish schema files for OEM PECI
+
+OpenBMC supports 'SendRawPeci' command in Redfish.
+This change is to add Json and Xml OEM schema files for the same
+in standard Redfish schema file format.
+
+Tested:
+-Redfish validator passed successfully.
+-Able to read the schema file from bmc ip. OemCrashdump namespace
+ gets created.
+
+Signed-off-by: smriti.ayushi@intel.com
+---
+ scripts/update_schemas.py                     |  5 ++
+ static/redfish/v1/$metadata/index.xml         |  3 +
+ .../OemCrashdump/OemCrashdump.json            | 86 +++++++++++++++++++
+ .../v1/JsonSchemas/OemCrashdump/index.json    | 20 +++++
+ static/redfish/v1/schema/OemCrashdump_v1.xml  | 33 +++++++
+ 5 files changed, 147 insertions(+)
+ create mode 100644 static/redfish/v1/JsonSchemas/OemCrashdump/OemCrashdump.json
+ create mode 100644 static/redfish/v1/JsonSchemas/OemCrashdump/index.json
+ create mode 100644 static/redfish/v1/schema/OemCrashdump_v1.xml
+
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index eb6318f..aa92744 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -226,6 +226,11 @@ with open(metadata_index_path, 'w') as metadata_index:
+     metadata_index.write("        <edmx:Include Namespace=\"OemManager\"/>\n")
+     metadata_index.write("    </edmx:Reference>\n")
+ 
++    metadata_index.write(
++        "    <edmx:Reference Uri=\"/redfish/v1/schema/OemCrashdump_v1.xml\">\n")
++    metadata_index.write("        <edmx:Include Namespace=\"OemCrashdump\"/>\n")
++    metadata_index.write("    </edmx:Reference>\n")
++
+     metadata_index.write(
+         "    <edmx:Reference Uri=\""
+         "/redfish/v1/schema/OemComputerSystem_v1.xml\">\n")
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index c925581..b0fae5c 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2502,6 +2502,9 @@
+     <edmx:Reference Uri="/redfish/v1/schema/OemComputerSystem_v1.xml">
+         <edmx:Include Namespace="OemComputerSystem"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/OemCrashdump_v1.xml">
++        <edmx:Include Namespace="OemCrashdump"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/OemUpdateService_v1.xml">
+         <edmx:Include Namespace="OemUpdateService"/>
+     </edmx:Reference>
+diff --git a/static/redfish/v1/JsonSchemas/OemCrashdump/OemCrashdump.json b/static/redfish/v1/JsonSchemas/OemCrashdump/OemCrashdump.json
+new file mode 100644
+index 0000000..7446e93
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/OemCrashdump/OemCrashdump.json
+@@ -0,0 +1,86 @@
++{
++    "$id": "http://redfish.dmtf.org/schemas/v1/OemCrashdump.v1_0_0.json",
++    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema-v1.json",
++    "copyright": "Copyright 2014-2019 DMTF. For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
++    "definitions": {
++        "Actions": {
++            "additionalProperties": false,
++            "patternProperties": {
++                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
++                    "description": "This property shall specify a valid odata or Redfish property.",
++                    "type": [
++                        "array",
++                        "boolean",
++                        "integer",
++                        "number",
++                        "null",
++                        "object",
++                        "string"
++                    ]
++                }
++            },
++            "properties": {
++                "#Crashdump.SendRawPeci": {
++                    "$ref": "#/definitions/SendRawPeci"
++                }
++            },
++            "type": "object"
++        },
++        "SendRawPeci": {
++            "additionalProperties": false,
++            "description": "This action is used to send a raw PECI command to the CPU.",
++            "longDescription": "This action is used to send a raw PECI command to the CPU.",
++            "parameters": {
++                "PECICommands": {
++                    "description": "This parameter contains the raw PECI command data to be sent to the CPU.",
++                     "items": {
++                        "type": "integer"
++                    },
++		    "longDescription": "Single array contains arrays of bytes each represents a single full raw PECI command.",
++                    "requiredParameter": true,
++                    "type": "array"
++                },
++                "PECIDevice": {
++                    "description": "PECI device.",
++                    "longDescription": "This represents the PECI device to use for the transaction.",
++                    "type": "string"
++                },
++                "RetryTimingUs": {
++                    "description": "This parameter can be used to modify the retry timing in the BMC PECI driver.",
++                    "items": {
++                        "type": "integer"
++                    },
++		    "longDescription": "An array of three-time values in microseconds as: [retryIntervalMin,retryIntervalMax,retryTimeout].",
++                    "type": "array"
++                }
++            },
++            "patternProperties": {
++                "^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\\.[a-zA-Z_][a-zA-Z0-9_]*$": {
++                    "description": "This property shall specify a valid odata or Redfish property.",
++                    "type": [
++                        "array",
++                        "boolean",
++                        "integer",
++                        "number",
++                        "null",
++                        "object",
++                        "string"
++                    ]
++                }
++            },
++            "properties": {
++                "target": {
++                    "description": "Link to invoke action",
++                    "format": "uri-reference",
++                    "type": "string"
++                },
++                "title": {
++                    "description": "Friendly action name",
++                    "type": "string"
++                }
++            },
++            "type": "object"
++        }
++    },
++    "title": "#OemCrashdump"
++}
+diff --git a/static/redfish/v1/JsonSchemas/OemCrashdump/index.json b/static/redfish/v1/JsonSchemas/OemCrashdump/index.json
+new file mode 100644
+index 0000000..7a19e8e
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/OemCrashdump/index.json
+@@ -0,0 +1,20 @@
++{
++    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
++    "@odata.id": "/redfish/v1/JsonSchemas/OemCrashdump",
++    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
++    "Name": "Oem Crashdump Schema File",
++    "Schema": "#OemCrashdump.OemCrashdump",
++    "Description": "Oem Crashdump Schema File Location",
++    "Id": "OemCrashdump",
++    "Languages": [
++        "en"
++    ],
++    "Languages@odata.count": 1,
++    "Location": [
++        {
++            "Language": "en",
++            "Uri": "/redfish/v1/JsonSchemas/OemCrashdump/OemCrashdump.json"
++        }
++    ],
++    "Location@odata.count": 1
++}
+diff --git a/static/redfish/v1/schema/OemCrashdump_v1.xml b/static/redfish/v1/schema/OemCrashdump_v1.xml
+new file mode 100644
+index 0000000..3570408
+--- /dev/null
++++ b/static/redfish/v1/schema/OemCrashdump_v1.xml
+@@ -0,0 +1,33 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
++    <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
++        <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData" />
++    </edmx:Reference>
++
++    <edmx:DataServices>
++        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="OemCrashdump">
++	 <edmx:simpleType name="Command">
++            <edmx:restriction base="Collection(Edm.Int64)" />
++         </edmx:simpleType>
++
++	    <Action Name="SendRawPeci" IsBound="true">
++                <Parameter Name="PECICommands" Type="Collection(OemCrashdump.Command)" Nullable="false">
++                    <Annotation Term="OData.Description" String="This parameter contains the raw PECI command data to be sent to the CPU." />
++                    <Annotation Term="OData.LongDescription" String="Single array contains arrays of bytes each represents a single full raw PECI command." />
++                    <Annotation Term="Redfish.Required"/>
++                </Parameter>
++                <Parameter Name="PECIDevice" Type="Edm.String" Nullable="false">
++                    <Annotation Term="OData.Description" String="PECI device." />
++                    <Annotation Term="OData.LongDescription" String="This represents the PECI device to use for the transaction." />
++                </Parameter>
++                <Parameter Name="RetryTimingUs" Type="Edm.Int64" Nullable="false">
++                    <Annotation Term="OData.Description" String="This parameter can be used to modify the retry timing in the BMC PECI driver." />
++                    <Annotation Term="OData.LongDescription" String="An array of three-time values in microseconds as: [retryIntervalMin,retryIntervalMax,retryTimeout]." />
++                </Parameter>
++                <Annotation Term="OData.Description" String="This action is used to send a raw PECI command to the CPU." />
++                <Annotation Term="OData.LongDescription" String="This action is used to send a raw PECI command to the CPU." />
++            </Action>
++        </Schema>
++    </edmx:DataServices>
++</edmx:Edmx>
++
+-- 
+2.17.1
+
