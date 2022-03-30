@@ -11,7 +11,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=0d30807bb7a4f16d36e96b78f9ed8fae"
 SRC_URI = "git://github.com/openbmc/libmctp \
 	   file://default"
-SRCREV = "663ec39ea107c2a736f9bcb20cbfdfa623092ab1"
+SRCREV = "983cc3fa49dcac2e640e814500221c6acc177eff"
 
 DEPENDS += "autoconf-archive-native \
             systemd \
@@ -26,6 +26,7 @@ PACKAGECONFIG[systemd] = "--with-systemdsystemunitdir=${systemd_system_unitdir},
                           --without-systemdsystemunitdir,systemd"
 
 PACKAGECONFIG[astlpc-raw-kcs] = "--enable-astlpc-raw-kcs,--disable-astlpc-raw-kcs,udev,udev"
+PACKAGECONFIG[pcap] = "--enable-capture,--disable-capture,libpcap,"
 
 CONFFILES:${PN} = "${sysconfdir}/default/mctp"
 
