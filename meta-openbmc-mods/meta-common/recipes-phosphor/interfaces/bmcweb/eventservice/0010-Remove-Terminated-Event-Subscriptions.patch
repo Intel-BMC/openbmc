@@ -1,5 +1,5 @@
-From f665ba085bb2310f008b7534f827fb401ad973c2 Mon Sep 17 00:00:00 2001
-From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+From 5d13aa636aba6c68ab5a74e589cac35f4e925129 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 Date: Tue, 12 Oct 2021 08:19:51 +0000
 Subject: [PATCH] Delete/Remove Terminated Event Subscription(s)
 
@@ -22,15 +22,15 @@ Tested:
 Change-Id: If447acb2db74fb29a5d1cfe6194b77cda82bc8a1
 Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
- http/http_client.hpp                          | 43 +++++++++++++++----
- .../include/event_service_manager.hpp         | 36 ++++++++++++++++
- 2 files changed, 70 insertions(+), 9 deletions(-)
+ http/http_client.hpp                          | 48 +++++++++++++++----
+ .../include/event_service_manager.hpp         | 36 ++++++++++++++
+ 2 files changed, 75 insertions(+), 9 deletions(-)
 
 diff --git a/http/http_client.hpp b/http/http_client.hpp
-index 5e7ff47..54ae2c3 100644
+index 58b5402..745eeb6 100644
 --- a/http/http_client.hpp
 +++ b/http/http_client.hpp
-@@ -55,6 +55,8 @@ enum class ConnState
+@@ -56,6 +56,8 @@ enum class ConnState
      closeInProgress,
      closed,
      suspended,
@@ -39,7 +39,7 @@ index 5e7ff47..54ae2c3 100644
      terminated,
      abortConnection,
      retry
-@@ -288,7 +290,14 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -290,7 +292,14 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
      }
      void doClose()
      {
@@ -55,7 +55,7 @@ index 5e7ff47..54ae2c3 100644
  
          // Set the timeout on the tcp stream socket for the async operation
          conn.expires_after(std::chrono::seconds(30));
-@@ -318,8 +327,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -320,8 +329,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                  }
                  self->conn.close();
  
@@ -69,7 +69,7 @@ index 5e7ff47..54ae2c3 100644
                  {
                      self->state = ConnState::closed;
                      self->handleConnState();
-@@ -341,8 +353,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -343,8 +355,11 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              }
              conn.close();
  
@@ -83,7 +83,7 @@ index 5e7ff47..54ae2c3 100644
              {
                  state = ConnState::closed;
                  handleConnState();
-@@ -365,8 +380,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -367,8 +382,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              BMCWEB_LOG_DEBUG << "Retry policy: " << retryPolicyAction;
              if (retryPolicyAction == "TerminateAfterRetries")
              {
@@ -93,7 +93,7 @@ index 5e7ff47..54ae2c3 100644
              }
              if (retryPolicyAction == "SuspendRetries")
              {
-@@ -423,6 +437,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -425,6 +439,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              case ConnState::sendInProgress:
              case ConnState::recvInProgress:
              case ConnState::closeInProgress:
@@ -101,7 +101,7 @@ index 5e7ff47..54ae2c3 100644
              {
                  BMCWEB_LOG_DEBUG << "Async operation is already in progress";
                  break;
-@@ -439,7 +454,7 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -441,11 +456,16 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
                  break;
              }
              case ConnState::suspended:
@@ -110,8 +110,17 @@ index 5e7ff47..54ae2c3 100644
              {
                  doClose();
                  break;
-@@ -506,7 +521,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
-     }
+             }
++            case ConnState::terminated:
++            {
++                BMCWEB_LOG_DEBUG << "Connection Terminated";
++                break;
++            }
+             case ConnState::resolveFailed:
+             case ConnState::connectFailed:
+             case ConnState::handshakeFailed:
+@@ -505,7 +525,8 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+ 
      void sendData(const std::string& data)
      {
 -        if ((state == ConnState::suspended) || (state == ConnState::terminated))
@@ -120,7 +129,7 @@ index 5e7ff47..54ae2c3 100644
          {
              return;
          }
-@@ -524,6 +540,15 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -523,6 +544,15 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
          return;
      }
  
@@ -133,14 +142,14 @@ index 5e7ff47..54ae2c3 100644
 +        return false;
 +    }
 +
-     void addHeaders(
-         const std::vector<std::pair<std::string, std::string>>& httpHeaders)
+     void setHeaders(const boost::beast::http::fields& httpHeaders)
      {
+         // Set custom headers
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 6f60a31..363adb0 100644
+index 69db652..5d71c63 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -591,6 +591,14 @@ class Subscription : public persistent_data::UserSubscription
+@@ -588,6 +588,14 @@ class Subscription : public persistent_data::UserSubscription
          return std::nullopt;
      }
  
@@ -155,7 +164,7 @@ index 6f60a31..363adb0 100644
    private:
      std::shared_ptr<crow::SseConnection> sseConn = nullptr;
      uint64_t eventSeqNum;
-@@ -847,6 +855,22 @@ class EventServiceManager
+@@ -843,6 +851,22 @@ class EventServiceManager
          }
      }
  
@@ -178,7 +187,7 @@ index 6f60a31..363adb0 100644
      void updateNoOfSubscribersCount()
      {
          size_t eventLogSubCount = 0;
-@@ -881,6 +905,7 @@ class EventServiceManager
+@@ -877,6 +901,7 @@ class EventServiceManager
  
      std::shared_ptr<Subscription> getSubscription(const std::string& id)
      {
@@ -186,7 +195,7 @@ index 6f60a31..363adb0 100644
          auto obj = subscriptionsMap.find(id);
          if (obj == subscriptionsMap.end())
          {
-@@ -971,6 +996,7 @@ class EventServiceManager
+@@ -968,6 +993,7 @@ class EventServiceManager
  
      bool isSubscriptionExist(const std::string& id)
      {
@@ -194,7 +203,7 @@ index 6f60a31..363adb0 100644
          auto obj = subscriptionsMap.find(id);
          if (obj == subscriptionsMap.end())
          {
-@@ -1033,6 +1059,7 @@ class EventServiceManager
+@@ -1030,6 +1056,7 @@ class EventServiceManager
  
      size_t getNumberOfSubscriptions()
      {
@@ -202,7 +211,7 @@ index 6f60a31..363adb0 100644
          return subscriptionsMap.size();
      }
  
-@@ -1049,6 +1076,7 @@ class EventServiceManager
+@@ -1046,6 +1073,7 @@ class EventServiceManager
  
      std::vector<std::string> getAllIDs()
      {
@@ -210,7 +219,7 @@ index 6f60a31..363adb0 100644
          std::vector<std::string> idList;
          for (const auto& it : subscriptionsMap)
          {
-@@ -1059,6 +1087,7 @@ class EventServiceManager
+@@ -1056,6 +1084,7 @@ class EventServiceManager
  
      bool isDestinationExist(const std::string& destUrl)
      {
@@ -218,7 +227,7 @@ index 6f60a31..363adb0 100644
          for (const auto& it : subscriptionsMap)
          {
              std::shared_ptr<Subscription> entry = it.second;
-@@ -1073,6 +1102,7 @@ class EventServiceManager
+@@ -1070,6 +1099,7 @@ class EventServiceManager
  
      void sendTestEventLog()
      {
@@ -226,7 +235,7 @@ index 6f60a31..363adb0 100644
          for (const auto& it : this->subscriptionsMap)
          {
              std::shared_ptr<Subscription> entry = it.second;
-@@ -1100,6 +1130,8 @@ class EventServiceManager
+@@ -1097,6 +1127,8 @@ class EventServiceManager
          }
          eventRecord.push_back(eventMessage);
  
@@ -235,7 +244,7 @@ index 6f60a31..363adb0 100644
          for (const auto& it : this->subscriptionsMap)
          {
              std::shared_ptr<Subscription> entry = it.second;
-@@ -1143,6 +1175,8 @@ class EventServiceManager
+@@ -1140,6 +1172,8 @@ class EventServiceManager
      }
      void sendBroadcastMsg(const std::string& broadcastMsg)
      {
@@ -244,7 +253,7 @@ index 6f60a31..363adb0 100644
          for (const auto& it : this->subscriptionsMap)
          {
              std::shared_ptr<Subscription> entry = it.second;
-@@ -1291,6 +1325,8 @@ class EventServiceManager
+@@ -1254,6 +1288,8 @@ class EventServiceManager
              return;
          }
  
@@ -254,5 +263,5 @@ index 6f60a31..363adb0 100644
          {
              std::shared_ptr<Subscription> entry = it.second;
 -- 
-2.25.1
+2.17.1
 

@@ -1,2 +1,2 @@
 #SRC_URI = "git://github.com/openbmc/phosphor-post-code-manager.git"
-SRCREV = "9ce5a645f50c0ab94e582abbf95474f636aba678"
+SRCREV = "987f91a6536e0330799cc5f4e54740c4023b5ef0"

@@ -1,4 +1,4 @@
-From baff58f6e8f7aef4fd56be959fdd2e5e3c429eef Mon Sep 17 00:00:00 2001
+From 9d70ffc5532e17752903407d0267a281cc4be6d5 Mon Sep 17 00:00:00 2001
 From: Johnathan Mantey <johnathanx.mantey@intel.com>
 Date: Mon, 13 Jul 2020 11:51:54 -0700
 Subject: [PATCH] Revert "server: Check return code for
@@ -6,29 +6,28 @@ Subject: [PATCH] Revert "server: Check return code for
 
 This reverts commit 017a19da5f67a74daedf4d63111569902d4764e6.
 ---
- src/server/interface.cpp | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ src/server/interface.cpp | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
 diff --git a/src/server/interface.cpp b/src/server/interface.cpp
-index a72c656..0155b6d 100644
+index e47f6ef..1ea9a06 100644
 --- a/src/server/interface.cpp
 +++ b/src/server/interface.cpp
-@@ -17,13 +17,8 @@ interface::interface(sdbusplus::bus::bus& bus, const char* path,
+@@ -17,12 +17,8 @@ interface::interface(sdbusplus::bus_t& bus, const char* path,
      _interface_added(false)
  {
      sd_bus_slot* slot = nullptr;
--    int r = _intf->sd_bus_add_object_vtable(_bus.get(), &slot, _path.c_str(),
--                                            _interf.c_str(), vtable, context);
+-    int r = _intf->sd_bus_add_object_vtable(
+-        get_busp(_bus), &slot, _path.c_str(), _interf.c_str(), vtable, context);
 -    if (r < 0)
 -    {
 -        throw exception::SdBusError(-r, "sd_bus_add_object_vtable");
 -    }
--
-+    _intf->sd_bus_add_object_vtable(_bus.get(), &slot, _path.c_str(),
++    _intf->sd_bus_add_object_vtable(get_busp(_bus), &slot, _path.c_str(),
 +                                    _interf.c_str(), vtable, context);
-     _slot = decltype(_slot){slot};
- }
  
+     _slot = std::move(slot);
+ }
 -- 
 2.17.1
 

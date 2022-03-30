@@ -1,4 +1,4 @@
-From 799e47842e179f7c752712004f0e96d3219eee11 Mon Sep 17 00:00:00 2001
+From 278ea5570d8a162774c3d84b0706e27539e714cc Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Tue, 16 Mar 2021 15:37:24 +0000
 Subject: [PATCH] Add SSE style subscription support to eventservice
@@ -25,18 +25,18 @@ Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
  http/http_connection.hpp                      |   2 +-
  include/eventservice_sse.hpp                  |  75 +++++
  .../include/event_service_manager.hpp         | 109 +++++--
- redfish-core/include/server_sent_events.hpp   | 290 ------------------
+ redfish-core/include/server_sent_events.hpp   | 289 ------------------
  redfish-core/lib/event_service.hpp            |   8 +-
  src/webserver_main.cpp                        |   2 +
- 6 files changed, 164 insertions(+), 322 deletions(-)
+ 6 files changed, 164 insertions(+), 321 deletions(-)
  create mode 100644 include/eventservice_sse.hpp
  delete mode 100644 redfish-core/include/server_sent_events.hpp
 
 diff --git a/http/http_connection.hpp b/http/http_connection.hpp
-index a1bbfce..2d08501 100644
+index 9cf603d..cf629ea 100644
 --- a/http/http_connection.hpp
 +++ b/http/http_connection.hpp
-@@ -382,7 +382,7 @@ class Connection :
+@@ -366,7 +366,7 @@ class Connection :
               boost::iequals(
                   thisReq.getHeaderValue(boost::beast::http::field::upgrade),
                   "websocket")) ||
@@ -127,17 +127,18 @@ index 0000000..14daf00
 +} // namespace eventservice_sse
 +} // namespace redfish
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 3f398d7..dd833ce 100644
+index f581b96..57a2ab8 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -22,15 +22,17 @@
+@@ -23,6 +23,7 @@
  #include <sys/inotify.h>
  
  #include <boost/asio/io_context.hpp>
 +#include <boost/beast/core/span.hpp>
  #include <boost/container/flat_map.hpp>
+ #include <dbus_utility.hpp>
  #include <error_messages.hpp>
- #include <event_service_store.hpp>
+@@ -30,9 +31,10 @@
  #include <http_client.hpp>
  #include <persistent_data.hpp>
  #include <random.hpp>
@@ -149,7 +150,7 @@ index 3f398d7..dd833ce 100644
  #include <cstdlib>
  #include <ctime>
  #include <fstream>
-@@ -46,9 +48,27 @@ using ReadingsObjType =
+@@ -48,9 +50,27 @@ using ReadingsObjType =
  static constexpr const char* eventFormatType = "Event";
  static constexpr const char* metricReportFormatType = "MetricReport";
  
@@ -176,10 +177,10 @@ index 3f398d7..dd833ce 100644
 +
  namespace message_registries
  {
- inline boost::beast::span<const MessageEntry>
-@@ -68,24 +88,6 @@ inline boost::beast::span<const MessageEntry>
+ inline std::span<const MessageEntry>
+@@ -70,24 +90,6 @@ inline std::span<const MessageEntry>
      }
-     return boost::beast::span<const MessageEntry>(openbmc::registry);
+     return {openbmc::registry};
  }
 -} // namespace message_registries
 -
@@ -201,8 +202,8 @@ index 3f398d7..dd833ce 100644
 -{
  static const Message*
      getMsgFromRegistry(const std::string& messageKey,
-                        const boost::beast::span<const MessageEntry>& registry)
-@@ -388,11 +390,9 @@ class Subscription : public persistent_data::UserSubscription
+                        const std::span<const MessageEntry>& registry)
+@@ -386,11 +388,9 @@ class Subscription : public persistent_data::UserSubscription
              path, uriProto);
      }
  
@@ -217,7 +218,7 @@ index 3f398d7..dd833ce 100644
  
      ~Subscription() = default;
  
-@@ -417,7 +417,7 @@ class Subscription : public persistent_data::UserSubscription
+@@ -404,7 +404,7 @@ class Subscription : public persistent_data::UserSubscription
  
          if (sseConn != nullptr)
          {
@@ -226,7 +227,7 @@ index 3f398d7..dd833ce 100644
          }
      }
  
-@@ -508,6 +508,7 @@ class Subscription : public persistent_data::UserSubscription
+@@ -495,6 +495,7 @@ class Subscription : public persistent_data::UserSubscription
  
          this->sendEvent(
              msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
@@ -234,7 +235,7 @@ index 3f398d7..dd833ce 100644
      }
  #endif
  
-@@ -578,14 +579,39 @@ class Subscription : public persistent_data::UserSubscription
+@@ -557,14 +558,39 @@ class Subscription : public persistent_data::UserSubscription
          return eventSeqNum;
      }
  
@@ -275,16 +276,16 @@ index 3f398d7..dd833ce 100644
  };
  
  class EventServiceManager
-@@ -942,6 +968,8 @@ class EventServiceManager
-         subValue->updateRetryConfig(retryAttempts, retryTimeoutInterval);
+@@ -922,6 +948,8 @@ class EventServiceManager
          subValue->updateRetryPolicy();
+         subValue->updatehttpHeaders();
  
 +        // Set Subscription ID for back trace
 +        subValue->setSubscriptionId(id);
          return id;
      }
  
-@@ -970,11 +998,40 @@ class EventServiceManager
+@@ -950,11 +978,40 @@ class EventServiceManager
          }
      }
  
@@ -327,10 +328,10 @@ index 3f398d7..dd833ce 100644
          std::vector<std::string> idList;
 diff --git a/redfish-core/include/server_sent_events.hpp b/redfish-core/include/server_sent_events.hpp
 deleted file mode 100644
-index 7613d7b..0000000
+index dd3cd36..0000000
 --- a/redfish-core/include/server_sent_events.hpp
 +++ /dev/null
-@@ -1,290 +0,0 @@
+@@ -1,289 +0,0 @@
 -
 -/*
 -// Copyright (c) 2020 Intel Corporation
@@ -350,7 +351,6 @@ index 7613d7b..0000000
 -#pragma once
 -
 -#include <boost/asio/strand.hpp>
--#include <boost/beast/core/span.hpp>
 -#include <boost/beast/http/buffer_body.hpp>
 -#include <boost/beast/http/message.hpp>
 -#include <boost/beast/version.hpp>
@@ -622,10 +622,10 @@ index 7613d7b..0000000
 -
 -} // namespace crow
 diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
-index 8609862..249e594 100644
+index 91a041e..9ad2bbd 100644
 --- a/redfish-core/lib/event_service.hpp
 +++ b/redfish-core/lib/event_service.hpp
-@@ -37,8 +37,6 @@ static constexpr const std::array<const char*, 1> supportedResourceTypes = {
+@@ -40,8 +40,6 @@ static constexpr const std::array<const char*, 1> supportedResourceTypes = {
      "Task"};
  #endif
  
@@ -634,16 +634,16 @@ index 8609862..249e594 100644
  inline void requestRoutesEventService(App& app)
  {
      BMCWEB_ROUTE(app, "/redfish/v1/EventService/")
-@@ -50,6 +48,8 @@ inline void requestRoutesEventService(App& app)
-                     {"@odata.type", "#EventService.v1_5_0.EventService"},
-                     {"Id", "EventService"},
-                     {"Name", "Event Service"},
-+                    {"ServerSentEventUri",
-+                     "/redfish/v1/EventService/Subscriptions/SSE"},
-                     {"Subscriptions",
-                      {{"@odata.id", "/redfish/v1/EventService/Subscriptions"}}},
-                     {"Actions",
-@@ -90,9 +90,7 @@ inline void requestRoutesEventService(App& app)
+@@ -54,6 +52,8 @@ inline void requestRoutesEventService(App& app)
+                 {"@odata.type", "#EventService.v1_5_0.EventService"},
+                 {"Id", "EventService"},
+                 {"Name", "Event Service"},
++                {"ServerSentEventUri",
++                 "/redfish/v1/EventService/Subscriptions/SSE"},
+                 {"Subscriptions",
+                  {{"@odata.id", "/redfish/v1/EventService/Subscriptions"}}},
+                 {"Actions",
+@@ -92,9 +92,7 @@ inline void requestRoutesEventService(App& app)
          .privileges(redfish::privileges::patchEventService)
          .methods(boost::beast::http::verb::patch)(
              [](const crow::Request& req,

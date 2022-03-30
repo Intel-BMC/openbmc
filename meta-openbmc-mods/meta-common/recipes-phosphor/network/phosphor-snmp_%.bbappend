@@ -1,4 +1,4 @@
 FILESEXTRAPATHS:append := ":${THISDIR}/${PN}"
 
 # SRC_URI = "git://github.com/openbmc/phosphor-snmp"
-SRCREV = "d560529eb7e22c0b78fb0def20f57c6f35be9dfe"
+SRCREV = "7350c77aa635cff08c5f1ee32e10679de7c5afda"

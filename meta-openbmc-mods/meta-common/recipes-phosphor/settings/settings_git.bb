@@ -1,6 +1,6 @@
 SUMMARY = "Settings"
 
-SRC_URI = "git://github.com/Intel-BMC/settings.git;protocol=ssh"
+SRC_URI = "git://git@github.com/Intel-BMC/settings.git;protocol=ssh"
 SRCREV = "85a8be9a3fb8ef4726899b28f10fb9afa6fa9e89"
 PV = "0.1+git${SRCPV}"
 

@@ -1,7 +1,7 @@
-From 437a2a854303ed4e05344684b1990806464268cd Mon Sep 17 00:00:00 2001
+From 47d907688368b98320d785aa8d285c9cf031d067 Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
-Date: Thu, 1 Jul 2021 10:08:27 +0000
-Subject: [PATCH] Invalid status code from InsertMedia REST methods GET,  PUT,
+Date: Wed, 1 Dec 2021 12:27:22 +0100
+Subject: [PATCH] Invalid status code from InsertMedia REST methods GET,  PUT, 
  DELETE, PATCH in proxy mode
 
 Add handlers for GET, PUT, DELETE, PATCH method and function that
@@ -16,7 +16,7 @@ Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
  1 file changed, 137 insertions(+)
 
 diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
-index 3b9f7ef..7d77b9f 100644
+index 601b973..7d9dade 100644
 --- a/redfish-core/lib/virtual_media.hpp
 +++ b/redfish-core/lib/virtual_media.hpp
 @@ -30,6 +30,117 @@
@@ -29,7 +29,7 @@ index 3b9f7ef..7d77b9f 100644
 + *        and sets suitable response code for unsupported REST method.
 + *
 + */
-+void CheckProxyMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
++void checkProxyMode(const std::shared_ptr<bmcweb::AsyncResp>& aResp,
 +                    const crow::Request& req, const std::string& name,
 +                    const std::string& resName)
 +{
@@ -137,7 +137,7 @@ index 3b9f7ef..7d77b9f 100644
  /**
   * @brief Function extracts transfer protocol name from URI.
   */
-@@ -844,6 +955,32 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+@@ -850,6 +961,32 @@ inline void doVmAction(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
  
  inline void requestNBDVirtualMediaRoutes(App& app)
  {
@@ -148,7 +148,7 @@ index 3b9f7ef..7d77b9f 100644
 +            [](const crow::Request& req,
 +               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 +               const std::string& name, const std::string& resName) {
-+                CheckProxyMode(asyncResp, req, name, resName);
++                checkProxyMode(asyncResp, req, name, resName);
 +            });
 +
 +    for (auto method :
@@ -163,13 +163,13 @@ index 3b9f7ef..7d77b9f 100644
 +                [](const crow::Request& req,
 +                   const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
 +                   const std::string& name, const std::string& resName) {
-+                    CheckProxyMode(asyncResp, req, name, resName);
++                    checkProxyMode(asyncResp, req, name, resName);
 +                });
 +    }
 +
-     BMCWEB_ROUTE(app, "/redfish/v1/Managers/<str>/VirtualMedia/<str>/Actions/"
-                       "VirtualMedia.InsertMedia")
-         .privileges(redfish::privileges::postVirtualMedia)
+     BMCWEB_ROUTE(
+         app,
+         "/redfish/v1/Managers/<str>/VirtualMedia/<str>/Actions/VirtualMedia.InsertMedia")
 -- 
-2.17.1
+2.25.1
 

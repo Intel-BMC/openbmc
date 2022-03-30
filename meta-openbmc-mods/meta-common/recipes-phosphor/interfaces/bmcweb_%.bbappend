@@ -1,15 +1,9 @@
 SRC_URI = "git://github.com/openbmc/bmcweb.git"
-SRCREV = "b7ff344535c42af074c60bfb272ef66a2ba157b4"
+SRCREV = "85ffe86a60f50ce9ad5728caf384a0dd0c8cc6a5"
 
 DEPENDS += "boost-url"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
-
-# add a user called bmcweb for the server to assume
-# bmcweb is part of group shadow for non-root pam authentication
-USERADD_PARAM:${PN} = "-r -s /usr/sbin/nologin -d /home/bmcweb -m -G shadow bmcweb"
-
-GROUPADD_PARAM:${PN} = "web; redfish "
 
 SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0002-Use-chip-id-based-UUID-for-Service-Root.patch \
@@ -26,7 +20,9 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0020-Redfish-Deny-set-AccountLockDuration-to-zero.patch \
             file://0023-Add-get-IPMI-session-id-s-to-Redfish.patch \
             file://0024-Add-count-sensor-type.patch \
-            file://0025-Add-Model-CoreCount-to-ProcessorSummary.patch \
+            file://0025-Add-Model-to-ProcessorSummary.patch \
+            file://0026-Revert-Delete-the-copy-constructor-on-the-Request.patch \
+            file://0027-Convert-VariantType-to-DbusVariantType.patch \
 "
 
 # OOB Bios Config:
@@ -36,10 +32,12 @@ SRC_URI += "file://biosconfig/0001-Define-Redfish-interface-Registries-Bios.patc
             file://biosconfig/0004-Add-support-to-ChangePassword-action.patch \
             file://biosconfig/0005-Fix-remove-bios-user-pwd-change-option-via-Redfish.patch \
             file://biosconfig/0006-Add-fix-for-broken-feature-Pending-Attributes.patch \
+            file://biosconfig/0007-Add-BiosAttributeRegistry-node-under-Registries.patch \
 "
 
 # Virtual Media: Backend code is not upstreamed so downstream only patches.
-SRC_URI += "file://vm/0001-Revert-Disable-nbd-proxy-from-the-build.patch \
+SRC_URI += " \
+            file://vm/0001-Revert-Disable-nbd-proxy-from-the-build.patch \
             file://vm/0002-bmcweb-handle-device-or-resource-busy-exception.patch \
             file://vm/0003-Add-ConnectedVia-property-to-virtual-media-item-temp.patch \
             file://vm/0004-Invalid-status-code-from-InsertMedia-REST-methods.patch \
@@ -56,35 +54,26 @@ SRC_URI += "file://eventservice/0001-Add-unmerged-changes-for-http-retry-support
             file://eventservice/0006-Add-EventService-SSE-filter-support.patch \
             file://eventservice/0007-EventService-Log-events-for-subscription-actions.patch \
             file://eventservice/0008-Add-checks-on-Event-Subscription-input-parameters.patch \
-            file://eventservice/0009-Restructure-Redifsh-EventLog-Transmit-code-flow.patch \
             file://eventservice/0010-Remove-Terminated-Event-Subscriptions.patch \
             file://eventservice/0011-Fix-bmcweb-crash-while-deleting-terminated-subscriptions.patch \
+            file://eventservice/0012-Add-support-for-deleting-terminated-subscriptions.patch \
+            file://eventservice/0013-event-service-fix-added-Context-field-to-response.patch \
 "
 
+
 # Temporary downstream mirror of upstream patches, see telemetry\README for details
-SRC_URI += " file://telemetry/0001-Add-support-for-MetricDefinition-scheme.patch \
-             file://telemetry/0002-Sync-Telmetry-service-with-EventService.patch \
+SRC_URI += " file://telemetry/0001-Add-support-for-POST-on-TriggersCollection.patch \
+             file://telemetry/0002-Revert-Remove-LogService-from-TelemetryService.patch \
              file://telemetry/0003-Switched-bmcweb-to-use-new-telemetry-service-API.patch \
-             file://telemetry/0004-Add-support-for-MetricDefinition-property-in-MetricReport.patch \
-             file://telemetry/0005-Add-GET-method-for-TriggerCollection.patch \
-             file://telemetry/0006-Revert-Remove-LogService-from-TelemetryService.patch \
-             file://telemetry/0007-event-service-fix-added-Context-field-to-response.patch \
-             file://telemetry/0009-Add-support-for-deleting-terminated-subscriptions.patch \
 "
 
 # Temporary downstream patch for routing and privilege changes
-SRC_URI += " file://http_routing/0001-Add-asyncResp-support-during-handleUpgrade.patch \
-             file://http_routing/0002-Move-privileges-to-separate-entity.patch \
-             file://http_routing/0003-Add-Support-for-privilege-check-in-handleUpgrade.patch \
-             file://http_routing/0004-Add-Privileges-to-Websockets.patch \
-             file://http_routing/0005-Add-Privileges-to-SseSockets.patch \
-"
-
-# Temporary fix: Move it to service file
-do_install:append() {
-        install -d ${D}/var/lib/bmcweb
-        install -d ${D}/etc/ssl/certs/authority
-}
+SRC_URI += "file://http_routing/0001-Add-asyncResp-support-during-handleUpgrade.patch \
+            file://http_routing/0002-Move-privileges-to-separate-entity.patch \
+            file://http_routing/0003-Add-Support-for-privilege-check-in-handleUpgrade.patch \
+            file://http_routing/0004-Add-Privileges-to-Websockets.patch \
+            file://http_routing/0005-Add-Privileges-to-SseSockets.patch \
+           "
 
 # Enable PFR support
 EXTRA_OEMESON += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', '-Dredfish-provisioning-feature=enabled', '', d)}"

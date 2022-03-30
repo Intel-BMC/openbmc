@@ -1,6 +1,6 @@
-From 0ca8c383db8c9afbce63380955a20ada0acc20b7 Mon Sep 17 00:00:00 2001
+From ce9b52791e76d73050f053f8fc607c6e1eb5d8c4 Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
-Date: Wed, 2 Jun 2021 12:44:43 +0000
+Date: Thu, 16 Dec 2021 10:46:55 +0100
 Subject: [PATCH] event service fix, added Context field to response
 
 Tested:
@@ -9,21 +9,25 @@ Tested:
 
 Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
 ---
- redfish-core/include/event_service_manager.hpp | 1 +
- 1 file changed, 1 insertion(+)
+ redfish-core/include/event_service_manager.hpp | 5 +++++
+ 1 file changed, 5 insertions(+)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 2b957ea..289886b 100644
+index 881d2db..1ba9f21 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -556,6 +556,7 @@ class Subscription
-                              << id;
+@@ -530,6 +530,11 @@ class Subscription : public persistent_data::UserSubscription
              return;
          }
-+        msg["Context"] = customText;
  
++        if (!customText.empty())
++        {
++            msg["Context"] = customText;
++        }
++
          this->sendEvent(
              msg.dump(2, ' ', true, nlohmann::json::error_handler_t::replace));
+     }
 -- 
-2.25.1
+2.17.1
 

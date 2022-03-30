@@ -1,4 +1,4 @@
-From 145778897e36f407773844b3b96847ff10306ee8 Mon Sep 17 00:00:00 2001
+From eacd73a119e55599d1f8837d04b4fa40452e5653 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Thu, 2 Apr 2020 17:06:07 +0530
 Subject: [PATCH] Adding channel specific privilege to network
@@ -23,11 +23,11 @@ Signed-off-by: Ramya Narayana <ramyax.narayana@intel.com>
  src/ethernet_interface.cpp | 124 +++++++++++++++++++++++++++++++++++++
  src/ethernet_interface.hpp |  37 ++++++++++-
  src/network_manager.cpp    | 102 ++++++++++++++++++++++++++++++
- src/network_manager.hpp    |   9 +++
- 4 files changed, 271 insertions(+), 1 deletion(-)
+ src/network_manager.hpp    |   7 +++
+ 4 files changed, 269 insertions(+), 1 deletion(-)
 
 diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
-index 2e15803..1145773 100644
+index 44f46f6..61eb8de 100644
 --- a/src/ethernet_interface.cpp
 +++ b/src/ethernet_interface.cpp
 @@ -48,6 +48,10 @@ constexpr auto PROPERTY_INTERFACE = "org.freedesktop.DBus.Properties";
@@ -49,7 +49,7 @@ index 2e15803..1145773 100644
  
      // Emit deferred signal.
      if (emitSignal)
-@@ -1322,5 +1327,124 @@ std::string EthernetInterface::defaultGateway6(std::string gateway)
+@@ -1319,5 +1324,124 @@ std::string EthernetInterface::defaultGateway6(std::string gateway)
  
      return gw;
  }
@@ -175,7 +175,7 @@ index 2e15803..1145773 100644
  } // namespace network
  } // namespace phosphor
 diff --git a/src/ethernet_interface.hpp b/src/ethernet_interface.hpp
-index 0fe3778..fa5c889 100644
+index 8928455..0f54814 100644
 --- a/src/ethernet_interface.hpp
 +++ b/src/ethernet_interface.hpp
 @@ -2,11 +2,14 @@
@@ -233,7 +233,7 @@ index 0fe3778..fa5c889 100644
      using EthernetInterfaceIntf::interfaceName;
      using EthernetInterfaceIntf::linkUp;
      using EthernetInterfaceIntf::mtu;
-@@ -372,6 +387,26 @@ class EthernetInterface : public Ifaces
+@@ -363,6 +378,26 @@ class EthernetInterface : public Ifaces
       *  @returns true/false value if the NIC is enabled
       */
      bool queryNicEnabled() const;
@@ -261,10 +261,10 @@ index 0fe3778..fa5c889 100644
  
  } // namespace network
 diff --git a/src/network_manager.cpp b/src/network_manager.cpp
-index fe59f0b..01a99a3 100644
+index 19e4673..1c8bf3b 100644
 --- a/src/network_manager.cpp
 +++ b/src/network_manager.cpp
-@@ -39,6 +39,13 @@ extern std::unique_ptr<Timer> refreshObjectTimer;
+@@ -39,6 +39,13 @@ extern std::unique_ptr<Timer> reloadTimer;
  using namespace phosphor::logging;
  using namespace sdbusplus::xyz::openbmc_project::Common::Error;
  
@@ -381,27 +381,25 @@ index fe59f0b..01a99a3 100644
  
  bool Manager::createDefaultNetworkFiles(bool force)
 diff --git a/src/network_manager.hpp b/src/network_manager.hpp
-index fb3cc32..0c3d49b 100644
+index f574891..49f1cfa 100644
 --- a/src/network_manager.hpp
 +++ b/src/network_manager.hpp
-@@ -156,6 +156,12 @@ class Manager : public details::VLANCreateIface
-         return routeTable;
+@@ -170,6 +170,11 @@ class Manager : public details::VLANCreateIface
+     {
+         reloadPreHooks.push_back(std::move(hook));
      }
- 
 +    /** supported privilege list **/
 +    std::vector<std::string> supportedPrivList;
 +
 +    /** @brief initializes the supportedPrivilege List */
 +    void initSupportedPrivilges();
-+
+ 
    protected:
      /** @brief Persistent sdbusplus DBus bus connection. */
-     sdbusplus::bus::bus& bus;
-@@ -181,6 +187,9 @@ class Manager : public details::VLANCreateIface
+@@ -199,6 +204,8 @@ class Manager : public details::VLANCreateIface
  
-     /** @brief The routing table */
-     route::Table routeTable;
-+
+     /** @brief List of hooks to execute during the next reload */
+     std::vector<fu2::unique_function<void()>> reloadPreHooks;
 +    /** Get the user management service name dynamically **/
 +    std::string getUserServiceName();
  };

@@ -117,9 +117,9 @@ index 02f958a..ebbe68f 100644
 --- a/include/vm_websocket.hpp
 +++ b/include/vm_websocket.hpp
 @@ -3,6 +3,7 @@
- #include <app.hpp>
- #include <boost/beast/core/flat_static_buffer.hpp>
- #include <boost/process.hpp>
+ #include <boost/process/async_pipe.hpp>
+ #include <boost/process/child.hpp>
+ #include <boost/process/io.hpp>
 +#include <registries/privilege_registry.hpp>
  #include <websocket.hpp>
  

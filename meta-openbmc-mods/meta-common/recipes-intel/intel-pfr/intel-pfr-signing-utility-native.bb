@@ -8,9 +8,9 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 
 DEPENDS = "openssl-native libxml2-native "
 
-SRC_URI = "git://github.com/Intel-BMC/intel-pfr-signing-utility;protocol=ssh"
+SRC_URI = "git://git@github.com/Intel-BMC/intel-pfr-signing-utility.git;protocol=ssh"
 
-SRCREV = "33b8e02e9b25d5150b744fcbda4cf1e508813194"
+SRCREV = "7ad7cb3f3d7f408fd9ac454c242e77c8fbc6d61b"
 
 S = "${WORKDIR}/git"
 

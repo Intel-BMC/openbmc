@@ -1,6 +1,6 @@
-From ef83a4fb14648edc6c8370363ff88fb6f060a43b Mon Sep 17 00:00:00 2001
-From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
-Date: Mon, 20 Sep 2021 21:55:57 +0530
+From e44cced4e8a50a6edf0ace0e00b5be4b61533190 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Tue, 7 Dec 2021 09:48:07 +0100
 Subject: [PATCH] Add support for deleting terminated subscriptions
 
 Added functionality to delete/remove event subscription(s) which are
@@ -24,23 +24,22 @@ Tested:
 Change-Id: I3cb0af5bc24411cddcdb3d1d9de25e8e9144106c
 Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
- redfish-core/include/event_service_manager.hpp | 3 +++
- 1 file changed, 3 insertions(+)
+ redfish-core/include/event_service_manager.hpp | 2 ++
+ 1 file changed, 2 insertions(+)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index c9e2812..c2fefb3 100644
+index f97909c..881d2db 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -1535,6 +1535,9 @@ class EventServiceManager
+@@ -1514,6 +1514,8 @@ class EventServiceManager
+             return;
+         }
  
-                 std::variant<telemetry::TimestampReadings>& readings =
-                     found->second;
++        this->deleteTerminatedSubcriptions();
 +
-+                this->deleteTerminatedSubcriptions();
-+
-                 for (const auto& it :
-                      EventServiceManager::getInstance().subscriptionsMap)
-                 {
+         for (const auto& it :
+              EventServiceManager::getInstance().subscriptionsMap)
+         {
 -- 
 2.17.1
 

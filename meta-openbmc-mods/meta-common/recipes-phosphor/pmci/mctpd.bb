@@ -2,16 +2,16 @@ SUMMARY = "MCTP Daemon"
 DESCRIPTION = "Implementation of MCTP (DTMF DSP0236)"
 
 LICENSE = "Apache-2.0"
-LIC_FILES_CHKSUM = "file://${PN}/LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 
-SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "94437a678a1d23b22dc179b5cb7b165e52a429c0"
+SRC_URI = "git://git@github.com/Intel-BMC/mctpd.git;protocol=ssh;branch=main"
+SRCREV = "60c0862eb286b2de8cee93a2f6736a3d317d9739"
 
 S = "${WORKDIR}/git"
 
 PV = "1.0+git${SRCPV}"
 
-OECMAKE_SOURCEPATH = "${S}/${PN}"
+OECMAKE_SOURCEPATH = "${S}"
 
 inherit cmake systemd
 

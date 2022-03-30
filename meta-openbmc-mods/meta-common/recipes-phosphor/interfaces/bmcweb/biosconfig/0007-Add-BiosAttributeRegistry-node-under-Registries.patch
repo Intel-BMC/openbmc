@@ -1,0 +1,76 @@
+From cf2e892bdd85b8fe1ccaf1296e02d8589aef05c1 Mon Sep 17 00:00:00 2001
+From: Snehalatha Venkatesh <snehalathax.v@intel.com>
+Date: Tue, 28 Dec 2021 11:05:50 +0000
+Subject: [PATCH] Add BiosAttributeRegistry node under Registries.
+
+/redfish/v1/Registries/ is missing node BiosAttributeRegistry
+under it. Added code to fix the same.
+
+Tested:
+1.Ran Redfish Validator and passed.
+2.GET - /redfish/v1/Registries/
+
+Response:
+{
+"@odata.id": "/redfish/v1/Registries",
+"@odata.type": "#MessageRegistryFileCollection.MessageRegistryFileCollection",
+"Description": "Collection of MessageRegistryFiles",
+"Members": [
+{
+"@odata.id": "/redfish/v1/Registries/Base"
+},
+{
+"@odata.id": "/redfish/v1/Registries/TaskEvent"
+},
+{
+"@odata.id": "/redfish/v1/Registries/ResourceEvent"
+},
+{
+"@odata.id": "/redfish/v1/Registries/BiosAttributeRegistry"
+},
+{
+"@odata.id": "/redfish/v1/Registries/OpenBMC"
+}
+],
+"Members@odata.count": 5,
+"Name": "MessageRegistryFile Collection"
+}
+
+Signed-off-by: Snehalatha Venkatesh <snehalathax.v@intel.com>
+---
+ redfish-core/lib/message_registries.hpp | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/message_registries.hpp b/redfish-core/lib/message_registries.hpp
+index 510b19a..0467f1e 100644
+--- a/redfish-core/lib/message_registries.hpp
++++ b/redfish-core/lib/message_registries.hpp
+@@ -40,11 +40,12 @@ inline void handleMessageRegistryFileCollectionGet(
+         {"@odata.id", "/redfish/v1/Registries"},
+         {"Name", "MessageRegistryFile Collection"},
+         {"Description", "Collection of MessageRegistryFiles"},
+-        {"Members@odata.count", 4},
++        {"Members@odata.count", 5},
+         {"Members",
+          {{{"@odata.id", "/redfish/v1/Registries/Base"}},
+           {{"@odata.id", "/redfish/v1/Registries/TaskEvent"}},
+           {{"@odata.id", "/redfish/v1/Registries/ResourceEvent"}},
++          {{"@odata.id", "/redfish/v1/Registries/BiosAttributeRegistry"}},
+           {{"@odata.id", "/redfish/v1/Registries/OpenBMC"}}}}};
+ }
+ 
+@@ -87,6 +88,11 @@ inline void handleMessageRoutesMessageRegistryFileGet(
+         header = &message_registries::resource_event::header;
+         url = message_registries::resource_event::url;
+     }
++    else if (registry == "BiosAttributeRegistry")
++    {
++        header = &message_registries::bios::header;
++        dmtf.clear();
++    }
+     else
+     {
+         messages::resourceNotFound(
+-- 
+2.17.1
+

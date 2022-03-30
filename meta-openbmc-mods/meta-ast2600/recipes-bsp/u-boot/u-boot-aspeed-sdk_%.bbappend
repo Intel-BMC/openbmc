@@ -41,6 +41,7 @@ SRC_URI:append:intel-ast2600 = " \
     file://0034-Implement-the-IPMI-commands-in-FFUJ-mode-in-u-boot.patch \
     file://0036-Disable-BMC-MMIO-Decode-on-VGA-SCU-register-bit.patch \
     file://0037-Enable-I2C-clock-stretching-and-multi-master-support.patch \
+    file://0038-Disabling-serial-console-if-FFUJ-is-enabled.patch \
     "
 
 # CVE-2020-10648 vulnerability fix

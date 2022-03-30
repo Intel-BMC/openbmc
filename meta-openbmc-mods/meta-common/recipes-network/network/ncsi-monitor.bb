@@ -14,6 +14,8 @@ SRC_URI = "\
     file://${BPN}.service \
     "
 
+RDEPENDS:${PN} += "bash"
+
 inherit obmc-phosphor-systemd
 
 SYSTEMD_SERVICE:${PN} += "${BPN}.service"

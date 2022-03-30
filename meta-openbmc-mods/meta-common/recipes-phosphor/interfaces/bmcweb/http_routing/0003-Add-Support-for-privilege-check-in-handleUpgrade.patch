@@ -60,7 +60,7 @@ index acc99dc..e2a8fbb 100644
 -            crow::Response resp;
 -            rules[ruleIndex]->handleUpgrade(req, resp, std::move(adaptor));
 -        }
--        catch (std::exception& e)
+-        catch (const std::exception& e)
 -        {
 -            BMCWEB_LOG_ERROR << "An uncaught exception occurred: " << e.what();
 -            asyncResp->res.result(

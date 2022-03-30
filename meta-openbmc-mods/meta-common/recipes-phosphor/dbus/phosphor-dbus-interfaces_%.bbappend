@@ -1,7 +1,7 @@
 # Keep this as a comment to enable the auto-bump script without
 # stomping on SRC_URI from previous .bbappend files
 #SRC_URI =  "git://github.com/openbmc/phosphor-dbus-interfaces.git"
-SRCREV = "e0764cf41d16b823a519e9d4f508b588e3e84aba"
+SRCREV = "ed708de3a629531dc2fdb8e70946fb24e112d617"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 

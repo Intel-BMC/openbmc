@@ -1,4 +1,4 @@
-From d7a2660f200c38e74bfcbfe55b8da1b8bed08833 Mon Sep 17 00:00:00 2001
+From ea7d0091545450721d8b9b901e2593401b50d24c Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Fri, 12 Mar 2021 18:53:25 +0000
 Subject: [PATCH] Add Server-Sent-Events support
@@ -31,10 +31,10 @@ Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
  create mode 100644 http/server_sent_event.hpp
 
 diff --git a/http/http_connection.hpp b/http/http_connection.hpp
-index 8e53afa..a1bbfce 100644
+index 0f20761..9cf603d 100644
 --- a/http/http_connection.hpp
 +++ b/http/http_connection.hpp
-@@ -378,11 +378,13 @@ class Connection :
+@@ -362,11 +362,13 @@ class Connection :
                                [self] { self->completeRequest(); });
          });
  
@@ -83,10 +83,10 @@ index a983d4a..07b0265 100644
      // In case of a JSON object, set the Content-Type header
      void jsonMode()
 diff --git a/http/routing.hpp b/http/routing.hpp
-index 5d9c8e3..bfff107 100644
+index fe9c7e9..c748580 100644
 --- a/http/routing.hpp
 +++ b/http/routing.hpp
-@@ -6,6 +6,7 @@
+@@ -7,6 +7,7 @@
  #include "http_response.hpp"
  #include "logging.hpp"
  #include "privileges.hpp"
@@ -94,7 +94,7 @@ index 5d9c8e3..bfff107 100644
  #include "sessions.hpp"
  #include "utility.hpp"
  #include "websocket.hpp"
-@@ -398,6 +399,68 @@ class WebSocketRule : public BaseRule
+@@ -397,6 +398,68 @@ class WebSocketRule : public BaseRule
      std::function<void(crow::websocket::Connection&)> errorHandler;
  };
  
@@ -163,7 +163,7 @@ index 5d9c8e3..bfff107 100644
  template <typename T>
  struct RuleParameterTraits
  {
-@@ -410,6 +473,14 @@ struct RuleParameterTraits
+@@ -409,6 +472,14 @@ struct RuleParameterTraits
          return *p;
      }
  

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright 2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -158,4 +158,29 @@ done <<-END_CONF
 	eth0 eth1addr
 	eth1 ethaddr
 END_CONF
+
+### HOSTNAME FEATURE ###
+if [[ $* == *--no-unique-hostname* ]]; then
+	echo "mac-check: Skipping hostname check"
+else
+	# Read MAC and strip colon chars
+	hw_mac=$(cat /sys/class/net/eth0/address | tr -d ":")
+	# Read Hostname
+	hostname=$(hostname)
+	#Match bmc-mac<any MAC address> (a MAC address has 12 hex digits)
+	bmc_mac_format="^bmc-mac[a-f0-9]{12}$"
+	#Match bmc-mac<current MAC address>
+	inteldefault="bmc-mac$hw_mac"
+	#if the current hostname already has the current MAC address, we won't rewrite the name unnecessarily.
+	#Otherwise, match intel-obmc or bmc-mac<any MAC address>, and change the hostname to use the current MAC address
+	if [[ "$hostname" == "intel-obmc" || \
+		("$hostname" != "$inteldefault" && \
+		"$hostname" =~ $bmc_mac_format) ]]; then
+		hostnamectl set-hostname "$inteldefault"
+		echo "mac-check: HOSTNAME CHANGED (hostname deemed to be default or wrong MAC Address)"
+	else
+		echo "mac-check: HOSTNAME NOT CHANGED (hostname is already correct or is custom)"
+	fi
+fi
+
 exit $first_error_seen

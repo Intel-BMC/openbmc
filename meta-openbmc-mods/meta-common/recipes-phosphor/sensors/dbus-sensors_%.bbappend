@@ -1,8 +1,8 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
-SRCREV = "77518b28db824e01af18351094680a99b1ba3cae"
 #SRC_URI = "git://github.com/openbmc/dbus-sensors.git"
+SRCREV = "0b207a624f925460797a51974b77b275d4c05e30"
 
 SRC_URI += "\
     file://intrusionsensor-depend-on-networkd.conf \

@@ -1,4 +1,4 @@
-From 6ace96be5a7b6763545c1dfc572f8e2790d99d4b Mon Sep 17 00:00:00 2001
+From fefdd414b158d7b4424cb213dc74e89bab0507ab Mon Sep 17 00:00:00 2001
 From: Zhikui Ren <zhikui.ren@intel.com>
 Date: Tue, 11 May 2021 11:14:55 -0700
 Subject: [PATCH] CPUSensor: create RequiredTempSensor if defined
@@ -28,10 +28,10 @@ Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
  3 files changed, 123 insertions(+), 8 deletions(-)
 
 diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
-index 8b51b76..93b7fcc 100644
+index 84a1e32..a083b9d 100644
 --- a/include/CPUSensor.hpp
 +++ b/include/CPUSensor.hpp
-@@ -26,6 +26,15 @@ class CPUSensor : public Sensor
+@@ -26,6 +26,15 @@ class CPUSensor : public Sensor, public std::enable_shared_from_this<CPUSensor>
                std::vector<thresholds::Threshold>&& thresholds,
                const std::string& configuration, int cpuId, bool show,
                double dtsOffset);
@@ -48,11 +48,11 @@ index 8b51b76..93b7fcc 100644
      static constexpr unsigned int sensorScaleFactor = 1000;
      static constexpr unsigned int sensorPollMs = 1000;
 diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
-index c330088..3861ade 100644
+index 16c3686..5aab17f 100644
 --- a/src/CPUSensor.cpp
 +++ b/src/CPUSensor.cpp
 @@ -98,6 +98,74 @@ CPUSensor::CPUSensor(const std::string& path, const std::string& objectType,
-     setupRead();
+     setupPowerMatch(conn);
  }
  
 +// Create a  dummy "not available" CPUSensor
@@ -127,7 +127,7 @@ index c330088..3861ade 100644
  {
      // close the input dev to cancel async operations
 diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
-index 0d94e4b..1d12fa6 100644
+index abae170..2b02d60 100644
 --- a/src/CPUSensorMain.cpp
 +++ b/src/CPUSensorMain.cpp
 @@ -332,10 +332,9 @@ bool createSensors(boost::asio::io_service& io,
@@ -143,7 +143,7 @@ index 0d94e4b..1d12fa6 100644
              }
  
              // check hidden properties
-@@ -636,9 +635,9 @@ void detectCpuAsync(
+@@ -637,9 +636,9 @@ void detectCpuAsync(
      });
  }
  
@@ -155,7 +155,7 @@ index 0d94e4b..1d12fa6 100644
                    sdbusplus::asio::object_server& objectServer)
  {
      bool useCache = false;
-@@ -700,6 +699,45 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+@@ -701,6 +700,45 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
                      iface->register_property("Present", *present);
                      iface->initialize();
                      inventoryIfaces[name] = std::move(iface);
@@ -201,7 +201,7 @@ index 0d94e4b..1d12fa6 100644
                  }
  
                  auto findBus = config.second.find("Bus");
-@@ -728,7 +766,6 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+@@ -729,7 +767,6 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
                      std::cout << "name: " << name << "\n";
                      std::cout << "type: " << type << "\n";
                  }
@@ -209,7 +209,7 @@ index 0d94e4b..1d12fa6 100644
                  cpuConfigs.emplace(bus, addr, name, State::OFF);
              }
          }
-@@ -764,7 +801,8 @@ int main()
+@@ -765,7 +802,8 @@ int main()
              return; // we're being canceled
          }
  
@@ -219,7 +219,7 @@ index 0d94e4b..1d12fa6 100644
          {
              detectCpuAsync(pingTimer, creationTimer, io, objectServer,
                             systemBus, cpuConfigs, sensorConfigs);
-@@ -792,7 +830,7 @@ int main()
+@@ -793,7 +831,7 @@ int main()
                      return; // we're being canceled
                  }
  
