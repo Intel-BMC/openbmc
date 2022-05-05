@@ -1,0 +1,30 @@
+From d9488db9785b599d2c1e3a9d9fe1d2b5fa953865 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Date: Tue, 4 Jan 2022 06:49:58 +0530
+Subject: [PATCH] Revert "Delete the copy constructor on the Request object"
+
+This commit is reverted to resolve build issues due arising due
+to removal of the copy constructor.
+
+This reverts commit 597d2b142362bafa90f24fc8c30750afab91f78f.
+---
+ http/http_request.hpp | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/http/http_request.hpp b/http/http_request.hpp
+index 4567314..be84f18 100644
+--- a/http/http_request.hpp
++++ b/http/http_request.hpp
+@@ -45,9 +45,6 @@ struct Request
+         }
+     }
+ 
+-    Request(const Request&) = delete;
+-    Request& operator=(const Request&) = delete;
+-
+     boost::beast::http::verb method() const
+     {
+         return req.method();
+-- 
+2.17.1
+

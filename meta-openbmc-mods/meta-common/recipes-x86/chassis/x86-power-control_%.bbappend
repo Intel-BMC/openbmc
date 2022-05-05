@@ -1,6 +1,6 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/x86-power-control.git;protocol=ssh"
-SRCREV = "48c94c59728023cdbff3bd62f203de3434af8b8a"
+SRCREV = "c46ebb493f0e0cc1ccc5525d5484465bba69551f"
 
 FILESEXTRAPATHS:append := "${THISDIR}/${PN}:"
 

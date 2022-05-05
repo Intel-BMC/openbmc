@@ -1,4 +1,4 @@
-From b8eb53886106e44e3668857b13f8642d2ad3cfbf Mon Sep 17 00:00:00 2001
+From b5020756ae3fbff6283c293c74b779d656429f3a Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Fri, 27 Aug 2021 16:02:01 +0000
 Subject: [PATCH] EventService: Log events for subscription actions
@@ -21,13 +21,14 @@ Tested:
 Change-Id: I3745fa6357bd215379781a9818d9acc02a853d79
 Signed-off-by: AppaRao Puli <apparao.puli@intel.com>
 Signed-off-by: Ayushi Smriti <smriti.ayushi@intel.com>
+Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 ---
  .../include/event_service_manager.hpp         | 35 ++++++++++++++++---
  redfish-core/lib/event_service.hpp            |  2 +-
  2 files changed, 32 insertions(+), 5 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index c3e7f61..e9bdbfa 100644
+index aae9f02..69db652 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -21,6 +21,7 @@
@@ -38,7 +39,7 @@ index c3e7f61..e9bdbfa 100644
  
  #include <boost/asio/io_context.hpp>
  #include <boost/beast/core/span.hpp>
-@@ -788,7 +789,7 @@ class EventServiceManager
+@@ -780,7 +781,7 @@ class EventServiceManager
          }
      }
  
@@ -47,7 +48,7 @@ index c3e7f61..e9bdbfa 100644
      {
          persistent_data::EventServiceStore::getInstance()
              .eventServiceConfig.enabled = serviceEnabled;
-@@ -835,7 +836,7 @@ class EventServiceManager
+@@ -827,7 +828,7 @@ class EventServiceManager
  
          if (updateConfig)
          {
@@ -56,7 +57,7 @@ index c3e7f61..e9bdbfa 100644
          }
  
          if (updateRetryCfg)
-@@ -947,7 +948,7 @@ class EventServiceManager
+@@ -939,7 +940,7 @@ class EventServiceManager
  
          if (updateFile)
          {
@@ -65,7 +66,7 @@ index c3e7f61..e9bdbfa 100644
          }
  
  #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
-@@ -962,6 +963,13 @@ class EventServiceManager
+@@ -955,6 +956,13 @@ class EventServiceManager
  
          // Set Subscription ID for back trace
          subValue->setSubscriptionId(id);
@@ -79,7 +80,7 @@ index c3e7f61..e9bdbfa 100644
          return id;
      }
  
-@@ -986,7 +994,14 @@ class EventServiceManager
+@@ -979,7 +987,14 @@ class EventServiceManager
              persistent_data::EventServiceStore::getInstance()
                  .subscriptionsConfigMap.erase(obj2);
              updateNoOfSubscribersCount();
@@ -95,7 +96,7 @@ index c3e7f61..e9bdbfa 100644
          }
      }
  
-@@ -1008,6 +1023,18 @@ class EventServiceManager
+@@ -1001,6 +1016,18 @@ class EventServiceManager
          }
      }
  
@@ -115,10 +116,10 @@ index c3e7f61..e9bdbfa 100644
      {
          return subscriptionsMap.size();
 diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
-index 9def549..6a8421f 100644
+index 99c3bfd..15e45dc 100644
 --- a/redfish-core/lib/event_service.hpp
 +++ b/redfish-core/lib/event_service.hpp
-@@ -617,7 +617,7 @@ inline void requestRoutesEventDestination(App& app)
+@@ -624,7 +624,7 @@ inline void requestRoutesEventDestination(App& app)
                      subValue->updateRetryPolicy();
                  }
  

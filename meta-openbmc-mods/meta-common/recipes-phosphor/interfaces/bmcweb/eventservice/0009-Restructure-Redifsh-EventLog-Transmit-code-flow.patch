@@ -1,5 +1,5 @@
-From 542505dff60e3921b00b51acae882e207d46f1a6 Mon Sep 17 00:00:00 2001
-From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+From d047619b7003882846b108f519b00cdd41265361 Mon Sep 17 00:00:00 2001
+From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 Date: Wed, 14 Jul 2021 14:13:11 +0000
 Subject: [PATCH] Restructure Redfish EventLog Transmit code flow
 
@@ -35,7 +35,7 @@ Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
  1 file changed, 76 insertions(+), 32 deletions(-)
 
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index e9bdbfa..5c4de70 100644
+index 3208fb3..86c90fb 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
 @@ -134,15 +134,10 @@ static const Message* formatMessage(const std::string_view& messageID)
@@ -55,7 +55,7 @@ index e9bdbfa..5c4de70 100644
  
      // Get the entry timestamp
      std::time_t curTs = 0;
-@@ -621,6 +616,7 @@ class EventServiceManager
+@@ -628,6 +623,7 @@ class EventServiceManager
      }
  
      std::string lastEventTStr;
@@ -63,7 +63,7 @@ index e9bdbfa..5c4de70 100644
      size_t noOfEventLogSubscribers{0};
      size_t noOfMetricReportSubscribers{0};
      std::shared_ptr<sdbusplus::bus::match::match> matchTelemetryMonitor;
-@@ -1163,7 +1159,22 @@ class EventServiceManager
+@@ -1172,7 +1168,22 @@ class EventServiceManager
  #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
      void cacheLastEventTimestamp()
      {
@@ -87,7 +87,7 @@ index e9bdbfa..5c4de70 100644
          std::ifstream logStream(redfishEventLogFile);
          if (!logStream.good())
          {
-@@ -1171,27 +1182,44 @@ class EventServiceManager
+@@ -1180,27 +1191,44 @@ class EventServiceManager
              return;
          }
          std::string logEntry;
@@ -143,7 +143,7 @@ index e9bdbfa..5c4de70 100644
          std::ifstream logStream(redfishEventLogFile);
          if (!logStream.good())
          {
-@@ -1201,27 +1229,21 @@ class EventServiceManager
+@@ -1210,27 +1238,21 @@ class EventServiceManager
  
          std::vector<EventLogObjectsType> eventRecords;
  
@@ -178,7 +178,7 @@ index e9bdbfa..5c4de70 100644
  
              std::string timestamp;
              std::string messageID;
-@@ -1233,6 +1255,16 @@ class EventServiceManager
+@@ -1242,6 +1264,16 @@ class EventServiceManager
                  continue;
              }
  
@@ -195,7 +195,7 @@ index e9bdbfa..5c4de70 100644
              std::string registryName;
              std::string messageKey;
              event_log::getRegistryAndMessageKey(messageID, registryName,
-@@ -1242,11 +1274,23 @@ class EventServiceManager
+@@ -1251,11 +1283,23 @@ class EventServiceManager
                  continue;
              }
  

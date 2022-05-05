@@ -1,6 +1,6 @@
-From 7c005c318a12c53ed887b3081bd4b34ea0213053 Mon Sep 17 00:00:00 2001
+From 74309a2b2f9a41b741816cb427d9008f67c6f160 Mon Sep 17 00:00:00 2001
 From: Vikram Bodireddy <vikram.bodireddy@intel.com>
-Date: Mon, 28 Jun 2021 21:56:18 +0530
+Date: Fri, 3 Dec 2021 05:25:02 +0530
 Subject: [PATCH] Firmware update configuration changes
 
 This commit will provide user to PATCH the below firmware update
@@ -39,20 +39,18 @@ Tested:
 
  - Successfully ran redfish validater with no new errors.
 
-Change-Id: I25ef6d64af3f1dcea3acba93d7fd2b505130142e
 Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
-Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 ---
- redfish-core/lib/update_service.hpp           | 462 ++++++++++++++----
+ redfish-core/lib/update_service.hpp           | 337 ++++++++++++++++--
  static/redfish/v1/$metadata/index.xml         |   3 +
- .../JsonSchemas/OemUpdateService/index.json   |  69 +++
- .../redfish/v1/schema/OemUpdateService_v1.xml |  40 ++
- 4 files changed, 484 insertions(+), 90 deletions(-)
+ .../JsonSchemas/OemUpdateService/index.json   |  69 ++++
+ .../redfish/v1/schema/OemUpdateService_v1.xml |  40 +++
+ 4 files changed, 421 insertions(+), 28 deletions(-)
  create mode 100644 static/redfish/v1/JsonSchemas/OemUpdateService/index.json
  create mode 100644 static/redfish/v1/schema/OemUpdateService_v1.xml
 
 diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
-index e420130..b3270f0 100644
+index fde878e..be0abc9 100644
 --- a/redfish-core/lib/update_service.hpp
 +++ b/redfish-core/lib/update_service.hpp
 @@ -26,7 +26,9 @@
@@ -84,7 +82,7 @@ index e420130..b3270f0 100644
  
  inline static void cleanUp()
  {
-@@ -42,28 +55,120 @@ inline static void cleanUp()
+@@ -42,27 +55,120 @@ inline static void cleanUp()
      fwUpdateErrorMatcher = nullptr;
  }
  inline static void activateImage(const std::string& objPath,
@@ -97,13 +95,13 @@ index e420130..b3270f0 100644
 +    if (imgUriTargets.size() == 0)
 +    {
 +        crow::connections::systemBus->async_method_call(
-+            [](const boost::system::error_code error_code) {
-+                if (error_code)
++            [](const boost::system::error_code errorCode) {
++                if (errorCode)
 +                {
 +                    BMCWEB_LOG_DEBUG
 +                        << "RequestedActivation failed: error_code = "
-+                        << error_code;
-+                    BMCWEB_LOG_DEBUG << "error msg = " << error_code.message();
++                        << errorCode;
++                    BMCWEB_LOG_DEBUG << "error msg = " << errorCode.message();
 +                }
 +            },
 +            service, objPath, "org.freedesktop.DBus.Properties", "Set",
@@ -123,14 +121,14 @@ index e420130..b3270f0 100644
 +            const boost::system::error_code ec,
 +            const crow::openbmc_mapper::GetSubTreeType& subtree) {
 +            if (ec || !subtree.size())
-+            {
+             {
+-                BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
+-                BMCWEB_LOG_DEBUG << "error msg = " << errorCode.message();
 +                return;
 +            }
 +
 +            for (const auto& [invObjPath, invDict] : subtree)
-             {
--                BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
--                BMCWEB_LOG_DEBUG << "error msg = " << errorCode.message();
++            {
 +                std::size_t idPos = invObjPath.rfind("/");
 +                if ((idPos == std::string::npos) ||
 +                    ((idPos + 1) >= invObjPath.size()))
@@ -198,9 +196,8 @@ index e420130..b3270f0 100644
          },
 -        service, objPath, "org.freedesktop.DBus.Properties", "Set",
 -        "xyz.openbmc_project.Software.Activation", "RequestedActivation",
--        std::variant<std::string>(
--            "xyz.openbmc_project.Software.Activation.RequestedActivations."
--            "Active"));
+-        dbus::utility::DbusVariantType(
+-            "xyz.openbmc_project.Software.Activation.RequestedActivations.Active"));
 +        "xyz.openbmc_project.ObjectMapper",
 +        "/xyz/openbmc_project/object_mapper",
 +        "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
@@ -215,7 +212,7 @@ index e420130..b3270f0 100644
                             sdbusplus::message::message& m,
                             task::Payload&& payload)
  {
-@@ -76,23 +181,25 @@ static void
+@@ -75,23 +181,26 @@ static void
  
      m.read(objPath, interfacesProperties);
  
@@ -234,11 +231,9 @@ index e420130..b3270f0 100644
 +                [objPath, asyncResp, imgTargets{imgUriTargets},
 +                 payload(std::move(payload))](
                      const boost::system::error_code errorCode,
--                    const std::vector<
--                        std::pair<std::string, std::vector<std::string>>>&
--                        objInfo) mutable {
-+                    const std::vector<std::pair<
-+                        std::string, std::vector<std::string>>>& objInfo) {
+                     const std::vector<
+                         std::pair<std::string, std::vector<std::string>>>&
+                         objInfo) mutable {
                      if (errorCode)
                      {
 -                        BMCWEB_LOG_DEBUG << "error_code = " << errorCode;
@@ -248,7 +243,7 @@ index e420130..b3270f0 100644
                          BMCWEB_LOG_DEBUG << "error msg = "
                                           << errorCode.message();
                          if (asyncResp)
-@@ -119,7 +226,7 @@ static void
+@@ -118,7 +227,7 @@ static void
                      // is added
                      fwAvailableTimer = nullptr;
  
@@ -257,7 +252,7 @@ index e420130..b3270f0 100644
                      if (asyncResp)
                      {
                          std::shared_ptr<task::TaskData> task =
-@@ -251,8 +358,7 @@ static void
+@@ -249,8 +358,7 @@ static void
                  "xyz.openbmc_project.ObjectMapper",
                  "/xyz/openbmc_project/object_mapper",
                  "xyz.openbmc_project.ObjectMapper", "GetObject", objPath.str,
@@ -267,7 +262,7 @@ index e420130..b3270f0 100644
          }
      }
  }
-@@ -262,7 +368,7 @@ static void
+@@ -260,7 +368,7 @@ static void
  static void monitorForSoftwareAvailable(
      const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
      const crow::Request& req, const std::string& url,
@@ -276,11 +271,9 @@ index e420130..b3270f0 100644
  {
      // Only allow one FW update at a time
      if (fwUpdateInProgress != false)
-@@ -301,11 +407,12 @@ static void monitorForSoftwareAvailable(
-                 redfish::messages::internalError(asyncResp->res);
+@@ -300,10 +408,10 @@ static void monitorForSoftwareAvailable(
              }
          });
-+
      task::Payload payload(req);
 -    auto callback = [asyncResp,
 +    auto callback = [asyncResp, imgTargets{imgUriTargets},
@@ -291,7 +284,7 @@ index e420130..b3270f0 100644
      };
  
      fwUpdateInProgress = true;
-@@ -470,12 +577,15 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
+@@ -470,12 +578,15 @@ inline void requestRoutesUpdateServiceActionsSimpleUpdate(App& app)
              std::string fwFile = imageURI.substr(separator + 1);
              BMCWEB_LOG_DEBUG << "Server: " << tftpServer + " File: " << fwFile;
  
@@ -308,7 +301,7 @@ index e420130..b3270f0 100644
  
              // TFTP can take up to 10 minutes depending on image size and
              // connection speed. Return to caller as soon as the TFTP operation
-@@ -524,6 +634,9 @@ inline void requestRoutesUpdateService(App& app)
+@@ -524,6 +635,9 @@ inline void requestRoutesUpdateService(App& app)
              asyncResp->res.jsonValue["Name"] = "Update Service";
              asyncResp->res.jsonValue["HttpPushUri"] =
                  "/redfish/v1/UpdateService";
@@ -318,20 +311,10 @@ index e420130..b3270f0 100644
              // UpdateService cannot be disabled
              asyncResp->res.jsonValue["ServiceEnabled"] = true;
              asyncResp->res.jsonValue["FirmwareInventory"] = {
-@@ -538,7 +651,8 @@ inline void requestRoutesUpdateService(App& app)
-                 asyncResp->res
-                     .jsonValue["Actions"]["#UpdateService.SimpleUpdate"];
-             updateSvcSimpleUpdate["target"] =
--                "/redfish/v1/UpdateService/Actions/UpdateService.SimpleUpdate";
-+                "/redfish/v1/UpdateService/Actions/"
-+                "UpdateService.SimpleUpdate";
-             updateSvcSimpleUpdate["TransferProtocol@Redfish.AllowableValues"] =
-                 {"TFTP"};
- #endif
-@@ -580,89 +694,258 @@ inline void requestRoutesUpdateService(App& app)
-                 "/xyz/openbmc_project/software/apply_time",
-                 "org.freedesktop.DBus.Properties", "Get",
-                 "xyz.openbmc_project.Software.ApplyTime", "RequestedApplyTime");
+@@ -575,6 +689,34 @@ inline void requestRoutesUpdateService(App& app)
+                             "OnReset";
+                     }
+                 });
 +
 +            // Get the ApplyOptions value
 +            crow::connections::systemBus->async_method_call(
@@ -361,33 +344,26 @@ index e420130..b3270f0 100644
 +                "org.freedesktop.DBus.Properties", "Get",
 +                "xyz.openbmc_project.Software.ApplyOptions", "ClearConfig");
          });
-+
      BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
          .privileges(redfish::privileges::patchUpdateService)
--        .methods(boost::beast::http::verb::patch)(
--            [](const crow::Request& req,
--               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
--                BMCWEB_LOG_DEBUG << "doPatch...";
-+        .methods(
-+            boost::beast::http::verb::
-+                patch)([](const crow::Request& req,
-+                          const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
-+            BMCWEB_LOG_DEBUG << "doPatch...";
-+
-+            std::optional<nlohmann::json> pushUriOptions;
+@@ -585,12 +727,60 @@ inline void requestRoutesUpdateService(App& app)
+             BMCWEB_LOG_DEBUG << "doPatch...";
+ 
+             std::optional<nlohmann::json> pushUriOptions;
 +            std::optional<std::vector<std::string>> imgTargets;
 +            std::optional<bool> imgTargetBusy;
 +            std::optional<nlohmann::json> oemProps;
-+            if (!json_util::readJson(req, asyncResp->res, "HttpPushUriOptions",
+             if (!json_util::readJson(req, asyncResp->res, "HttpPushUriOptions",
+-                                     pushUriOptions))
 +                                     pushUriOptions, "HttpPushUriTargets",
 +                                     imgTargets, "HttpPushUriTargetsBusy",
 +                                     imgTargetBusy, "Oem", oemProps))
-+            {
+             {
 +                BMCWEB_LOG_DEBUG
 +                    << "UpdateService doPatch: Invalid request body";
-+                return;
-+            }
-+
+                 return;
+             }
+ 
 +            if (oemProps)
 +            {
 +                std::optional<nlohmann::json> applyOptions;
@@ -406,10 +382,7 @@ index e420130..b3270f0 100644
 +                    {
 +                        return;
 +                    }
- 
--                std::optional<nlohmann::json> pushUriOptions;
--                if (!json_util::readJson(req, asyncResp->res,
--                                         "HttpPushUriOptions", pushUriOptions))
++
 +                    if (clearConfig)
 +                    {
 +                        // Set the requested image apply time value
@@ -432,82 +405,13 @@ index e420130..b3270f0 100644
 +                    }
 +                }
 +            }
-+            if (pushUriOptions)
-+            {
-+                std::optional<nlohmann::json> pushUriApplyTime;
-+                if (!json_util::readJson(*pushUriOptions, asyncResp->res,
-+                                         "HttpPushUriApplyTime",
-+                                         pushUriApplyTime))
-                 {
-                     return;
-                 }
- 
--                if (pushUriOptions)
-+                if (pushUriApplyTime)
-                 {
--                    std::optional<nlohmann::json> pushUriApplyTime;
--                    if (!json_util::readJson(*pushUriOptions, asyncResp->res,
--                                             "HttpPushUriApplyTime",
--                                             pushUriApplyTime))
-+                    std::optional<std::string> applyTime;
-+                    if (!json_util::readJson(*pushUriApplyTime, asyncResp->res,
-+                                             "ApplyTime", applyTime))
-                     {
-                         return;
+             if (pushUriOptions)
+             {
+                 std::optional<nlohmann::json> pushUriApplyTime;
+@@ -653,6 +843,98 @@ inline void requestRoutesUpdateService(App& app)
                      }
- 
--                    if (pushUriApplyTime)
-+                    if (applyTime)
-                     {
--                        std::optional<std::string> applyTime;
--                        if (!json_util::readJson(*pushUriApplyTime,
--                                                 asyncResp->res, "ApplyTime",
--                                                 applyTime))
-+                        std::string applyTimeNewVal;
-+                        if (applyTime == "Immediate")
-                         {
-+                            applyTimeNewVal =
-+                                "xyz.openbmc_project.Software.ApplyTime."
-+                                "RequestedApplyTimes.Immediate";
-+                        }
-+                        else if (applyTime == "OnReset")
-+                        {
-+                            applyTimeNewVal =
-+                                "xyz.openbmc_project.Software.ApplyTime."
-+                                "RequestedApplyTimes.OnReset";
-+                        }
-+                        else
-+                        {
-+                            BMCWEB_LOG_INFO
-+                                << "ApplyTime value is not in the list of "
-+                                   "acceptable values";
-+                            messages::propertyValueNotInList(
-+                                asyncResp->res, *applyTime, "ApplyTime");
-                             return;
-                         }
- 
--                        if (applyTime)
-+                        // Set the requested image apply time value
-+                        crow::connections::systemBus->async_method_call(
-+                            [asyncResp](const boost::system::error_code ec) {
-+                                if (ec)
-+                                {
-+                                    BMCWEB_LOG_ERROR
-+                                        << "D-Bus responses error: " << ec;
-+                                    messages::internalError(asyncResp->res);
-+                                    return;
-+                                }
-+                                messages::success(asyncResp->res);
-+                            },
-+                            "xyz.openbmc_project.Settings",
-+                            "/xyz/openbmc_project/software/apply_time",
-+                            "org.freedesktop.DBus.Properties", "Set",
-+                            "xyz.openbmc_project.Software.ApplyTime",
-+                            "RequestedApplyTime",
-+                            std::variant<std::string>{applyTimeNewVal});
-+                    }
-+                }
-+            }
+                 }
+             }
 +            if (imgTargetBusy)
 +            {
 +                if ((httpPushUriTargetBusy) && (*imgTargetBusy))
@@ -539,29 +443,7 @@ index e420130..b3270f0 100644
 +                        // single image in future. For now, consider first
 +                        // target alone.
 +                        if ((*imgTargets).size() != 1)
-                         {
--                            std::string applyTimeNewVal;
--                            if (applyTime == "Immediate")
--                            {
--                                applyTimeNewVal =
--                                    "xyz.openbmc_project.Software.ApplyTime."
--                                    "RequestedApplyTimes.Immediate";
--                            }
--                            else if (applyTime == "OnReset")
--                            {
--                                applyTimeNewVal =
--                                    "xyz.openbmc_project.Software.ApplyTime."
--                                    "RequestedApplyTimes.OnReset";
--                            }
--                            else
--                            {
--                                BMCWEB_LOG_INFO
--                                    << "ApplyTime value is not in the list of "
--                                       "acceptable values";
--                                messages::propertyValueNotInList(
--                                    asyncResp->res, *applyTime, "ApplyTime");
--                                return;
--                            }
++                        {
 +                            messages::invalidObject(asyncResp->res,
 +                                                    "HttpPushUriTargets");
 +                            return;
@@ -575,35 +457,19 @@ index e420130..b3270f0 100644
 +                                {
 +                                    return;
 +                                }
- 
--                            // Set the requested image apply time value
--                            crow::connections::systemBus->async_method_call(
--                                [asyncResp](
--                                    const boost::system::error_code ec) {
--                                    if (ec)
++
 +                                bool swInvObjFound = false;
 +                                for (const std::string& path : swInvPaths)
 +                                {
 +                                    std::size_t idPos = path.rfind("/");
 +                                    if ((idPos == std::string::npos) ||
 +                                        ((idPos + 1) >= path.size()))
-                                     {
--                                        BMCWEB_LOG_ERROR
--                                            << "D-Bus responses error: " << ec;
-                                         messages::internalError(asyncResp->res);
++                                    {
++                                        messages::internalError(asyncResp->res);
 +                                        BMCWEB_LOG_DEBUG
 +                                            << "Can't parse firmware ID!!";
-                                         return;
-                                     }
--                                    messages::success(asyncResp->res);
--                                },
--                                "xyz.openbmc_project.Settings",
--                                "/xyz/openbmc_project/software/apply_time",
--                                "org.freedesktop.DBus.Properties", "Set",
--                                "xyz.openbmc_project.Software.ApplyTime",
--                                "RequestedApplyTime",
--                                std::variant<std::string>{applyTimeNewVal});
--                        }
++                                        return;
++                                    }
 +                                    std::string swId = path.substr(idPos + 1);
 +
 +                                    if (swId == uriTargets[0])
@@ -631,20 +497,17 @@ index e420130..b3270f0 100644
 +                    {
 +                        httpPushUriTargetBusy = *imgTargetBusy;
 +                        httpPushUriTargets = *imgTargets;
-                     }
-                 }
--            });
++                    }
++                }
 +                else
 +                {
 +                    httpPushUriTargetBusy = *imgTargetBusy;
 +                }
 +            }
-+        });
-+
+         });
      BMCWEB_ROUTE(app, "/redfish/v1/UpdateService/")
          .privileges(redfish::privileges::postUpdateService)
-         .methods(boost::beast::http::verb::post)(
-@@ -672,7 +955,8 @@ inline void requestRoutesUpdateService(App& app)
+@@ -663,7 +945,8 @@ inline void requestRoutesUpdateService(App& app)
  
                  // Setup callback for when new software detected
                  monitorForSoftwareAvailable(asyncResp, req,
@@ -654,26 +517,17 @@ index e420130..b3270f0 100644
  
                  std::string filepath("/tmp/images/" +
                                       boost::uuids::to_string(
-@@ -685,7 +969,7 @@ inline void requestRoutesUpdateService(App& app)
-                 out.close();
-                 BMCWEB_LOG_DEBUG << "file upload complete!!";
-             });
--}
-+} // namespace redfish
- 
- inline void requestRoutesSoftwareInventoryCollection(App& app)
- {
-@@ -748,8 +1032,7 @@ inline void requestRoutesSoftwareInventoryCollection(App& app)
-                     "/xyz/openbmc_project/object_mapper",
-                     "xyz.openbmc_project.ObjectMapper", "GetSubTree",
-                     "/xyz/openbmc_project/software", static_cast<int32_t>(0),
--                    std::array<const char*, 1>{
--                        "xyz.openbmc_project.Software.Version"});
-+                    std::array<const char*, 1>{versionIntf});
-             });
+@@ -739,8 +1022,7 @@ inline void requestRoutesSoftwareInventoryCollection(App& app)
+                 "/xyz/openbmc_project/object_mapper",
+                 "xyz.openbmc_project.ObjectMapper", "GetSubTree",
+                 "/xyz/openbmc_project/software", static_cast<int32_t>(0),
+-                std::array<const char*, 1>{
+-                    "xyz.openbmc_project.Software.Version"});
++                std::array<const char*, 1>{versionIntf});
+         });
  }
  /* Fill related item links (i.e. bmc, bios) in for inventory */
-@@ -913,7 +1196,7 @@ inline void requestRoutesSoftwareInventory(App& app)
+@@ -908,7 +1190,7 @@ inline void requestRoutesSoftwareInventory(App& app)
                              },
                              obj.second[0].first, obj.first,
                              "org.freedesktop.DBus.Properties", "GetAll",
@@ -682,7 +536,7 @@ index e420130..b3270f0 100644
                      }
                      if (!found)
                      {
-@@ -937,8 +1220,7 @@ inline void requestRoutesSoftwareInventory(App& app)
+@@ -932,8 +1214,7 @@ inline void requestRoutesSoftwareInventory(App& app)
                  "/xyz/openbmc_project/object_mapper",
                  "xyz.openbmc_project.ObjectMapper", "GetSubTree", "/",
                  static_cast<int32_t>(0),
@@ -693,10 +547,10 @@ index e420130..b3270f0 100644
  }
  
 diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
-index 66b6faf..f0919c9 100644
+index 445af04..de7dc77 100644
 --- a/static/redfish/v1/$metadata/index.xml
 +++ b/static/redfish/v1/$metadata/index.xml
-@@ -2444,6 +2444,9 @@
+@@ -2502,6 +2502,9 @@
      <edmx:Reference Uri="/redfish/v1/schema/OemComputerSystem_v1.xml">
          <edmx:Include Namespace="OemComputerSystem"/>
      </edmx:Reference>

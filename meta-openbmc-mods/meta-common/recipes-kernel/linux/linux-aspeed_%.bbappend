@@ -3,10 +3,10 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 LINUX_VERSION = "5.15"
 
 KBRANCH = "dev-5.15-intel"
-KSRC = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=${KBRANCH}"
+KSRC = "git://git@github.com/Intel-BMC/linux.git;protocol=ssh;branch=${KBRANCH}"
 # Include this as a comment only for downstream auto-bump
-# SRC_URI = "git://github.com/Intel-BMC/linux;protocol=ssh;branch=dev-5.15-intel"
-SRCREV="c7981259e359523e74044f926b69a804c61c86b1"
+# SRC_URI = "git://git@github.com/Intel-BMC/linux.git;protocol=ssh;branch=dev-5.15-intel"
+SRCREV="aaccb149bfa6ff74dc8e9ff043191730060002db"
 
 do_compile:prepend(){
    # device tree compiler flags

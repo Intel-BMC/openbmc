@@ -1,4 +1,4 @@
-From 5b87bb61b58e92a8c5af37a7959347747409a65c Mon Sep 17 00:00:00 2001
+From ff562320d23e1c1e075689a636505f22eb4890d4 Mon Sep 17 00:00:00 2001
 From: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 Date: Thu, 14 Oct 2021 02:56:11 +0530
 Subject: [PATCH] Fix bmcweb crash while deleting terminated subscriptions
@@ -33,10 +33,10 @@ Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
  2 files changed, 58 insertions(+), 12 deletions(-)
 
 diff --git a/http/http_client.hpp b/http/http_client.hpp
-index 54ae2c3..162cb09 100644
+index 745eeb6..5575765 100644
 --- a/http/http_client.hpp
 +++ b/http/http_client.hpp
-@@ -367,6 +367,12 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -369,6 +369,12 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
  
      void waitAndRetry()
      {
@@ -49,7 +49,7 @@ index 54ae2c3..162cb09 100644
          if (retryCount >= maxRetryAttempts)
          {
              BMCWEB_LOG_ERROR << "Maximum number of retries reached.";
-@@ -393,11 +399,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
+@@ -395,11 +401,6 @@ class HttpClient : public std::enable_shared_from_this<HttpClient>
              return;
          }
  
@@ -62,10 +62,10 @@ index 54ae2c3..162cb09 100644
  
          retryCount++;
 diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
-index 363adb0..7af7a4d 100644
+index 5d71c63..f97909c 100644
 --- a/redfish-core/include/event_service_manager.hpp
 +++ b/redfish-core/include/event_service_manager.hpp
-@@ -857,18 +857,63 @@ class EventServiceManager
+@@ -853,18 +853,63 @@ class EventServiceManager
  
      void deleteTerminatedSubcriptions()
      {

@@ -1,6 +1,6 @@
-From 0941036f4206d74bfc3d3e505a5d269fb39c48ff Mon Sep 17 00:00:00 2001
+From 31f3f766c9c6cc6c0b7c722030dbbf6de65b7e2f Mon Sep 17 00:00:00 2001
 From: mansijos <mansi.joshi@intel.com>
-Date: Tue, 6 Apr 2021 02:12:56 +0530
+Date: Mon, 3 Jan 2022 19:44:09 +0000
 Subject: [PATCH] Entity-manager: Add support to update assetTag
 
 Asset tag is an updateable property from User level interface like
@@ -12,26 +12,20 @@ Successfully updated in assetTag interface as well as in fru interface
 while using set-property and using redfish as well.
 The new value is preserved after BMC resets.
 
-Change-Id: If7fbfd8325488280f500ab0e2c8b38475813cc3f
 Signed-off-by: mansijos <mansi.joshi@intel.com>
 ---
- src/EntityManager.cpp | 95 +++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 91 insertions(+), 4 deletions(-)
+ src/EntityManager.cpp | 83 ++++++++++++++++++++++++++++++++++++++++---
+ src/PerformScan.cpp   | 11 ++++++
+ 2 files changed, 90 insertions(+), 4 deletions(-)
 
 diff --git a/src/EntityManager.cpp b/src/EntityManager.cpp
-index 490c0f5..139ba9a 100644
+index d327f2b..5fade71 100644
 --- a/src/EntityManager.cpp
 +++ b/src/EntityManager.cpp
-@@ -48,9 +48,19 @@ constexpr const char* lastConfiguration = "/tmp/configuration/last.json";
- constexpr const char* currentConfiguration = "/var/configuration/system.json";
+@@ -51,6 +51,13 @@ constexpr const char* currentConfiguration = "/var/configuration/system.json";
  constexpr const char* globalSchema = "global.json";
- constexpr const int32_t maxMapperDepth = 0;
-+constexpr const char* foundObject = "FoundProbe";
- 
  constexpr const bool debug = false;
  
-+
-+
 +using foundProbeData = std::map<std::string, std::string>;
 +static foundProbeData foundData;
 +static std::map<std::string, foundProbeData> mapFoundData;
@@ -39,10 +33,10 @@ index 490c0f5..139ba9a 100644
 +constexpr const char* fruConn = "xyz.openbmc_project.FruDevice";
 +constexpr const char* fruIntf = "xyz.openbmc_project.FruDevice";
 +
- struct CmpStr
- {
-     bool operator()(const char* a, const char* b) const
-@@ -577,6 +587,43 @@ void addArrayToDbus(const std::string& name, const nlohmann::json& array,
+ const boost::container::flat_map<const char*, probe_type_codes, CmpStr>
+     probeTypes{{{"FALSE", probe_type_codes::FALSE_T},
+                 {"TRUE", probe_type_codes::TRUE_T},
+@@ -205,6 +212,43 @@ void addArrayToDbus(const std::string& name, const nlohmann::json& array,
      }
  }
  
@@ -86,7 +80,7 @@ index 490c0f5..139ba9a 100644
  template <typename PropertyType>
  void addProperty(const std::string& propertyName, const PropertyType& value,
                   sdbusplus::asio::dbus_interface* iface,
-@@ -591,9 +638,18 @@ void addProperty(const std::string& propertyName, const PropertyType& value,
+@@ -219,9 +263,18 @@ void addProperty(const std::string& propertyName, const PropertyType& value,
      }
      iface->register_property(
          propertyName, value,
@@ -106,7 +100,7 @@ index 490c0f5..139ba9a 100644
              val = newVal;
              if (!setJsonFromPointer(jsonPointerString, val,
                                      systemConfiguration))
-@@ -993,6 +1049,9 @@ void postToDbus(const nlohmann::json& newConfiguration,
+@@ -621,6 +674,9 @@ void postToDbus(const nlohmann::json& newConfiguration,
          populateInterfaceFromJson(systemConfiguration, jsonPointerPath,
                                    boardIface, boardValues, objServer);
          jsonPointerPath += "/";
@@ -116,7 +110,7 @@ index 490c0f5..139ba9a 100644
          // iterate through board properties
          for (auto& boardField : boardValues.items())
          {
-@@ -1002,9 +1061,28 @@ void postToDbus(const nlohmann::json& newConfiguration,
+@@ -630,9 +686,28 @@ void postToDbus(const nlohmann::json& newConfiguration,
                      createInterface(objServer, boardName, boardField.key(),
                                      boardKeyOrig);
  
@@ -148,7 +142,20 @@ index 490c0f5..139ba9a 100644
              }
          }
  
-@@ -1362,6 +1440,11 @@ void PerformScan::run()
+diff --git a/src/PerformScan.cpp b/src/PerformScan.cpp
+index 5978710..5261ef7 100644
+--- a/src/PerformScan.cpp
++++ b/src/PerformScan.cpp
+@@ -38,6 +38,8 @@ constexpr const int32_t maxMapperDepth = 0;
+ 
+ constexpr const bool debug = false;
+ 
++constexpr const char* foundObject = "FoundProbe";
++
+ void getInterfaces(
+     const std::tuple<std::string, std::string, std::string>& call,
+     const std::vector<std::shared_ptr<PerformProbe>>& probeVector,
+@@ -359,6 +361,11 @@ void PerformScan::run()
                              {
                                  continue; // non-numeric replacement
                              }
@@ -160,7 +167,7 @@ index 490c0f5..139ba9a 100644
                              usedNames.insert(nameIt.value());
                              auto usedIt = std::find(indexes.begin(),
                                                      indexes.end(), index);
-@@ -1439,6 +1522,10 @@ void PerformScan::run()
+@@ -436,6 +443,10 @@ void PerformScan::run()
                          }
                      }
  

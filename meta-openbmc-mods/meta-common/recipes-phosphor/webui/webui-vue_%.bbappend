@@ -1,6 +1,6 @@
 # Enable downstream autobump
 SRC_URI = "git://github.com/openbmc/webui-vue.git"
-SRCREV = "2a2e1021f48e2a939859ba7f4ae86c5de6df5655"
+SRCREV = "f4328edf86b284fe8836717251ce6696670dbdd5"
 
 FILESEXTRAPATHS:append := "${THISDIR}/${PN}:"
 SRC_URI += " \

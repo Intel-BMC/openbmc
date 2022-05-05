@@ -22,7 +22,7 @@ Upstream revision information:
    file://eventservice/0007-EventService-Log-events-for-subscription-actions.patch
 
  - Add checks on Event-Subscription input parameters (Downstream patch)
-   file://eventservice//0008-Add-checks-on-Event-Subscription-input-parameters.patch
+   file://eventservice/0008-Add-checks-on-Event-Subscription-input-parameters.patch
 
  - Restructure Redifsh EventLog Transmit code flow
    https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/44449/3
@@ -31,4 +31,10 @@ Upstream revision information:
    file://eventservice/0010-Remove-Terminated-Event-Subscriptions.patch
 
  - Fix bmcweb crash while deleting terminated subscriptions (Downstream patch)
-   file://eventservice/0011-Fix-bmcweb-crash-while-deleting-terminated-subscriptions.patch 
+   file://eventservice/0011-Fix-bmcweb-crash-while-deleting-terminated-subscriptions.patch
+
+ - Add support for deleting terminated subscriptions
+   file://eventservice/0012-Add-support-for-deleting-terminated-subscriptions.patch
+
+ - event service fix added Context field to response
+   file://eventservice/0013-event-service-fix-added-Context-field-to-response.patch

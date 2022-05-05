@@ -2,14 +2,13 @@ FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 PROJECT_SRC_DIR := "${THISDIR}/${PN}"
 
 #SRC_URI += "git://github.com/openbmc/phosphor-host-ipmid"
-SRCREV = "78fe1b14f60d55ae335369fb2c6e81ed9ac6d865"
+SRCREV = "f93da667b58b67cf61d06dcc5862d9864c96d8e7"
 
 SRC_URI += "file://phosphor-ipmi-host.service \
             file://0010-fix-get-system-GUID-ipmi-command.patch \
             file://0053-Fix-keep-looping-issue-when-entering-OS.patch \
             file://0059-Move-Set-SOL-config-parameter-to-host-ipmid.patch \
             file://0060-Move-Get-SOL-config-parameter-to-host-ipmid.patch \
-            file://0062-Update-IPMI-Chassis-Control-command.patch \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
             "
 

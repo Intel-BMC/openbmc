@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # PFR Boot Time Detection
 #
@@ -51,14 +51,20 @@ RSMRST="RSMRST_N"
 # Read the assertion state from the RSMRST_N input
 function get_rsmrst_state {
     local __resultVal=$1
-    local gpio_state=$($GPIOGET $($GPIOFIND "$RSMRST"))
+    local gpioFound=$($GPIOFIND $RSMRST)
+    # Test to see if the RSMRST_N input exists. This test does not cover the
+    # case where an input is already owned by another service/process.
+    if [ -z "$gpioFound" ]
+    then
+        return 1
+    fi
+    local gpio_state=$($GPIOGET $gpioFound)
     eval $__resultVal="'$gpio_state'"
     return 0
 }
 
 get_rsmrst_state rsmrst_val
-
-if [ "$rsmrst_val" -eq 0 ]
+if [[ $? == 0 && $rsmrst_val -eq 0 ]]
 then
     echo "RSMRST_N is asserted, take eth1 down"
     ip link set down dev eth1

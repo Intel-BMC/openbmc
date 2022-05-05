@@ -2,7 +2,7 @@ SUMMARY = "Node Manager Proxy"
 DESCRIPTION = "The Node Manager Proxy provides a simple interface for communicating \
 with Management Engine via IPMB"
 
-SRC_URI = "git://github.com/Intel-BMC/node-manager;protocol=ssh"
+SRC_URI = "git://git@github.com/Intel-BMC/node-manager.git;protocol=ssh"
 SRCREV = "9aca80fa2a405938de99aae777e6cfcf08525563"
 PV = "0.1+git${SRCPV}"
 

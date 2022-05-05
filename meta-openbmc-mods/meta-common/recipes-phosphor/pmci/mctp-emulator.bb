@@ -4,10 +4,10 @@ DESCRIPTION = "Implementation of MCTP (DTMF DSP0236)"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=bcd9ada3a943f58551867d72893cc9ab"
 
-SRC_URI = "git://github.com/Intel-BMC/pmci.git;protocol=ssh"
-SRCREV = "94437a678a1d23b22dc179b5cb7b165e52a429c0"
+SRC_URI = "git://git@github.com/Intel-BMC/mctp-emulator.git;protocol=ssh;branch=main"
+SRCREV = "3a95b7be9114d8a7f559ba68799e3c55d91aab13"
 
-S = "${WORKDIR}/git/mctp_emulator"
+S = "${WORKDIR}/git"
 
 PV = "1.0+git${SRCPV}"
 

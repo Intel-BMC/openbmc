@@ -4,6 +4,8 @@ DESCRIPTION = "Set a priority on MAC addresses to run with: \
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
+RDEPENDS:${PN} += "bash"
+
 PV = "1.0"
 
 LICENSE = "Apache-2.0"
@@ -11,7 +13,7 @@ LIC_FILES_CHKSUM = "file://${INTELBASE}/COPYING.apache-2.0;md5=34400b68072d710fe
 
 SRC_URI = "\
     file://mac-check \
-    file://${PN}.service \
+    file://${BPN}.service \
     "
 
 inherit obmc-phosphor-systemd

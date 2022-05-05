@@ -12,8 +12,10 @@ DEPENDS = "sdbusplus openssl libpam libgpiod safec"
 
 do_configure[depends] += "virtual/kernel:do_shared_workdir"
 
-SRC_URI = "git://github.com/Intel-BMC/asd;protocol=git"
-SRCREV = "1.4.6"
+SRC_URI = "git://github.com/Intel-BMC/asd;protocol=https"
+SRCREV = "1.4.7"
+
+SRC_URI += "file://0001-ASD-Fix-sprintf_s-compilation-issue-for-safec-3.5.1.patch"
 
 inherit useradd
 

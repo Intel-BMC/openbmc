@@ -9,14 +9,11 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 
 SRC_URI = "git://github.com/openbmc/phosphor-certificate-manager"
-SRCREV = "7f7b47bea7bbd518d1ff5a306ecf3806cf8d0834"
+SRCREV = "cf811c4309adbf164f6e040ea0216dbca7cf367f"
 
-inherit autotools \
-        pkgconfig \
-        systemd
+inherit meson pkgconfig systemd
 
 DEPENDS = " \
-        autoconf-archive-native \
         openssl \
         phosphor-dbus-interfaces \
         phosphor-logging \
@@ -26,14 +23,14 @@ DEPENDS = " \
 
 S = "${WORKDIR}/git"
 
-EXTRA_OECONF += "--disable-tests"
+EXTRA_OEMESON += "-Dtests=disabled"
 
 SYSTEMD_SERVICE:${PN} = "phosphor-certificate-manager@.service"
 
 PACKAGECONFIG ??= "bmcweb-cert nslcd-authority-cert"
-PACKAGECONFIG[ibm-hypervisor-cert] = "--enable-ca-cert-extension,,"
-PACKAGECONFIG[bmcweb-cert] = "--enable-bmcweb-cert-config,,"
-PACKAGECONFIG[nslcd-authority-cert] = "--enable-nslcd-authority-cert-config,,"
+PACKAGECONFIG[ibm-hypervisor-cert] = "-Dca-cert-extension=enabled,-Dca-cert-extension=disabled"
+PACKAGECONFIG[bmcweb-cert] = "-Dconfig-bmcweb=enabled,-Dconfig-bmcweb=disabled"
+PACKAGECONFIG[nslcd-authority-cert] = "-Dconfig-nslcd=enabled,-Dconfig-nslcd=disabled"
 
 SYSTEMD_SERVICE:${PN} = " \
         phosphor-certificate-manager@.service \

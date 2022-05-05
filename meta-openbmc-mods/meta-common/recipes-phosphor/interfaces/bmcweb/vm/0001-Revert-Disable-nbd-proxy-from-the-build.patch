@@ -1,6 +1,6 @@
-From b6863f9a0c1c36705eba0c3181541f67cd1a202a Mon Sep 17 00:00:00 2001
+From e614dec3e007d3ceaa697fd7bb264dbc1ef496e5 Mon Sep 17 00:00:00 2001
 From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
-Date: Wed, 14 Jul 2021 09:04:42 +0000
+Date: Wed, 1 Dec 2021 12:25:07 +0100
 Subject: [PATCH] Revert "Disable nbd proxy from the build"
 
 NBD Proxy has been disabled upstream. Reenable as we use it for Virtual
@@ -15,24 +15,24 @@ Change-Id: I19a88b30c1074dd376f2df8f5668245b638b881f
  2 files changed, 4 insertions(+), 9 deletions(-)
 
 diff --git a/meson.build b/meson.build
-index 650a5ec..5738b10 100644
+index c9066d4..51c7f9d 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -83,7 +83,8 @@ feature_map = {
-   'rest'                            : '-DBMCWEB_ENABLE_DBUS_REST',
-   'static-hosting'                  : '-DBMCWEB_ENABLE_STATIC_HOSTING',
-   'insecure-tftp-update'            : '-DBMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE',
--  #'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
-+  'validate-unsecure-feature'       : '-DBMCWEB_ENABLE_VALIDATION_UNSECURE_FEATURE',
-+  'vm-nbdproxy'                     : '-DBMCWEB_ENABLE_VM_NBDPROXY',
-   'vm-websocket'                    : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
+@@ -86,7 +86,8 @@ feature_map = {
+   'static-hosting'                              : '-DBMCWEB_ENABLE_STATIC_HOSTING',
+   'vm-websocket'                                : '-DBMCWEB_ENABLE_VM_WEBSOCKET',
+   'xtoken-auth'                                 : '-DBMCWEB_ENABLE_XTOKEN_AUTHENTICATION',
+-  #'vm-nbdproxy'                                : '-DBMCWEB_ENABLE_VM_NBDPROXY',
++  'vm-nbdproxy'                                 : '-DBMCWEB_ENABLE_VM_NBDPROXY',
++  'validate-unsecure-feature'                   : '-DBMCWEB_ENABLE_VALIDATION_UNSECURE_FEATURE',
  }
  
+ # Get the options status and build a project summary to show which flags are
 diff --git a/meson_options.txt b/meson_options.txt
-index ff5b887..645f224 100644
+index 4661658..435f382 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
-@@ -3,14 +3,7 @@ option('yocto-deps', type: 'feature', value: 'disabled', description : 'Use YOCT
+@@ -2,14 +2,7 @@ option('yocto-deps', type: 'feature', value: 'disabled', description : 'Use YOCT
  option('kvm', type : 'feature',value : 'enabled', description : 'Enable the KVM host video WebSocket.  Path is \'/kvm/0\'.  Video is from the BMC\'s \'/dev/video\' device.')
  option ('tests', type : 'feature', value : 'enabled', description : 'Enable Unit tests for bmcweb')
  option('vm-websocket', type : 'feature', value : 'enabled', description : '''Enable the Virtual Media WebSocket. Path is \'/vm/0/0\'to open the websocket. See https://github.com/openbmc/jsnbd/blob/master/README.''')
@@ -45,10 +45,10 @@ index ff5b887..645f224 100644
 -# opportunity to upstream their backend implementation
 -#option('vm-nbdproxy', type: 'feature', value : 'disabled', description : 'Enable the Virtual Media WebSocket.')
 +option('vm-nbdproxy', type: 'feature', value : 'disabled', description : 'Enable the Virtual Media WebSocket.')
- option('rest', type : 'feature', value : 'enabled', description : '''Enable Phosphor REST (D-Bus) APIs. Paths directly map Phosphor D-Bus object paths, for example, \'/xyz/openbmc_project/logging/entry/enumerate\'. See https://github.com/openbmc/docs/blob/master/rest-api.md.''')
+ option('rest', type : 'feature', value : 'disabled', description : '''Enable Phosphor REST (D-Bus) APIs. Paths directly map Phosphor D-Bus object paths, for example, \'/xyz/openbmc_project/logging/entry/enumerate\'. See https://github.com/openbmc/docs/blob/master/rest-api.md.''')
  option('redfish', type : 'feature',value : 'enabled', description: 'Enable Redfish APIs.  Paths are under \'/redfish/v1/\'. See https://github.com/openbmc/bmcweb/blob/master/DEVELOPING.md#redfish.')
  option('host-serial-socket', type : 'feature', value : 'enabled', description : 'Enable host serial console WebSocket. Path is \'/console0\'.  See https://github.com/openbmc/docs/blob/master/console.md.')
-@@ -39,6 +32,7 @@ option ('https_port', type : 'integer', min : 1, max : 65535, value : 443, descr
+@@ -38,6 +31,7 @@ option ('https_port', type : 'integer', min : 1, max : 65535, value : 443, descr
  # the implications of doing so.In general, enabling these options will cause security
  # problems of varying degrees
  
