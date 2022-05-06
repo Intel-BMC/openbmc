@@ -1,0 +1,55 @@
+From c658e865b15daaaf0e873512f7e454305717ca41 Mon Sep 17 00:00:00 2001
+From: Iwona Winiarska <iwona.winiarska@intel.com>
+Date: Thu, 27 Jan 2022 21:09:52 +0100
+Subject: [PATCH] peci: aspeed: Improve workaround for controller hang
+
+When processing PECI transaction, observing any HW state different than
+"idle" means that PECI controller won't be able to send PECI commands.
+When that occurs, attempting to reinitialize the HW by writing registers
+is not enough in some cases, and actual reset needs to be involved.
+
+Fixes: 20b020c06aa9 ("peci: aspeed: add a WA to cover timing negotiation issue")
+Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
+---
+ drivers/peci/busses/peci-aspeed.c | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/peci/busses/peci-aspeed.c b/drivers/peci/busses/peci-aspeed.c
+index 9dd3686a4228..224a3ae8492c 100644
+--- a/drivers/peci/busses/peci-aspeed.c
++++ b/drivers/peci/busses/peci-aspeed.c
+@@ -165,10 +165,29 @@ static void aspeed_peci_init_regs(struct aspeed_peci *priv)
+ static inline int aspeed_peci_check_idle(struct aspeed_peci *priv)
+ {
+ 	u32 cmd_sts = readl(priv->base + ASPEED_PECI_CMD);
++	int ret;
++
++	/*
++	 * Under normal circumstances, we expect to be idle here.
++	 * In case there were any errors/timeouts that led to the situation
++	 * where the hardware is not in idle state - we need to reset and
++	 * reinitialize it to avoid potential controller hang.
++	 */
++	if (FIELD_GET(ASPEED_PECI_CMD_STS_MASK, cmd_sts)) {
++		ret = reset_control_assert(priv->rst);
++		if (ret) {
++			dev_err(priv->dev, "cannot assert reset control\n");
++			return ret;
++		}
++
++		ret = reset_control_deassert(priv->rst);
++		if (ret) {
++			dev_err(priv->dev, "cannot deassert reset control\n");
++			return ret;
++		}
+ 
+-	if (FIELD_GET(ASPEED_PECI_CMD_STS_MASK,
+-		      cmd_sts) == ASPEED_PECI_CMD_STS_ADDR_T_NEGO)
+ 		aspeed_peci_init_regs(priv);
++	}
+ 
+ 	return readl_poll_timeout(priv->base + ASPEED_PECI_CMD,
+ 				  cmd_sts,
+-- 
+2.34.1
+

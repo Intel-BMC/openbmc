@@ -4,6 +4,8 @@ DESCRIPTION = "Power supply manager which include PSU Cold Redundancy service"
 SRC_URI = "git://git@github.com/Intel-BMC/psu-manager.git;protocol=ssh"
 SRCREV = "30788892792c302b1317bac4e7f837ca1374d789"
 
+SRC_URI += "file://0001-Add-vector-size-check.patch \
+           "
 S = "${WORKDIR}/git"
 
 PV = "1.0+git${SRCPV}"

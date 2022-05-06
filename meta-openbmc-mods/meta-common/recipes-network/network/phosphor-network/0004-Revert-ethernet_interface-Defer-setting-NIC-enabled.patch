@@ -1,0 +1,60 @@
+From 6e2a7257749c2b27f20095514a96d0b85a4d1fcc Mon Sep 17 00:00:00 2001
+From: Johnathan Mantey <johnathanx.mantey@intel.com>
+Date: Mon, 17 Jan 2022 11:18:21 -0800
+Subject: [PATCH] Revert "ethernet_interface: Defer setting NIC enabled"
+
+This reverts commit 329b5fba06acd63ce0fb9f43ea3f99b1542e862e.
+
+The changes made in this commit prevent enabling and disabling the
+NIC. The "Unmanaged" entry in the systemd.network configuration file
+is never created or removed.
+
+Tested:
+Alternated the Redfish PATCH command between true and false.
+PATCH :url/redfish/v1/Managers/bmc/EthernetInterfaces/eth1
+"InterfaceEnabled": <setting>
+
+Observed the contents of the systemd.network file and saw the
+"Unmanaged" entry was never created or removed.
+
+Used "ip a" to review the active state of the NIC. The NIC was always
+active despite sending a PATCH command to disable the NIC.
+
+When this commit is reverted the NIC enable/disable feature works as
+expected.
+
+Change-Id: Ie4945baa5fff238effe9e2b7b156616cf7200597
+Signed-off-by: Johnathan Mantey <johnathanx.mantey@intel.com>
+---
+ src/ethernet_interface.cpp | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
+index 3cca478..fb4bfd6 100644
+--- a/src/ethernet_interface.cpp
++++ b/src/ethernet_interface.cpp
+@@ -785,18 +785,11 @@ bool EthernetInterface::nicEnabled(bool value)
+         return EthernetInterfaceIntf::nicEnabled();
+     }
+     auto ifname = interfaceName();
++    setNICAdminState(eifSocket.sock, ifname.c_str(), value);
+ 
+-    writeConfigurationFile();
+-    if (!value)
+-    {
+-        // We only need to bring down the interface, networkd will always bring
+-        // up managed interfaces
+-        manager.addReloadPreHook(
+-            [ifname = std::move(ifname), eifSocket = std::move(eifSocket)]() {
+-                setNICAdminState(eifSocket.sock, ifname.c_str(), false);
+-            });
+-    }
+     EthernetInterfaceIntf::nicEnabled(value);
++
++    writeConfigurationFile();
+     manager.reloadConfigs();
+ 
+     return value;
+-- 
+2.34.1
+

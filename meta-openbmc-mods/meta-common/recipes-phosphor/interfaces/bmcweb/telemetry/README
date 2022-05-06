@@ -9,4 +9,7 @@ Current revisions:
   file://telemetry/0002-Revert-Remove-LogService-from-TelemetryService.patch
 
 - Switched bmcweb to use new telemetry service API
-  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/44270/28
+  file://telemetry/0003-Switched-bmcweb-to-use-new-telemetry-service-API.patch
+
+- Fixed timestamp in telemetry service
+  https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/50027/3

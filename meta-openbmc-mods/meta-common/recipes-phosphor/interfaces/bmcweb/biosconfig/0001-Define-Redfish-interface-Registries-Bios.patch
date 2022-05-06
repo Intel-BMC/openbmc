@@ -1,4 +1,4 @@
-From bde7f728d5a87522674bcd5515baaa02bf7b9373 Mon Sep 17 00:00:00 2001
+From 7956c74860a39e75d80f0caadcfbd5570569717d Mon Sep 17 00:00:00 2001
 From: Kuiying Wang <kuiying.wang@intel.com>
 Date: Fri, 4 Sep 2020 19:24:25 +0800
 Subject: [PATCH] Define Redfish interface "/Registries/Bios" and enable
@@ -226,6 +226,7 @@ Oem	-	Resource.Oem	No	Optional
 Change-Id: Iecc61018c350f0b8c89df59b2864b941508b1916
 Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
 Signed-off-by: Snehalatha Venkatesh <snehalathax.v@intel.com>
+Signed-off-by: Smriti Ayushi <smriti.ayushi@intel.com>
 ---
  redfish-core/include/redfish.hpp              |   3 +
  .../include/registries/bios_registry.hpp      |  41 ++
@@ -235,7 +236,7 @@ Signed-off-by: Snehalatha Venkatesh <snehalathax.v@intel.com>
  create mode 100644 redfish-core/include/registries/bios_registry.hpp
 
 diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
-index 0a97150..07a9417 100644
+index 2479332..8bd4bf8 100644
 --- a/redfish-core/include/redfish.hpp
 +++ b/redfish-core/include/redfish.hpp
 @@ -148,7 +148,10 @@ class RedfishService
@@ -297,7 +298,7 @@ index 0000000..c80937a
 +};
 +} // namespace redfish::message_registries::bios
 diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
-index c2fb284..87536d6 100644
+index c2fb284..9d7157c 100644
 --- a/redfish-core/lib/bios.hpp
 +++ b/redfish-core/lib/bios.hpp
 @@ -3,8 +3,140 @@
@@ -451,7 +452,7 @@ index c2fb284..87536d6 100644
 +        {"SettingsObject",
 +         {{"@odata.id", "/redfish/v1/Systems/system/Bios/Settings"}}}};
 +    asyncResp->res.jsonValue["AttributeRegistry"] = "BiosAttributeRegistry";
-+    asyncResp->res.jsonValue["Attributes"] = {};
++    asyncResp->res.jsonValue["Attributes"] = nlohmann::json::object();
 +
 +    crow::connections::systemBus->async_method_call(
 +        [asyncResp](const boost::system::error_code ec,
@@ -835,7 +836,7 @@ index c2fb284..87536d6 100644
   * BiosReset class supports handle POST method for Reset bios.
   * The class retrieves and sends data directly to D-Bus.
 diff --git a/redfish-core/lib/message_registries.hpp b/redfish-core/lib/message_registries.hpp
-index 43359e3..b2fb43c 100644
+index ae02189..510b19a 100644
 --- a/redfish-core/lib/message_registries.hpp
 +++ b/redfish-core/lib/message_registries.hpp
 @@ -17,6 +17,7 @@

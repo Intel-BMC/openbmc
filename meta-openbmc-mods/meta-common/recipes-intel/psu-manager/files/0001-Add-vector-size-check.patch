@@ -1,0 +1,49 @@
+From 556d1fe01fa1624b7ee967efbd2f55ed80375356 Mon Sep 17 00:00:00 2001
+From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
+Date: Tue, 15 Feb 2022 16:56:37 +0530
+Subject: [PATCH] Add vector size check
+
+When PowerSupplyRedundancyEnabled is set to true and RotationRankOrder
+is 0, xyz.openbmc_project.coldredundancy.service core-dump issue
+is observed.
+
+Add a check to address above corner case and avoid core-dump.
+
+Tested:
+Verified core-dump is not observed with above settings
+
+Feb 15 11:39:25 intel-obmc psuredundancy[18502]: RotationRankOrder less than number of PSUs
+
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+---
+ src/cold_redundancy.cpp | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cold_redundancy.cpp b/src/cold_redundancy.cpp
+index 9cee6ec..9dc5907 100644
+--- a/src/cold_redundancy.cpp
++++ b/src/cold_redundancy.cpp
+@@ -615,7 +615,19 @@ void ColdRedundancy::reRanking(void)
+             {
+                 psu->order = 0;
+             }
+-            orders[psuNumber++] = psu->order;
++            if (psuNumber < orders.size())
++            {
++                orders[psuNumber++] = psu->order;
++            }
++            else
++            {
++                static bool logOnlyOnce = false;
++                if (!logOnlyOnce)
++                {
++                    std::cerr << "RotationRankOrder less than number of PSUs\n";
++                    logOnlyOnce = true;
++                }
++            }
+         }
+         rotationRankOrder(orders);
+     }
+-- 
+2.17.1
+

@@ -8,4 +8,5 @@ SRC_URI += " \
     file://0003-serial-8250_aspeed-Make-port-type-fixed.patch \
     file://0004-Add-a-workaround-to-cover-UART-interrupt-bug-in-AST2.patch \
     file://0005-Add-sample-i3c-slave-driver.patch \
+    file://0006-Fix-PSU-fan-sensor-read-0.patch \
     "

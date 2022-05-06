@@ -1,4 +1,4 @@
-From d03ec9b688a5d93f8f44e775eb74358d30d9d314 Mon Sep 17 00:00:00 2001
+From 604b4c8b3f028497cbed815b27cf7f60dfb8ceab Mon Sep 17 00:00:00 2001
 From: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Date: Mon, 2 Jul 2018 19:23:25 -0700
 Subject: [PATCH] Added suport for multiple user manager services
@@ -9,14 +9,15 @@ Signed-off-by: Alberto Salazar Perez <alberto.salazar.perez@intel.com>
 Signed-off-by: Radivoje Jovanovic <radivoje.jovanovic@intel.com>
 Signed-off-by: Richard Marian Thomaiyar <richard.marian.thomaiyar@linux.intel.com>
 Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+Signed-off-by: Jiaqing Zhao <jiaqing.zhao@intel.com>
 ---
  Makefile.am      |   5 +-
  mainapp.cpp      |  90 +++++-
- user_mgr.cpp     | 305 ++----------------
+ user_mgr.cpp     | 299 ++----------------
  user_mgr.hpp     |   9 +-
- user_service.cpp | 789 +++++++++++++++++++++++++++++++++++++++++++++++
+ user_service.cpp | 793 +++++++++++++++++++++++++++++++++++++++++++++++
  user_service.hpp | 233 ++++++++++++++
- 6 files changed, 1150 insertions(+), 281 deletions(-)
+ 6 files changed, 1152 insertions(+), 277 deletions(-)
  create mode 100644 user_service.cpp
  create mode 100644 user_service.hpp
 
@@ -152,7 +153,7 @@ index e08da61..f4b7f8c 100644
      // Claim the bus now
      bus.request_name(USER_MANAGER_BUSNAME);
 diff --git a/user_mgr.cpp b/user_mgr.cpp
-index 8fc899f..acc16b0 100644
+index 8fc899f..c49fbef 100644
 --- a/user_mgr.cpp
 +++ b/user_mgr.cpp
 @@ -18,43 +18,34 @@
@@ -281,7 +282,7 @@ index 8fc899f..acc16b0 100644
  bool UserMgr::isUserExist(const std::string& userName)
  {
      if (userName.empty())
-@@ -299,44 +217,15 @@ void UserMgr::createUser(std::string userName,
+@@ -299,39 +217,12 @@ void UserMgr::createUser(std::string userName,
  {
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
@@ -321,16 +322,9 @@ index 8fc899f..acc16b0 100644
 +    // Tell the User Service to create a new user with the info provided.
 +    userSrvc->createUser(userName, groupNames, priv, enabled);
  
--    // Add the users object before sending out the signal
--    sdbusplus::message::object_path tempObjPath(usersObjPath);
--    tempObjPath /= userName;
--    std::string userObj(tempObjPath);
-+    // Add the users to the local list before sending out the signal
-+    std::string userObj = std::string(usersObjPath) + "/" + userName;
-     std::sort(groupNames.begin(), groupNames.end());
-     usersList.emplace(
-         userName, std::move(std::make_unique<phosphor::user::Users>(
-@@ -349,19 +238,11 @@ void UserMgr::createUser(std::string userName,
+     // Add the users object before sending out the signal
+     sdbusplus::message::object_path tempObjPath(usersObjPath);
+@@ -349,19 +240,11 @@ void UserMgr::createUser(std::string userName,
  
  void UserMgr::deleteUser(std::string userName)
  {
@@ -354,7 +348,7 @@ index 8fc899f..acc16b0 100644
  
      usersList.erase(userName);
  
-@@ -372,24 +253,13 @@ void UserMgr::deleteUser(std::string userName)
+@@ -372,24 +255,13 @@ void UserMgr::deleteUser(std::string userName)
  
  void UserMgr::renameUser(std::string userName, std::string newUserName)
  {
@@ -382,7 +376,7 @@ index 8fc899f..acc16b0 100644
      const auto& user = usersList[userName];
      std::string priv = user.get()->userPrivilege();
      std::vector<std::string> groupNames = user.get()->userGroups();
-@@ -415,8 +285,6 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
+@@ -415,8 +287,6 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
  {
      throwForInvalidPrivilege(priv);
      throwForInvalidGroups(groupNames);
@@ -391,7 +385,7 @@ index 8fc899f..acc16b0 100644
      throwForUserDoesNotExist(userName);
      const std::vector<std::string>& oldGroupNames =
          usersList[userName].get()->userGroups();
-@@ -432,29 +300,8 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
+@@ -432,29 +302,8 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
          throwForMaxGrpUserCount(groupNames);
      }
  
@@ -423,7 +417,7 @@ index 8fc899f..acc16b0 100644
  
      log<level::INFO>("User groups / privilege updated successfully",
                       entry("USER_NAME=%s", userName.c_str()));
-@@ -650,21 +497,9 @@ int UserMgr::setPamModuleArgValue(const std::string& moduleName,
+@@ -650,21 +499,9 @@ int UserMgr::setPamModuleArgValue(const std::string& moduleName,
  
  void UserMgr::userEnable(const std::string& userName, bool enabled)
  {
@@ -447,7 +441,7 @@ index 8fc899f..acc16b0 100644
  
      log<level::INFO>("User enabled/disabled state updated successfully",
                       entry("USER_NAME=%s", userName.c_str()),
-@@ -787,54 +622,8 @@ bool UserMgr::userPasswordExpired(const std::string& userName)
+@@ -787,54 +624,8 @@ bool UserMgr::userPasswordExpired(const std::string& userName)
  
  UserSSHLists UserMgr::getUserAndSshGrpList()
  {
@@ -504,7 +498,7 @@ index 8fc899f..acc16b0 100644
  }
  
  size_t UserMgr::getIpmiUsersCount()
-@@ -845,49 +634,14 @@ size_t UserMgr::getIpmiUsersCount()
+@@ -845,49 +636,14 @@ size_t UserMgr::getIpmiUsersCount()
  
  bool UserMgr::isUserEnabled(const std::string& userName)
  {
@@ -558,7 +552,7 @@ index 8fc899f..acc16b0 100644
  }
  
  DbusUserObj UserMgr::getPrivilegeMapperObject(void)
-@@ -1114,11 +868,9 @@ void UserMgr::initUserObjects(void)
+@@ -1114,11 +870,9 @@ void UserMgr::initUserObjects(void)
  {
      // All user management lock has to be based on /etc/shadow
      // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
@@ -572,7 +566,7 @@ index 8fc899f..acc16b0 100644
  
      if (!userNameList.empty())
      {
-@@ -1175,8 +927,10 @@ void UserMgr::initUserObjects(void)
+@@ -1175,8 +929,10 @@ void UserMgr::initUserObjects(void)
      }
  }
  
@@ -585,7 +579,7 @@ index 8fc899f..acc16b0 100644
  {
      UserMgrIface::allPrivileges(privMgr);
      std::sort(groupsMgr.begin(), groupsMgr.end());
-@@ -1284,6 +1038,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path) :
+@@ -1284,6 +1040,7 @@ UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path) :
          }
          AccountPolicyIface::accountUnlockTimeout(value32);
      }
@@ -637,10 +631,10 @@ index f5aac22..5d5ca99 100644
                                          "priv-user", "priv-noaccess"};
 diff --git a/user_service.cpp b/user_service.cpp
 new file mode 100644
-index 0000000..6e11755
+index 0000000..457f488
 --- /dev/null
 +++ b/user_service.cpp
-@@ -0,0 +1,789 @@
+@@ -0,0 +1,793 @@
 +/*
 +// Copyright (c) 2018 Intel Corporation
 +//
@@ -839,10 +833,12 @@ index 0000000..6e11755
 +
 +        try
 +        {
++            // set EXPIRE_DATE to 0 to disable user, PAM takes 0 as expire on
++            // 1970-01-01, that's an implementation-defined behavior
 +            phosphor::user::executeCmd(
 +                "/usr/sbin/useradd", userName.c_str(), "-G", groups.c_str(),
 +                "-m", "-N", "-s", (sshRequested ? "/bin/sh" : "/bin/nologin"),
-+                "-e", (enabled ? "" : "1970-01-02"));
++                "-e", (enabled ? "" : "1970-01-01"));
 +        }
 +        catch (const phosphor::user::InternalFailure& e)
 +        {
@@ -934,8 +930,10 @@ index 0000000..6e11755
 +        // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 +        try
 +        {
++            // set EXPIRE_DATE to 0 to disable user, PAM takes 0 as expire on
++            // 1970-01-01, that's an implementation-defined behavior
 +            phosphor::user::executeCmd("/usr/sbin/usermod", userName.c_str(),
-+                                       "-e", (enabled ? "" : "1970-01-02"));
++                                       "-e", (enabled ? "" : "1970-01-01"));
 +        }
 +        catch (const phosphor::user::InternalFailure& e)
 +        {
@@ -1670,5 +1668,5 @@ index 0000000..50ee4db
 +} // namespace user
 +} // namespace phosphor
 -- 
-2.17.1
+2.25.1
 

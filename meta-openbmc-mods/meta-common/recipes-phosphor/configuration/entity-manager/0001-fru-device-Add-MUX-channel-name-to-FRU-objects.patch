@@ -1,0 +1,268 @@
+From 7a5638d451dd323b81bd946ea7d688304b7a5b29 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 21 Sep 2021 14:48:09 -0700
+Subject: [PATCH] fru-device: Add MUX channel name to FRU objects
+
+If multiple FRUs of the same type are plugged into different channels
+of a i2c mux, it may be desirable to be able to identify them
+in a predictable way instead of with a dynamically assigned bus number.
+
+Entity manager supports channel name configuration for MUX device type.
+Add a function to test if a FRU is behind a MUX and a channel name exists.
+If the channel name is found, set MUX property to the channel name.
+
+In templateCharReplace function, trim the leading and trailing spaces
+in the resulted string. Replace multiple spaces in middle of string
+with one single space. Example: "$MUX PSU" is parsed to "PSU" and
+"Pwm $MUX PSU" is parsed to "Pwm PSU" when $MUX is empty,
+ie FRU is connected without a mux.
+
+Now $MUX can be added as a template in a FRU's configuration JSON file.
+This gives identical inventory entities (FRUs) unique and meaningful
+names. SOLUM_PSSF162202_PSU.json is modified to use this new feature.
+
+Tested:
+1) Run on systems that have multiple PSUs connected to a I2C Mux.
+$MUX in config file is replaced with channel name for the mux.
+2) PSU connected without the mux, same objects are created as before.
+busctl tree xyz.openbmc_project.PSUSensor
+/xyz/openbmc_project/sensors
+      |-/xyz/openbmc_project/sensors/current
+      | |-/xyz/openbmc_project/sensors/current/PSU1_Input_Current
+      | `-/xyz/openbmc_project/sensors/current/PSU1_Output_Current
+3) phosphor-pid-control service starts up successfully
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Change-Id: Ide804dfd56c34c73e8dcffc0eab818609fe1a69c
+---
+ configurations/SOLUM_PSSF162202_PSU.json | 44 ++++++++++++++----------
+ src/FruDevice.cpp                        | 28 ++++++++++++++-
+ src/Utils.cpp                            |  3 ++
+ 3 files changed, 55 insertions(+), 20 deletions(-)
+
+diff --git a/configurations/SOLUM_PSSF162202_PSU.json b/configurations/SOLUM_PSSF162202_PSU.json
+index 1451830..2a5ff90 100644
+--- a/configurations/SOLUM_PSSF162202_PSU.json
++++ b/configurations/SOLUM_PSSF162202_PSU.json
+@@ -4,7 +4,7 @@
+             {
+                 "Address": "$address",
+                 "Bus": "$bus",
+-                "Name": "SOLUM CO IS162F22 PSU FRU",
++                "Name": "$MUX SOLUM CO IS162F22 PSU FRU",
+                 "Type": "EEPROM"
+             },
+             {
+@@ -15,14 +15,14 @@
+                 "ILimitMax": 0.0,
+                 "ILimitMin": 0.0,
+                 "Inputs": [
+-                    "PSU$ADDRESS % 4 + 1 Fan Speed 1"
++                    "$MUX PSU$ADDRESS % 4 + 1 Fan Speed 1"
+                 ],
+-                "Name": "PSU$ADDRESS % 4 + 1 Fan 1",
++                "Name": "$MUX PSU$ADDRESS % 4 + 1 Fan 1",
+                 "NegativeHysteresis": 2.0,
+                 "OutLimitMax": 100.0,
+                 "OutLimitMin": 30.0,
+                 "Outputs": [
+-                    "Pwm PSU$ADDRESS % 4 + 1 Fan 1"
++                    "Pwm $MUX PSU$ADDRESS % 4 + 1 Fan 1"
+                 ],
+                 "PCoefficient": 0.0,
+                 "PositiveHysteresis": 0.0,
+@@ -30,7 +30,7 @@
+                 "SlewPos": 0.0,
+                 "Type": "Pid",
+                 "Zones": [
+-                    "PSU"
++                    "$MUX PSU"
+                 ]
+             },
+             {
+@@ -41,14 +41,14 @@
+                 "ILimitMax": 0.0,
+                 "ILimitMin": 0.0,
+                 "Inputs": [
+-                    "PSU$ADDRESS % 4 + 1 Fan Speed 2"
++                    "$MUX PSU$ADDRESS % 4 + 1 Fan Speed 2"
+                 ],
+-                "Name": "PSU$ADDRESS % 4 + 1 Fan 2",
++                "Name": "$MUX PSU$ADDRESS % 4 + 1 Fan 2",
+                 "NegativeHysteresis": 2.0,
+                 "OutLimitMax": 100.0,
+                 "OutLimitMin": 30.0,
+                 "Outputs": [
+-                    "Pwm PSU$ADDRESS % 4 + 1 Fan 2"
++                    "Pwm $MUX PSU$ADDRESS % 4 + 1 Fan 2"
+                 ],
+                 "PCoefficient": 0.0,
+                 "PositiveHysteresis": 0.0,
+@@ -56,7 +56,7 @@
+                 "SlewPos": 0.0,
+                 "Type": "Pid",
+                 "Zones": [
+-                    "PSU"
++                    "$MUX PSU"
+                 ]
+             },
+             {
+@@ -67,9 +67,9 @@
+                 "ILimitMax": 100,
+                 "ILimitMin": 30,
+                 "Inputs": [
+-                    "PSU$ADDRESS % 4 + 1 Temperature"
++                    "$MUX PSU$ADDRESS % 4 + 1 Temperature"
+                 ],
+-                "Name": "PSU$ADDRESS % 4 + 1 Temperature",
++                "Name": "$MUX PSU$ADDRESS % 4 + 1 Temperature",
+                 "NegativeHysteresis": 5.0,
+                 "OutLimitMax": 100,
+                 "OutLimitMin": 30,
+@@ -81,15 +81,15 @@
+                 "SlewPos": 0.0,
+                 "Type": "Pid",
+                 "Zones": [
+-                    "PSU"
++                    "$MUX PSU"
+                 ]
+             },
+             {
+                 "Class": "Floor",
+                 "Inputs": [
+-                    "PSU$ADDRESS % 4 + 1 Temperature"
++                    "$MUX PSU$ADDRESS % 4 + 1 Temperature"
+                 ],
+-                "Name": "PSU$ADDRESS % 4 + 1 LCC",
++                "Name": "$MUX PSU$ADDRESS % 4 + 1 LCC",
+                 "NegativeHysteresis": 2,
+                 "Output": [
+                     40.0,
+@@ -102,9 +102,15 @@
+                 ],
+                 "Type": "Stepwise",
+                 "Zones": [
+-                    "PSU"
++                    "$MUX PSU"
+                 ]
+             },
++            {
++                "FailSafePercent": 100,
++                "MinThermalOutput": 30,
++                "Name": "$MUX PSU",
++                "Type": "Pid.Zone"
++            },
+             {
+                 "Address": "$ADDRESS % 4 + 88",
+                 "Bus": "$bus",
+@@ -118,8 +124,8 @@
+                     "fan1",
+                     "fan2"
+                 ],
+-                "Name": "PSU$ADDRESS % 4 + 1",
+-                "Name1": "PSU$ADDRESS % 4 + 1",
++                "Name": "$MUX PSU$ADDRESS % 4 + 1",
++                "Name1": "$MUX PSU$ADDRESS % 4 + 1",
+                 "Thresholds": [
+                     {
+                         "Direction": "greater than",
+@@ -167,7 +173,7 @@
+                 "Type": "pmbus"
+             }
+         ],
+-        "Name": "SOLUM CO IS162F22 PSU$ADDRESS % 4 + 1",
++        "Name": "$MUX SOLUM CO IS162F22 $ADDRESS % 4 + 1",
+         "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'IS162F22*'})",
+         "Type": "PowerSupply",
+         "xyz.openbmc_project.Inventory.Decorator.Asset": {
+@@ -177,4 +183,4 @@
+             "SerialNumber": "$PRODUCT_SERIAL_NUMBER"
+         }
+     }
+-]
++]
+\ No newline at end of file
+diff --git a/src/FruDevice.cpp b/src/FruDevice.cpp
+index 3774a2d..2200d35 100644
+--- a/src/FruDevice.cpp
++++ b/src/FruDevice.cpp
+@@ -172,6 +172,31 @@ static bool isMuxBus(size_t bus)
+         "/sys/bus/i2c/devices/i2c-" + std::to_string(bus) + "/mux_device"));
+ }
+ 
++static std::optional<std::string> getMuxBusChannelName(size_t bus)
++{
++    if (!fs::exists("/dev/i2c-mux"))
++    {
++        return std::nullopt;
++    }
++
++    auto ec = std::error_code();
++    auto devName = "i2c-" + std::to_string(bus);
++    for (auto& mux : fs::recursive_directory_iterator("/dev/i2c-mux"))
++    {
++        auto channel = std::filesystem::read_symlink(mux, ec);
++        if (ec)
++        {
++            continue;
++        }
++
++        if (devName == channel.filename())
++        {
++            return mux.path().filename();
++        }
++    }
++    return std::nullopt;
++}
++
+ static void makeProbeInterface(size_t bus, size_t address,
+                                sdbusplus::asio::object_server& objServer)
+ {
+@@ -744,7 +769,7 @@ void addFruObjectToDbus(
+     std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
+         objServer.add_interface(productName, "xyz.openbmc_project.FruDevice");
+     dbusInterfaceMap[std::pair<size_t, size_t>(bus, address)] = iface;
+-
++    auto muxChannel = getMuxBusChannelName(bus);
+     for (auto& property : formattedFRU)
+     {
+ 
+@@ -797,6 +822,7 @@ void addFruObjectToDbus(
+     // baseboard will be 0, 0
+     iface->register_property("BUS", bus);
+     iface->register_property("ADDRESS", address);
++    iface->register_property("MUX", muxChannel.value_or(""));
+ 
+     iface->initialize();
+ }
+diff --git a/src/Utils.cpp b/src/Utils.cpp
+index 31a10bc..9ad9a56 100644
+--- a/src/Utils.cpp
++++ b/src/Utils.cpp
+@@ -23,6 +23,7 @@
+ #include <boost/algorithm/string/find.hpp>
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
++#include <boost/algorithm/string/trim_all.hpp>
+ #include <boost/algorithm/string/split.hpp>
+ #include <boost/container/flat_map.hpp>
+ #include <boost/lexical_cast.hpp>
+@@ -242,6 +243,7 @@ std::optional<std::string> templateCharReplace(
+         boost::replace_all(*strPtr, *replaceStr,
+                            std::to_string(foundDeviceIdx));
+     }
++    boost::trim_all(*strPtr);
+ 
+     for (auto& foundDevicePair : foundDevice)
+     {
+@@ -270,6 +272,7 @@ std::optional<std::string> templateCharReplace(
+                                              foundDevicePair.second);
+                 boost::ireplace_all(*strPtr,
+                                     templateChar + foundDevicePair.first, val);
++                boost::trim_all(*strPtr);
+                 continue;
+             }
+ 
+-- 
+2.17.1
+

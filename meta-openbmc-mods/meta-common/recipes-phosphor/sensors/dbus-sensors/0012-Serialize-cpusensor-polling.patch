@@ -1,0 +1,343 @@
+From dbcdef1ba1ee2445d2a571d1fd47be256833f94b Mon Sep 17 00:00:00 2001
+From: Arun Lal K M <arun.lal@intel.com>
+Date: Fri, 31 Dec 2021 13:29:56 +0000
+Subject: [PATCH] Serialize cpusensor polling
+
+Say we have 100 cpusensor objects, there will be 100 reads made
+to peci driver. And in peci driver, if a read fails, it will keep
+trying again till timeout. Timeout is 0.7 sec.
+
+Which means, under peci error state, cpusensor daemon will
+make 100 calls to peci driver. And each of that call will take 0.7 sec.
+
+This ultimately result in io having a queue of 100 request at the same
+time. And since we only has one thread for io (and peci can only do one read
+at a time) these calls will make io nonresponsive.
+
+As io is busy:
+1) busctl tree or introspect to xyz.openbmc_project.CPUSensor will fail.
+2) phosphor-pid-control will try to get data from cpusensor,
+and after trying for 5 times, phosphor-pid-control will gracefully exit.
+
+Fix for this is to serialize the requests made to peci from cpusensor daemon.
+This is done via single poll loop for all cpu sensors using coroutine.
+This basically avoid overloading the io with flooding of requests.
+
+Also, the polling frequency of individual sensors are modified to small
+delay between 2 sensor reads.
+
+Tested:
+Negative test case: In Intel system which has peci error.
+By giving busctl tree or introspect to xyz.openbmc_project.CPUSensor
+And making sure tree is populated.
+
+Positive test case: In Intel system which does not have peci error.
+By giving command ipmitool sensor list and making sure CPU sensors
+in are showing values as expected.
+
+Signed-off-by: Arun Lal K M <arun.lal@intel.com>
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+Change-Id: Id435d198d6427e3141517ea517a8fa6f946c5dd5
+---
+ .clang-tidy           |  1 +
+ include/CPUSensor.hpp |  7 ++----
+ meson.build           |  6 +++++
+ src/CPUSensor.cpp     | 53 ++++++++++------------------------------
+ src/CPUSensorMain.cpp | 57 ++++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 78 insertions(+), 46 deletions(-)
+
+diff --git a/.clang-tidy b/.clang-tidy
+index 13f6a4b..9d58421 100644
+--- a/.clang-tidy
++++ b/.clang-tidy
+@@ -258,4 +258,5 @@ CheckOptions:
+   - { key: readability-identifier-naming.ParameterCase, value: camelBack }
+   - { key: readability-identifier-naming.NamespaceCase, value: lower_case }
+   - { key: readability-identifier-naming.StructCase,    value: CamelCase  }
++  - { key: performance-unnecessary-value-param.AllowedTypes,  value: 'boost::asio::yield_context' }
+ 
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 12d8788..0ba4090 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -45,22 +45,20 @@ class CPUSensor : public Sensor, public std::enable_shared_from_this<CPUSensor>
+               const std::string& sensorConfiguration);
+ 
+     ~CPUSensor() override;
+-    static constexpr unsigned int sensorPollMs = 1000;
++    static constexpr unsigned int sensorScaleFactor = 1000;
+     static constexpr size_t warnAfterErrorCount = 10;
+     static constexpr const char* labelTcontrol = "Tcontrol";
+-    void setupRead(void);
++    void setupRead(boost::asio::yield_context yield);
+ 
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::streambuf readBuf;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
+     std::string nameTcontrol;
+     std::string path;
+     double privTcontrol;
+     double dtsOffset;
+     bool show;
+-    size_t pollTime;
+     bool loggedInterfaceDown = false;
+     uint8_t minMaxReadCounter;
+     unsigned int scaleFactor;
+@@ -69,7 +67,6 @@ class CPUSensor : public Sensor, public std::enable_shared_from_this<CPUSensor>
+     void checkThresholds(void) override;
+     void updateMinMaxValues(void);
+     bool initInputDev();
+-    void restartRead(void);
+ };
+ 
+ extern boost::container::flat_map<std::string, std::shared_ptr<CPUSensor>>
+diff --git a/meson.build b/meson.build
+index 7e8a3e6..b9dd039 100644
+--- a/meson.build
++++ b/meson.build
+@@ -43,6 +43,11 @@ sdbusplus = dependency(
+     ],
+ )
+ 
++boost = dependency(
++    'boost',
++    modules: ['coroutine'],
++)
++
+ phosphor_logging_dep = dependency(
+     'phosphor-logging',
+     fallback: ['phosphor-logging', 'phosphor_logging_dep'],
+@@ -70,6 +75,7 @@ default_deps = [
+     nlohmann_json,
+     phosphor_logging_dep,
+     sdbusplus,
++    boost,
+ ]
+ 
+ thresholds_a = static_library(
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 4ced5e2..8c49bc5 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -45,10 +45,10 @@ CPUSensor::CPUSensor(const std::string& path, const std::string& objectType,
+            objectType, false, false, sensorProperties.max, sensorProperties.min,
+            conn, PowerState::on),
+     std::enable_shared_from_this<CPUSensor>(), objServer(objectServer),
+-    inputDev(io), waitTimer(io), path(path),
++    inputDev(io), path(path),
+     privTcontrol(std::numeric_limits<double>::quiet_NaN()),
+-    dtsOffset(dtsOffset), show(show), pollTime(CPUSensor::sensorPollMs),
+-    minMaxReadCounter(0), scaleFactor(sensorProperties.scaleFactor)
++    dtsOffset(dtsOffset), show(show), minMaxReadCounter(0),
++    scaleFactor(sensorProperties.scaleFactor)
+ {
+     nameTcontrol = labelTcontrol;
+     nameTcontrol += " CPU" + std::to_string(cpuId);
+@@ -89,9 +89,9 @@ CPUSensor::CPUSensor(const std::string& objectType,
+                      const std::string& sensorConfiguration) :
+     Sensor(escapeName(sensorName), std::move(thresholdsIn), sensorConfiguration,
+            objectType, false, false, 0, 0, conn, PowerState::on),
+-    objServer(objectServer), inputDev(io), waitTimer(io),
++    objServer(objectServer), inputDev(io),
+     privTcontrol(std::numeric_limits<double>::quiet_NaN()), dtsOffset(0),
+-    show(true), pollTime(CPUSensor::sensorPollMs), minMaxReadCounter(0)
++    show(true), minMaxReadCounter(0)
+ {
+     // assume it is a temperature sensor for now
+     // support for other type can be added later
+@@ -150,7 +150,6 @@ CPUSensor::~CPUSensor()
+ {
+     // close the input dev to cancel async operations
+     inputDev.close();
+-    waitTimer.cancel();
+     if (show)
+     {
+         objServer.remove_interface(thresholdInterfaceWarning);
+@@ -175,45 +174,24 @@ bool CPUSensor::initInputDev()
+     return true;
+ }
+ 
+-void CPUSensor::restartRead(void)
+-{
+-    std::weak_ptr<CPUSensor> weakRef = weak_from_this();
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(pollTime));
+-    waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            std::cerr << "Failed to reschedule\n";
+-            return;
+-        }
+-        std::shared_ptr<CPUSensor> self = weakRef.lock();
+-
+-        if (self)
+-        {
+-            self->setupRead();
+-        }
+-    });
+-}
+-
+-void CPUSensor::setupRead(void)
++void CPUSensor::setupRead(boost::asio::yield_context yield)
+ {
+     if (!readingStateGood())
+     {
+         markAvailable(false);
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+-        restartRead();
+         return;
+     }
+ 
+     std::weak_ptr<CPUSensor> weakRef = weak_from_this();
++    boost::system::error_code ec;
+     inputDev.async_wait(boost::asio::posix::descriptor_base::wait_read,
+-                        [weakRef](const boost::system::error_code& ec) {
+-                            std::shared_ptr<CPUSensor> self = weakRef.lock();
+-
+-                            if (self)
+-                            {
+-                                self->handleResponse(ec);
+-                            }
+-                        });
++                        yield[ec]);
++    std::shared_ptr<CPUSensor> self = weakRef.lock();
++    if (self)
++    {
++        self->handleResponse(ec);
++    }
+ }
+ 
+ void CPUSensor::updateMinMaxValues(void)
+@@ -284,7 +262,6 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+                 std::cerr << name << " interface down!\n";
+                 loggedInterfaceDown = true;
+             }
+-            pollTime = CPUSensor::sensorPollMs * 10u;
+             markFunctional(false);
+         }
+         return;
+@@ -293,7 +270,6 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+ 
+     if (err)
+     {
+-        pollTime = sensorFailedPollTimeMs;
+         incrementError();
+         if (fd >= 0)
+         {
+@@ -378,7 +354,6 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+     }
+     else
+     {
+-        pollTime = sensorFailedPollTimeMs;
+         incrementError();
+     }
+ 
+@@ -386,8 +361,6 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+     {
+         lseek(fd, 0, SEEK_SET);
+     }
+-
+-    restartRead();
+ }
+ 
+ void CPUSensor::checkThresholds(void)
+diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
+index 32cb6b3..0de6673 100644
+--- a/src/CPUSensorMain.cpp
++++ b/src/CPUSensorMain.cpp
+@@ -51,6 +51,10 @@
+ // clang-format on
+ 
+ static constexpr bool debug = false;
++static std::unique_ptr<boost::asio::deadline_timer> waitTimer = nullptr;
++static bool sensorMapUpdated = false;
++static constexpr unsigned int sensorPollWaitMs = 20;
++static constexpr unsigned int sensorEmptyWaitMs = 500;
+ 
+ boost::container::flat_map<std::string, std::shared_ptr<CPUSensor>> gCpuSensors;
+ boost::container::flat_map<std::string,
+@@ -408,7 +412,7 @@ bool createSensors(boost::asio::io_service& io,
+                 inputPathStr, sensorType, objectServer, dbusConnection, io,
+                 sensorName, std::move(sensorThresholds), *interfacePath, cpuId,
+                 show, dtsOffset, prop);
+-            sensorPtr->setupRead();
++            sensorMapUpdated = true;
+             createdSensors.insert(sensorName);
+             if (debug)
+             {
+@@ -427,6 +431,52 @@ bool createSensors(boost::asio::io_service& io,
+     return true;
+ }
+ 
++bool doWait(boost::asio::yield_context yield, int delay)
++{
++    boost::system::error_code ec;
++    waitTimer->expires_from_now(boost::posix_time::milliseconds(delay));
++    waitTimer->async_wait(yield[ec]);
++    if (ec == boost::asio::error::operation_aborted)
++    {
++        std::cerr << "Timer aborted\n";
++        return false;
++    }
++    if (ec)
++    {
++        std::cerr << "Timer failed\n";
++        return false;
++    }
++    return true;
++}
++
++void pollCPUSensors(boost::asio::yield_context yield)
++{
++    while (true)
++    {
++        sensorMapUpdated = false;
++        for (auto& [name, sensor] : gCpuSensors)
++        {
++            sensor->setupRead(yield);
++            if (!doWait(yield, sensorPollWaitMs))
++            {
++                throw std::runtime_error("Wait timer failed");
++            }
++            if (sensorMapUpdated)
++            {
++                break;
++            }
++        }
++
++        if (gCpuSensors.size() == 0)
++        {
++            if (!doWait(yield, sensorEmptyWaitMs))
++            {
++                throw std::runtime_error("Wait timer failed");
++            }
++        }
++    }
++}
++
+ int exportDevice(const CPUConfig& config)
+ {
+     std::ostringstream hex;
+@@ -905,6 +955,7 @@ int main()
+     boost::asio::deadline_timer pingTimer(io);
+     boost::asio::deadline_timer creationTimer(io);
+     boost::asio::deadline_timer filterTimer(io);
++    waitTimer = std::make_unique<boost::asio::deadline_timer>(io);
+     ManagedObjectType sensorConfigs;
+ 
+     filterTimer.expires_from_now(boost::posix_time::seconds(1));
+@@ -966,6 +1017,10 @@ int main()
+     systemBus->request_name("xyz.openbmc_project.CPUSensor");
+ 
+     setupManufacturingModeMatch(*systemBus);
++
++    boost::asio::spawn(
++        io, [](boost::asio::yield_context yield) { pollCPUSensors(yield); });
++
+     io.run();
+     return 0;
+ }
+-- 
+2.17.1
+

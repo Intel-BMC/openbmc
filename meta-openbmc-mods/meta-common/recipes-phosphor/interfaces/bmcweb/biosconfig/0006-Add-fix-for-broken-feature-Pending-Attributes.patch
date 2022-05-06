@@ -1,6 +1,6 @@
-From 8225b2dc07279c65cdfe2ddc13964d84fd2ed8bb Mon Sep 17 00:00:00 2001
+From 5ba2b29277e982fddaf8622af39902b6a046e259 Mon Sep 17 00:00:00 2001
 From: Arun Lal K M <arun.lal@intel.com>
-Date: Tue, 4 Jan 2022 01:56:57 +0000
+Date: Wed, 19 Jan 2022 14:44:07 +0000
 Subject: [PATCH] Add fix for broken feature 'Pending Attributes'.
 
 Fix is added for the following:
@@ -11,6 +11,7 @@ Fix is added for the following:
 5) POST to '/redfish/v1/Systems/system/Bios/Actions
             /Bios.ChangePassword/'.
 6) Add support for Enumeration.
+7) Support DMTF standard of displaying "Value" in BIOS attribute registries.
 
 Tested:
 By giving PATCH to 'redfish/v1/Systems/system/Bios/Settings'
@@ -134,11 +135,11 @@ Validation has succeeded.
 Signed-off-by: Arun Lal K M <arun.lal@intel.com>
 Signed-off-by: Snehalatha Venkatesh <snehalathax.v@intel.com>
 ---
- redfish-core/lib/bios.hpp | 592 ++++++++++++++++++++++++--------------
- 1 file changed, 383 insertions(+), 209 deletions(-)
+ redfish-core/lib/bios.hpp | 602 +++++++++++++++++++++++++-------------
+ 1 file changed, 391 insertions(+), 211 deletions(-)
 
 diff --git a/redfish-core/lib/bios.hpp b/redfish-core/lib/bios.hpp
-index 0bb0b9e..69340eb 100644
+index f6d6eff..c327053 100644
 --- a/redfish-core/lib/bios.hpp
 +++ b/redfish-core/lib/bios.hpp
 @@ -12,13 +12,15 @@ map{attributeName,struct{attributeType,readonlyStatus,displayname,
@@ -637,9 +638,9 @@ index 0bb0b9e..69340eb 100644
                                  BMCWEB_LOG_ERROR
 -                                    << "doPatch resp_handler got error " << ec;
 +                                    << "getBiosAttributes DBUS error: " << ec;
-                                 messages::internalError(asyncResp->res);
-                                 return;
-                             }
++                                messages::internalError(asyncResp->res);
++                                return;
++                            }
 +
 +                            const BiosBaseTableType* baseBiosTable =
 +                                std::get_if<BiosBaseTableType>(&retBiosTable);
@@ -647,9 +648,9 @@ index 0bb0b9e..69340eb 100644
 +                            if (baseBiosTable == nullptr)
 +                            {
 +                                BMCWEB_LOG_ERROR << "baseBiosTable is empty.";
-+                                messages::internalError(asyncResp->res);
-+                                return;
-+                            }
+                                 messages::internalError(asyncResp->res);
+                                 return;
+                             }
 +
 +                            PendingAttributesType pendingAttributes{};
 +
@@ -895,10 +896,11 @@ index 0bb0b9e..69340eb 100644
                                      }
                                      if (optItemTypeRedfish == "OneOf")
                                      {
-@@ -671,6 +817,17 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
+@@ -671,7 +817,21 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
                                              std::get_if<std::string>(
                                                  &std::get<optItemValue>(
                                                      optItem));
+-                                        optItemJson[optItemTypeRedfish] =
 +
 +                                        if (!currValue)
 +                                        {
@@ -910,13 +912,18 @@ index 0bb0b9e..69340eb 100644
 +                                            continue;
 +                                        }
 +
-                                         optItemJson[optItemTypeRedfish] =
++                                        optItemJson["ValueDisplayName"] =
++                                            currValue != nullptr ? *currValue
++                                                                 : "";
++                                        optItemJson["ValueName"] =
                                              currValue != nullptr ? *currValue
                                                                   : "";
-@@ -681,6 +838,17 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
+                                     }
+@@ -681,7 +841,21 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
                                              std::get_if<int64_t>(
                                                  &std::get<optItemValue>(
                                                      optItem));
+-                                        optItemJson[optItemTypeRedfish] =
 +
 +                                        if (!currValue)
 +                                        {
@@ -928,10 +935,14 @@ index 0bb0b9e..69340eb 100644
 +                                            continue;
 +                                        }
 +
-                                         optItemJson[optItemTypeRedfish] =
++                                        optItemJson["ValueDisplayName"] =
++                                            currValue != nullptr ? *currValue
++                                                                 : 0;
++                                        optItemJson["ValueName"] =
                                              currValue != nullptr ? *currValue
                                                                   : 0;
-@@ -689,6 +857,12 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
+                                     }
+@@ -689,6 +863,12 @@ inline void requestRoutesBiosAttributeRegistry(App& app)
                                      optionsArray.push_back(optItemJson);
                                  }
  

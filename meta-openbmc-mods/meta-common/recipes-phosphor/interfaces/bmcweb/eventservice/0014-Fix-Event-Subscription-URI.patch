@@ -1,0 +1,37 @@
+From 93daba6ca2de8a82492ea88a7da75a7d337123e1 Mon Sep 17 00:00:00 2001
+From: Gayathri Leburu <gayathri.leburu@intel.com>
+Date: Wed, 9 Feb 2022 10:45:19 +0000
+Subject: [PATCH] Fix Event Subscription URI
+
+While performing GET on /redfish/v1/EventService/Subscriptions/ results
+in error 405 - Method not allowed.
+
+This commit fixes the subscription URI while registering the ROUTE i.e.,
+during BMCWEB_ROUTE.
+
+TESTED :
+ - GET on /redfish/v1/EventService/Subscriptions/ successfully returned
+   all the list of subscribed events.
+
+Signed-off-by: Gayathri Leburu <gayathri.leburu@intel.com>
+Change-Id: I0edcfd8403e0178fe84d6b8328dabad71c4d5c98
+---
+ redfish-core/lib/event_service.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/event_service.hpp b/redfish-core/lib/event_service.hpp
+index 9b4f6bd..7359a82 100644
+--- a/redfish-core/lib/event_service.hpp
++++ b/redfish-core/lib/event_service.hpp
+@@ -173,7 +173,7 @@ inline void requestRoutesSubmitTestEvent(App& app)
+ 
+ inline void requestRoutesEventDestinationCollection(App& app)
+ {
+-    BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions")
++    BMCWEB_ROUTE(app, "/redfish/v1/EventService/Subscriptions/")
+         .privileges(redfish::privileges::getEventDestinationCollection)
+         .methods(boost::beast::http::verb::get)(
+             [](const crow::Request&,
+-- 
+2.17.1
+

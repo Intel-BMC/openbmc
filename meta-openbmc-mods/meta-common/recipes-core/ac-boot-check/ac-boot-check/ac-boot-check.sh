@@ -21,6 +21,14 @@ done < /proc/cmdline
 
 busctl set-property xyz.openbmc_project.Settings /xyz/openbmc_project/control/host0/ac_boot xyz.openbmc_project.Common.ACBoot ACBoot s "$ACBOOT"
 
+if [ "$ACBOOT" == "True" ]; then
+  # On AC cycle, setting service's last event parameters of PFR reset to allow logging of every recovery event in redfish event log
+  busctl set-property xyz.openbmc_project.Settings /xyz/openbmc_project/pfr/last_events  xyz.openbmc_project.PFR.LastEvents lastMajorErr y 0
+  busctl set-property xyz.openbmc_project.Settings /xyz/openbmc_project/pfr/last_events  xyz.openbmc_project.PFR.LastEvents lastMinorErr y 0
+  busctl set-property xyz.openbmc_project.Settings /xyz/openbmc_project/pfr/last_events  xyz.openbmc_project.PFR.LastEvents lastPanicCount y 0
+  busctl set-property xyz.openbmc_project.Settings /xyz/openbmc_project/pfr/last_events  xyz.openbmc_project.PFR.LastEvents lastRecoveryCount y 0
+fi
+
 source /etc/os-release
 
 echo "VERSION INFO - BMC - ${VERSION_ID}"

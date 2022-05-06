@@ -1,4 +1,4 @@
-From a9f5d0357701c817106cd158d377ef645309ccc2 Mon Sep 17 00:00:00 2001
+From 622a7d9cae44056b7cc06f1c1997fc883cd8c954 Mon Sep 17 00:00:00 2001
 From: gokulsanker <gokul.sanker.v.g@intel.com>
 Date: Wed, 8 Dec 2021 01:44:19 +0530
 Subject: [PATCH] If FFUJ is enabled serial console must be disabled
@@ -8,16 +8,56 @@ line interface. Serial console is disabled by creating
 an indefinite sleep if FFUJ is enabled, same
 functionality is used in whitely platforms
 
+Since, boot failure check and FFUJ check were handled
+by a single function, U-boot was disabling serial console which was the
+expected behaviour of FFUJ mode.
+That single fuction was splitted into two separate function for FFUJ
+check and boot failure check. So in case of failed boot check, BMC
+is going for #ast mode.
+
 Tested:
 Serial console is disabled in FFUJ mode
 
-Signed-off-by: gokulsanker <gokul.sanker.v.g@intel.com>
----
- common/autoboot.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+After 3rd terminating command for watchdog,this is the output:
+Board ID: 0x02
+Net: eth1: ftgmac@1e680000
+FFUJ: 0
+Intel failed boot check
+ast#
 
+Signed-off-by: gokulsanker <gokul.sanker.v.g@intel.com>
+Signed-off-by: Anjaliintel-21 <anjali.ray@intel.com>
+---
+ board/aspeed/ast2600_intel/intel.c |  6 ++----
+ common/autoboot.c                  | 16 ++++++++++++++--
+ 2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index 37b798ea44..fc435935de 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -57,7 +57,8 @@ int intel_failed_boot(void)
+ 		ret = led_get_by_label("id", &dev);
+ 		if (!ret)
+ 			led_set_state(dev, LEDST_ON);
+-
++		printf("Intel failed boot check \n");
++
+ 		return 1;
+ 	}
+ 
+@@ -111,9 +112,6 @@ int gpio_abort(void)
+ {
+ 	int value;
+ 
+-	if (intel_failed_boot())
+-		return 1;
+-
+ 	/* check ffuj to abort the autoboot */
+ 	value = read_ffuj();
+ 	printf("FFUJ: %d\n", value);
 diff --git a/common/autoboot.c b/common/autoboot.c
-index 8a99780423..21e59feea7 100644
+index 8a99780423..b9b872f6f1 100644
 --- a/common/autoboot.c
 +++ b/common/autoboot.c
 @@ -19,6 +19,7 @@ DECLARE_GLOBAL_DATA_PTR;
@@ -28,13 +68,12 @@ index 8a99780423..21e59feea7 100644
  #ifndef DEBUG_BOOTKEYS
  #define DEBUG_BOOTKEYS 0
  #endif
-@@ -271,9 +272,14 @@ static int abortboot(int bootdelay)
+@@ -271,9 +272,20 @@ static int abortboot(int bootdelay)
  {
  	int abort = 0;
  
 -	abort =	gpio_abort();
 -	if (abort)
--		goto exit;
 +	if (gpio_abort())
 +	{
 +		printf("#### BMC is in disabled state(FFU Jumper is asserted), "
@@ -42,6 +81,12 @@ index 8a99780423..21e59feea7 100644
 +		while (1) {
 +			mdelay(WAIT_STATE_TIMEOUT);
 +		}
++	}
++
++	if (intel_failed_boot())
++	{
++		abort=1;
+ 		goto exit;
 +	}
  
  	if (bootdelay >= 0)

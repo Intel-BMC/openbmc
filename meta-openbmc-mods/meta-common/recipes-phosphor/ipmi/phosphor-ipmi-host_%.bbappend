@@ -10,6 +10,7 @@ SRC_URI += "file://phosphor-ipmi-host.service \
             file://0059-Move-Set-SOL-config-parameter-to-host-ipmid.patch \
             file://0060-Move-Get-SOL-config-parameter-to-host-ipmid.patch \
             file://0063-Save-the-pre-timeout-interrupt-in-dbus-property.patch \
+            file://0064-user_mgmt-Fix-for-user-privilege-race-condition.patch \
             "
 
 EXTRA_OECONF:append = " --disable-i2c-whitelist-check"

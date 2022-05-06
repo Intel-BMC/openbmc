@@ -1,0 +1,56 @@
+From 12adbae465b3f6b3dc8aa2a444bc295e8261c382 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Tue, 15 Feb 2022 10:14:57 +0000
+Subject: [PATCH] Change Severity for ServiceFailure redfish event
+
+During Ac cycle stress, at times some services may exit unsuccessfully.
+This will not have any functionality impact. So updated Severity of
+"ServiceFailure" redfish event to "Ok".
+
+Tested:
+1. Redfish validator - passed for this with change
+2. Killed couple of process and observed Redfish EventLog shows updated
+   Severity.
+Redfish URI:
+GET: https://<BMC IP>/redfish/v1/Systems/system/LogServices/EventLog
+            /Entries
+{
+   "@odata.id": "/redfish/v1/Systems/system/LogServices/
+                 EventLog/Entries/1624604288",
+   "@odata.type": "#LogEntry.v1_4_0.LogEntry",
+   "Created": "2021-06-25T06:58:08+00:00",
+   "EntryType": "Event",
+   "Id": "1624604288",
+   "Message": "Service phosphor-ipmi-host.service has exited
+               unsuccessfully.",
+   "MessageArgs": [
+       "phosphor-ipmi-host.service"
+   ],
+   "MessageId": "OpenBMC.0.1.ServiceFailure",
+   "Name": "System Event Log Entry",
+   "Severity": "OK"
+}
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ redfish-core/include/registries/openbmc_message_registry.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 3747aaf..0b409cf 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -2375,8 +2375,8 @@ constexpr std::array<MessageEntry, 199> registry = {
+                  {
+                      "Indicates that a service has exited unsuccessfully.",
+                      "Service %1 has exited unsuccessfully.",
+-                     "Warning",
+-                     "Warning",
++                     "OK",
++                     "OK",
+                      1,
+                      {"string"},
+                      "None.",
+-- 
+2.17.1
+

@@ -1,0 +1,60 @@
+From 1429b5e9d7a1aa2b0ac9b997b56f53728f8de712 Mon Sep 17 00:00:00 2001
+From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
+Date: Thu, 3 Feb 2022 23:56:33 +0530
+Subject: [PATCH] Add dummy cpu sensor flag
+
+With updated cpu sensor logic, the setupRead() will get called for
+dummy sensors as well. This will cause cpu sensor to exit unsuccessfully.
+
+Add a flag to skip dummy sensors from polling.
+
+Tested:
+CPU sensor polling worked  as expected.
+Unsuccessfull service exit issue is not observed.
+
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+---
+ include/CPUSensor.hpp | 1 +
+ src/CPUSensor.cpp     | 7 ++++++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 0ba4090..b5921b9 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -63,6 +63,7 @@ class CPUSensor : public Sensor, public std::enable_shared_from_this<CPUSensor>
+     uint8_t minMaxReadCounter;
+     unsigned int scaleFactor;
+     int fd;
++    bool dummySensor = false;
+     void handleResponse(const boost::system::error_code& err);
+     void checkThresholds(void) override;
+     void updateMinMaxValues(void);
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 8c49bc5..7990e99 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -91,7 +91,7 @@ CPUSensor::CPUSensor(const std::string& objectType,
+            objectType, false, false, 0, 0, conn, PowerState::on),
+     objServer(objectServer), inputDev(io),
+     privTcontrol(std::numeric_limits<double>::quiet_NaN()), dtsOffset(0),
+-    show(true), minMaxReadCounter(0)
++    show(true), minMaxReadCounter(0), dummySensor(true)
+ {
+     // assume it is a temperature sensor for now
+     // support for other type can be added later
+@@ -176,6 +176,11 @@ bool CPUSensor::initInputDev()
+ 
+ void CPUSensor::setupRead(boost::asio::yield_context yield)
+ {
++    if (dummySensor)
++    {
++        return;
++    }
++
+     if (!readingStateGood())
+     {
+         markAvailable(false);
+-- 
+2.17.1
+

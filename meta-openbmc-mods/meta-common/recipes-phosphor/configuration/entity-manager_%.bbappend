@@ -4,7 +4,8 @@ SRCREV = "3b802f1c8c030965b76737966b9b022433e6ef5b"
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-SRC_URI += " file://0002-Entity-manager-Add-support-to-update-assetTag.patch \
+SRC_URI += " file://0001-fru-device-Add-MUX-channel-name-to-FRU-objects.patch \
+             file://0002-Entity-manager-Add-support-to-update-assetTag.patch \
              file://0003-Add-logs-to-fwVersionIsSame.patch \
              file://0004-Adding-MUX-and-Drives-present-in-HSBP-in-json-config.patch \
              file://0005-Allow-MUX-idle-state-to-be-configured-as-DISCONNECT.patch \

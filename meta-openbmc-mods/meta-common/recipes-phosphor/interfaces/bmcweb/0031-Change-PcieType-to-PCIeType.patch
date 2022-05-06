@@ -1,0 +1,68 @@
+From 5b69a40d50b7ca024dea83dbadcfdaa5e045918d Mon Sep 17 00:00:00 2001
+From: Anjaliintel-21 <anjali.ray@intel.com>
+Date: Tue, 15 Feb 2022 16:01:14 +0000
+Subject: [PATCH] Change PcieType to PCIeType
+
+In the patch:https://github.com/openbmc/bmcweb/commit/62cd45af311e7741064c114581ba34186d6e508c
+
+Mismatch of PCIeType from pcie.hpp to PCIeDevice_v1.xml.In function requestRoutesSystemPCIeDevice,
+PCIeType mentioned for PCIeInterface details, was written as PcieType but in PCIeDevice_v1.xml,
+property name is PCIeType which was giving error in the validator.
+
+Tested using RedfishServiceValidator:
+*** /redfish/v1/Systems/system/PCIeDevices
+Type (#PCIeDeviceCollection.PCIeDeviceCollection), GET SUCCESS (time: 1.35205)
+PASS
+
+*** /redfish/v1/Systems/system/PCIeDevices/S0B1D0
+Type (#PCIeDevice.v1_4_0.PCIeDevice), GET SUCCESS (time: 1.290409)
+PASS
+
+*** /redfish/v1/Systems/system/PCIeDevices/S0B1D0/PCIeFunctions
+Type (#PCIeFunctionCollection.PCIeFunctionCollection), GET SUCCESS (time: 1.287055)
+PASS
+
+*** /redfish/v1/Systems/system/PCIeDevices/S0B1D0/PCIeFunctions/0
+Type (#PCIeFunction.v1_2_0.PCIeFunction), GET SUCCESS (time: 1.336434)
+PASS
+
+*** /redfish/v1/Systems/system/PCIeDevices/S0B2D0
+Type (#PCIeDevice.v1_4_0.PCIeDevice), GET SUCCESS (time: 1.282768)
+PASS
+
+*** /redfish/v1/Systems/system/PCIeDevices/S0B2D0/PCIeFunctions
+Type (#PCIeFunctionCollection.PCIeFunctionCollection), GET SUCCESS (time: 1.401044)
+PASS
+
+*** /redfish/v1/Systems/system/PCIeDevices/S0B2D0/PCIeFunctions/0
+Type (#PCIeFunction.v1_2_0.PCIeFunction), GET SUCCESS (time: 1.286989)
+PASS
+
+*** /redfish/v1/Systems/system/PCIeDevices/S0B3D0
+Type (#PCIeDevice.v1_4_0.PCIeDevice), GET SUCCESS (time: 1.331661)
+PASS
+Elapsed time: 0:01:17
+Counter({'metadataNamespaces': 2337, 'skipOptional': 67, 'pass': 51, 'passGet': 8, 'serviceNamespaces': 4})
+Validation has succeeded.
+
+Signed-off-by: Anjaliintel-21 <anjali.ray@intel.com>
+---
+ redfish-core/lib/pcie.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/pcie.hpp b/redfish-core/lib/pcie.hpp
+index 1904c26..1b9e28e 100644
+--- a/redfish-core/lib/pcie.hpp
++++ b/redfish-core/lib/pcie.hpp
+@@ -223,7 +223,7 @@ inline void requestRoutesSystemPCIeDevice(App& app)
+                                 return;
+                             }
+                             asyncResp->res
+-                                .jsonValue["PCIeInterface"]["PcieType"] =
++                                .jsonValue["PCIeInterface"]["PCIeType"] =
+                                 *generationInUse;
+                         }
+                         asyncResp->res.jsonValue["PCIeFunctions"] = {
+-- 
+2.17.1
+

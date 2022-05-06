@@ -2,7 +2,7 @@ SUMMARY = "Virtual Media Service"
 DESCRIPTION = "Virtual Media Service"
 
 SRC_URI = "git://git@github.com/Intel-BMC/virtual-media.git;protocol=ssh;branch=main"
-SRCREV = "6165e07cd0ef6da314ed1ef4f58fe47b7d8112db"
+SRCREV = "6df74a76eeacc5240d36fa7e62717cd1cdd238a7"
 
 S = "${WORKDIR}/git"
 PV = "1.0+git${SRCPV}"

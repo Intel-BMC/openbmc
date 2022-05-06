@@ -15,6 +15,11 @@ SRC_URI += "\
     file://0007-Add-support-for-the-energy-hwmon-type.patch \
     file://0008-CPUSensor-additional-debug-message.patch \
     file://0009-CPUSensor-Create-CPUConfig-for-each-PECI-adapter.patch \
+    file://0010-Add-support-for-Get-PMBUS-Readings-method.patch \
+    file://0011-Fix-for-cpusensor-going-into-D-state.patch \
+    file://0012-Serialize-cpusensor-polling.patch \
+    file://0013-Add-dummy-cpu-sensor-flag.patch \
+    file://0014-Treat-zero-temperatures-readings-as-errors-in-IpmbSe.patch \
     "
 
 DEPENDS:append = " libgpiod libmctp"
