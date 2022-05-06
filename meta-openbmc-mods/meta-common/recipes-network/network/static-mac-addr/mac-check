@@ -84,7 +84,7 @@ configure_netipmid_svc_eth1() {
             /bin/systemctl enable "phosphor-ipmi-net@eth1.socket"
             /bin/systemctl start "phosphor-ipmi-net@eth1.socket"
         fi
-        if [ $(systemctl is-enabled phosphor-ipmi-net@eth1.service) =="disabled" ];
+        if [ $(systemctl is-enabled phosphor-ipmi-net@eth1.service) == "disabled" ];
         then
             /bin/systemctl enable "phosphor-ipmi-net@eth1.service"
             /bin/systemctl start "phosphor-ipmi-net@eth1.service"

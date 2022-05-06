@@ -1,0 +1,26 @@
+From bf27d571ef4e46724a60e26ff52e0eae9709db75 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 11 Jan 2022 09:00:01 -0800
+Subject: [PATCH] Fix PSU fan sensor read 0
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ drivers/hwmon/pmbus/pmbus_core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/hwmon/pmbus/pmbus_core.c b/drivers/hwmon/pmbus/pmbus_core.c
+index a4bf6f0fe013..c45b283fffa7 100644
+--- a/drivers/hwmon/pmbus/pmbus_core.c
++++ b/drivers/hwmon/pmbus/pmbus_core.c
+@@ -997,7 +997,7 @@ static ssize_t pmbus_set_sensor(struct device *dev,
+ 	if (ret < 0)
+ 		rv = ret;
+ 	else
+-		sensor->data = -ENODATA;
++		sensor->data = regval;
+ 	mutex_unlock(&data->update_lock);
+ 	return rv;
+ }
+-- 
+2.17.1
+

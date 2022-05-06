@@ -3,19 +3,11 @@ inherit useradd
 # TODO: This should be removed, once up-stream bump up
 # issue is resolved
 SRC_URI += "git://github.com/openbmc/phosphor-net-ipmid"
-SRCREV = "af23add2a2cf73226cdc72af4793fde6357e8932"
+SRCREV = "2528dfbdfdac5e0167d6529a25ee12b556577e1a"
 
 USERADD_PACKAGES = "${PN}"
 # add a group called ipmi
 GROUPADD_PARAM:${PN} = "ipmi "
-
-# Default rmcpp iface is eth0; channel 1
-# Add channel 2 instance (eth1)
-RMCPP_EXTRA = "eth1"
-SYSTEMD_SERVICE:${PN} += " \
-        ${PN}@${RMCPP_EXTRA}.service \
-        ${PN}@${RMCPP_EXTRA}.socket \
-        "
 
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 

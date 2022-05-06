@@ -1,0 +1,26 @@
+From 3f651f6d9d9f6c07c852a94966d40f2390c528b0 Mon Sep 17 00:00:00 2001
+From: Gokul Sanker V G <gokul.sanker.v.g@intel.com>
+Date: Wed, 26 Jan 2022 17:35:27 +0530
+Subject: [PATCH] Added timeout to systemd-networkd-wait-online.service
+
+Signed-off-by: Gokul Sanker V G <gokul.sanker.v.g@intel.com>
+---
+ units/systemd-networkd-wait-online.service.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/units/systemd-networkd-wait-online.service.in b/units/systemd-networkd-wait-online.service.in
+index 10d8b08c8e..04abd55ef4 100644
+--- a/units/systemd-networkd-wait-online.service.in
++++ b/units/systemd-networkd-wait-online.service.in
+@@ -18,7 +18,7 @@ Before=network-online.target shutdown.target
+ 
+ [Service]
+ Type=oneshot
+-ExecStart={{ROOTLIBEXECDIR}}/systemd-networkd-wait-online
++ExecStart={{ROOTLIBEXECDIR}}/systemd-networkd-wait-online --timeout=60
+ RemainAfterExit=yes
+ 
+ [Install]
+-- 
+2.17.1
+

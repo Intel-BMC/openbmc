@@ -1,0 +1,106 @@
+From 45c367e066d36ed0f7a38a12c80c1a40930efdfb Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Wed, 29 Dec 2021 10:28:53 +0100
+Subject: [PATCH] Fixed timestamp in telemetry service
+
+Telemetry service is using timestamp with milliseconds accuracy. Bmcweb
+code assumed that timestamp is in seconds which produced a bad result.
+This patchset updates the APIs, and adds a getDateTimeUintMs method,
+which can be used to convert a millisecond timestamp into a string.  In
+the future, this can be used to get more precision out of the API.
+
+Reference: '9.4.3. Date-Time values'
+https://www.dmtf.org/sites/default/files/standards/documents/DSP0266_1.8.0.pdf
+
+Tested:
+- Telemetry service timestamp show correct timestamp with milliseconds
+  precission. Example: 2022-01-11T13:06:58.648000+00:00
+- Other timestamps in bmcweb did not change
+- All unit tests are passing
+
+Reference: Properties.Readings
+https://github.com/openbmc/phosphor-dbus-interfaces/blob/master/yaml/xyz/openbmc_project/Telemetry/Report.interface.yaml
+
+Signed-off-by: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Signed-off-by: Ed Tanous <edtanous@google.com>
+Change-Id: I5b40ef6889b5af8c045ec0d35a758967e53dbed2
+---
+ http/utility.hpp                   | 28 +++++++++++++++++-----------
+ redfish-core/lib/metric_report.hpp |  4 ++--
+ 2 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/http/utility.hpp b/http/utility.hpp
+index 033755e..374caea 100644
+--- a/http/utility.hpp
++++ b/http/utility.hpp
+@@ -572,29 +572,35 @@ inline bool base64Decode(const std::string_view input, std::string& output)
+     return true;
+ }
+ 
+-/**
+- * Method returns Date Time information in the ISO extended format
+- *
+- * @param[in] timestamp in second since the Epoch; it can be negative
+- *
+- * @return Date Time in the ISO extended format
+- */
+-inline std::string getDateTime(boost::posix_time::seconds secondsSinceEpoch)
++namespace details
++{
++inline std::string getDateTime(boost::posix_time::milliseconds timeSinceEpoch)
+ {
+     boost::posix_time::ptime epoch(boost::gregorian::date(1970, 1, 1));
+-    boost::posix_time::ptime time = epoch + secondsSinceEpoch;
++    boost::posix_time::ptime time = epoch + timeSinceEpoch;
+     // append zero offset to the end according to the Redfish spec for Date-Time
+     return boost::posix_time::to_iso_extended_string(time) + "+00:00";
+ }
++} // namespace details
+ 
+ inline std::string getDateTimeUint(uint64_t secondsSinceEpoch)
+ {
+-    return getDateTime(boost::posix_time::seconds(secondsSinceEpoch));
++    boost::posix_time::seconds boostSeconds(secondsSinceEpoch);
++    return details::getDateTime(
++        boost::posix_time::milliseconds(boostSeconds.total_milliseconds()));
++}
++
++inline std::string getDateTimeUintMs(uint64_t millisSecondsSinceEpoch)
++{
++    return details::getDateTime(
++        boost::posix_time::milliseconds(millisSecondsSinceEpoch));
+ }
+ 
+ inline std::string getDateTimeStdtime(std::time_t secondsSinceEpoch)
+ {
+-    return getDateTime(boost::posix_time::seconds(secondsSinceEpoch));
++    boost::posix_time::ptime time =
++        boost::posix_time::from_time_t(secondsSinceEpoch);
++    return boost::posix_time::to_iso_extended_string(time) + "+00:00";
+ }
+ 
+ /**
+diff --git a/redfish-core/lib/metric_report.hpp b/redfish-core/lib/metric_report.hpp
+index b7ebb99..f933cd4 100644
+--- a/redfish-core/lib/metric_report.hpp
++++ b/redfish-core/lib/metric_report.hpp
+@@ -28,7 +28,7 @@ inline nlohmann::json toMetricValues(const Readings& readings)
+             {"MetricId", id},
+             {"MetricProperty", metadata},
+             {"MetricValue", std::to_string(sensorValue)},
+-            {"Timestamp", crow::utility::getDateTimeUint(timestamp)},
++            {"Timestamp", crow::utility::getDateTimeUintMs(timestamp)},
+         });
+     }
+ 
+@@ -46,7 +46,7 @@ inline bool fillReport(nlohmann::json& json, const std::string& id,
+         telemetry::metricReportDefinitionUri + std::string("/") + id;
+ 
+     const auto& [timestamp, readings] = timestampReadings;
+-    json["Timestamp"] = crow::utility::getDateTimeUint(timestamp);
++    json["Timestamp"] = crow::utility::getDateTimeUintMs(timestamp);
+     json["MetricValues"] = toMetricValues(readings);
+     return true;
+ }
+-- 
+2.25.1

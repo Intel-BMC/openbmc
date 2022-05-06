@@ -1,0 +1,49 @@
+From 3659064b5ef97e78f054823657670d226bb0420e Mon Sep 17 00:00:00 2001
+From: Arun Lal K M <arun.lal@intel.com>
+Date: Thu, 10 Feb 2022 17:21:30 +0000
+Subject: [PATCH] Treat zero temperatures readings as errors in IpmbSensors
+
+During normal operations, IpmbSensors temperature sensors are not
+expected to read zero value. There might be some other root cause
+need to be identified and addressed. Treat zeros readings as errors
+in temperatures as a workaround.
+
+Tested:
+Valid temperature reading is being reported in IpmbSensors.
+By giving ipmitool sensors list command.
+
+CPU1 North VR Te | 36.000
+CPU1 PVCCD VR Te | 39.000
+CPU1 PVCCFA EHV  | 37.000
+CPU1 South VR Te | 37.000
+CPU1 VCCIN VR Te | 51.000
+CPU2 North VR Te | 40.000
+CPU2 PVCCD VR Te | 43.000
+CPU2 PVCCFA EHV  | 38.000
+CPU2 South VR Te | 36.000
+CPU2 VCCIN VR Te | 50.000
+
+Signed-off-by: Arun Lal K M <arun.lal@intel.com>
+---
+ src/IpmbSensor.cpp | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 75f74b5..e7d1ded 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -458,7 +458,10 @@ void IpmbSensor::read(void)
+ 
+                 double value = 0;
+ 
+-                if (!processReading(data, value))
++                // Temperature sensors are not expected to read 0
++                // treat them as errors
++                if (!processReading(data, value) ||
++                    (subType == IpmbSubType::temp && value == 0.0))
+                 {
+                     incrementError();
+                     read();
+-- 
+2.17.1
+

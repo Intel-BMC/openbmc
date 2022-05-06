@@ -1,0 +1,457 @@
+From 5c2fbc31b076a32d0291e74046a576de852ac90c Mon Sep 17 00:00:00 2001
+From: Arun Lal K M <arun.lal@intel.com>
+Date: Thu, 6 Jan 2022 20:30:09 +0000
+Subject: [PATCH] Add support for 'Get PMBUS Readings' method.
+
+VR sensor is currently read in the following way:
+BMC gives read command, and ME proxy forward it to VR sensor.
+
+In 'Get PMBUS Readings' method BMC reads the data from ME.
+This is used in platforms where ME cannot proxy forward PMBUS command.
+
+Command:
+0x2E 0xF5 0x57 0x01 0x00 0x<ID> 0x0F 0x00
+
+0x2E is net function
+0xF5 is corresponding to 'Get PMBUS Readings'
+0x57 0x01 0x00 is Intel manufacturers ID
+ID is the ID of senssor in ME (not actual sensor address)
+0x0F is PMBUS-enabled Device Index
+0x00 is reserved byte
+
+New configuration parameters in Baseboard.json:
+1) DeviceIndex: ID of the sensor in ME.
+2) ReadMethod: use "ReadME" for 'Get PMBUS Readings'.
+3) Register: Register to read in the response byte array.
+   For example,
+      Registers 1 = Temperature
+      Registers 2 = Voltage
+      Registers 3 = Current
+
+Note:
+This is not a complete replacement for the old method, we are adding
+one more way to read these sensors. The old implementation is still
+present, as in, new code with old configuration file
+(xx_Baseboard.json) will work (using the old method of reading the
+sensor).
+
+References:
+1) Intelligent Power Node Manager External Interface Specification
+   Using IPMI.
+2) PMBus-Specification.
+
+Tested:
+Case 1: Using proxy (Backward compatibility testing)
+Sample configuration in Baseboard.json:
+{
+    "Address": "0xXX",
+    "Class": "MpsBridgeTemp",
+    "Name": "XX VR Temp",
+    "Thresholds": [...],
+    "Type": "IpmbSensor"
+}
+
+Give command 'ipmitool sdr elist'
+Response:
+CPU1 PVCCD VR Te | 31h | ok  |  0.1 | 37 degrees C
+CPU2 PVCCD VR Te | 36h | ok  |  0.1 | 37 degrees C
+CPU1 PVCCFA EHV  | 32h | ok  |  0.1 | 34 degrees C
+CPU2 PVCCFA EHV  | 37h | ok  |  0.1 | 33 degrees C
+CPU1 VCCIN VR Te | 34h | ok  |  0.1 | 48 degrees C
+CPU2 VCCIN VR Te | 39h | ok  |  0.1 | 58 degrees C
+
+Case 2: Using 'Get PMBUS Readings' method
+Sample configuration in Baseboard.json:
+{
+    "Address": "0xXX",
+    "DeviceIndex": "0xXX",
+    "Class": "MpsBridgeTemp",
+    "Register": 1,
+    "ReadMethod": "ReadME",
+    "Name": "XX VR Temp",
+    "Thresholds": [...],
+    "Type": "IpmbSensor"
+}
+
+Give command 'ipmitool sdr elist'
+Response:
+CPU1 PVCCD VR Te | 31h | ok  |  0.1 | 41 degrees C
+CPU2 PVCCD VR Te | 36h | ok  |  0.1 | 43 degrees C
+CPU1 PVCCFA EHV  | 32h | ok  |  0.1 | 37 degrees C
+CPU2 PVCCFA EHV  | 37h | ok  |  0.1 | 37 degrees C
+CPU1 VCCIN VR Te | 34h | ok  |  0.1 | 60 degrees C
+CPU2 VCCIN VR Te | 39h | ok  |  0.1 | 56 degrees C
+
+Signed-off-by: Arun Lal K M <arun.lal@intel.com>
+---
+ include/IpmbSensor.hpp |  51 ++++++++++
+ src/IpmbSensor.cpp     | 217 ++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 233 insertions(+), 35 deletions(-)
+
+diff --git a/include/IpmbSensor.hpp b/include/IpmbSensor.hpp
+index 18d10c1..2a89251 100644
+--- a/include/IpmbSensor.hpp
++++ b/include/IpmbSensor.hpp
+@@ -43,6 +43,51 @@ namespace sensor
+ {
+ constexpr uint8_t netFn = 0x04;
+ constexpr uint8_t getSensorReading = 0x2d;
++constexpr uint8_t manufacturerId[3] = {0x57, 0x01, 0x00};
++
++namespace read_me
++{
++/**
++ * Refernce:
++ * Intelligent Power Node Manager External Interface Specification
++ * getPmbusReadings = Get PMBUS Readings (F5h)
++ *
++ * bytesForTimestamp and bytesForManufacturerId are decoded from
++ * response bytes for Get PMBUS Readings.
++ */
++constexpr uint8_t getPmbusReadings = 0xF5;
++constexpr uint8_t bytesForTimestamp = 4;
++constexpr uint8_t bytesForManufacturerId = 3;
++
++constexpr size_t fixedOffset = bytesForTimestamp + bytesForManufacturerId;
++
++void getRawData(uint8_t registerToRead, const std::vector<uint8_t>& input,
++                std::vector<uint8_t>& result)
++{
++    if (input.size() < 3)
++    {
++        return;
++    }
++
++    /* Every register is two bytes*/
++    size_t offset = fixedOffset + (registerToRead * 2);
++    if (input.size() <= (offset + 1))
++    {
++        return;
++    }
++
++    result.reserve(5);
++
++    // ID
++    result.emplace_back(input[0]);
++    result.emplace_back(input[1]);
++    result.emplace_back(input[2]);
++
++    // Value in registerToRead
++    result.emplace_back(input[offset]);
++    result.emplace_back(input[offset + 1]);
++}
++} // namespace read_me
+ 
+ static bool isValid(const std::vector<uint8_t>& data)
+ {
+@@ -91,6 +136,7 @@ struct IpmbSensor : public Sensor
+     void loadDefaults(void);
+     void runInitCmd(void);
+     bool processReading(const std::vector<uint8_t>& data, double& resp);
++    void setReadMethod(const SensorBaseConfigMap& sensorBaseConfig);
+ 
+     IpmbType type;
+     IpmbSubType subType;
+@@ -102,6 +148,9 @@ struct IpmbSensor : public Sensor
+     uint8_t deviceAddress;
+     uint8_t errorCount;
+     uint8_t hostSMbusIndex;
++    uint8_t registerToRead = 0;
++    bool isReadMe = false;
++    uint8_t deviceIndex = 0;
+     std::vector<uint8_t> commandData;
+     std::optional<uint8_t> initCommand;
+     std::vector<uint8_t> initData;
+@@ -112,4 +161,6 @@ struct IpmbSensor : public Sensor
+   private:
+     sdbusplus::asio::object_server& objectServer;
+     boost::asio::deadline_timer waitTimer;
++
++    void getMeCommand();
+ };
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index eedf21e..75f74b5 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -150,6 +150,39 @@ void IpmbSensor::runInitCmd()
+     }
+ }
+ 
++/**
++ * Refernce:
++ * Intelligent Power Node Manager External Interface Specification
++ */
++void IpmbSensor::getMeCommand()
++{
++    /*
++     * Byte 1, 2, 3 = Manufacturer ID.
++     */
++    commandData.emplace_back(ipmi::sensor::manufacturerId[0]);
++    commandData.emplace_back(ipmi::sensor::manufacturerId[1]);
++    commandData.emplace_back(ipmi::sensor::manufacturerId[2]);
++
++    /*
++     * Byte 4 = Device Index.
++     */
++    commandData.emplace_back(deviceIndex);
++
++    /*
++     * Byte 5 = History index.
++     *   bit 0 to 3 = History index. Supported value: 0Fh to retrieve
++     *      current samples.
++     *   bit 4 to 7 = Page number – used only for devices which support
++     *      pages.
++     */
++    commandData.emplace_back(0x0F);
++
++    /*
++     * Byte 6 = First Register Offset.
++     */
++    commandData.emplace_back(0x00);
++}
++
+ void IpmbSensor::loadDefaults()
+ {
+     if (type == IpmbType::meSensor)
+@@ -164,28 +197,44 @@ void IpmbSensor::loadDefaults()
+     {
+         commandAddress = meAddress;
+         netfn = ipmi::me_bridge::netFn;
+-        command = ipmi::me_bridge::sendRawPmbus;
+-        initCommand = ipmi::me_bridge::sendRawPmbus;
+-        // pmbus read temp
+-        commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
+-                       deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                       0x01,          0x02, 0x8d};
+-        // goto page 0
+-        initData = {0x57,          0x01, 0x00, 0x14, hostSMbusIndex,
+-                    deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                    0x02,          0x00, 0x00, 0x00};
+         readingFormat = ReadingFormat::linearElevenBit;
++        if (isReadMe)
++        {
++            command = ipmi::sensor::read_me::getPmbusReadings;
++            getMeCommand();
++        }
++        else
++        {
++            command = ipmi::me_bridge::sendRawPmbus;
++            initCommand = ipmi::me_bridge::sendRawPmbus;
++            // pmbus read temp
++            commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
++                           deviceAddress, 0x00, 0x00, 0x00, 0x00,
++                           0x01,          0x02, 0x8d};
++            // goto page 0
++            initData = {0x57,          0x01, 0x00, 0x14, hostSMbusIndex,
++                        deviceAddress, 0x00, 0x00, 0x00, 0x00,
++                        0x02,          0x00, 0x00, 0x00};
++        }
+     }
+     else if (type == IpmbType::IR38363VR)
+     {
+         commandAddress = meAddress;
+         netfn = ipmi::me_bridge::netFn;
+-        command = ipmi::me_bridge::sendRawPmbus;
+-        // pmbus read temp
+-        commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
+-                       deviceAddress, 00,   0x00, 0x00, 0x00,
+-                       0x01,          0x02, 0x8D};
+         readingFormat = ReadingFormat::elevenBitShift;
++        if (isReadMe)
++        {
++            command = ipmi::sensor::read_me::getPmbusReadings;
++            getMeCommand();
++        }
++        else
++        {
++            command = ipmi::me_bridge::sendRawPmbus;
++            // pmbus read temp
++            commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
++                           deviceAddress, 00,   0x00, 0x00, 0x00,
++                           0x01,          0x02, 0x8D};
++        }
+     }
+     else if (type == IpmbType::ADM1278HSC)
+     {
+@@ -194,20 +243,28 @@ void IpmbSensor::loadDefaults()
+         {
+             case IpmbSubType::temp:
+             case IpmbSubType::curr:
+-                uint8_t snsNum;
+-                if (subType == IpmbSubType::temp)
++                netfn = ipmi::me_bridge::netFn;
++                readingFormat = ReadingFormat::elevenBit;
++                if (isReadMe)
+                 {
+-                    snsNum = 0x8d;
++                    command = ipmi::sensor::read_me::getPmbusReadings;
++                    getMeCommand();
+                 }
+                 else
+                 {
+-                    snsNum = 0x8c;
++                    uint8_t snsNum;
++                    if (subType == IpmbSubType::temp)
++                    {
++                        snsNum = 0x8d;
++                    }
++                    else
++                    {
++                        snsNum = 0x8c;
++                    }
++                    command = ipmi::me_bridge::sendRawPmbus;
++                    commandData = {0x57, 0x01, 0x00, 0x86, deviceAddress,
++                                   0x00, 0x00, 0x01, 0x02, snsNum};
+                 }
+-                netfn = ipmi::me_bridge::netFn;
+-                command = ipmi::me_bridge::sendRawPmbus;
+-                commandData = {0x57, 0x01, 0x00, 0x86, deviceAddress,
+-                               0x00, 0x00, 0x01, 0x02, snsNum};
+-                readingFormat = ReadingFormat::elevenBit;
+                 break;
+             case IpmbSubType::power:
+             case IpmbSubType::volt:
+@@ -224,17 +281,25 @@ void IpmbSensor::loadDefaults()
+     {
+         commandAddress = meAddress;
+         netfn = ipmi::me_bridge::netFn;
+-        command = ipmi::me_bridge::sendRawPmbus;
+-        initCommand = ipmi::me_bridge::sendRawPmbus;
+-        // pmbus read temp
+-        commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
+-                       deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                       0x01,          0x02, 0x8d};
+-        // goto page 0
+-        initData = {0x57,          0x01, 0x00, 0x14, hostSMbusIndex,
+-                    deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                    0x02,          0x00, 0x00, 0x00};
+         readingFormat = ReadingFormat::byte3;
++        if (isReadMe)
++        {
++            command = ipmi::sensor::read_me::getPmbusReadings;
++            getMeCommand();
++        }
++        else
++        {
++            command = ipmi::me_bridge::sendRawPmbus;
++            initCommand = ipmi::me_bridge::sendRawPmbus;
++            // pmbus read temp
++            commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
++                           deviceAddress, 0x00, 0x00, 0x00, 0x00,
++                           0x01,          0x02, 0x8d};
++            // goto page 0
++            initData = {0x57,          0x01, 0x00, 0x14, hostSMbusIndex,
++                        deviceAddress, 0x00, 0x00, 0x00, 0x00,
++                        0x02,          0x00, 0x00, 0x00};
++        }
+     }
+     else
+     {
+@@ -362,7 +427,19 @@ void IpmbSensor::read(void)
+                     read();
+                     return;
+                 }
+-                const std::vector<uint8_t>& data = std::get<5>(response);
++
++                std::vector<uint8_t> data;
++
++                if (isReadMe)
++                {
++                    ipmi::sensor::read_me::getRawData(
++                        registerToRead, std::get<5>(response), data);
++                }
++                else
++                {
++                    data = std::get<5>(response);
++                }
++
+                 if constexpr (debug)
+                 {
+                     std::cout << name << ": ";
+@@ -408,6 +485,74 @@ void IpmbSensor::read(void)
+             "sendRequest", commandAddress, netfn, lun, command, commandData);
+     });
+ }
++
++void IpmbSensor::setReadMethod(const SensorBaseConfigMap& sensorBaseConfig)
++{
++    /*
++     * Some sensor can be read in two ways
++     * 1) Using proxy: BMC read command is proxy forward by ME
++     * to sensor. 2) Using 'Get PMBUS Readings': ME responds to
++     * BMC with sensor data.
++     *
++     * By default we assume the method is 1. And if ReadMethod
++     * == "ReadME" we switch to method 2.
++     */
++    auto readMethod = sensorBaseConfig.find("ReadMethod");
++    if (readMethod == sensorBaseConfig.end())
++    {
++        std::cerr << "'ReadMethod' not found, defaulting to "
++                     "proxy method of reading sensor\n";
++        return;
++    }
++
++    if (std::visit(VariantToStringVisitor(), readMethod->second) != "ReadME")
++    {
++        std::cerr << "'ReadMethod' != 'ReadME', defaulting to "
++                     "proxy method of reading sensor\n";
++        return;
++    }
++
++    /*
++     * In 'Get PMBUS Readings' the response containt a
++     * set of registers from the sensor. And different
++     * values such as temperature power voltage will be
++     * mapped to different registers.
++     */
++    auto registerToReadConfig = sensorBaseConfig.find("Register");
++    if (registerToReadConfig == sensorBaseConfig.end())
++    {
++        std::cerr << "'Register' not found, defaulting to "
++                     "proxy method of reading sensor\n";
++        return;
++    }
++
++    registerToRead =
++        std::visit(VariantToUnsignedIntVisitor(), registerToReadConfig->second);
++
++    /*
++     * In 'Get PMBUS Readings' since ME is
++     * responding with the sensor data we need
++     * to use the address for sensor in ME, this
++     * is different from the actual sensor
++     * address.
++     */
++    auto deviceIndexConfig = sensorBaseConfig.find("SensorMeAddress");
++    if (deviceIndexConfig == sensorBaseConfig.end())
++    {
++        std::cerr << "'SensorMeAddress' not found, defaulting to "
++                     "proxy method of reading sensor\n";
++        return;
++    }
++
++    deviceIndex =
++        std::visit(VariantToUnsignedIntVisitor(), deviceIndexConfig->second);
++
++    /*
++     * We found all parameters to use 'Get PMBUS Readings'
++     * method.
++     */
++    isReadMe = true;
++}
+ void createSensors(
+     boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
+     boost::container::flat_map<std::string, std::unique_ptr<IpmbSensor>>&
+@@ -485,6 +630,8 @@ void createSensors(
+                         std::move(sensorThresholds), deviceAddress,
+                         hostSMbusIndex, pollRate, sensorTypeName);
+ 
++                    sensor->setReadMethod(entry.second);
++
+                     /* Initialize scale and offset value */
+                     sensor->scaleVal = 1;
+                     sensor->offsetVal = 0;
+-- 
+2.17.1
+

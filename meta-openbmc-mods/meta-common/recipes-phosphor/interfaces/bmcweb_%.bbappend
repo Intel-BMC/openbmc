@@ -23,6 +23,10 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0025-Add-Model-to-ProcessorSummary.patch \
             file://0026-Revert-Delete-the-copy-constructor-on-the-Request.patch \
             file://0027-Convert-VariantType-to-DbusVariantType.patch \
+            file://0028-Add-FirmwareResiliency-and-FirmwareUpdateStatus.patch \
+            file://0029-Fix-Property-PhysicalContext-is-invalid-none.patch \
+            file://0030-Change-Severity-for-ServiceFailure-redfish-event.patch \
+            file://0031-Change-PcieType-to-PCIeType.patch \
 "
 
 # OOB Bios Config:
@@ -44,6 +48,7 @@ SRC_URI += " \
             file://vm/0005-Set-Inserted-redfish-property-for-not-inserted-resou.patch \
             file://vm/0006-Bmcweb-handle-permission-denied-exception.patch \
             file://vm/0007-Fix-unmounting-image-in-proxy-mode.patch \
+            file://vm/0008-Return-404-for-POST-on-Proxy-InsertMedia.patch \
 "
 
 # EventService: Temporary pulled to downstream. See eventservice\README for details
@@ -58,6 +63,7 @@ SRC_URI += "file://eventservice/0001-Add-unmerged-changes-for-http-retry-support
             file://eventservice/0011-Fix-bmcweb-crash-while-deleting-terminated-subscriptions.patch \
             file://eventservice/0012-Add-support-for-deleting-terminated-subscriptions.patch \
             file://eventservice/0013-event-service-fix-added-Context-field-to-response.patch \
+            file://eventservice/0014-Fix-Event-Subscription-URI.patch \
 "
 
 
@@ -65,6 +71,7 @@ SRC_URI += "file://eventservice/0001-Add-unmerged-changes-for-http-retry-support
 SRC_URI += " file://telemetry/0001-Add-support-for-POST-on-TriggersCollection.patch \
              file://telemetry/0002-Revert-Remove-LogService-from-TelemetryService.patch \
              file://telemetry/0003-Switched-bmcweb-to-use-new-telemetry-service-API.patch \
+             file://telemetry/0004-Fixed-timestamp-in-telemetry-service.patch \
 "
 
 # Temporary downstream patch for routing and privilege changes
@@ -83,6 +90,7 @@ EXTRA_OEMESON += " -Dvm-nbdproxy=enabled"
 
 # Disable dependency on external nbd-proxy application
 EXTRA_OEMESON += " -Dvm-websocket=disabled"
+EXTRA_OEMESON += " -Dredfish-host-logger=disabled"
 RDEPENDS:${PN}:remove += "jsnbd"
 
 

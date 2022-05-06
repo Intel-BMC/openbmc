@@ -1,0 +1,119 @@
+From 5e41f37815549b0635941f7f0dbc2bb925f61cfd Mon Sep 17 00:00:00 2001
+From: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
+Date: Thu, 7 Oct 2021 16:07:47 +0000
+Subject: [PATCH] mainapp: Modify Redfish MessageID from 'Panic' to
+ 'Resiliency'
+
+Panic word not suitable for Platform firmware resiliency events. Hence
+modify the Redfish MessageID to following MessageIDs.
+1. FirmwareResiliency for warning severity events.
+2. FirmwareUpdateStatus for firmware update notifications with
+OK severity.
+
+The above Message registries are updated in below bmcweb review.
+https://gerrit.openbmc-project.xyz/c/openbmc/bmcweb/+/48988
+
+Tested:
+Enable PFR provision.
+
+1. Update BMC firmware
+POST: https://<BMC_IP>/redfish/v1/UpdateService/
+      with <BMC_Update_Capsule> binary file
+After BMC reboots check for Event log in Redfish
+Command: GET: https://<BMC_IP>/redfish/v1/Systems/system/LogServices/
+              EventLog/Entries
+Response:
+        {
+            "@odata.id": "/redfish/v1/Systems/system/LogServices/
+             EventLog/Entries/1618207226",
+            "@odata.type": "#LogEntry.v1_8_0.LogEntry",
+            "Created": "2021-04-12T06:00:26+00:00",
+            "EntryType": "Event",
+            "Id": "1618207226",
+            "Message": "Firmware update occurred due to BMC update
+             intent.",
+            "MessageArgs": [
+                "BMC update intent"
+            ],
+            "MessageId": "OpenBMC.0.2.FirmwareUpdateStatus",
+            "Name": "System Event Log Entry",
+            "Severity": "OK"
+        }
+2. Reset BMC.
+Command: ipmitool raw 6 2
+After BMC reboots check for Event log in Redfish
+Command: GET: https://<BMC_IP>/redfish/v1/Systems/system/LogServices/
+              EventLog/Entries
+Response:
+        {
+            "@odata.id": "/redfish/v1/Systems/system/LogServices/
+             EventLog/Entries/1618207249",
+            "@odata.type": "#LogEntry.v1_8_0.LogEntry",
+            "Created": "2021-04-12T06:02:49+00:00",
+            "EntryType": "Event",
+            "Id": "1618207249",
+            "Message": "Firmware resiliency event occurred due to BMC
+             reset detected.",
+            "MessageArgs": [
+                "BMC reset detected"
+            ],
+            "MessageId": "OpenBMC.0.2.FirmwareResiliency",
+            "Name": "System Event Log Entry",
+            "Severity": "Warning"
+        }
+
+Signed-off-by: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
+Change-Id: I1a3a563fb345dce270e3678290dbc7ee7c134b9e
+---
+ service/src/mainapp.cpp | 28 +++++++++++++---------------
+ 1 file changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/service/src/mainapp.cpp b/service/src/mainapp.cpp
+index 8a91dab..60bf3ad 100644
+--- a/service/src/mainapp.cpp
++++ b/service/src/mainapp.cpp
+@@ -83,16 +83,15 @@ static const boost::container::flat_map<uint8_t,
+ // {<CPLD association>, {<Redfish MessageID>, <Panic reason> })
+ static const boost::container::flat_map<uint8_t,
+                                         std::pair<std::string, std::string>>
+-    panicReasonMap = {
+-        {0x01, {"BIOSFirmwarePanicReason", "BIOS update intent"}},
+-        {0x02, {"BMCFirmwarePanicReason", "BMC update intent"}},
+-        {0x03, {"BMCFirmwarePanicReason", "BMC reset detected"}},
+-        {0x04, {"BMCFirmwarePanicReason", "BMC watchdog expired"}},
+-        {0x05, {"MEFirmwarePanicReason", "ME watchdog expired"}},
+-        {0x06, {"BIOSFirmwarePanicReason", "ACM watchdog expired"}},
+-        {0x09,
+-         {"BIOSFirmwarePanicReason",
+-          "ACM or IBB or OBB authentication failure"}}};
++    panicReasonMap = {{0x01, {"FirmwareUpdateStatus", "BIOS update intent"}},
++                      {0x02, {"FirmwareUpdateStatus", "BMC update intent"}},
++                      {0x03, {"FirmwareResiliency", "BMC reset detected"}},
++                      {0x04, {"FirmwareResiliency", "BMC watchdog expired"}},
++                      {0x05, {"FirmwareResiliency", "ME watchdog expired"}},
++                      {0x06, {"FirmwareResiliency", "ACM watchdog expired"}},
++                      {0x09,
++                       {"FirmwareResiliencyError",
++                        "ACM or IBB or OBB authentication failure"}}};
+ 
+ // Firmware resiliency major map.
+ // {<CPLD association>, {<Redfish MessageID>, <Error reason> })
+@@ -156,11 +155,10 @@ static void logLastPanicEvent()
+         return;
+     }
+ 
+-    std::string msgId = "OpenBMC.0.1." + it->second.first;
+-    sd_journal_send("MESSAGE=%s", "Platform firmware panic occurred.",
+-                    "PRIORITY=%i", LOG_WARNING, "REDFISH_MESSAGE_ID=%s",
+-                    msgId.c_str(), "REDFISH_MESSAGE_ARGS=%s",
+-                    it->second.second.c_str(), NULL);
++    std::string msgId = "OpenBMC.0.2." + it->second.first;
++    sd_journal_send("MESSAGE=Platform firmware resiliency event occurred.",
++                    "REDFISH_MESSAGE_ID=%s", msgId.c_str(),
++                    "REDFISH_MESSAGE_ARGS=%s", it->second.second.c_str(), NULL);
+ }
+ 
+ static void logResiliencyErrorEvent(const uint8_t majorErrorCode,
+-- 
+2.17.1
+

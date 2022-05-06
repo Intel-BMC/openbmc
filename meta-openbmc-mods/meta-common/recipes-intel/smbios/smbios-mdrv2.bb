@@ -2,7 +2,7 @@ SUMMARY = "SMBIOS MDR version 2 service for Intel based platform"
 DESCRIPTION = "SMBIOS MDR version 2 service for Intel based platfrom"
 
 SRC_URI = "git://github.com/openbmc/smbios-mdr.git"
-SRCREV = "bc924d0f9f590d7d420b9f7bc98bdb9b8688618e"
+SRCREV = "0435a483afb10a5eabe7ae93f07fbb2d2265e53f"
 
 S = "${WORKDIR}/git"
 

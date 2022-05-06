@@ -15,6 +15,7 @@ do_compile:prepend(){
 
 SRC_URI += " \
         file://intel.cfg \
+        file://0001-peci-aspeed-Improve-workaround-for-controller-hang.patch \
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://1000-128MB-flashmap-for-PFR.patch', '', d)}"

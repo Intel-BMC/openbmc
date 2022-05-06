@@ -1,0 +1,138 @@
+From 377fce592890a6dcc8bd45b3ff25290c4edb8908 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Fri, 21 Jan 2022 23:11:27 +0000
+Subject: [PATCH] Add FirmwareResiliency and FirmwareUpdateStatus
+
+Panic word not suitable for Platform firmware resiliency events. Hence
+add the following message registry for PFR events.
+1. FirmwareResiliency for warning severity events.
+2. FirmwareUpdateStatus for firmware update notifications with
+OK severity.
+
+These message registries are implemented in the following review.
+https://gerrit.openbmc-project.xyz/c/openbmc/pfr-manager/+/47609
+
+Tested:
+Redfish Service Validator test passed for this change.
+
+1. Update BMC firmware
+POST: https://<BMC_IP>/redfish/v1/UpdateService/
+      with <BMC_Update_Capsule> binary file
+After BMC reboots check for Event log in Redfish
+Command: GET: https://<BMC_IP>/redfish/v1/Systems/system/LogServices/
+              EventLog/Entries
+Response:
+{
+    "@odata.id": "/redfish/v1/Systems/system/LogServices/
+     EventLog/Entries/1618207226",
+    "@odata.type": "#LogEntry.v1_8_0.LogEntry",
+    "Created": "2021-04-12T06:00:26+00:00",
+    "EntryType": "Event",
+    "Id": "1618207226",
+    "Message": "Firmware update occurred due to BMC update
+     intent.",
+    "MessageArgs": [
+        "BMC update intent"
+    ],
+    "MessageId": "OpenBMC.0.2.FirmwareUpdateStatus",
+    "Name": "System Event Log Entry",
+    "Severity": "OK"
+}
+2. Reset BMC.
+Command: ipmitool raw 6 2
+After BMC reboots check for Event log in Redfish
+Command: GET: https://<BMC_IP>/redfish/v1/Systems/system/LogServices/
+              EventLog/Entries
+Response:
+{
+    "@odata.id": "/redfish/v1/Systems/system/LogServices/
+     EventLog/Entries/1618207249",
+    "@odata.type": "#LogEntry.v1_8_0.LogEntry",
+    "Created": "2021-04-12T06:02:49+00:00",
+    "EntryType": "Event",
+    "Id": "1618207249",
+    "Message": "Firmware resiliency event occurred due to BMC
+     reset detected.",
+    "MessageArgs": [
+        "BMC reset detected"
+    ],
+    "MessageId": "OpenBMC.0.2.FirmwareResiliency",
+    "Name": "System Event Log Entry",
+    "Severity": "Warning"
+}
+
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Signed-off-by: Chalapathi Venkataramashetty <chalapathix.venkataramashetty@intel.com>
+---
+ .../registries/openbmc_message_registry.hpp   | 33 ++++++++++++++++---
+ 1 file changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 967713f..3747aaf 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -21,15 +21,15 @@ namespace redfish::message_registries::openbmc
+ const Header header = {
+     "Copyright 2018 OpenBMC. All rights reserved.",
+     "#MessageRegistry.v1_4_0.MessageRegistry",
+-    "OpenBMC.0.2.0",
++    "OpenBMC.0.3.0",
+     "OpenBMC Message Registry",
+     "en",
+     "This registry defines the base messages for OpenBMC.",
+     "OpenBMC",
+-    "0.2.0",
++    "0.3.0",
+     "OpenBMC",
+ };
+-constexpr std::array<MessageEntry, 197> registry = {
++constexpr std::array<MessageEntry, 199> registry = {
+     MessageEntry{
+         "ADDDCCorrectable",
+         {
+@@ -560,9 +560,21 @@ constexpr std::array<MessageEntry, 197> registry = {
+                      {"string"},
+                      "None.",
+                  }},
++    MessageEntry{"FirmwareResiliency",
++                 {
++                     "Indicates the reason for last firmware resiliency event.",
++                     "Firmware resiliency event occurred due to %1.",
++                     "Warning",
++                     "Warning",
++                     1,
++                     {
++                         "string",
++                     },
++                     "None.",
++                 }},
+     MessageEntry{"FirmwareResiliencyError",
+                  {
+-                     "Indicates firmware encountered resilience error.",
++                     "Indicates firmware encountered resiliency error.",
+                      "Firmware resiliency error. Error reason: %1.",
+                      "Critical",
+                      "Critical",
+@@ -613,6 +625,19 @@ constexpr std::array<MessageEntry, 197> registry = {
+                      {"string", "string"},
+                      "None.",
+                  }},
++    MessageEntry{
++        "FirmwareUpdateStatus",
++        {
++            "Indicates the reason for last firmware update on resiliency system.",
++            "Firmware update occurred due to %1.",
++            "OK",
++            "OK",
++            1,
++            {
++                "string",
++            },
++            "None.",
++        }},
+     MessageEntry{
+         "GeneralFirmwareSecurityViolation",
+         {
+-- 
+2.17.1
+

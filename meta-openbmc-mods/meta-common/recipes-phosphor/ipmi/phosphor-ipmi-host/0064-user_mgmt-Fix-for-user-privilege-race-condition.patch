@@ -1,0 +1,152 @@
+From 2c40b63025d39382db78dc4ec62e6fb55c7c66a7 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Fri, 1 Oct 2021 16:01:57 +0000
+Subject: [PATCH] user_mgmt: Fix for user privilege race condition
+
+This is porting of main line upstream review change #47382.
+
+The ipmid and netipmid processes cache IPMI user data in a shared file.
+The current implementation has coherency and consistency problems:
+
+Coherence: If a user account is created and immediately enabled with
+IPMI commands, the updated data may not be propagated to netipmid. This
+condition can last indefinitely, so the cache is not coherent. The
+problem is caused by a lock that doesn't work and allows both processes
+to register signal handlers that write to the file.
+
+Consistency: This cache scheme does not have a strict (or linearizable)
+consistency model. The ipmid and netipmid processes have an inconsistent
+view of the user database until changes propagate to netipmid. Cache
+file reads are controlled by mtime comparisons with a one-second
+granularity.
+
+So mitigated the second problem by using the full 10ms resolution of
+mtime. Now a new user is ready to use much faster than a client can
+submit two commands.
+
+Mitigating the second (consistency) problem does not fix the first
+problem. It might hide it, but the result will still depend on
+non-deterministic timing of DBus signals and mtime granularity.
+
+To fix the coherency problem, changed sigHndlrLock to use a different
+file that isn't closed after each operation. Closing a POSIX file lock
+releases the lock.
+
+Tested:
+1. Verified using IPMI commands by creating multiple users continuously.
+Successfully created all users and able to perform RMCPP with that user.
+
+Command: ipmitool user set name <used id> <username>
+Response:               //User created successfully
+Command: ipmitool user set password <used id> <password>
+Response: Set User Password command successful <user name>
+Command: ipmitool channel setaccess <channel#> <user id> link=on ipmi=on
+         callin=on privilege=4
+Response: Set User Access (channel<number > id <user id>) successful.
+Command: ipmitool raw 0x6 0x43 0x9<channel #> <user id> 0x4 0x0
+                                      // Set User Access Command
+Response:                //Success
+Command: ipmitool user enable <user id>
+Response:                //Success
+Command: ipmitool -H <BMC IP> -U <user name> -P <password> -C 17 -I
+         lanplus raw 0x06 0x01
+Response: <device ID>           //Success
+
+Signed-off-by: Luke Phillips <lucas.phillips@intel.com>
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Change-Id: If5ede3b0f97a2ba2b33cf358a9aaaf93d765d359
+---
+ user_channel/user_mgmt.cpp | 27 +++++++++++++++++++++------
+ user_channel/user_mgmt.hpp |  4 ++--
+ 2 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/user_channel/user_mgmt.cpp b/user_channel/user_mgmt.cpp
+index 2459de7..1644154 100644
+--- a/user_channel/user_mgmt.cpp
++++ b/user_channel/user_mgmt.cpp
+@@ -70,6 +70,8 @@ static constexpr const char* getObjectMethod = "GetObject";
+ static constexpr const char* ipmiUserMutex = "ipmi_usr_mutex";
+ static constexpr const char* ipmiMutexCleanupLockFile =
+     "/var/lib/ipmi/ipmi_usr_mutex_cleanup";
++static constexpr const char* ipmiUserSignalLockFile =
++    "/var/lib/ipmi/ipmi_usr_signal_mutex";
+ static constexpr const char* ipmiUserDataFile = "/var/lib/ipmi/ipmi_user.json";
+ static constexpr const char* ipmiGrpName = "ipmi";
+ static constexpr size_t privNoAccess = 0xF;
+@@ -1504,8 +1506,10 @@ void UserAccess::deleteUserIndex(const size_t& usrIdx)
+ 
+ void UserAccess::checkAndReloadUserData()
+ {
+-    std::time_t updateTime = getUpdatedFileTime();
+-    if (updateTime != fileLastUpdatedTime || updateTime == -EIO)
++    std::timespec updateTime = getUpdatedFileTime();
++    if ((updateTime.tv_sec != fileLastUpdatedTime.tv_sec ||
++         updateTime.tv_nsec != fileLastUpdatedTime.tv_nsec) ||
++        (updateTime.tv_sec == 0 && updateTime.tv_nsec == 0))
+     {
+         std::fill(reinterpret_cast<uint8_t*>(&usersTbl),
+                   reinterpret_cast<uint8_t*>(&usersTbl) + sizeof(usersTbl), 0);
+@@ -1557,15 +1561,15 @@ void UserAccess::getSystemPrivAndGroups()
+     return;
+ }
+ 
+-std::time_t UserAccess::getUpdatedFileTime()
++std::timespec UserAccess::getUpdatedFileTime()
+ {
+     struct stat fileStat;
+     if (stat(ipmiUserDataFile, &fileStat) != 0)
+     {
+         log<level::DEBUG>("Error in getting last updated time stamp");
+-        return -EIO;
++        return std::timespec{0, 0};
+     }
+-    return fileStat.st_mtime;
++    return fileStat.st_mtim;
+ }
+ 
+ void UserAccess::getUserProperties(const DbusUserObjProperties& properties,
+@@ -1631,7 +1635,18 @@ void UserAccess::cacheUserDataFile()
+         }
+         writeUserData();
+     }
+-    sigHndlrLock = boost::interprocess::file_lock(ipmiUserDataFile);
++    // Create lock file if it does not exist
++    int fd = open(ipmiUserSignalLockFile, O_CREAT | O_TRUNC | O_SYNC,
++                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
++    if (fd < 0)
++    {
++        log<level::ERR>("Error in creating IPMI user signal lock file");
++        throw std::ios_base::failure(
++            "Error in creating temporary IPMI user signal lock file");
++    }
++    close(fd);
++
++    sigHndlrLock = boost::interprocess::file_lock(ipmiUserSignalLockFile);
+     // Register it for single object and single process either netipimd /
+     // host-ipmid
+     if (userUpdatedSignal == nullptr && sigHndlrLock.try_lock())
+diff --git a/user_channel/user_mgmt.hpp b/user_channel/user_mgmt.hpp
+index 833f6a1..602d549 100644
+--- a/user_channel/user_mgmt.hpp
++++ b/user_channel/user_mgmt.hpp
+@@ -379,7 +379,7 @@ class UserAccess
+     std::vector<std::string> availablePrivileges;
+     std::vector<std::string> availableGroups;
+     sdbusplus::bus::bus bus;
+-    std::time_t fileLastUpdatedTime;
++    std::timespec fileLastUpdatedTime;
+     bool signalHndlrObject = false;
+     boost::interprocess::file_lock sigHndlrLock;
+     boost::interprocess::file_lock mutexCleanupLock;
+@@ -388,7 +388,7 @@ class UserAccess
+      *
+      *  @return time stamp or -EIO for failure
+      */
+-    std::time_t getUpdatedFileTime();
++    std::timespec getUpdatedFileTime();
+ 
+     /** @brief function to available system privileges and groups
+      *
+-- 
+2.17.1
+

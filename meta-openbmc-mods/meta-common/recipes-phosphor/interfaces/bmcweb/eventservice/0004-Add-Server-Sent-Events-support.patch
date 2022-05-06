@@ -1,4 +1,4 @@
-From ea7d0091545450721d8b9b901e2593401b50d24c Mon Sep 17 00:00:00 2001
+From 1b9e0f434a4c667f6edbaadb257f7a9709953429 Mon Sep 17 00:00:00 2001
 From: AppaRao Puli <apparao.puli@linux.intel.com>
 Date: Fri, 12 Mar 2021 18:53:25 +0000
 Subject: [PATCH] Add Server-Sent-Events support
@@ -22,12 +22,15 @@ Tested:
 Change-Id: I36956565cbba30c2007852c9471f477f6d1736e9
 Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
+Signed-off-by: Ankita Vilas Gawade <ankita.gawade@intel.com>
+
+%% original patch: 0004-Add-Server-Sent-Events-support.patch
 ---
  http/http_connection.hpp   |  10 +-
  http/http_response.hpp     |   7 +-
- http/routing.hpp           |  71 ++++++++++
- http/server_sent_event.hpp | 279 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 362 insertions(+), 5 deletions(-)
+ http/routing.hpp           |  71 +++++++++
+ http/server_sent_event.hpp | 298 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 381 insertions(+), 5 deletions(-)
  create mode 100644 http/server_sent_event.hpp
 
 diff --git a/http/http_connection.hpp b/http/http_connection.hpp
@@ -180,10 +183,10 @@ index fe9c7e9..c748580 100644
          self_t* self = static_cast<self_t*>(this);
 diff --git a/http/server_sent_event.hpp b/http/server_sent_event.hpp
 new file mode 100644
-index 0000000..41d18ed
+index 0000000..c23a4ee
 --- /dev/null
 +++ b/http/server_sent_event.hpp
-@@ -0,0 +1,279 @@
+@@ -0,0 +1,298 @@
 +#pragma once
 +#include "http_request.hpp"
 +
@@ -201,6 +204,8 @@ index 0000000..41d18ed
 +
 +namespace crow
 +{
++constexpr auto inputBufferSize = 1024U * 64U;
++constexpr uint8_t maxFailCount = 5;
 +
 +struct SseConnection : std::enable_shared_from_this<SseConnection>
 +{
@@ -443,6 +448,22 @@ index 0000000..41d18ed
 +        }
 +        rawData += "\n\n";
 +
++        if (rawData.size() > inputBufferSize)
++        {
++            BMCWEB_LOG_DEBUG
++                << "Skipping Send Event/Report to SSE Subscription as Buffer Size Exceeded. Size:  "
++                << rawData.size();
++            failCount++;
++            if (failCount > maxFailCount)
++            {
++                BMCWEB_LOG_ERROR
++                    << "Fail Count Threshold reached. Closing SSE Connection";
++                close("max buffer size not suported");
++            }
++            return;
++        }
++        failCount = 0;
++
 +        boost::asio::buffer_copy(inputBuffer.prepare(rawData.size()),
 +                                 boost::asio::buffer(rawData));
 +        inputBuffer.commit(rawData.size());
@@ -454,8 +475,9 @@ index 0000000..41d18ed
 +    Adaptor adaptor;
 +
 +    boost::beast::flat_static_buffer<1024U * 8U> outputBuffer;
-+    boost::beast::flat_static_buffer<1024U * 64U> inputBuffer;
++    boost::beast::flat_static_buffer<inputBufferSize> inputBuffer;
 +    bool doingWrite = false;
++    uint8_t failCount = 0;
 +
 +    std::function<void(std::shared_ptr<SseConnection>&, const crow::Request&,
 +                       crow::Response&)>
@@ -464,5 +486,5 @@ index 0000000..41d18ed
 +};
 +} // namespace crow
 -- 
-2.17.1
+2.25.1
 

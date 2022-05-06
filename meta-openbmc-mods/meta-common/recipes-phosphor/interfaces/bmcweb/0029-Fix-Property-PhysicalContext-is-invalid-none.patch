@@ -1,0 +1,520 @@
+From bf7ef9a5b2e3a6cac3f418d3c7753f29bea66913 Mon Sep 17 00:00:00 2001
+From: sunitakx <sunitax.kumari@intel.com>
+Date: Tue, 18 Jan 2022 11:05:05 +0000
+Subject: [PATCH] [Fix]: Property PhysicalContext is invalid "none"
+
+Issue: Redfish validator is throwing error "PhysicalContext:
+This type is invalid none" for multiple temperature sensors
+
+Endpoint : /redfish/v1/Chassis/<Baseboard>/Thermal#/Temperatures/
+
+Root Cause : PhysicalContext Schema was missing from redfish schema
+metadata
+
+Tested: Redfish validator script passed.
+
+*** /redfish/v1/Chassis/<baseboard>/Thermal#/Temperatures/0
+         Type (#Thermal.v1_3_0.Temperature), GET SUCCESS (time: 0)
+         PASS
+
+Signed-off-by: sunitakx <sunitax.kumari@intel.com>
+Change-Id: Ifbfe7d96e99030c0c5ba67a1aba5080cd049e57b
+---
+ scripts/update_schemas.py                     |   1 +
+ static/redfish/v1/$metadata/index.xml         |   3 +
+ .../PhysicalContext/PhysicalContext.json      |  62 +++
+ .../v1/JsonSchemas/PhysicalContext/index.json |  22 ++
+ .../redfish/v1/schema/PhysicalContext_v1.xml  | 357 ++++++++++++++++++
+ 5 files changed, 445 insertions(+)
+ create mode 100644 static/redfish/v1/JsonSchemas/PhysicalContext/PhysicalContext.json
+ create mode 100644 static/redfish/v1/JsonSchemas/PhysicalContext/index.json
+ create mode 100644 static/redfish/v1/schema/PhysicalContext_v1.xml
+
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index eb6318f..3f0f57c 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -65,6 +65,7 @@ include_list = [
+     'PCIeDeviceCollection',
+     'PCIeFunction',
+     'PCIeFunctionCollection',
++    'PhysicalContext',
+     'Power',
+     'Privileges',  # Used in Role
+     'Processor',
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index c925581..9b080f3 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -1568,6 +1568,9 @@
+     <edmx:Reference Uri="/redfish/v1/schema/PCIeFunctionCollection_v1.xml">
+         <edmx:Include Namespace="PCIeFunctionCollection"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/PhysicalContext_v1.xml">
++        <edmx:Include Namespace="PhysicalContext"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/Power_v1.xml">
+         <edmx:Include Namespace="Power"/>
+         <edmx:Include Namespace="Power.v1_0_0"/>
+diff --git a/static/redfish/v1/JsonSchemas/PhysicalContext/PhysicalContext.json b/static/redfish/v1/JsonSchemas/PhysicalContext/PhysicalContext.json
+new file mode 100644
+index 0000000..c9ffeee
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/PhysicalContext/PhysicalContext.json
+@@ -0,0 +1,62 @@
++{
++    "$schema": "http://redfish.dmtf.org/schemas/v1/redfish-schema.v1_3_0.json",
++    "copyright": "Copyright 2014-2017 Distributed Management Task Force, Inc. (DMTF). For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright",
++    "definitions": {
++        "PhysicalContext": {
++            "deprecated": "This definition has been moved to the unversioned namespace so that external references can pick up changes over time.",
++            "enum": [
++                "Room",
++                "Intake",
++                "Exhaust",
++                "Front",
++                "Back",
++                "Upper",
++                "Lower",
++                "CPU",
++                "GPU",
++                "Backplane",
++                "SystemBoard",
++                "PowerSupply",
++                "VoltageRegulator",
++                "StorageDevice",
++                "NetworkingDevice",
++                "ComputeBay",
++                "StorageBay",
++                "NetworkBay",
++                "ExpansionBay",
++                "PowerSupplyBay",
++                "Memory",
++                "Chassis",
++                "Fan"
++            ],
++            "enumDescriptions": {
++                "Back": "The back of the chassis.",
++                "Backplane": "A backplane within the chassis.",
++                "CPU": "A Processor (CPU).",
++                "Chassis": "The entire chassis.",
++                "ComputeBay": "Within a compute bay.",
++                "Exhaust": "The exhaust point of the chassis.",
++                "ExpansionBay": "Within an expansion bay.",
++                "Fan": "A fan.",
++                "Front": "The front of the chassis.",
++                "GPU": "A Graphics Processor (GPU).",
++                "Intake": "The intake point of the chassis.",
++                "Lower": "The lower portion of the chassis.",
++                "Memory": "A memory device.",
++                "NetworkBay": "Within a networking bay.",
++                "NetworkingDevice": "A networking device.",
++                "PowerSupply": "A power supply.",
++                "PowerSupplyBay": "Within a power supply bay.",
++                "Room": "The room.",
++                "StorageBay": "Within a storage bay.",
++                "StorageDevice": "A storage device.",
++                "SystemBoard": "The system board (PCB).",
++                "Upper": "The upper portion of the chassis.",
++                "VoltageRegulator": "A voltage regulator device."
++            },
++            "type": "string"
++        }
++    },
++    "title": "#PhysicalContext.v1_3_0"
++}
++
+diff --git a/static/redfish/v1/JsonSchemas/PhysicalContext/index.json b/static/redfish/v1/JsonSchemas/PhysicalContext/index.json
+new file mode 100644
+index 0000000..729c0ca
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/PhysicalContext/index.json
+@@ -0,0 +1,22 @@
++{
++    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
++    "@odata.id": "/redfish/v1/JsonSchemas/PhysicalContext",
++    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
++    "Name": "PhysicalContext Schema File",
++    "Schema": "#PhysicalContext.PhysicalContext",
++    "Description": "PhysicalContext Schema File Location",
++    "Id": "PhysicalContext",
++    "Languages": [
++        "en"
++    ],
++    "Languages@odata.count": 1,
++    "Location": [
++        {
++            "Language": "en",
++            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/PhysicalContext.json",
++            "Uri": "/redfish/v1/JsonSchemas/PhysicalContext/PhysicalContext.json"
++        }
++    ],
++    "Location@odata.count": 1
++}
++
+diff --git a/static/redfish/v1/schema/PhysicalContext_v1.xml b/static/redfish/v1/schema/PhysicalContext_v1.xml
+new file mode 100644
+index 0000000..4c54e3e
+--- /dev/null
++++ b/static/redfish/v1/schema/PhysicalContext_v1.xml
+@@ -0,0 +1,357 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!---->
++<!--################################################################################       -->
++<!--# Redfish Schema:  PhysicalContext                                                     -->
++<!--#                                                                                      -->
++<!--# For a detailed change log, see the README file contained in the DSP8010 bundle,      -->
++<!--# available at http://www.dmtf.org/standards/redfish                                   -->
++<!--# Copyright 2014-2020 DMTF.                                                            -->
++<!--# For the full DMTF copyright policy, see http://www.dmtf.org/about/policies/copyright -->
++<!--################################################################################       -->
++<!---->
++<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
++  <edmx:Reference Uri="http://docs.oasis-open.org/odata/odata/v4.0/errata03/csd01/complete/vocabularies/Org.OData.Core.V1.xml">
++    <edmx:Include Namespace="Org.OData.Core.V1" Alias="OData"/>
++  </edmx:Reference>
++  <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/RedfishExtensions_v1.xml">
++    <edmx:Include Namespace="RedfishExtensions.v1_0_0" Alias="Redfish"/>
++  </edmx:Reference>
++  <edmx:DataServices>
++    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="PhysicalContext">
++      <Annotation Term="Redfish.OwningEntity" String="DMTF"/>
++      <Annotation Term="Redfish.Release" String="1.0"/>
++      <EnumType Name="PhysicalContext">
++        <Member Name="Room">
++          <Annotation Term="OData.Description" String="The room."/>
++        </Member>
++        <Member Name="Intake">
++          <Annotation Term="OData.Description" String="The air intake point or points or region of the chassis."/>
++        </Member>
++        <Member Name="Exhaust">
++          <Annotation Term="OData.Description" String="The air exhaust point or points or region of the chassis."/>
++        </Member>
++        <Member Name="LiquidInlet">
++          <Annotation Term="OData.Description" String="The liquid inlet point of the chassis."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2017.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="LiquidOutlet">
++          <Annotation Term="OData.Description" String="The liquid outlet point of the chassis."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2017.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="Front">
++          <Annotation Term="OData.Description" String="The front of the chassis."/>
++        </Member>
++        <Member Name="Back">
++          <Annotation Term="OData.Description" String="The back of the chassis."/>
++        </Member>
++        <Member Name="Upper">
++          <Annotation Term="OData.Description" String="The upper portion of the chassis."/>
++        </Member>
++        <Member Name="Lower">
++          <Annotation Term="OData.Description" String="The lower portion of the chassis."/>
++        </Member>
++        <Member Name="CPU">
++          <Annotation Term="OData.Description" String="A processor (CPU)."/>
++        </Member>
++        <Member Name="CPUSubsystem">
++          <Annotation Term="OData.Description" String="The entire processor (CPU) subsystem."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="GPU">
++          <Annotation Term="OData.Description" String="A graphics processor (GPU)."/>
++        </Member>
++        <Member Name="GPUSubsystem">
++          <Annotation Term="OData.Description" String="The entire graphics processor (GPU) subsystem."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="FPGA">
++          <Annotation Term="OData.Description" String="An FPGA."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="Accelerator">
++          <Annotation Term="OData.Description" String="An accelerator."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="ASIC">
++          <Annotation Term="OData.Description" String="An ASIC device, such as a networking chip or chipset component."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2017.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="Backplane">
++          <Annotation Term="OData.Description" String="A backplane within the chassis."/>
++        </Member>
++        <Member Name="SystemBoard">
++          <Annotation Term="OData.Description" String="The system board (PCB)."/>
++        </Member>
++        <Member Name="PowerSupply">
++          <Annotation Term="OData.Description" String="A power supply."/>
++        </Member>
++        <Member Name="PowerSubsystem">
++          <Annotation Term="OData.Description" String="The entire power subsystem."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2019.1"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="VoltageRegulator">
++          <Annotation Term="OData.Description" String="A voltage regulator device."/>
++        </Member>
++        <Member Name="Rectifier">
++          <Annotation Term="OData.Description" String="A rectifier device."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2019.1"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="StorageDevice">
++          <Annotation Term="OData.Description" String="A storage device."/>
++        </Member>
++        <Member Name="NetworkingDevice">
++          <Annotation Term="OData.Description" String="A networking device."/>
++        </Member>
++        <Member Name="ComputeBay">
++          <Annotation Term="OData.Description" String="Within a compute bay."/>
++        </Member>
++        <Member Name="StorageBay">
++          <Annotation Term="OData.Description" String="Within a storage bay."/>
++        </Member>
++        <Member Name="NetworkBay">
++          <Annotation Term="OData.Description" String="Within a networking bay."/>
++        </Member>
++        <Member Name="ExpansionBay">
++          <Annotation Term="OData.Description" String="Within an expansion bay."/>
++        </Member>
++        <Member Name="PowerSupplyBay">
++          <Annotation Term="OData.Description" String="Within a power supply bay."/>
++        </Member>
++        <Member Name="Memory">
++          <Annotation Term="OData.Description" String="A memory device."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2017.1"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="MemorySubsystem">
++          <Annotation Term="OData.Description" String="The entire memory subsystem."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="Chassis">
++          <Annotation Term="OData.Description" String="The entire chassis."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2017.2"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="Fan">
++          <Annotation Term="OData.Description" String="A fan."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2017.2"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="CoolingSubsystem">
++          <Annotation Term="OData.Description" String="The entire cooling, or air and liquid, subsystem."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="Motor">
++          <Annotation Term="OData.Description" String="A motor."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="Transformer">
++          <Annotation Term="OData.Description" String="A transformer."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="ACUtilityInput">
++          <Annotation Term="OData.Description" String="An AC utility input."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="ACStaticBypassInput">
++          <Annotation Term="OData.Description" String="An AC static bypass input."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="ACMaintenanceBypassInput">
++          <Annotation Term="OData.Description" String="An AC maintenance bypass input."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="DCBus">
++          <Annotation Term="OData.Description" String="A DC bus."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="ACOutput">
++          <Annotation Term="OData.Description" String="An AC output."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="ACInput">
++          <Annotation Term="OData.Description" String="An AC input."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2018.3"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++        <Member Name="TrustedModule">
++          <Annotation Term="OData.Description" String="A trusted module."/>
++          <Annotation Term="Redfish.Revisions">
++            <Collection>
++              <Record>
++                <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++                <PropertyValue Property="Version" String="2020.4"/>
++              </Record>
++            </Collection>
++          </Annotation>
++        </Member>
++      </EnumType>
++      <EnumType Name="PhysicalSubContext">
++        <Annotation Term="Redfish.Revisions">
++          <Collection>
++            <Record>
++              <PropertyValue Property="Kind" EnumMember="Redfish.RevisionKind/Added"/>
++              <PropertyValue Property="Version" String="2018.3"/>
++            </Record>
++          </Collection>
++        </Annotation>
++        <Member Name="Input">
++          <Annotation Term="OData.Description" String="The input."/>
++        </Member>
++        <Member Name="Output">
++          <Annotation Term="OData.Description" String="The output."/>
++        </Member>
++      </EnumType>
++    </Schema>
++  </edmx:DataServices>
++</edmx:Edmx>
++
+-- 
+2.17.1
+
