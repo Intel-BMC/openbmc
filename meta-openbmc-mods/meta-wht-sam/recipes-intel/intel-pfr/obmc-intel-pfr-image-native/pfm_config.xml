@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XML file for Block Sign Tool -->
+<blocksign>
+  <version>1</version>
+  <!-- Block 0 -->
+  <block0>
+    <magic>0xB6EAFD19</magic>
+    <pctype>3</pctype>
+  </block0>
+  <!-- Block 1 -->
+  <block1>
+    <magic>0xF27F28D7</magic>
+    <!-- Root key -->
+    <rkey>
+      <magic>0xA757A046</magic>
+      <curvemagic>0xC7B88C74</curvemagic>
+      <permissions>-1</permissions>
+      <keyid>-1</keyid>
+      <pubkey>rk_pub.pem</pubkey>
+    </rkey>
+    <!-- Code signing key -->
+    <cskey>
+      <magic>0x14711C2F</magic>
+      <curvemagic>0xC7B88C74</curvemagic>
+      <permissions>4</permissions>
+      <keyid>1</keyid>
+      <pubkey>csk_pub.pem</pubkey>
+      <sigmagic>0xDE64437D</sigmagic>
+      <hashalg>sha256</hashalg>
+      <signkey>rk_prv.pem</signkey>
+      <!--<script>./sign_external.sh</script>-->
+    </cskey>
+    <!-- Signature over Block 0 -->
+    <b0_sig>
+      <magic>0x15364367</magic>
+      <sigmagic>0xDE64437D</sigmagic>
+      <hashalg>sha256</hashalg>
+      <signkey>csk_prv.pem</signkey>
+    </b0_sig>
+  </block1>
+  <!-- CPLD Bitstream Specific -->
+  <padding>
+    <!-- Pad block1 such that combined block length is 1024b -->
+    <blockpad>1024</blockpad>
+    <!-- Align total package to 128 bytes -->
+    <align>128</align>
+  </padding>
+</blocksign>

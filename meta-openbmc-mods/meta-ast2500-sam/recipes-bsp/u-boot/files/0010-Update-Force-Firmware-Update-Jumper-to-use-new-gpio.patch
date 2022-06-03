@@ -1,0 +1,96 @@
+From 1ce8ac1579502cc4a0e00a2d997a46a83941361b Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Fri, 16 Nov 2018 14:59:04 -0800
+Subject: [PATCH] Update Force Firmware Update Jumper to use new gpio API
+
+Add a function that allows easy reading of the FFUJ from other
+functions, such as autoboot.
+
+Change-Id: I8ead931e9dd828522095a0ef386875be652ec885
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
+---
+ .../include/asm/arch-aspeed/ast-g5-intel.h    | 19 +++++++++++++++++++
+ arch/arm/include/asm/arch-aspeed/platform.h   |  1 +
+ board/aspeed/ast-g5/ast-g5-intel.c            |  5 +++++
+ common/autoboot.c                             |  6 ++++++
+ 4 files changed, 31 insertions(+)
+ create mode 100644 arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
+
+diff --git a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
+new file mode 100644
+index 0000000000..cd9a0994fa
+--- /dev/null
++++ b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
+@@ -0,0 +1,19 @@
++/*
++ * Copyright 2018 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ */
++
++#ifndef __AST_INTEL_G5_H__
++#define __AST_INTEL_G5_H__
++
++#define AST_G5_INTEL 1
++
++#ifndef __ASSEMBLY__
++int intel_force_firmware_jumper_enabled(void);
++#endif
++
++#endif /* __AST_INTEL_G5_H__ */
+diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
+index 92ea33b89a..3b06e526f5 100644
+--- a/arch/arm/include/asm/arch-aspeed/platform.h
++++ b/arch/arm/include/asm/arch-aspeed/platform.h
+@@ -27,6 +27,7 @@
+ #include <asm/arch/ast2400_platform.h>
+ #elif defined(AST_SOC_G5)
+ #include <asm/arch/ast_g5_platform.h>
++#include <asm/arch/ast-g5-intel.h>
+ #define CONFIG_BOARD_EARLY_INIT_F	1	/* Call board_early_init_f */
+ #else
+ #err "No define for platform.h"
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 1868c230eb..9779052da4 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -148,6 +148,11 @@ static void sgpio_init(void)
+ 	writel(value, AST_GPIO_BASE + GPIO254);
+ }
+ 
++int intel_force_firmware_jumper_enabled(void)
++{
++	return gpio_get_value(GPIO_FF_UPD_JUMPER);
++}
++
+ extern void espi_init(void);
+ void ast_g5_intel(void)
+ {
+diff --git a/common/autoboot.c b/common/autoboot.c
+index c52bad84a4..d66c0fa63a 100644
+--- a/common/autoboot.c
++++ b/common/autoboot.c
+@@ -14,6 +14,7 @@
+ #include <menu.h>
+ #include <post.h>
+ #include <u-boot/sha256.h>
++#include <asm/arch/platform.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+@@ -259,6 +260,11 @@ static int abortboot(int bootdelay)
+ {
+ 	int abort = 0;
+ 
++# ifdef AST_G5_INTEL
++	if (intel_force_firmware_jumper_enabled())
++		return 1;
++# endif
++
+ 	if (bootdelay >= 0)
+ 		abort = __abortboot(bootdelay);
+ 

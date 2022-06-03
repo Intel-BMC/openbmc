@@ -1,0 +1,424 @@
+From 34ceaf8ee2c6556045f00b911c001bcc2f91c1f8 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Fri, 16 Nov 2018 09:58:01 -0800
+Subject: [PATCH] Add basic GPIO support
+
+Add a table of well-known gpios (such as FP LEDs and FF UPD jumper) and
+initialize them at boot.
+
+Add a mechanism to get/set well known gpios from command line.
+
+Change-Id: I4136a5ccb048b3604f13b17ea0c18a4bc596c249
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
+
+---
+ board/aspeed/ast-g5/Makefile       |   1 +
+ board/aspeed/ast-g5/ast-g5-gpio.c  | 202 +++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-gpio.h  | 103 +++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c |  45 +++++++
+ board/aspeed/ast-g5/ast-g5.h       |   1 +
+ 5 files changed, 352 insertions(+)
+ create mode 100644 board/aspeed/ast-g5/ast-g5-gpio.c
+ create mode 100644 board/aspeed/ast-g5/ast-g5-gpio.h
+
+diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
+index 58e0c648f4..2970ae5741 100644
+--- a/board/aspeed/ast-g5/Makefile
++++ b/board/aspeed/ast-g5/Makefile
+@@ -2,3 +2,4 @@ obj-y += ast-g5.o
+ obj-y += ast-g5-intel.o
+ obj-y += ast-g5-espi.o
+ obj-y += ast-g5-irq.o
++obj-y += ast-g5-gpio.o
+diff --git a/board/aspeed/ast-g5/ast-g5-gpio.c b/board/aspeed/ast-g5/ast-g5-gpio.c
+new file mode 100644
+index 0000000000..dc6962f4ba
+--- /dev/null
++++ b/board/aspeed/ast-g5/ast-g5-gpio.c
+@@ -0,0 +1,202 @@
++/*
++ * Copyright 2018 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ */
++
++#include <common.h>
++#include <asm/io.h>
++#include <asm/arch/regs-scu.h>
++#include <asm/arch/ast_scu.h>
++#include <asm/arch/aspeed.h>
++
++#include "ast-g5.h"
++#include "ast-g5-gpio.h"
++
++typedef struct _gpio_bases {
++	uint32_t u32ddr;      /* data and direction registers */
++	uint32_t u32intcfg;   /* interrupt config */
++	uint32_t u32debounce; /* debounce config */
++	uint32_t u32cmdsrc;   /* command source config */
++} sGPIO_BASES;
++
++static const sGPIO_BASES GPIO_BASES[] = {
++	/* ABCD */
++	{AST_GPIO_BASE + 0x0000, AST_GPIO_BASE + 0x0008,
++	 AST_GPIO_BASE + 0x0040, AST_GPIO_BASE + 0x0060},
++	/* EFGH */
++	{AST_GPIO_BASE + 0x0020, AST_GPIO_BASE + 0x0028,
++	 AST_GPIO_BASE + 0x0048, AST_GPIO_BASE + 0x0068},
++	/* IJKL */
++	{AST_GPIO_BASE + 0x0070, AST_GPIO_BASE + 0x0098,
++	 AST_GPIO_BASE + 0x00b0, AST_GPIO_BASE + 0x0090},
++	/* MNOP */
++	{AST_GPIO_BASE + 0x0078, AST_GPIO_BASE + 0x00e8,
++	 AST_GPIO_BASE + 0x0100, AST_GPIO_BASE + 0x00e0},
++	/* QRST */
++	{AST_GPIO_BASE + 0x0080, AST_GPIO_BASE + 0x0118,
++	 AST_GPIO_BASE + 0x0130, AST_GPIO_BASE + 0x0110},
++	/* UVWX */
++	{AST_GPIO_BASE + 0x0088, AST_GPIO_BASE + 0x0148,
++	 AST_GPIO_BASE + 0x0160, AST_GPIO_BASE + 0x0140},
++	/* YZAB */
++	{AST_GPIO_BASE + 0x01e0, AST_GPIO_BASE + 0x0178,
++	 AST_GPIO_BASE + 0x0190, AST_GPIO_BASE + 0x0170},
++	/* AC__ */
++	{AST_GPIO_BASE + 0x01e8, AST_GPIO_BASE + 0x01a8,
++	 AST_GPIO_BASE + 0x01c0, AST_GPIO_BASE + 0x01a0},
++};
++
++static size_t gpio_max = 0;
++static const GPIOValue * gpio_table = NULL;
++
++void gpio_set_value(int n, int asserted)
++{
++	uint8_t port;
++	uint8_t pin;
++	uint32_t base;
++	uint8_t shift;
++	uint8_t assert;
++	uint32_t gpio_value;
++
++	if (n >= gpio_max || !gpio_table) {
++		return;
++	}
++	port = GPIO_PORT(gpio_table[n].u8PortPin);
++	assert = GPIO_ASSERT(gpio_table[n].u8PinCFG);
++	pin = GPIO_PIN(gpio_table[n].u8PortPin);
++	base = GPIO_BASES[GPIO_GROUP(port)].u32ddr;
++	shift = GPIO_SHIFT(port, pin);
++
++	gpio_value = readl(base + GPIO_DATA_VALUE);
++	if ((assert && asserted) || !(assert || asserted)) {
++		// set the bit
++		gpio_value |= (1 << shift);
++	} else {
++		// clear the bit
++		gpio_value &= ~(1 << shift);
++	}
++	writel(gpio_value, base + GPIO_DATA_VALUE);
++}
++
++int gpio_get_value(int n)
++{
++	uint8_t port;
++	uint8_t pin;
++	uint32_t base;
++	uint8_t shift;
++	uint8_t assert;
++	uint32_t gpio_value;
++
++	if (n >= gpio_max || !gpio_table) {
++		return -1;
++	}
++	port = GPIO_PORT(gpio_table[n].u8PortPin);
++	assert = GPIO_ASSERT(gpio_table[n].u8PinCFG);
++	pin = GPIO_PIN(gpio_table[n].u8PortPin);
++	base = GPIO_BASES[GPIO_GROUP(port)].u32ddr;
++	shift = GPIO_SHIFT(port, pin);
++
++	gpio_value = readl(base + GPIO_DATA_VALUE);
++	gpio_value >>= shift;
++	gpio_value &= 1;
++	// the output here is the logical output, which is
++	// NOT (value XOR assert)
++	// This just gets there without a conditional
++	gpio_value ^= assert;
++	return !gpio_value;
++}
++
++void gpio_init(const GPIOValue* table, size_t count)
++{
++	uint32_t pclk, value;
++	int i;
++
++	gpio_table = table;
++	gpio_max = count;
++	/* set up the debounce timers (in units of PCLK cycles) */
++	pclk = ast_get_ahbclk();
++	/* GPIO_DEBOUNCE_120us */
++	writel((pclk / 1000000) * 120, AST_GPIO_BASE + GPIO_DEBOUNCE_TIMER_0);
++	/* GPIO_DEBOUNCE_8ms */
++	writel((pclk / 1000000) * 8000, AST_GPIO_BASE + GPIO_DEBOUNCE_TIMER_1);
++	/* GPIO_DEBOUNCE_16ms */
++	writel((pclk / 1000000) * 16000, AST_GPIO_BASE + GPIO_DEBOUNCE_TIMER_2);
++
++	for (i = 0; i < gpio_max; i++) {
++		uint8_t port;
++		uint8_t pin;
++		uint32_t base;
++		uint8_t shift;
++		uint8_t assert;
++		uint8_t init_val;
++
++		port = GPIO_PORT(gpio_table[i].u8PortPin);
++		pin = GPIO_PIN(gpio_table[i].u8PortPin);
++		base = GPIO_BASES[GPIO_GROUP(port)].u32ddr;
++		shift = GPIO_SHIFT(port, pin);
++
++		/* set direction */
++		value = readl(base + GPIO_DIRECTION);
++		if (gpio_table[i].u8PinCFG & GPCFG_OUTPUT_EN)
++			value |= (1 << shift);
++		else
++			value &= ~(1 << shift);
++		writel(value, base + GPIO_DIRECTION);
++
++		/* set data value */
++		value = readl(base + GPIO_DATA_VALUE);
++		assert = GPIO_ASSERT(gpio_table[i].u8PinCFG);
++		init_val = gpio_table[i].u8Value;
++		if ((assert && init_val) || !(assert || init_val))
++			value |= (1 << shift);
++		else
++			value &= ~(1 << shift);
++		writel(value, base + GPIO_DATA_VALUE);
++
++		/* set debounce */
++		base = GPIO_BASES[GPIO_GROUP(port)].u32debounce;
++		value = readl(base + GPIO_DEBOUNCE_SEL_0);
++		if (gpio_table[i].u8Debounce & 0x01)
++			value |= (1 << shift);
++		else
++			value &= ~(1 << shift);
++		writel(value, base + GPIO_DEBOUNCE_SEL_0);
++		value = readl(base + GPIO_DEBOUNCE_SEL_1);
++		if (gpio_table[i].u8Debounce & 0x02)
++			value |= (1 << shift);
++		else
++			value &= ~(1 << shift);
++		writel(value, base + GPIO_DEBOUNCE_SEL_1);
++	}
++}
++
++int do_gpio(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
++{
++	int n;
++	if (argc < 3) {
++		return 1;
++	}
++	n = simple_strtoul(argv[2], NULL, 0);
++	if (argv[1][0] == 'g') {
++		printf("%d\n", gpio_get_value(n));
++		return 0;
++	}
++	if (argc < 4) {
++		return 1;
++	}
++	if (argv[1][0] == 's') {
++		int value;
++		value = simple_strtoul(argv[3], NULL, 0);
++		gpio_set_value(n, value);
++		return 0;
++	}
++
++	return 1;
++}
++U_BOOT_CMD(gpio, 4, 0, do_gpio,
++		"do stuff with gpios <set|get> [n] [value]",
++		"");
+diff --git a/board/aspeed/ast-g5/ast-g5-gpio.h b/board/aspeed/ast-g5/ast-g5-gpio.h
+new file mode 100644
+index 0000000000..54b7388a22
+--- /dev/null
++++ b/board/aspeed/ast-g5/ast-g5-gpio.h
+@@ -0,0 +1,103 @@
++#ifndef __HW_GPIO_H__
++#define __HW_GPIO_H__
++
++#define GPIO_PORT_A 0
++#define GPIO_PORT_B 1
++#define GPIO_PORT_C 2
++#define GPIO_PORT_D 3
++#define GPIO_PORT_E 4
++#define GPIO_PORT_F 5
++#define GPIO_PORT_G 6
++#define GPIO_PORT_H 7
++#define GPIO_PORT_I 8
++#define GPIO_PORT_J 9
++#define GPIO_PORT_K 10
++#define GPIO_PORT_L 11
++#define GPIO_PORT_M 12
++#define GPIO_PORT_N 13
++#define GPIO_PORT_O 14
++#define GPIO_PORT_P 15
++#define GPIO_PORT_Q 16
++#define GPIO_PORT_R 17
++#define GPIO_PORT_S 18
++#define GPIO_PORT_T 19
++#define GPIO_PORT_U 20
++#define GPIO_PORT_V 21
++#define GPIO_PORT_W 22
++#define GPIO_PORT_X 23
++#define GPIO_PORT_Y 24
++#define GPIO_PORT_Z 25
++#define GPIO_PORT_AA 26
++#define GPIO_PORT_AB 27
++#define GPIO_PORT_AC 28
++
++#define GPIO_PIN_0 0
++#define GPIO_PIN_1 1
++#define GPIO_PIN_2 2
++#define GPIO_PIN_3 3
++#define GPIO_PIN_4 4
++#define GPIO_PIN_5 5
++#define GPIO_PIN_6 6
++#define GPIO_PIN_7 7
++
++#define GPIO_DEBOUNCE_TIMER_0 0x50
++#define GPIO_DEBOUNCE_TIMER_1 0x54
++#define GPIO_DEBOUNCE_TIMER_2 0x58
++
++/* relative to u32ddr base */
++#define GPIO_DATA_VALUE 0x00
++#define GPIO_DIRECTION 0x04
++/* relative to u32intcfg base */
++#define GPIO_INT_ENABLE 0x00
++#define GPIO_INT_SENSE0 0x04
++#define GPIO_INT_SENSE1 0x18
++#define GPIO_INT_SENSE2 0x1c
++#define GPIO_INT_STATUS 0x20
++#define GPIO_RESET_TOL 0x24
++/* relative to u32debounce base */
++#define GPIO_DEBOUNCE_SEL_0 0
++#define GPIO_DEBOUNCE_SEL_1 4
++/* relative to u32cmdsrc base */
++#define GPIO_CMD_SRC_0 0
++#define GPIO_CMD_SRC_1 4
++
++#define PORT_PIN(PORT, PIN) (((PORT) << 3) | ((PIN)&0x07))
++#define GPIO_PIN(N) (N & 0x07)
++#define GPIO_PORT(N) (N >> 3)
++#define GPIO_SHIFT(PORT, PIN) ((PIN) + (((PORT) % 4) * 8))
++#define GPIO_GROUP(PORT) ((PORT) / 4)
++#define GPIO_ASSERT(N) (((N) >> 4) & 0x01)
++
++#define ID_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_6)
++#define GRN_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_4)
++#define AMB_LED_PORT_PIN PORT_PIN(GPIO_PORT_S, GPIO_PIN_5)
++#define FORCE_BMC_UPDATE_PORT_PIN PORT_PIN(GPIO_PORT_D, GPIO_PIN_0)
++#define TPM_EN_PULSE_PORT_PIN PORT_PIN(GPIO_PORT_D, GPIO_PIN_6)
++
++
++// GPIO Configuration Register bits
++#define GPCFG_EVENT_TO_SMI (1 << 7) // 1 == enabled
++#define GPCFG_EVENT_TO_IRQ (1 << 6) // 1 == enabled
++#define GPCFG_DEBOUNCE_EN (1 << 5)  // 1 == input debounce, 0 == pulse output
++#define GPCFG_ACTIVE_HIGH (1 << 4)  // 1 == Active high
++#define GPCFG_LEVEL_TRIG (1 << 3)   // 1 == level (default), 0 == edge
++#define GPCFG_OUTPUT_EN (1 << 0) // 1 == Output enabled
++
++// GPIO Debounce and Blink Configuration Register bits
++#define GPIO_DEBOUNCE_NONE 0x00
++#define GPIO_DEBOUNCE_60US 0x01
++#define GPIO_DEBOUNCE_8MS 0x02
++#define GPIO_DEBOUNCE_16MS 0x03
++
++typedef struct {
++	uint8_t u8PortPin;
++	uint8_t u8PinCFG;
++	uint8_t u8Value;
++	uint8_t u8Debounce;
++} GPIOValue;
++
++void gpio_init(const GPIOValue* table, size_t count);
++void gpio_set_value(int n, int asserted);
++int gpio_get_value(int n);
++
++#endif /* __HW_GPIO_H__ */
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index c2a8b33aec..1868c230eb 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -14,6 +14,50 @@
+ #include <asm/arch/aspeed.h>
+ 
+ #include "ast-g5.h"
++#include "ast-g5-gpio.h"
++
++/* Names to match the GPIOs */
++enum gpio_names {
++	GPIO_ID_LED = 0,
++	GPIO_GREEN_LED,
++	GPIO_AMBER_LED,
++	GPIO_FF_UPD_JUMPER,
++	GPIO_ENABLE_TPM_PULSE,
++};
++
++#define GPIO_CFG_DEFAULT (GPCFG_ACTIVE_HIGH | GPCFG_LEVEL_TRIG)
++// Active High, Level, Output Disabled
++
++#define GPIO_CFG_LOW_INPUT (GPCFG_LEVEL_TRIG)
++// Active Low, Level, Output Disabled
++
++#define GPIO_CFG_FP_LED (GPCFG_OUTPUT_EN)
++// Active High, Pull-up, Level, Output Enabled
++
++// Format is:
++// GPIO PORT, GPIO PIN Number, GPIO PIN Configuration, GPIO PIN Value, GPIO
++// Debounce/Blink Setting
++static const GPIOValue gpio_table[] = {
++	/* ID LED pin S6 - low asserted, 0=on */
++	[GPIO_ID_LED] = {ID_LED_PORT_PIN, GPIO_CFG_FP_LED, 0,
++			 GPIO_DEBOUNCE_NONE},
++
++	/* Green LED pin S4 - high asserted, 0=off */
++	[GPIO_GREEN_LED] = {GRN_LED_PORT_PIN, GPIO_CFG_FP_LED, 1,
++			    GPIO_DEBOUNCE_NONE},
++
++	/* Amber LED pin S5 - high asserted, 0=off */
++	[GPIO_AMBER_LED] = {AMB_LED_PORT_PIN, GPIO_CFG_FP_LED, 1,
++			    GPIO_DEBOUNCE_NONE},
++
++	/* Force Update Jumper -- pin D0 */
++	[GPIO_FF_UPD_JUMPER] = {FORCE_BMC_UPDATE_PORT_PIN, GPIO_CFG_LOW_INPUT, 0,
++				GPIO_DEBOUNCE_8MS},
++
++	/* Enable Pulse -- pin D6 */
++	[GPIO_ENABLE_TPM_PULSE] = {PORT_PIN(GPIO_PORT_D, GPIO_PIN_6),
++				   GPIO_CFG_DEFAULT, 0, GPIO_DEBOUNCE_8MS},
++};
+ 
+ #define LPC_SNOOP_ADDR 0x80
+ #define HICR5 0x080   /* Host Interface Control Register 5 */
+@@ -107,6 +151,7 @@ static void sgpio_init(void)
+ extern void espi_init(void);
+ void ast_g5_intel(void)
+ {
++	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
+ 	espi_init();
+ 	sgpio_init();
+ }
+diff --git a/board/aspeed/ast-g5/ast-g5.h b/board/aspeed/ast-g5/ast-g5.h
+index 9fd10eccb3..908db1477b 100644
+--- a/board/aspeed/ast-g5/ast-g5.h
++++ b/board/aspeed/ast-g5/ast-g5.h
+@@ -3,5 +3,6 @@
+ 
+ #include <common.h>
+ #include "ast-g5-irq.h"
++#include "ast-g5-gpio.h"
+ 
+ #endif /* _AST_G5_H_ */

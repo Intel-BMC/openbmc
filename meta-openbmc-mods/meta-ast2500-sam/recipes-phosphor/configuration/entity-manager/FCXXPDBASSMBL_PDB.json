@@ -1,0 +1,91 @@
+[
+    {
+        "Exposes": [
+            {
+                "Address": "$address",
+                "Bus": "$bus",
+                "Name": "FCXXPDBASSMBL Fru",
+                "Type": "24C01"
+            },
+            {
+                "Address": "0x18",
+                "Bus": "$bus",
+                "Name": "Multi Node Presence Detector",
+                "Type": "MultiNodePresence"
+            },
+            {
+                "Address": "0x48",
+                "Bus": "$bus",
+                "Name": "PDB Temp1",
+                "Thresholds": [
+                    {
+                        "Direction": "greater than",
+                        "Name": "upper critical",
+                        "Severity": 1,
+                        "Value": 80
+                    },
+                    {
+                        "Direction": "greater than",
+                        "Name": "upper non critical",
+                        "Severity": 0,
+                        "Value": 75
+                    },
+                    {
+                        "Direction": "less than",
+                        "Name": "lower non critical",
+                        "Severity": 0,
+                        "Value": 5
+                    },
+                    {
+                        "Direction": "less than",
+                        "Name": "lower critical",
+                        "Severity": 1,
+                        "Value": 0
+                    }
+                ],
+                "Type": "TMP75"
+            },
+            {
+                "Address": "0x49",
+                "Bus": "$bus",
+                "Name": "PDB Temp2",
+                "Thresholds": [
+                    {
+                        "Direction": "greater than",
+                        "Name": "upper critical",
+                        "Severity": 1,
+                        "Value": 80
+                    },
+                    {
+                        "Direction": "greater than",
+                        "Name": "upper non critical",
+                        "Severity": 0,
+                        "Value": 75
+                    },
+                    {
+                        "Direction": "less than",
+                        "Name": "lower non critical",
+                        "Severity": 0,
+                        "Value": 5
+                    },
+                    {
+                        "Direction": "less than",
+                        "Name": "lower critical",
+                        "Severity": 1,
+                        "Value": 0
+                    }
+                ],
+                "Type": "TMP75"
+            }
+        ],
+        "Name": "FCXXPDBASSMBL PDB",
+        "Probe": "xyz.openbmc_project.FruDevice({'BOARD_PRODUCT_NAME': 'FCXXPDBASSMBL', 'ADDRESS' : 85})",
+        "Type": "Board",
+        "xyz.openbmc_project.Inventory.Decorator.Asset": {
+            "Manufacturer": "$BOARD_MANUFACTURER",
+            "Model": "$BOARD_PRODUCT_NAME",
+            "PartNumber": "$BOARD_PART_NUMBER",
+            "SerialNumber": "$BOARD_SERIAL_NUMBER"
+        }
+    }
+]

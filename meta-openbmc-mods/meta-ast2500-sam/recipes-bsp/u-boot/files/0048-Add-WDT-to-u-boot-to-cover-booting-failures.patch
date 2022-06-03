@@ -1,0 +1,270 @@
+From 18e6251fbd3b58069d2b3d7097e5c24b70b42bf9 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Mon, 14 Sep 2020 17:38:28 -0700
+Subject: [PATCH] Add WDT to u-boot to cover booting failures
+
+This commit enables WDT1 in early booting phase in u-boot to make BMC
+reset to cover booting failures. If BMC meet any failure or if
+systemd can't initiate watchdog timer service properly, BMC will
+be reset by this watchdog. This watchdog will get feeding by
+WATCHDOG_RESET macro calls from several points in u-boot loop
+code. The early u-boot WD timeout is 5 seconds and kernel booting WD
+timeout is 100 seconds.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+
+---
+ arch/arm/mach-aspeed/flash.c       |  7 +++
+ arch/arm/mach-aspeed/platform_g5.S | 78 ++++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c |  3 ++
+ board/aspeed/ast-g5/ast-g5.c       | 30 +++++++++++-
+ common/bootm_os.c                  |  5 ++
+ 5 files changed, 121 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-aspeed/flash.c b/arch/arm/mach-aspeed/flash.c
+index d33fb9e0fe..31bbf77e9e 100644
+--- a/arch/arm/mach-aspeed/flash.c
++++ b/arch/arm/mach-aspeed/flash.c
+@@ -30,6 +30,7 @@
+ #include <asm/byteorder.h>
+ #include <asm/io.h>
+ #include <environment.h>
++#include <watchdog.h>
+ 
+ #include <asm/arch/ast_scu.h>
+ #include <asm/arch/aspeed.h>
+@@ -610,6 +611,9 @@ int flash_erase (flash_info_t * info, int s_first, int s_last)
+                         }
+ 
+ 			putc ('.');
++#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
++			WATCHDOG_RESET();
++#endif
+ 		}
+ 	}
+ 	puts (" done\n");
+@@ -679,6 +683,9 @@ int write_buff (flash_info_t * info, uchar * src, ulong addr, ulong cnt)
+ 		src += count;
+ 		cnt -= count;
+ 		printf("%c\b", pat[(patcnt++) & 0x03]);
++#if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
++		WATCHDOG_RESET();
++#endif
+ 	}
+ 
+ 	reset_flash(info);
+diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
+index f221c97b19..e468ed68d6 100644
+--- a/arch/arm/mach-aspeed/platform_g5.S
++++ b/arch/arm/mach-aspeed/platform_g5.S
+@@ -582,6 +582,31 @@ espi_early_init_done:
+     mov   r1, #0xAE
+     str   r1, [r0]
+ 
++#ifdef CONFIG_HW_WATCHDOG
++    /* Enable WDT1 to recover u-boot hang */
++    ldr   r0, =0x1e785004
++    ldr   r1, =0x00500000             @ ~5 seconds
++    str   r1, [r0]
++    ldr   r0, =0x1e785008
++    ldr   r1, =0x00004755
++    str   r1, [r0]
++    ldr   r0, =0x1e78500c
++    ldr   r1, =0x00000033
++    str   r1, [r0]
++
++    /* Clear Scratch register Bit 6 to do DDR training again on WDT1 reset */
++    ldr   r0, =0x1e6e203c
++    ldr   r1, [r0]
++    tst   r1, #(1<<2)
++    beq   bypass_scratch_reg_clear
++    ldr   r0, =0x1e6e2040
++    ldr   r1, [r0]
++    and   r1, r1, #0xFFFFFFBF
++    str   r1, [r0]
++
++bypass_scratch_reg_clear:
++#endif
++
+ /* Test - DRAM initial time */
+     ldr   r0, =0x1e78203c
+     ldr   r1, =0x0000F000
+@@ -2335,6 +2360,13 @@ spi_checksum_wait_0:
+     ldr   r1, [r0]
+     tst   r1, r2
+     beq   spi_checksum_wait_0
++
++/* Debug - UART console message */
++    ldr   r0, =0x1e784000
++    mov   r1, #0x31                              @ '1'
++    str   r1, [r0]
++/* Debug - UART console message */
++
+     ldr   r0, =0x1e620090
+     ldr   r5, [r0]                               @ record golden checksum
+     ldr   r0, =0x1e620080
+@@ -2363,6 +2395,13 @@ spi_checksum_wait_1:
+     ldr   r1, [r0]
+     tst   r1, r2
+     beq   spi_checksum_wait_1
++
++/* Debug - UART console message */
++    ldr   r0, =0x1e784000
++    mov   r1, #0x2E                              @ '.'
++    str   r1, [r0]
++/* Debug - UART console message */
++
+     ldr   r0, =0x1e620090
+     ldr   r2, [r0]                               @ read checksum
+     ldr   r0, =0x1e620080
+@@ -2377,6 +2416,13 @@ spi_checksum_wait_2:
+     ldr   r1, [r0]
+     tst   r1, r2
+     beq   spi_checksum_wait_2
++
++/* Debug - UART console message */
++    ldr   r0, =0x1e784000
++    mov   r1, #0x2E                              @ '.'
++    str   r1, [r0]
++/* Debug - UART console message */
++
+     ldr   r0, =0x1e620090
+     ldr   r2, [r0]                               @ read checksum
+     ldr   r0, =0x1e620080
+@@ -2394,6 +2440,12 @@ spi_cbr_next_delay_e:
+     blt   spi_cbr_next_delay_s
+     b     spi_cbr_next_clkrate
+ 
++/* Debug - UART console message */
++    ldr   r0, =0x1e784000
++    mov   r1, #0x2E                              @ '.'
++    str   r1, [r0]
++/* Debug - UART console message */
++
+ spi_cbr_end:
+     ldr   r0, =0x1e620094
+     str   r8, [r0]
+@@ -2401,6 +2453,16 @@ spi_cbr_end:
+     mov   r1, #0x0
+     str   r1, [r0]
+ 
++/* Debug - UART console message */
++    ldr   r0, =0x1e784000
++    mov   r1, #0x32                              @ '2'
++    str   r1, [r0]
++    mov   r1, #0x2E                              @ '.'
++    str   r1, [r0]
++    mov   r1, #0x2E                              @ '.'
++    str   r1, [r0]
++/* Debug - UART console message */
++
+ /******************************************************************************
+  Miscellaneous Setting
+  ******************************************************************************/
+@@ -2447,6 +2509,16 @@ spi_cbr_end:
+     mov   r1, #0
+     str   r1, [r0]
+ 
++/* Debug - UART console message */
++    ldr   r0, =0x1e784000
++    mov   r1, #0x33                              @ '3'
++    str   r1, [r0]
++    mov   r1, #0x2E                              @ '.'
++    str   r1, [r0]
++    mov   r1, #0x2E                              @ '.'
++    str   r1, [r0]
++/* Debug - UART console message */
++
+ /******************************************************************************
+  Configure MAC timing
+  ******************************************************************************/
+@@ -2535,6 +2607,12 @@ set_D2PLL:
+     ldr   r1, =0xEA
+     str   r1, [r0]
+ 
++/* Debug - UART console message */
++    ldr   r0, =0x1e784000
++    mov   r1, #0x34                              @ '4'
++    str   r1, [r0]
++/* Debug - UART console message */
++
+     /* restore lr */
+     mov   lr, r4
+ 
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 6c193d8afb..6e43b74bc4 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -673,6 +673,9 @@ void ast_g5_intel(void)
+ 	timer8_init();
+ 	enable_onboard_tpm();
+ 	if (intel_force_firmware_jumper_enabled()) {
++#ifdef CONFIG_HW_WATCHDOG
++		hw_watchdog_disable();
++#endif
+ 		/* FFUJ mode:- ChassisID: Solid Blue, StatusLED: Solid Amber */
+ 		id_led_control(GPIO_ID_LED, EIDLED_On);
+ 		id_led_control(GPIO_GREEN_LED, EIDLED_Off);
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index 00bd92ae5f..3f27503bce 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -125,9 +125,35 @@ int board_eth_init(bd_t *bd)
+ 
+ /* Called by macro WATCHDOG_RESET */
+ #if defined(CONFIG_HW_WATCHDOG)
++#define AST_WDT_COUNTER_STATUS		0x00
++#define AST_WDT_COUNTER_RELOAD_VALUE	0x04
++#define AST_WDT_COUNTER_RESTART_CTRL	0x08
++#define  AST_WDT_RESTART_VALUE		0x4755
++#define AST_WDT_CTRL			0x0c
++#define  AST_WDT_EN_1MHZ_CLK		BIT(4)
++#define  AST_WDT_SYS_RESET		BIT(1)
++#define  AST_WDT_ENABLE			BIT(0)
++#define AST_WDT_TIMEOUT_DEFAULT		0x6000000 /* ~100 seconds */
+ void hw_watchdog_reset(void)
+ {
+-	/* Restart WD2 timer */
+-	writel(0x4755, AST_WDT2_BASE + 0x08);
++	/* Restart WDT1 */
++	writel(AST_WDT_RESTART_VALUE,
++	       AST_WDT1_BASE + AST_WDT_COUNTER_RESTART_CTRL);
++}
++
++void hw_watchdog_init(void)
++{
++	writel(0, AST_WDT1_BASE + AST_WDT_CTRL);
++	writel(AST_WDT_TIMEOUT_DEFAULT,
++	       AST_WDT1_BASE + AST_WDT_COUNTER_RELOAD_VALUE);
++	writel(AST_WDT_RESTART_VALUE,
++	       AST_WDT1_BASE + AST_WDT_COUNTER_RESTART_CTRL);
++	writel(AST_WDT_EN_1MHZ_CLK | AST_WDT_SYS_RESET | AST_WDT_ENABLE,
++	       AST_WDT1_BASE + AST_WDT_CTRL);
++}
++
++void hw_watchdog_disable(void)
++{
++	writel(0, AST_WDT1_BASE + AST_WDT_CTRL);
+ }
+ #endif /* CONFIG_WATCHDOG */
+diff --git a/common/bootm_os.c b/common/bootm_os.c
+index b56eb39780..ec0e12ac84 100644
+--- a/common/bootm_os.c
++++ b/common/bootm_os.c
+@@ -473,11 +473,16 @@ __weak void arch_preboot_os(void)
+ 	/* please define platform specific arch_preboot_os() */
+ }
+ 
++extern void hw_watchdog_init(void);
++
+ int boot_selected_os(int argc, char * const argv[], int state,
+ 		     bootm_headers_t *images, boot_os_fn *boot_fn)
+ {
+ 	disable_interrupts();
+ 	arch_preboot_os();
++#ifdef CONFIG_HW_WATCHDOG
++	hw_watchdog_init(); /* Re-init WDT with 100 seconds timeout */
++#endif
+ 	boot_fn(state, argc, argv, images);
+ 
+ 	/* Stand-alone may return when 'autostart' is 'no' */

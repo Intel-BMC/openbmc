@@ -1,0 +1,106 @@
+From 2740b1112737d3acd23d3a0b56ab26b05a5d1a5e Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Mon, 11 Feb 2019 15:19:56 +0800
+Subject: [PATCH] Config host uart clock source using environment variable
+
+In order to support high speed uart for host uarts,
+the uart clock needs to be switched between 24M and 192M.
+Config SCU4C based on environment variable hostserialcfg,
+this variable is set by IPMI OEM commands.
+
+Tested:
+Change the hostserialcfg variable to 0/1/2/3,
+using the below commands:
+
+ipmitool raw 0x32 0x90 1 0; reboot
+cat /sys/class/tty/ttyS*/uartclk, all should be 24MHz
+
+ipmitool raw 0x32 0x90 1 1; reboot
+cat /sys/class/tty/ttyS*/uartclk, ttyS0/2/3 should be 192MHz
+
+ipmitool raw 0x32 0x90 1 2; reboot
+cat /sys/class/tty/ttyS*/uartclk, ttyS1 should be 192MHz
+
+ipmitool raw 0x32 0x90 1 3; reboot
+cat /sys/class/tty/ttyS*/uartclk, ttyS0/12/3 should be 192MHz
+
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+
+---
+ arch/arm/include/asm/arch-aspeed/regs-scu.h |  5 +++
+ board/aspeed/ast-g5/ast-g5-intel.c          | 39 +++++++++++++++++++++
+ 2 files changed, 44 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+index 019c00036a..a2c9549fc6 100644
+--- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
++++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+@@ -530,6 +530,11 @@
+ /* AST_SCU_MAC_CLK			0x48 - MAC interface clock delay setting register */
+ 
+ /* AST_SCU_MISC2_CTRL			0x4C - Misc. 2 Control register */
++#define SCU_UART5_HS_CLOCK		(1 << 28)
++#define SCU_UART4_HS_CLOCK		(1 << 27)
++#define SCU_UART3_HS_CLOCK		(1 << 26)
++#define SCU_UART2_HS_CLOCK		(1 << 25)
++#define SCU_UART1_HS_CLOCK		(1 << 24)
+ #ifdef AST_SOC_G5
+ #define SCU_PCIE_MAPPING_HIGH		(1 << 15)
+ #define SCU_MALI_DTY_MODE		(1 << 8)
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index a223c798ac..a16e1330a0 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -106,6 +106,9 @@ static const GPIOValue gpio_table[] = {
+ #define SGPIO_ENABLE 1
+ #define GPIO254 0x254
+ 
++#define HOST_SERIAL_A_HIGH_SPEED (1 << 0)
++#define HOST_SERIAL_B_HIGH_SPEED (1 << 1)
++
+ static void sgpio_init(void)
+ {
+ 	uint32_t value;
+@@ -398,6 +401,42 @@ void ast_g5_intel_late_init(void)
+ 	char value[32];
+ 	u32 reset_reason = 0;
+ 
++	/* By default host serail A and B use normal speed */
++	uint32_t host_serial_cfg = 0;
++	char *host_serial_cfg_txt = NULL;
++
++	/* Config the uart clock source based on environment configuration */
++	host_serial_cfg_txt = getenv("hostserialcfg");
++
++	if (host_serial_cfg_txt != NULL)
++		host_serial_cfg = simple_strtoul(host_serial_cfg_txt, NULL, 16);
++
++	if (host_serial_cfg > (HOST_SERIAL_A_HIGH_SPEED | HOST_SERIAL_B_HIGH_SPEED)) {
++		printf("Invalided hostserialcfg %x, use default!\n", host_serial_cfg);
++		host_serial_cfg = 0;
++	}
++
++	/* SOL implementation requires uart1/uart3/uart4 have the same clock
++	 * source for data forwarding, config uart3 and uart4
++	 */
++	if (host_serial_cfg & HOST_SERIAL_A_HIGH_SPEED) {
++		ast_scu_write(ast_scu_read(AST_SCU_MISC2_CTRL) |
++			SCU_UART1_HS_CLOCK | SCU_UART3_HS_CLOCK |
++			SCU_UART4_HS_CLOCK, AST_SCU_MISC2_CTRL);
++	} else {
++		ast_scu_write(ast_scu_read(AST_SCU_MISC2_CTRL) &
++				~SCU_UART1_HS_CLOCK & ~SCU_UART3_HS_CLOCK &
++				~SCU_UART4_HS_CLOCK, AST_SCU_MISC2_CTRL);
++	}
++
++	if (host_serial_cfg & HOST_SERIAL_B_HIGH_SPEED) {
++		ast_scu_write(ast_scu_read(AST_SCU_MISC2_CTRL) |
++				SCU_UART2_HS_CLOCK, AST_SCU_MISC2_CTRL);
++	} else {
++		ast_scu_write(ast_scu_read(AST_SCU_MISC2_CTRL) &
++				~SCU_UART2_HS_CLOCK, AST_SCU_MISC2_CTRL);
++	}
++
+ 	/* save and clear reset status */
+ 	reset_reason = ast_scu_read(AST_SCU_SYS_CTRL);
+ 	snprintf(value, sizeof(value), "0x%x", reset_reason);

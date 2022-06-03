@@ -1,0 +1,139 @@
+From 118b202b435df8b9a8bdee296289fd42c4a95959 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Fri, 16 Nov 2018 15:57:57 -0800
+Subject: [PATCH] aspeed: add Pwm Driver
+
+Change-Id: Ia8b80212f7c70aafcc6a71782936ec95cf9b7f38
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+
+---
+ board/aspeed/ast-g5/ast-g5-intel.c | 113 +++++++++++++++++++++++++++++
+ 1 file changed, 113 insertions(+)
+
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index e27b538fcc..a6cad69b1e 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -260,9 +260,122 @@ int intel_force_firmware_jumper_enabled(void)
+ 	return gpio_get_value(GPIO_FF_UPD_JUMPER);
+ }
+ 
++/* PWM offsets */
++
++#define PWM_BASE_ADDR 0x1E786000
++#define PWM_CONTROL 0x00
++#define PWM_CLOCK_SELECTION 0x04
++#define PWM_DUTY_CYCLE 0x08
++#define PWM_M0 0x10
++#define PWM_M1 0x14
++#define PWM_N0 0x18
++#define PWM_N1 0x1c
++#define PWM_CONTROL_EXT 0x40
++#define PWM_CLOCK_SEL_EXT 0x44
++#define PWM_O0 0x50
++#define PWM_O1 0x54
++#define PWM_CHANNEL_COUNT 8
++
++#define PWM_CLK_ENABLE BIT(0)
++#define PWM_DUTY(PCT) (((PCT) * 128) / 100)
++#define DEFAULT_PWM_DUTY_VALUE PWM_DUTY(57)
++
++
++static inline uint32_t ast_scu_read(uint32_t reg)
++{
++	uint32_t val = readl(AST_SCU_BASE + reg);
++
++	debug("ast_scu_read : reg = 0x%08x, val = 0x%08x\n", reg, val);
++	return val;
++}
++
++static inline void ast_scu_write(uint32_t val, uint32_t reg)
++{
++	debug("ast_scu_write : reg = 0x%08x, val = 0x%08x\n", reg, val);
++
++	writel(SCU_PROTECT_UNLOCK, AST_SCU_BASE);
++	writel(val, AST_SCU_BASE + reg);
++#ifdef CONFIG_AST_SCU_LOCK
++	writel(0xaa, AST_SCU_BASE);
++#endif
++}
++
++static void set_pwm_duty_cycle(int duty)
++{
++	uint32_t chan;
++	uint32_t val;
++
++	/* enable pwm channels */
++	for (chan = 0; chan < PWM_CHANNEL_COUNT; chan++) {
++		uint32_t base = chan < 4 ? PWM_BASE_ADDR : PWM_BASE_ADDR + 0x40;
++		uint8_t ch_duty_shift = 16 * (chan & 0x1);
++		uint8_t ch_pair = (chan & 0x3) / 2;
++
++		/* enable pwm for the channel */
++		val = readl(base);
++		val |= ((1 << (chan & 0x3)) << 8);
++		writel(val, base);
++
++		/* set duty cycle */
++		val = readl(base + PWM_DUTY_CYCLE + ch_pair * 4);
++		val &= ~(0xffff << ch_duty_shift);
++		val |= (((uint32_t)duty) << 8) << ch_duty_shift;
++		writel(val, base + PWM_DUTY_CYCLE + ch_pair * 4);
++	}
++
++}
++
++static void pwm_init(void)
++{
++	uint32_t val;
++
++	/* select pwm 0-7 */
++	val = ast_scu_read(AST_SCU_FUN_PIN_CTRL3);
++	val |= (SCU_FUN_PIN_VPIG7 | SCU_FUN_PIN_VPIG6 | SCU_FUN_PIN_VPIG5
++		| SCU_FUN_PIN_VPIG4 | SCU_FUN_PIN_VPIG3 | SCU_FUN_PIN_VPIG2
++		| SCU_FUN_PIN_VPIG1 | SCU_FUN_PIN_VPIG0);
++	ast_scu_write(val, AST_SCU_FUN_PIN_CTRL3);
++
++	/* disable video output mux */
++	val = ast_scu_read(AST_SCU_FUN_PIN_CTRL5);
++	val &= 0xffffffcf;
++	ast_scu_write(val, AST_SCU_FUN_PIN_CTRL5);
++	val = readl(AST_SCU_FUN_PIN_CTRL6);
++	val &= 0xfffffffc;
++	ast_scu_write(val, AST_SCU_FUN_PIN_CTRL6);
++
++	/* SCU reset of PWM module */
++	val = ast_scu_read(AST_SCU_RESET);
++	val |= SCU_RESET_PWM;
++	ast_scu_write(val, AST_SCU_RESET);
++	val &= ~SCU_RESET_PWM;
++	ast_scu_write(val, AST_SCU_RESET);
++
++	/* set M, N, and 0 clock regs to 0 */
++	writel(0, PWM_BASE_ADDR + PWM_M0);
++	writel(0, PWM_BASE_ADDR + PWM_N0);
++	writel(0, PWM_BASE_ADDR + PWM_O0);
++
++	/* disable fans and tachos, set M type control */
++	writel(0x1, PWM_BASE_ADDR + PWM_CONTROL);
++	writel(0x1, PWM_BASE_ADDR + PWM_CONTROL_EXT);
++
++	set_pwm_duty_cycle(DEFAULT_PWM_DUTY_VALUE);
++
++	/* set up clock type M: period = 127 units at 24MHz/8 (resulting ~23kHz period) */
++	writel(0x7f30, PWM_BASE_ADDR + PWM_CLOCK_SELECTION);
++
++	/* enable pwm-tacho */
++
++	val = readl(PWM_BASE_ADDR + PWM_CONTROL);
++	val |= PWM_CLK_ENABLE;
++	writel(val, PWM_BASE_ADDR + PWM_CONTROL);
++}
++
+ extern void espi_init(void);
+ void ast_g5_intel(void)
+ {
++	pwm_init();
+ 	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
+ 	espi_init();
+ 	sgpio_init();

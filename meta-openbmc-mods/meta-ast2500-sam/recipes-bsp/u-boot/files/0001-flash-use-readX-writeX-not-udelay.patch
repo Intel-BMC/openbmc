@@ -1,0 +1,432 @@
+From 614d875d383c6567dd282faeb7ced1db1e4d07d9 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Thu, 26 Apr 2018 13:29:46 -0700
+Subject: [PATCH] U-Boot aspeed flash driver should not use udelay
+
+---
+ arch/arm/mach-aspeed/flash.c | 229 ++++++++++++++---------------------
+ 1 file changed, 88 insertions(+), 141 deletions(-)
+
+diff --git a/arch/arm/mach-aspeed/flash.c b/arch/arm/mach-aspeed/flash.c
+index b8a438df75..d33fb9e0fe 100644
+--- a/arch/arm/mach-aspeed/flash.c
++++ b/arch/arm/mach-aspeed/flash.c
+@@ -28,6 +28,7 @@
+ #include <common.h>
+ #include <asm/processor.h>
+ #include <asm/byteorder.h>
++#include <asm/io.h>
+ #include <environment.h>
+ 
+ #include <asm/arch/ast_scu.h>
+@@ -202,7 +203,7 @@ static void reset_flash (flash_info_t * info)
+         if (info->dualport)
+             ulCtrlData  |= 0x08;
+ #endif
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+ }
+ 
+@@ -231,28 +232,22 @@ static void enable_write (flash_info_t * info)
+ 
+         ulCtrlData  = (info->tCK_Write << 8);
+         ulCtrlData |= CE_LOW | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-        *(uchar *) (base) = (uchar) (0x06);
+-        udelay(10);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
++        writeb(0x06, base);
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_HIGH | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_LOW | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-        *(uchar *) (base) = (uchar) (0x05);
+-        udelay(10);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
++        writeb(0x05, base);
+         do {
+-            jReg = *(volatile uchar *) (base);
++            jReg = readb(base);
+         } while (!(jReg & 0x02));
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_HIGH | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+ }
+ 
+@@ -283,30 +278,23 @@ static void write_status_register (flash_info_t * info, uchar data)
+ 
+         ulCtrlData  = (info->tCK_Write << 8);
+         ulCtrlData |= CE_LOW | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-        *(uchar *) (base) = (uchar) (0x01);
+-        udelay(10);
+-        *(uchar *) (base) = (uchar) (data);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
++        writeb(0x01, base);
++        writeb(data, base);
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_HIGH | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_LOW | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-        *(uchar *) (base) = (uchar) (0x05);
+-        udelay(10);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
++        writeb(0x05, base);
+         do {
+-            jReg = *(volatile uchar *) (base);
++            jReg = readb(base);
+         } while (jReg & 0x01);
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_HIGH | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ }
+ 
+ static void enable4b (flash_info_t * info)
+@@ -333,13 +321,11 @@ static void enable4b (flash_info_t * info)
+ 
+         ulCtrlData  = (info->tCK_Write << 8);
+         ulCtrlData |= CE_LOW | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-        *(uchar *) (base) = (uchar) (0xb7);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
++        writeb(0xb7, base);
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_HIGH | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+ } /* enable4b */
+ 
+@@ -369,29 +355,23 @@ static void enable4b_spansion (flash_info_t * info)
+ 	/* Enable 4B: BAR0 D[7] = 1 */
+ 	ulCtrlData  = (info->tCK_Write << 8);
+ 	ulCtrlData |= CE_LOW | USERMODE;
+-	*(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
+-	*(uchar *) (base) = (uchar) (0x17);
+-	udelay(10);
+-	*(uchar *) (base) = (uchar) (0x80);
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
++	writeb(0x17, base);
++	writeb(0x80, base);
+ 	ulCtrlData &= CMD_MASK;
+ 	ulCtrlData |= CE_HIGH | USERMODE;
+-	*(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+ 	ulCtrlData &= CMD_MASK;
+ 	ulCtrlData |= CE_LOW | USERMODE;
+-	*(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
+-	*(uchar *) (base) = (uchar) (0x16);
+-	udelay(10);
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
++	writeb(0x16, base);
+ 	do {
+-            jReg = *(volatile uchar *) (base);
++            jReg = readb(base);
+ 	} while (!(jReg & 0x80));
+ 	ulCtrlData &= CMD_MASK;
+ 	ulCtrlData |= CE_HIGH | USERMODE;
+-	 *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+ } /* enable4b_spansion */
+ 
+@@ -423,14 +403,11 @@ static void enable4b_numonyx (flash_info_t * info)
+ 	/* Enable 4B: CMD:0xB7 */
+ 	ulCtrlData  = (info->tCK_Write << 8);
+ 	ulCtrlData |= CE_LOW | USERMODE;
+-	*(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
+-	*(uchar *) (base) = (uchar) (0xB7);
+-	udelay(10);
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
++	writeb(0xB7, base);
+ 	ulCtrlData &= CMD_MASK;
+ 	ulCtrlData |= CE_HIGH | USERMODE;
+-	*(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+ } /* enable4b_numonyx */
+ 
+@@ -466,63 +443,49 @@ static void flash_write_buffer (flash_info_t *info, uchar *src, ulong addr, int
+ 
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_LOW | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-        *(uchar *) (base) = (uchar) (0x02);
+-        udelay(10);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
++        writeb(0x02, base);
+         if (info->address32)
+         {
+-            *(uchar *) (base) = (uchar) ((offset & 0xff000000) >> 24);
+-            udelay(10);
++            writeb((uchar) ((offset & 0xff000000) >> 24), base);
+         }
+-        *(uchar *) (base) = (uchar) ((offset & 0xff0000) >> 16);
+-        udelay(10);
+-        *(uchar *) (base) = (uchar) ((offset & 0x00ff00) >> 8);
+-        udelay(10);
+-        *(uchar *) (base) = (uchar) ((offset & 0x0000ff));
+-        udelay(10);
++        writeb((uchar) ((offset & 0xff0000) >> 16), base);
++        writeb((uchar) ((offset & 0x00ff00) >> 8), base);
++        writeb((uchar) ((offset & 0x0000ff)), base);
+ 
+         for (j=0; j<len; j++)
+         {
+-            *(uchar *) (base) = *(uchar *) (src++);
+-            udelay(10);
++            writeb(*src++, base);
+         }
+ 
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_HIGH | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_LOW | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
+-        *(uchar *) (base) = (uchar) (0x05);
+-        udelay(10);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
++        writeb(0x05, base);
+         do {
+-            jReg = *(volatile uchar *) (base);
++            jReg = readb(base);
+         } while ((jReg & 0x01));
+         ulCtrlData &= CMD_MASK;
+         ulCtrlData |= CE_HIGH | USERMODE;
+-        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-        udelay(200);
++        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+         /* RFSR */
+         if (info->specificspi == SpecificSPI_N25Q512)
+         {
+             ulCtrlData &= CMD_MASK;
+             ulCtrlData |= CE_LOW | USERMODE;
+-            *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-            udelay(200);
+-            *(uchar *) (base) = (uchar) (0x70);
+-            udelay(10);
++            writel(ulCtrlData, info->reg_base + CtrlOffset);
++            writeb(0x70, base);
+             do {
+-                jReg = *(volatile uchar *) (base);
++                jReg = readb(base);
+             } while (!(jReg & 0x80));
+             ulCtrlData &= CMD_MASK;
+             ulCtrlData |= CE_HIGH | USERMODE;
+-            *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-            udelay(200);
++            writel(ulCtrlData, info->reg_base + CtrlOffset);
+         }
+ }
+ 
+@@ -606,57 +569,44 @@ int flash_erase (flash_info_t * info, int s_first, int s_last)
+ 
+                         ulCtrlData &= CMD_MASK;
+                         ulCtrlData |= CE_LOW | USERMODE;
+-                        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-                        udelay(200);
+-                        *(uchar *) (base) = (uchar) (0xd8);
+-                        udelay(10);
++                        writel(ulCtrlData, info->reg_base + CtrlOffset);
++                        writeb(0xd8, base);
+                         if (info->address32)
+                         {
+-                            *(uchar *) (base) = (uchar) ((offset & 0xff000000) >> 24);
+-                            udelay(10);
++                            writeb((uchar) ((offset & 0xff000000) >> 24), base);
+                         }
+-                        *(uchar *) (base) = (uchar) ((offset & 0xff0000) >> 16);
+-                        udelay(10);
+-                        *(uchar *) (base) = (uchar) ((offset & 0x00ff00) >> 8);
+-                        udelay(10);
+-                        *(uchar *) (base) = (uchar) ((offset & 0x0000ff));
+-                        udelay(10);
++                        writeb((uchar) ((offset & 0xff0000) >> 16), base);
++                        writeb((uchar) ((offset & 0x00ff00) >> 8), base);
++                        writeb((uchar) ((offset & 0x0000ff)), base);
+ 
+                         ulCtrlData &= CMD_MASK;
+                         ulCtrlData |= CE_HIGH | USERMODE;
+-                        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-                        udelay(200);
++                        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+                         ulCtrlData &= CMD_MASK;
+                         ulCtrlData |= CE_LOW | USERMODE;
+-                        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-                        udelay(200);
+-                        *(uchar *) (base) = (uchar) (0x05);
+-                        udelay(10);
++                        writel(ulCtrlData, info->reg_base + CtrlOffset);
++                        writeb(0x05, base);
+                         do {
+-                            jReg = *(volatile uchar *) (base);
++                            jReg = readb(base);
+                         } while ((jReg & 0x01));
+                         ulCtrlData &= CMD_MASK;
+                         ulCtrlData |= CE_HIGH | USERMODE;
+-                        *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-                        udelay(200);
++                        writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 
+                         /* RFSR */
+                         if (info->specificspi == SpecificSPI_N25Q512)
+                         {
+                             ulCtrlData &= CMD_MASK;
+                             ulCtrlData |= CE_LOW | USERMODE;
+-                            *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-                            udelay(200);
+-                            *(uchar *) (base) = (uchar) (0x70);
+-                            udelay(10);
++                            writel(ulCtrlData, info->reg_base + CtrlOffset);
++                            writeb(0x70, base);
+                             do {
+-                                jReg = *(volatile uchar *) (base);
++                                jReg = readb(base);
+                             } while (!(jReg & 0x80));
+                             ulCtrlData &= CMD_MASK;
+                             ulCtrlData |= CE_HIGH | USERMODE;
+-                            *(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-                            udelay(200);
++                            writel(ulCtrlData, info->reg_base + CtrlOffset);
+                         }
+ 
+ 			putc ('.');
+@@ -767,22 +717,16 @@ static ulong flash_get_size (ulong base, flash_info_t *info)
+ 	}
+ 
+ 	/* Get Flash ID */
+-	ulCtrlData  = *(ulong *) (info->reg_base + CtrlOffset) & CMD_MASK;
++	ulCtrlData  = readl(info->reg_base + CtrlOffset) & CMD_MASK;
+ 	ulCtrlData |= CE_LOW | USERMODE;
+-	*(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
+-	*(uchar *) (vbase) = (uchar) (0x9F);
+-	udelay(10);
+-	ch[0] = *(volatile uchar *)(vbase);
+-	udelay(10);
+-	ch[1] = *(volatile uchar *)(vbase);
+-	udelay(10);
+-	ch[2] = *(volatile uchar *)(vbase);
+-	udelay(10);
+-	ulCtrlData  = *(ulong *) (info->reg_base + CtrlOffset) & CMD_MASK;
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
++	writeb(0x9F, vbase);
++	ch[0] = readb(vbase);
++	ch[1] = readb(vbase);
++	ch[2] = readb(vbase);
++	ulCtrlData  = readl(info->reg_base + CtrlOffset) & CMD_MASK;
+ 	ulCtrlData |= CE_HIGH | USERMODE;
+-	*(ulong *) (info->reg_base + CtrlOffset) = ulCtrlData;
+-	udelay(200);
++	writel(ulCtrlData, info->reg_base + CtrlOffset);
+ 	ulID = ((ulong)ch[0]) | ((ulong)ch[1] << 8) | ((ulong)ch[2] << 16) ;
+ 	info->flash_id = ulID;
+ 
+@@ -1339,13 +1283,13 @@ static ulong flash_get_size (ulong base, flash_info_t *info)
+ 
+ 	if (info->address32) {
+ #ifndef AST_SOC_G5
+-		reg = *((volatile ulong*) 0x1e6e2070);	/* set H/W Trappings */
++		reg = readl(0x1e6e2070);	/* set H/W Trappings */
+ 		reg |= 0x10;
+-		*((volatile ulong*) 0x1e6e2070) = reg;
++		writel(reg, 0x1e6e2070);
+ #endif
+-		reg  = *((volatile ulong*) (info->reg_base + 0x4));	/* enable 32b control bit*/
++		reg  = readl(info->reg_base + 0x4);	/* enable 32b control bit*/
+ 		reg |= (0x01 << info->CE);
+-		*((volatile ulong*) (info->reg_base + 0x4)) = reg;
++		writel(reg, info->reg_base + 0x4);
+ 
+ 		/* set flash chips to 32bits addressing mode */
+ 		if ((info->flash_id & 0xFF) == 0x01)	/* Spansion */
+@@ -1367,7 +1311,7 @@ unsigned long flash_init (void)
+ 	unsigned long size = 0;
+ 	int i;
+ 
+-	*((volatile ulong*) AST_FMC_BASE) |= 0x800f0000;	/* enable Flash Write */
++	writel(readl(AST_FMC_BASE) | 0x800f0000, AST_FMC_BASE);	/* enable Flash Write */
+ 
+ 	/* Init: FMC  */
+ 	/* BANK 0 : FMC CS0 , 1: FMC CS1, */
+@@ -1397,7 +1341,7 @@ unsigned long flash_init (void)
+ #ifdef CONFIG_SPI0_CS
+ 	//pin switch by trap[13:12]	-- [0:1] Enable SPI Master
+ 	ast_scu_spi_master(1);	/* enable SPI master */
+-	*((volatile ulong*) AST_FMC_SPI0_BASE) |= 0x10000;	/* enable Flash Write */
++	writel(readl(AST_FMC_SPI0_BASE) | 0x10000, AST_FMC_SPI0_BASE);	/* enable Flash Write */
+ 	flash_info[CONFIG_FMC_CS].sysspi = 1;
+ 	flash_info[CONFIG_FMC_CS].reg_base = AST_FMC_SPI0_BASE;
+ 	flash_info[CONFIG_FMC_CS].flash_id = FLASH_UNKNOWN;
+@@ -1448,21 +1392,24 @@ void memmove_dma(void * dest,const void *src,size_t count)
+         poll_time = 100;			/* set 100 us as default */
+ 
+         /* force end of burst read */
+-	*(volatile ulong *) (AST_FMC_BASE + CS0_CTRL) |= CE_HIGH;
+-	*(volatile ulong *) (AST_FMC_BASE + CS0_CTRL) &= ~CE_HIGH;
++	data = readl(AST_FMC_BASE + CS0_CTRL);
++	writel(data |  CE_HIGH, AST_FMC_BASE + CS0_CTRL);
++	writel(data & ~CE_HIGH, AST_FMC_BASE + CS0_CTRL);
+ 
+-	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_CONTROL) = (ulong) (~FLASH_DMA_ENABLE);
+-	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_FLASH_BASE) = (ulong) (src);
+-	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_DRAM_BASE) = (ulong) (dest);
+-	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_LENGTH) = (ulong) (count_align);
+-	*(ulong *) (AST_FMC_BASE + REG_FLASH_DMA_CONTROL) = (ulong) (FLASH_DMA_ENABLE);
++	writel(~FLASH_DMA_ENABLE, AST_FMC_BASE + REG_FLASH_DMA_CONTROL);
++	writel((ulong)src, AST_FMC_BASE + REG_FLASH_DMA_FLASH_BASE);
++	writel((ulong)dest, AST_FMC_BASE + REG_FLASH_DMA_DRAM_BASE);
++	writel(count_align, AST_FMC_BASE + REG_FLASH_DMA_LENGTH);
++	writel(FLASH_DMA_ENABLE, AST_FMC_BASE + REG_FLASH_DMA_CONTROL);
+ 
+ 	/* wait poll */
+ 	do {
+ 		udelay(poll_time);
+-		data = *(ulong *) (AST_FMC_BASE + REG_FLASH_INTERRUPT_STATUS);
++		data = readl(AST_FMC_BASE + REG_FLASH_INTERRUPT_STATUS);
+ 	} while (!(data & FLASH_STATUS_DMA_READY));
+ 
+ 	/* clear status */
+-	*(ulong *) (AST_FMC_BASE + REG_FLASH_INTERRUPT_STATUS) |= FLASH_STATUS_DMA_CLEAR;
++	data = readl(AST_FMC_BASE + REG_FLASH_INTERRUPT_STATUS);
++	writel(data | FLASH_STATUS_DMA_CLEAR,
++		AST_FMC_BASE + REG_FLASH_INTERRUPT_STATUS);
+ }

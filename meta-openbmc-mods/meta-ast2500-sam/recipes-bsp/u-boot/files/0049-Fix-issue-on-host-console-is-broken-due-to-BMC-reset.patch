@@ -1,0 +1,122 @@
+From a4a0c281865339c68871e4f62dd21f78504ea60e Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Sun, 27 Sep 2020 17:45:56 +0800
+Subject: [PATCH] Fix issue on host console is broken due to BMC reset by
+ watchdog.
+
+obmc-console service changed uart routing to support SOL.
+UART routing must be changed to normal, when BMC reset happens,
+as BMC reset must be treated as SOL connection closure.
+User needs to establish a new SOL connection after BMC reset,
+and routing will be initialized for SOL at that time.
+Which need several seconds (depends on BMC cycle time),
+or even never been recoverred if stopped at u-boot shell.
+
+error situaton as below:
+root@intel-obmc:~# devmem 0x1e78909c
+0x03450003
+root@intel-obmc:~# /sbin/watchdog -T 0 -F /dev/watchdog1
+
+U-Boot 2016.07 (Aug 25 2020 - 05:24:44 +0000)
+
+SOC : AST2500-A2
+RST : 0x08 (WDT2)
+PLL :     24 MHz
+CPU :    792 MHz
+MEM :    792 MHz, EEC: Disable, Cache: Disable
+VGA :    16 MiB
+DRAM :   init by SOC
+       Watchdog enabled
+DRAM:  496 MiB
+Flash: 64 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Un-Protected 1 sectors
+Un-Protected 1 sectors
+Erasing Flash...
+. done
+Erased 1 sectors
+Writing to Flash... done
+Protected 1 sectors
+Protected 1 sectors
+Net:   MAC0 : RMII/NCSI
+MAC1 : RGMII
+FTGMAC100#0, FTGMAC100#1
+ast#
+ast#
+ast# md 0x1e78909c
+1e78909c: 03450003 ffceff00 19000000 00000000
+
+Tested:
+u-boot could reset HICRA 0x1e78909c
+
+correct situation as below:
+root@intel-obmc:~# devmem 0x1e78909c
+0x03450003
+root@intel-obmc:~# /sbin/watchdog -T 0 -F /dev/watchdog1
+
+U-Boot 2016.07 (Sep 27 2020 - 09:34:20 +0000)
+
+SOC : AST2500-A2
+RST : 0x08 (WDT2)
+PLL :     24 MHz
+CPU :    792 MHz
+MEM :    792 MHz, EEC: Disable, Cache: Disable
+VGA :    16 MiB
+DRAM :   init by SOC
+       Watchdog enabled
+DRAM:  496 MiB
+Flash: 64 MiB
+In:    serial
+Out:   serial
+Err:   serial
+Un-Protected 1 sectors
+Un-Protected 1 sectors
+Erasing Flash...
+. done
+Erased 1 sectors
+Writing to Flash... done
+Protected 1 sectors
+Protected 1 sectors
+Net:   MAC0 : RMII/NCSI
+MAC1 : RGMII
+FTGMAC100#0, FTGMAC100#1
+ast#
+ast#
+ast# md 0x1e78909c
+1e78909c: 00000000 ffceff00 19000000 00000000
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+
+---
+ arch/arm/include/asm/arch-aspeed/regs-lpc.h | 1 +
+ board/aspeed/ast-g5/ast-g5.c                | 3 +++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/regs-lpc.h b/arch/arm/include/asm/arch-aspeed/regs-lpc.h
+index b0162ae4f3..b4d3da2906 100644
+--- a/arch/arm/include/asm/arch-aspeed/regs-lpc.h
++++ b/arch/arm/include/asm/arch-aspeed/regs-lpc.h
+@@ -18,6 +18,7 @@
+  */
+ 
+ #define AST_LPC_HICR5		0x80
++#define AST_LPC_HICRA   	0x9C
+ #define AST_LPC_HICRB		0x100
+ 
+ /*	AST_LPC_HICR5 : 0x80	Host Interface Control Register 5 */
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index 3f27503bce..6fdc06ad63 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -45,6 +45,9 @@ int board_init(void)
+ 	val |= LPC_HICRB_ILPC2AHB;
+ 	writel(val, AST_LPC_BASE + AST_LPC_HICRB);
+ 
++	/* Reset UART routing */
++	writel(0x0, AST_LPC_BASE + AST_LPC_HICRA);
++
+ 	/* P2A, PCIe BMC */
+ 	val = readl(AST_SCU_BASE + AST_SCU_PCIE_CONFIG_SET);
+ 	val &= ~(SCU_PCIE_CONFIG_SET_BMC_DMA

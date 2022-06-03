@@ -1,0 +1,80 @@
+From e23fbe6c3867b92b8ba7bfb36e1719348b102399 Mon Sep 17 00:00:00 2001
+From: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
+Date: Thu, 16 Jul 2020 11:02:53 +0530
+Subject: [PATCH] Apply WDT1-2 reset mask to reset needed controller
+
+Issue:
+BMC reset during BIOS serial port access causes BIOS hang.
+
+Root caused:
+BMC resetting the LPC controller during BMC warm reset.
+Which cause BIOS hang as BIOS cannot dump the BIOS serial data.
+
+Fix:
+WDT reset mask has been updated from default to proper value,
+such that controllers interacting with host will not be reset
+during wdt reset operation.
+This was missed earlier, causing BIOS to hang whenever BMC resets,
+as BIOS was accessing the serial port (LPC controller).
+De-coupling LPC controller will make sure BIOS serial port access
+is not disturbed.
+And also Reset mask is updated not to reset the following
+in order to avoid the host hang.
+1.  SDRAM controller
+2.  AHB Bridges
+3.  Graphics CRT controller
+4.  LPC controller
+5.  CRT mode 2D Engine
+6.  PWM controller
+7.  MCTP Controller
+8.  X- DMA Controller
+9. SPI controller
+
+Quick Step to reproduce:
+ Stop the BMC in uboot and add below bootcmd command
+ setenv bootcmd "reset"
+ Do the System power ON or System warm reset.
+
+ For WDT2:
+ boot the BMC and ran the /usr/bin/watch_dog_reset.sh
+ Do the System Power ON or System warm reset.
+
+Tested:
+ 1. Ran overnight continous BIOS and BMC warm reset on two SUTs.
+
+ 2.Ran the TestApp which dump the BIOS serial port continously and
+   do the BMC reset.
+
+ 3.Stop the BMC in uboot and add below bootcmd command
+   setenv bootcmd "reset"
+   Do the System Power ON or System warm reset.
+
+ 4.Ran Over night AC cycle test. Completed +1000 in two systems.
+
+ 5.Stopped at u-boot.
+   Issue protect off all command
+   Issue erase all command.
+   BMC should not hang and able to complete the "erase all" command
+
+Signed-off-by: Suryakanth Sekar <suryakanth.sekar@linux.intel.com>
+
+---
+ arch/arm/mach-aspeed/platform_g5.S | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
+index b4043534b0..f221c97b19 100644
+--- a/arch/arm/mach-aspeed/platform_g5.S
++++ b/arch/arm/mach-aspeed/platform_g5.S
+@@ -366,7 +366,10 @@ init_dram:
+     and   r1, r1, #0x01
+     str   r1, [r0]
+     ldr   r0, =0x1e78501c                        @ restore normal mask setting
+-    ldr   r1, =0x023FFFF3                        @ added 2016.09.06
++    ldr   r1, =0x023CDF73                        @ Changed 2020.06.18
++    str   r1, [r0]
++    ldr   r0, =0x1e78503c                        @ restore normal mask setting
++    ldr   r1, =0x023CDF73                        @ Changed 2020.07.08
+     str   r1, [r0]
+     b     bypass_first_reset
+ 

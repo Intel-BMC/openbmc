@@ -1,0 +1,300 @@
+From 3d2ea02810c8b6d595536cf2ce0c692f56ebaf0c Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Tue, 7 May 2019 11:26:35 +0530
+Subject: [PATCH] CPLD u-boot commands support for PFR
+
+Implemented the cpld command in u-boot for
+communicating with PFR CPLD.
+
+Tested:
+Simulated test on different I2C bus and slave
+as we don't have hardware available yet.
+ast# cpld dump
+*** Dumping CPLD Registers ***
+0x0000 |  00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f
+----------------------------------------------------------
+0x0000 |  03 00 00 00 01 09 00 f5 01 09 19 cb 46 4c 45 --
+0x0001 |  -- 52 4f 4e 49 43 53 cf 53 2d 31 31 30 30 41 44
+0x0002 |  55 -- 30 2d 32 30 31 ca 47 38 34 30 32 -- 2d --
+0x0003 |  30 37 c2 30 31 cc 45 58 57 44 36 34 39 30 30 38
+.............................
+ast# cpld read 0x00
+CPLD read successful. Reg:0x00 Val:0x03
+ast# cpld write 0x00 0x04
+CPLD write successful. Reg:0x00 Val:0x04
+ast# cpld read 0x00
+CPLD read successful. Reg:0x00 Val:0x04
+ast#
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
+---
+ cmd/Makefile |   1 +
+ cmd/cpld.c   | 244 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 245 insertions(+)
+ create mode 100644 cmd/cpld.c
+
+diff --git a/cmd/Makefile b/cmd/Makefile
+index a1731be701..c8ac0af55c 100644
+--- a/cmd/Makefile
++++ b/cmd/Makefile
+@@ -66,6 +66,7 @@ obj-$(CONFIG_CMD_FUSE) += fuse.o
+ obj-$(CONFIG_CMD_GETTIME) += gettime.o
+ obj-$(CONFIG_CMD_GPIO) += gpio.o
+ obj-$(CONFIG_CMD_I2C) += i2c.o
++obj-$(CONFIG_CMD_I2C) += cpld.o
+ obj-$(CONFIG_CMD_IOTRACE) += iotrace.o
+ obj-$(CONFIG_CMD_HASH) += hash.o
+ obj-$(CONFIG_CMD_IDE) += ide.o
+diff --git a/cmd/cpld.c b/cmd/cpld.c
+new file mode 100644
+index 0000000000..1b225d20dc
+--- /dev/null
++++ b/cmd/cpld.c
+@@ -0,0 +1,244 @@
++/*
++ * Copyright (c) 2018-2019 Intel Corporation
++ * Written by AppaRao Puli <apparao.puli@intel.com>
++ *
++ * SPDX-License-Identifier:	GPL-2.0+
++ */
++
++#include <common.h>
++#include <command.h>
++#include <cli.h>
++#include <i2c.h>
++#include <errno.h>
++#include <linux/compiler.h>
++
++#define PFR_CPLD_I2C_BUSNO		4
++#define PFR_CPLD_SLAVE_ADDR		0x70
++
++#define CPLD_READ_TIMEOUT_ATTEMPTS	5
++
++/* Some CPLD registers are self cleared after read.
++ * We should skip them reading to avoid functionality impact.*/
++/* TODO: Need to get this list from CPLD team. */
++static uchar cpld_reg_skip_read[] = {};
++
++static bool skip_cpld_reg_read(u32 reg)
++{
++	int size = ARRAY_SIZE(cpld_reg_skip_read);
++	for (int i = 0; i < size; i++) {
++		if (reg == cpld_reg_skip_read[i])
++			return true;
++	}
++
++	return false;
++}
++
++static int do_cpld_write(cmd_tbl_t *cmdtp, int flag, int argc,
++			 char *const argv[])
++{
++	int ret = 0;
++	int current_bus_no;
++	u32 reg_addr;
++	uchar value;
++	int chip = (PFR_CPLD_SLAVE_ADDR >> 1);
++
++	if (argc != 3)
++		return CMD_RET_USAGE;
++
++	reg_addr = simple_strtoul(argv[1], NULL, 16);
++	if (reg_addr > 0xFF) {
++		printf("Invalid register. Valid range[0x00-0xFF].");
++		return CMD_RET_FAILURE;
++	}
++	value = simple_strtoul(argv[2], NULL, 16);
++
++	/* Get current I2C bus number to restore later. */
++	current_bus_no = i2c_get_bus_num();
++
++	/* Set I2C bus number to PFR CPLD I2C bus. */
++	ret = i2c_set_bus_num(PFR_CPLD_I2C_BUSNO);
++	if (ret) {
++		printf("Failure changing bus number (%d)\n", ret);
++		ret = CMD_RET_FAILURE;
++		goto done;
++	}
++
++	ret = i2c_write(chip, reg_addr, 1, &value, 1);
++	if (ret) {
++		printf("Error writing the chip: %d\n", ret);
++		ret = CMD_RET_FAILURE;
++		goto done;
++	}
++
++	printf("CPLD write successful. Reg:0x%02x Val:0x%02x\n", reg_addr,
++	       value);
++
++done:
++	/* Restore I2C bus number */
++	if (i2c_set_bus_num(current_bus_no))
++		printf("Error in restoring bus number.\n");
++
++	return ret;
++}
++
++static int do_cpld_read(cmd_tbl_t *cmdtp, int flag, int argc,
++			char *const argv[])
++{
++	int ret = 0;
++	int current_bus_no;
++	u32 reg_addr;
++	uchar value[1];
++	int chip = (PFR_CPLD_SLAVE_ADDR >> 1);
++
++	if (argc != 2)
++		return CMD_RET_USAGE;
++
++	reg_addr = simple_strtoul(argv[1], NULL, 16);
++	if (reg_addr > 0xFF) {
++		printf("Invalid register. Valid range[0x00-0xFF].");
++		return CMD_RET_FAILURE;
++	}
++
++	/* Get current I2C bus number to restore later. */
++	current_bus_no = i2c_get_bus_num();
++
++	/* Set I2C bus number to PFR CPLD I2C bus. */
++	ret = i2c_set_bus_num(PFR_CPLD_I2C_BUSNO);
++	if (ret) {
++		printf("Failure changing bus number (%d)\n", ret);
++		ret = CMD_RET_FAILURE;
++		goto done;
++	}
++
++	if (skip_cpld_reg_read(reg_addr)) {
++		printf("CPLD register(0x%02x) reading is not allowed.\n",
++		       reg_addr);
++		ret = 0;
++		goto done;
++	}
++
++	ret = i2c_read(chip, reg_addr, 1, value, 1);
++	if (ret) {
++		printf("Error reading the chip: %d\n", ret);
++		ret = CMD_RET_FAILURE;
++		goto done;
++	}
++
++	printf("CPLD read successful. Reg:0x%02x Val:0x%02x\n", reg_addr,
++	       value[0]);
++
++done:
++	/* Restore I2C bus number */
++	if (i2c_set_bus_num(current_bus_no))
++		printf("Error in restoring bus number.\n");
++
++	return ret;
++}
++
++static int do_cpld_dump(cmd_tbl_t *cmdtp, int flag, int argc,
++			char *const argv[])
++{
++	int ret = 0;
++	int current_bus_no;
++	u32 reg_addr = 0x00;
++	uchar value[1];
++	int chip = (PFR_CPLD_SLAVE_ADDR >> 1);
++
++	if (argc != 1)
++		return CMD_RET_USAGE;
++
++	/* Get current I2C bus number to restore later. */
++	current_bus_no = i2c_get_bus_num();
++
++	/* Set I2C bus number to PFR CPLD I2C bus. */
++	ret = i2c_set_bus_num(PFR_CPLD_I2C_BUSNO);
++	if (ret) {
++		printf("Failure changing bus number (%d)\n", ret);
++		ret = CMD_RET_FAILURE;
++		goto done;
++	}
++
++	printf("*** Dumping CPLD Registers ***\n", reg_addr, value);
++	printf("0x%04x | ", reg_addr);
++	for (int i = 0; i < 0x10; i++)
++		printf(" %02x", i);
++	printf("\n----------------------------------------------------------\n");
++
++	while (reg_addr <= 0xFF) {
++		if ((reg_addr % 16) == 0)
++			printf("0x%04x | ", (reg_addr / 16));
++
++		if (skip_cpld_reg_read(reg_addr)) {
++			printf(" --");
++		} else {
++			int timeout = 0;
++			while (i2c_read(chip, reg_addr, 1, value, 1) != 0) {
++				if (timeout++ >= CPLD_READ_TIMEOUT_ATTEMPTS) {
++					printf("\nERROR: Reading the chip: %d\n",
++					       ret);
++					ret = CMD_RET_FAILURE;
++					goto done;
++				}
++				/* Need delay for I2C devices continous read */
++				mdelay(3 * timeout);
++			}
++			printf(" %02x", value[0]);
++		}
++
++		reg_addr++;
++		if ((reg_addr % 16) == 0)
++			printf("\n");
++	}
++
++done:
++	/* Restore I2C bus number */
++	if (i2c_set_bus_num(current_bus_no))
++		printf("Error in restoring bus number.\n");
++
++	return ret;
++}
++static cmd_tbl_t cmd_cpld_sub[] = {
++	U_BOOT_CMD_MKENT(dump, 1, 1, do_cpld_dump, "", ""),
++	U_BOOT_CMD_MKENT(read, 2, 1, do_cpld_read, "", ""),
++	U_BOOT_CMD_MKENT(write, 3, 1, do_cpld_write, "", "")
++};
++
++/**
++ * do_cpld() - Handle the "cpld" command-line command
++ * @cmdtp:	Command data struct pointer
++ * @flag:	Command flag
++ * @argc:	Command-line argument count
++ * @argv:	Array of command-line arguments
++ *
++ * Returns zero on success, CMD_RET_USAGE in case of misuse and negative
++ * on error.
++ */
++static int do_cpld(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
++{
++	cmd_tbl_t *c = NULL;
++
++	if (argc < 2)
++		return CMD_RET_USAGE;
++
++	/* Strip off leading 'cpld' command argument */
++	argc--;
++	argv++;
++
++	if (argc)
++		c = find_cmd_tbl(argv[0], cmd_cpld_sub,
++				 ARRAY_SIZE(cmd_cpld_sub));
++
++	if (c)
++		return c->cmd(cmdtp, flag, argc, argv);
++	else
++		return CMD_RET_USAGE;
++}
++
++#ifdef CONFIG_SYS_LONGHELP
++static char cpld_help_text[] =
++	"cpld dump - Dump all CPLD registers.\n"
++	"cpld read <reg> - Read CPLD register.\n"
++	"cpld write <reg> <val> - Write CPLD register.\n";
++#endif
++
++U_BOOT_CMD(cpld, 4, 1, do_cpld, "PFR CPLD information", cpld_help_text);

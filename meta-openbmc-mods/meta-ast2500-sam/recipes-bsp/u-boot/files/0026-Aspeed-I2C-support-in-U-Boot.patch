@@ -1,0 +1,1521 @@
+From dd5ead5f8474a9929301745d3cdac23385ff6ded Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Mon, 6 May 2019 03:01:55 +0530
+Subject: [PATCH] Aspeed I2C support in U-Boot
+
+Adding Aspeed I2C support in u-boot and enabled
+i2c command. It is mainly used for PFR to
+communicate with PFR CPLD while BMC is in
+"Force Firmware Update" mode.
+
+Tested:
+Using i2c command in u-boot, validated
+i2c functionalities like probe, read and write.
+
+Change-Id: Iad9af4a57a58bc8dc5c470bfadad9dac1371c238
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
+---
+ .../include/asm/arch-aspeed/ast_g5_platform.h |  14 +
+ arch/arm/include/asm/arch-aspeed/ast_scu.h    |   5 +
+ arch/arm/include/asm/arch-aspeed/regs-iic.h   | 204 +++++
+ arch/arm/mach-aspeed/ast-scu.c                | 122 +++
+ board/aspeed/ast-g5/ast-g5.c                  |   8 +
+ configs/ast_g5_phy_defconfig                  |   2 +
+ drivers/i2c/Kconfig                           |   5 +
+ drivers/i2c/Makefile                          |   1 +
+ drivers/i2c/ast_i2c.c                         | 852 ++++++++++++++++++
+ drivers/i2c/ast_i2c.h                         | 131 +++
+ include/configs/ast-common.h                  |   5 +
+ 11 files changed, 1349 insertions(+)
+ create mode 100644 arch/arm/include/asm/arch-aspeed/regs-iic.h
+ create mode 100644 drivers/i2c/ast_i2c.c
+ create mode 100644 drivers/i2c/ast_i2c.h
+
+diff --git a/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h b/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h
+index 42108733f3..a84f471bf4 100644
+--- a/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h
++++ b/arch/arm/include/asm/arch-aspeed/ast_g5_platform.h
+@@ -105,6 +105,20 @@
+ #define AST_LPC_BASE			0x1E789000 /* LPC */
+ #define AST_MBX_BASE			0x1E789200 /* Mailbox */
+ #define AST_I2C_BASE			0x1E78A000 /* I2C */
++#define AST_I2C_DEV0_BASE		0x1E78A040  /* I2C DEV1 */
++#define AST_I2C_DEV1_BASE		0x1E78A080  /* I2C DEV2 */
++#define AST_I2C_DEV2_BASE		0x1E78A0C0  /* I2C DEV3 */
++#define AST_I2C_DEV3_BASE		0x1E78A100  /* I2C DEV4 */
++#define AST_I2C_DEV4_BASE		0x1E78A140  /* I2C DEV5 */
++#define AST_I2C_DEV5_BASE		0x1E78A180  /* I2C DEV6 */
++#define AST_I2C_DEV6_BASE		0x1E78A1C0  /* I2C DEV7 */
++#define AST_I2C_DEV7_BASE		0x1E78A300  /* I2C DEV8 */
++#define AST_I2C_DEV8_BASE		0x1E78A340  /* I2C DEV9 */
++#define AST_I2C_DEV9_BASE		0x1E78A380  /* I2C DEV10 */
++#define AST_I2C_DEV10_BASE		0x1E78A3C0  /* I2C DEV11 */
++#define AST_I2C_DEV11_BASE		0x1E78A400  /* I2C DEV12 */
++#define AST_I2C_DEV12_BASE		0x1E78A440  /* I2C DEV13 */
++#define AST_I2C_DEV13_BASE		0x1E78A480  /* I2C DEV14 */
+ #define AST_PECI_BASE			0x1E78B000 /* PECI */
+ #define AST_PCIARBITER_BASE		0x1E78C000 /* PCI ARBITER */
+ #define AST_UART2_BASE			0x1E78D000 /* UART2 */
+diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
+index 369c4e3b60..b94d13e97d 100644
+--- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
++++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
+@@ -28,6 +28,8 @@
+ #ifndef __AST_SCU_H
+ #define __AST_SCU_H
+ 
++#include <common.h>
++
+ extern void ast_scu_show_system_info (void);
+ extern void ast_scu_sys_rest_info(void);
+ extern void ast_scu_security_info(void);
+@@ -39,13 +41,16 @@ extern u32 ast_get_clk_source(void);
+ extern u32 ast_get_h_pll_clk(void);
+ extern u32 ast_get_m_pll_clk(void);
+ extern u32 ast_get_ahbclk(void);
++extern u32 ast_get_pclk(void);
+ 
+ extern u32 ast_scu_get_vga_memsize(void);
+ 
++extern void ast_scu_init_i2c(void);
+ extern void ast_scu_init_eth(u8 num);
+ extern void ast_scu_multi_func_eth(u8 num);
+ extern void ast_scu_multi_func_romcs(u8 num);
+ extern void ast_scu_multi_func_sgpio(void);
++extern void ast_scu_multi_func_i2c(u8 bus_no);
+ 
+ void ast_config_uart5_clk(void);
+ 
+diff --git a/arch/arm/include/asm/arch-aspeed/regs-iic.h b/arch/arm/include/asm/arch-aspeed/regs-iic.h
+new file mode 100644
+index 0000000000..5eb3f0a828
+--- /dev/null
++++ b/arch/arm/include/asm/arch-aspeed/regs-iic.h
+@@ -0,0 +1,204 @@
++/* arch/arm/plat-aspeed/include/mach/regs-iic.h
++ *
++ * Copyright (c) 2012 ASPEED Technology Inc. <ryan_chen@aspeedtech.com>
++ *		http://www.aspeedtech.com/
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * ASPEED I2C Controller
++*/
++
++#ifndef __ASM_ARCH_REGS_IIC_H
++#define __ASM_ARCH_REGS_IIC_H __FILE__
++
++#ifdef CONFIG_ARCH_AST1010
++#define AST_I2C_DMA_SIZE 512
++#else
++#define AST_I2C_DMA_SIZE 4096
++#endif
++#define AST_I2C_PAGE_SIZE 256
++
++#if defined(CONFIG_ARCH_AST2300)
++#define NUM_BUS 9
++#elif defined(CONFIG_ARCH_AST2400)
++#define NUM_BUS 14
++#elif defined(CONFIG_ARCH_AST1010)
++#define NUM_BUS 15
++#elif defined(CONFIG_ARCH_AST1520) || defined(CONFIG_ARCH_AST3200) || defined(CONFIG_ARCH_AST2500)
++#define NUM_BUS 14
++#elif defined(CONFIG_ARCH_AST1220)
++#define NUM_BUS 10
++#else
++#err "NO define NUM_BUS"
++#endif
++
++/* I2C Register */
++#define I2C_FUN_CTRL_REG		0x00
++#define I2C_AC_TIMING_REG1		0x04
++#define I2C_AC_TIMING_REG2		0x08
++#define I2C_INTR_CTRL_REG		0x0c
++#define I2C_INTR_STS_REG		0x10
++#define I2C_CMD_REG			0x14
++#define I2C_DEV_ADDR_REG		0x18
++#define I2C_BUF_CTRL_REG		0x1c
++#define I2C_BYTE_BUF_REG		0x20
++#define I2C_DMA_BASE_REG		0x24
++#define I2C_DMA_LEN_REG		0x28
++
++
++/* Gloable Register Definition */
++/* 0x00 : I2C Interrupt Status Register  */
++/* 0x08 : I2C Interrupt Target Assignment  */
++#if defined(CONFIG_ARCH_AST2400)
++#define AST_I2CG_INTR14			(0x1 << 13)
++#define AST_I2CG_INTR13			(0x1 << 12)
++#define AST_I2CG_INTR12			(0x1 << 11)
++#define AST_I2CG_INTR11			(0x1 << 10)
++#define AST_I2CG_INTR10			(0x1 << 9)
++#elif defined(CONFIG_ARCH_AST1010)
++#define AST_I2CG_INTR14			(0x1 << 13)
++#define AST_I2CG_INTR13			(0x1 << 12)
++#define AST_I2CG_INTR12			(0x1 << 11)
++#define AST_I2CG_INTR11			(0x1 << 10)
++#define AST_I2CG_INTR10			(0x1 << 9)
++#endif
++#define AST_I2CG_INTR09			(0x1 << 8)
++#define AST_I2CG_INTR08			(0x1 << 7)
++#define AST_I2CG_INTR07			(0x1 << 6)
++#define AST_I2CG_INTR06			(0x1 << 5)
++#define AST_I2CG_INTR05			(0x1 << 4)
++#define AST_I2CG_INTR04			(0x1 << 3)
++#define AST_I2CG_INTR03			(0x1 << 2)
++#define AST_I2CG_INTR02			(0x1 << 1)
++#define AST_I2CG_INTR01			(0x1)
++
++/* Device Register Definition */
++/* 0x00 : I2CD Function Control Register  */
++#define AST_I2CD_BUFF_SEL_MASK			(0x7 << 20)
++#define AST_I2CD_BUFF_SEL(x)			(x << 20) // page 0 ~ 7
++#define AST_I2CD_M_SDA_LOCK_EN			(0x1 << 16)
++#define AST_I2CD_MULTI_MASTER_DIS		(0x1 << 15)
++#define AST_I2CD_M_SCL_DRIVE_EN			(0x1 << 14)
++#define AST_I2CD_MSB_STS			(0x1 << 9)
++#define AST_I2CD_SDA_DRIVE_1T_EN		(0x1 << 8)
++#define AST_I2CD_M_SDA_DRIVE_1T_EN		(0x1 << 7)
++#define AST_I2CD_M_HIGH_SPEED_EN		(0x1 << 6)
++#define AST_I2CD_DEF_ADDR_EN			(0x1 << 5)
++#define AST_I2CD_DEF_ALERT_EN			(0x1 << 4)
++#define AST_I2CD_DEF_ARP_EN			(0x1 << 3)
++#define AST_I2CD_DEF_GCALL_EN			(0x1 << 2)
++#define AST_I2CD_SLAVE_EN			(0x1 << 1)
++#define AST_I2CD_MASTER_EN			(0x1)
++
++/* 0x04 : I2CD Clock and AC Timing Control Register #1 */
++#define AST_I2CD_tBUF				(0x1 << 28) // 0~7
++#define AST_I2CD_tHDSTA				(0x1 << 24) // 0~7
++#define AST_I2CD_tACST				(0x1 << 20) // 0~7
++#define AST_I2CD_tCKHIGH			(0x1 << 16) // 0~7
++#define AST_I2CD_tCKLOW				(0x1 << 12) // 0~7
++#define AST_I2CD_tHDDAT				(0x1 << 10) // 0~7
++#define AST_I2CD_CLK_TO_BASE_DIV		(0x1 << 8)  // 0~3
++#define AST_I2CD_CLK_BASE_DIV			(0x1)      // 0~0xf
++
++/* 0x08 : I2CD Clock and AC Timing Control Register #2 */
++#define AST_I2CD_tTIMEOUT			(0x1) // 0~7
++#define AST_NO_TIMEOUT_CTRL			0x0
++
++
++/* 0x0c : I2CD Interrupt Control Register  */
++#define AST_I2CD_SDA_DL_TO_INTR_EN		(0x1 << 14)
++#define AST_I2CD_BUS_RECOVER_INTR_EN		(0x1 << 13)
++#define AST_I2CD_SMBUS_ALT_INTR_EN		(0x1 << 12)
++#define AST_I2CD_SLAVE_MATCH_INTR_EN		(0x1 << 7)
++#define AST_I2CD_SCL_TO_INTR_EN			(0x1 << 6)
++#define AST_I2CD_ABNORMAL_INTR_EN		(0x1 << 5)
++#define AST_I2CD_NORMAL_STOP_INTR_EN		(0x1 << 4)
++#define AST_I2CD_ARBIT_LOSS_INTR_EN		(0x1 << 3)
++#define AST_I2CD_RX_DOWN_INTR_EN		(0x1 << 2)
++#define AST_I2CD_TX_NAK_INTR_EN			(0x1 << 1)
++#define AST_I2CD_TX_ACK_INTR_EN			(0x1)
++
++/* 0x10 : I2CD Interrupt Status Register   : WC */
++#define AST_I2CD_INTR_STS_SDA_DL_TO		(0x1 << 14)
++#define AST_I2CD_INTR_STS_BUS_RECOVER		(0x1 << 13)
++#define AST_I2CD_INTR_STS_SMBUS_ALT		(0x1 << 12)
++#define AST_I2CD_INTR_STS_SMBUS_ARP_ADDR	(0x1 << 11)
++#define AST_I2CD_INTR_STS_SMBUS_DEV_ALT		(0x1 << 10)
++#define AST_I2CD_INTR_STS_SMBUS_DEF_ADDR	(0x1 << 9)
++#define AST_I2CD_INTR_STS_GCALL_ADDR		(0x1 << 8)
++#define AST_I2CD_INTR_STS_SLAVE_MATCH		(0x1 << 7)
++#define AST_I2CD_INTR_STS_SCL_TO		(0x1 << 6)
++#define AST_I2CD_INTR_STS_ABNORMAL		(0x1 << 5)
++#define AST_I2CD_INTR_STS_NORMAL_STOP		(0x1 << 4)
++#define AST_I2CD_INTR_STS_ARBIT_LOSS		(0x1 << 3)
++#define AST_I2CD_INTR_STS_RX_DOWN		(0x1 << 2)
++#define AST_I2CD_INTR_STS_TX_NAK		(0x1 << 1)
++#define AST_I2CD_INTR_STS_TX_ACK		(0x1)
++
++/* 0x14 : I2CD Command/Status Register   */
++#define AST_I2CD_SDA_OE				(0x1 << 28)
++#define AST_I2CD_SDA_O				(0x1 << 27)
++#define AST_I2CD_SCL_OE				(0x1 << 26)
++#define AST_I2CD_SCL_O				(0x1 << 25)
++#define AST_I2CD_TX_TIMING			(0x1 << 24) // 0 ~3
++#define AST_I2CD_TX_STATUS			(0x1 << 23)
++// Tx State Machine
++#define AST_I2CD_IDLE					0x0
++#define AST_I2CD_MACTIVE				0x8
++#define AST_I2CD_MSTART					0x9
++#define AST_I2CD_MSTARTR				0xa
++#define AST_I2CD_MSTOP					0xb
++#define AST_I2CD_MTXD					0xc
++#define AST_I2CD_MRXACK					0xd
++#define AST_I2CD_MRXD					0xe
++#define AST_I2CD_MTXACK					0xf
++#define AST_I2CD_SWAIT					0x1
++#define AST_I2CD_SRXD					0x4
++#define AST_I2CD_STXACK					0x5
++#define AST_I2CD_STXD					0x6
++#define AST_I2CD_SRXACK					0x7
++#define AST_I2CD_RECOVER				0x3
++
++#define AST_I2CD_SCL_LINE_STS				(0x1 << 18)
++#define AST_I2CD_SDA_LINE_STS				(0x1 << 17)
++#define AST_I2CD_BUS_BUSY_STS				(0x1 << 16)
++#define AST_I2CD_SDA_OE_OUT_DIR				(0x1 << 15)
++#define AST_I2CD_SDA_O_OUT_DIR				(0x1 << 14)
++#define AST_I2CD_SCL_OE_OUT_DIR				(0x1 << 13)
++#define AST_I2CD_SCL_O_OUT_DIR				(0x1 << 12)
++#define AST_I2CD_BUS_RECOVER_CMD_EN			(0x1 << 11)
++#define AST_I2CD_S_ALT_EN				(0x1 << 10)
++// 0 : DMA Buffer, 1: Pool Buffer
++//AST1070 DMA register
++#define AST_I2CD_RX_DMA_ENABLE				(0x1 << 9)
++#define AST_I2CD_TX_DMA_ENABLE				(0x1 << 8)
++
++/* Command Bit */
++#define AST_I2CD_RX_BUFF_ENABLE				(0x1 << 7)
++#define AST_I2CD_TX_BUFF_ENABLE				(0x1 << 6)
++#define AST_I2CD_M_STOP_CMD				(0x1 << 5)
++#define AST_I2CD_M_S_RX_CMD_LAST			(0x1 << 4)
++#define AST_I2CD_M_RX_CMD				(0x1 << 3)
++#define AST_I2CD_S_TX_CMD				(0x1 << 2)
++#define AST_I2CD_M_TX_CMD				(0x1 << 1)
++#define AST_I2CD_M_START_CMD				(0x1)
++
++/* 0x18 : I2CD Slave Device Address Register   */
++
++/* 0x1C : I2CD Pool Buffer Control Register   */
++#define AST_I2CD_RX_BUF_ADDR_GET(x)			((x >> 24) & 0xff)
++#define AST_I2CD_RX_BUF_END_ADDR_SET(x)			(x << 16)
++#define AST_I2CD_TX_DATA_BUF_END_SET(x)			((x & 0xff) << 8)
++#define AST_I2CD_TX_DATA_BUF_GET(x)			((x >> 8) & 0xff)
++#define AST_I2CD_BUF_BASE_ADDR_SET(x)			(x & 0x3f)
++
++/* 0x20 : I2CD Transmit/Receive Byte Buffer Register   */
++#define AST_I2CD_GET_MODE(x)				((x >> 8) & 0x1)
++
++#define AST_I2CD_RX_BYTE_BUFFER				(0xff << 8)
++#define AST_I2CD_TX_BYTE_BUFFER				(0xff)
++
++
++#endif /* __ASM_ARCH_REGS_IIC_H */
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index 976c59b82a..537cd4b3e1 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -112,6 +112,12 @@ static struct soc_id soc_map_table[] = {
+ 	SOC_ID("AST2530-A2", 0x04030403),
+ };
+ 
++void ast_scu_init_i2c(void)
++{
++	ast_scu_write(ast_scu_read(AST_SCU_RESET) & ~SCU_RESET_I2C,
++		      AST_SCU_RESET);
++}
++
+ void ast_scu_init_eth(u8 num)
+ {
+ /* Set MAC delay Timing */
+@@ -292,6 +298,23 @@ u32 ast_get_ahbclk(void)
+ 	return ((hpll / axi_div) / ahb_div);
+ }
+ 
++u32 ast_get_pclk(void)
++{
++	unsigned int div, hpll;
++
++	hpll = ast_get_h_pll_clk();
++	div = SCU_GET_PCLK_DIV(ast_scu_read(AST_SCU_CLK_SEL));
++#ifdef AST_SOC_G5
++	div = (div+1) << 2;
++#else
++	div = (div+1) << 1;
++#endif
++
++	debug("HPLL=%d, Div=%d, PCLK=%d\n", hpll, div, hpll/div);
++	return (hpll/div);
++}
++
++
+ #else /* ! AST_SOC_G5 */
+ 
+ u32 ast_get_h_pll_clk(void)
+@@ -457,6 +480,105 @@ void ast_scu_multi_func_sgpio(void)
+ 			AST_SCU_FUN_PIN_CTRL2);
+ }
+ 
++extern void ast_scu_multi_func_i2c(u8 bus_no)
++{
++#ifdef CONFIG_ARCH_AST1010
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL4) |
++				SCU_FUN_PIN_SCL13 |
++				SCU_FUN_PIN_SDA13 |
++				SCU_FUN_PIN_SCL14 |
++				SCU_FUN_PIN_SDA14,
++			AST_SCU_FUN_PIN_CTRL4);
++
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL2) |
++				SCU_FUN_PIN_SCL1 |
++				SCU_FUN_PIN_SDA1 |
++				SCU_FUN_PIN_SCL2 |
++				SCU_FUN_PIN_SDA2 |
++				SCU_FUN_PIN_SCL3 |
++				SCU_FUN_PIN_SDA3 |
++				SCU_FUN_PIN_SCL4 |
++				SCU_FUN_PIN_SDA4 |
++				SCU_FUN_PIN_SCL5 |
++				SCU_FUN_PIN_SDA5 |
++				SCU_FUN_PIN_SCL6 |
++				SCU_FUN_PIN_SDA6 |
++				SCU_FUN_PIN_SCL7 |
++				SCU_FUN_PIN_SDA7 |
++				SCU_FUN_PIN_SCL8 |
++				SCU_FUN_PIN_SDA8 |
++				SCU_FUN_PIN_SALT1 |
++				SCU_FUN_PIN_SALT2 |
++				SCU_FUN_PIN_SALT3 |
++				SCU_FUN_PIN_SALT4,
++			AST_SCU_FUN_PIN_CTRL2);
++
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) |
++				SCU_FUN_PIN_SCL9 |
++				SCU_FUN_PIN_SDA9 |
++				SCU_FUN_PIN_SCL10 |
++				SCU_FUN_PIN_SDA10 |
++				SCU_FUN_PIN_SCL11 |
++				SCU_FUN_PIN_SDA11 |
++				SCU_FUN_PIN_SCL12 |
++				SCU_FUN_PIN_SDA12,
++			AST_SCU_FUN_PIN_CTRL1);
++#else
++	//TODO check ... //In AST2400 Due to share pin with SD , please not enable I2C 10 ~14
++	// AST 2400 have 14 , AST 2300 9 ...
++	u32 pin_ctrl = ast_scu_read(AST_SCU_FUN_PIN_CTRL5);
++	switch (bus_no) {
++	case 0:
++		break;
++	case 1:
++		break;
++	case 2:
++		pin_ctrl |= SCU_FUC_PIN_I2C3;
++		break;
++	case 3:
++		pin_ctrl |= SCU_FUC_PIN_I2C4;
++		break;
++	case 4:
++		pin_ctrl |= SCU_FUC_PIN_I2C5;
++		break;
++	case 5:
++		pin_ctrl |= SCU_FUC_PIN_I2C6;
++		break;
++	case 6:
++		pin_ctrl |= SCU_FUC_PIN_I2C7;
++		break;
++	case 7:
++		pin_ctrl |= SCU_FUC_PIN_I2C8;
++		break;
++	case 8:
++		pin_ctrl |= SCU_FUC_PIN_I2C9;
++		break;
++	case 9:
++		pin_ctrl |= SCU_FUC_PIN_I2C10;
++		pin_ctrl &= ~SCU_FUC_PIN_SD1;
++		break;
++	case 10:
++		pin_ctrl |= SCU_FUC_PIN_I2C11;
++		pin_ctrl &= ~SCU_FUC_PIN_SD1;
++		break;
++	case 11:
++		pin_ctrl |= SCU_FUC_PIN_I2C12;
++		pin_ctrl &= ~SCU_FUC_PIN_SD1;
++		break;
++	case 12:
++		pin_ctrl |= SCU_FUC_PIN_I2C13;
++		pin_ctrl &= ~SCU_FUC_PIN_SD1;
++		break;
++	case 13:
++		pin_ctrl |= SCU_FUC_PIN_I2C14;
++		break;
++	}
++
++    ast_scu_write(pin_ctrl, AST_SCU_FUN_PIN_CTRL5);
++#endif
++}
++
++
+ u32 ast_scu_revision_id(void)
+ {
+ 	int i;
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index d89a2b799a..ead2e1bb63 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -16,6 +16,7 @@
+ #include <asm/arch/regs-scu.h>
+ #include <asm/arch/regs-sdmc.h>
+ #include <asm/io.h>
++#include <i2c.h>
+ 
+ #include "ast-g5.h"
+ 
+@@ -87,6 +88,13 @@ int board_init(void)
+ 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+ 	gd->flags = 0;
+ 
++	/* Initialize I2C */
++#if defined(CONFIG_SYS_I2C)
++	i2c_init(I2C_ADAP->speed, I2C_ADAP->slaveaddr);
++#else
++	i2c_init(CONFIG_SYS_I2C_SPEED, CONFIG_SYS_I2C_SLAVE);
++#endif
++
+ 	ast_g5_intel();
+ 	return 0;
+ }
+diff --git a/configs/ast_g5_phy_defconfig b/configs/ast_g5_phy_defconfig
+index 4aefcf49e8..1b96ab7f3b 100644
+--- a/configs/ast_g5_phy_defconfig
++++ b/configs/ast_g5_phy_defconfig
+@@ -13,3 +13,5 @@ CONFIG_OF_LIBFDT=y
+ CONFIG_SPI_FLASH=y
+ CONFIG_SYS_NS16550=y
+ CONFIG_USE_IRQ=y
++CONFIG_CMD_I2C=y
++CONFIG_SYS_I2C_AST=y
+diff --git a/drivers/i2c/Kconfig b/drivers/i2c/Kconfig
+index 6e22bbadff..5368ba270a 100644
+--- a/drivers/i2c/Kconfig
++++ b/drivers/i2c/Kconfig
+@@ -58,6 +58,11 @@ config DM_I2C_GPIO
+ 	  bindings are supported.
+ 	  Binding info: doc/device-tree-bindings/i2c/i2c-gpio.txt
+ 
++config SYS_I2C_AST
++       bool "Aspeed I2C bus driver"
++       help
++	  Add support for Aspeed I2C busses on AST2500 processors.
++
+ config SYS_I2C_FSL
+        bool "Freescale I2C bus driver"
+        depends on DM_I2C
+diff --git a/drivers/i2c/Makefile b/drivers/i2c/Makefile
+index 167424db98..b2a69eafc1 100644
+--- a/drivers/i2c/Makefile
++++ b/drivers/i2c/Makefile
+@@ -11,6 +11,7 @@ obj-$(CONFIG_$(SPL_)I2C_CROS_EC_TUNNEL) += cros_ec_tunnel.o
+ obj-$(CONFIG_$(SPL_)I2C_CROS_EC_LDO) += cros_ec_ldo.o
+ 
+ obj-$(CONFIG_SYS_I2C_ADI) += adi_i2c.o
++obj-$(CONFIG_SYS_I2C_AST) += ast_i2c.o
+ obj-$(CONFIG_I2C_MV) += mv_i2c.o
+ obj-$(CONFIG_PCA9564_I2C) += pca9564_i2c.o
+ obj-$(CONFIG_TSI108_I2C) += tsi108_i2c.o
+diff --git a/drivers/i2c/ast_i2c.c b/drivers/i2c/ast_i2c.c
+new file mode 100644
+index 0000000000..533419f9dd
+--- /dev/null
++++ b/drivers/i2c/ast_i2c.c
+@@ -0,0 +1,852 @@
++/*
++ *  i2c_adap_ast.c
++ *
++ *  I2C adapter for the ASPEED I2C bus access.
++ *
++ *  Copyright (C) 2012-2020  ASPEED Technology Inc.
++ *
++ *  This program is free software; you can redistribute it and/or modify
++ *  it under the terms of the GNU General Public License version 2 as
++ *  published by the Free Software Foundation.
++ *
++ *  History:
++ *    2012.07.26: Initial version [Ryan Chen]
++ */
++
++#include <common.h>
++#include <configs/ast-common.h>
++#include <fdtdec.h>
++
++#include <asm/arch/ast_scu.h>
++#include <i2c.h>
++
++#include <asm/arch/regs-iic.h>
++#include <asm/io.h>
++
++// AST2400 buffer mode issue , force I2C slave write use byte mode , read use
++// buffer mode
++/* Use platform_data instead of module parameters */
++/* Fast Mode = 400 kHz, Standard = 100 kHz */
++// static int clock = 100; /* Default: 100 kHz */
++
++/***************************************************************************/
++DECLARE_GLOBAL_DATA_PTR;
++
++#define I2C_TIMEOUT_COUNT 200
++#define I2C_SLEEP_US 1000
++
++static unsigned int i2c_bus_num __attribute__((section(".data")));
++
++/* Information about i2c controller */
++struct ast_i2c_bus {
++	u32 reg_base; /* virtual */
++	u32 speed;
++	u32 state; /* I2C xfer mode state matchine */
++	u16 addr; /* slave address */
++	u16 flags;
++	u16 a_len; /* msg length */
++	u8 *a_buf; /* pointer to msg data */
++	u16 d_len; /* msg length */
++	u8 *d_buf; /* pointer to msg data */
++};
++
++static struct ast_i2c_bus ast_i2c[NUM_BUS] __attribute__((section(".data")));
++
++struct ast_i2c_timing_table {
++	u32 divisor;
++	u32 timing;
++};
++
++static struct ast_i2c_timing_table i2c_timing_table[] = {
++#if defined(AST_SOC_G5)
++	/* Divisor : Base Clock : tCK High : tCK Low  */
++	/* Divisor :	  [3:0]    :   [19:16]:   [15:12] */
++	{ 6, 0x77700300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
++	{ 7, 0x77700300 | (0x0) | (0x3 << 16) | (0x2 << 12) },
++	{ 8, 0x77700300 | (0x0) | (0x3 << 16) | (0x3 << 12) },
++	{ 9, 0x77700300 | (0x0) | (0x4 << 16) | (0x3 << 12) },
++	{ 10, 0x77700300 | (0x0) | (0x4 << 16) | (0x4 << 12) },
++	{ 11, 0x77700300 | (0x0) | (0x5 << 16) | (0x4 << 12) },
++	{ 12, 0x77700300 | (0x0) | (0x5 << 16) | (0x5 << 12) },
++	{ 13, 0x77700300 | (0x0) | (0x6 << 16) | (0x5 << 12) },
++	{ 14, 0x77700300 | (0x0) | (0x6 << 16) | (0x6 << 12) },
++	{ 15, 0x77700300 | (0x0) | (0x7 << 16) | (0x6 << 12) },
++	{ 16, 0x77700300 | (0x0) | (0x7 << 16) | (0x7 << 12) },
++	{ 17, 0x77700300 | (0x0) | (0x8 << 16) | (0x7 << 12) },
++	{ 18, 0x77700300 | (0x0) | (0x8 << 16) | (0x8 << 12) },
++	{ 19, 0x77700300 | (0x0) | (0x9 << 16) | (0x8 << 12) },
++	{ 20, 0x77700300 | (0x0) | (0x9 << 16) | (0x9 << 12) },
++	{ 21, 0x77700300 | (0x0) | (0xa << 16) | (0x9 << 12) },
++	{ 22, 0x77700300 | (0x0) | (0xa << 16) | (0xa << 12) },
++	{ 23, 0x77700300 | (0x0) | (0xb << 16) | (0xa << 12) },
++	{ 24, 0x77700300 | (0x0) | (0xb << 16) | (0xb << 12) },
++	{ 25, 0x77700300 | (0x0) | (0xc << 16) | (0xb << 12) },
++	{ 26, 0x77700300 | (0x0) | (0xc << 16) | (0xc << 12) },
++	{ 27, 0x77700300 | (0x0) | (0xd << 16) | (0xc << 12) },
++	{ 28, 0x77700300 | (0x0) | (0xd << 16) | (0xd << 12) },
++	{ 29, 0x77700300 | (0x0) | (0xe << 16) | (0xd << 12) },
++	{ 30, 0x77700300 | (0x0) | (0xe << 16) | (0xe << 12) },
++	{ 31, 0x77700300 | (0x0) | (0xf << 16) | (0xe << 12) },
++	{ 32, 0x77700300 | (0x0) | (0xf << 16) | (0xf << 12) },
++
++	{ 34, 0x77700300 | (0x1) | (0x8 << 16) | (0x7 << 12) },
++	{ 36, 0x77700300 | (0x1) | (0x8 << 16) | (0x8 << 12) },
++	{ 38, 0x77700300 | (0x1) | (0x9 << 16) | (0x8 << 12) },
++	{ 40, 0x77700300 | (0x1) | (0x9 << 16) | (0x9 << 12) },
++	{ 42, 0x77700300 | (0x1) | (0xa << 16) | (0x9 << 12) },
++	{ 44, 0x77700300 | (0x1) | (0xa << 16) | (0xa << 12) },
++	{ 46, 0x77700300 | (0x1) | (0xb << 16) | (0xa << 12) },
++	{ 48, 0x77700300 | (0x1) | (0xb << 16) | (0xb << 12) },
++	{ 50, 0x77700300 | (0x1) | (0xc << 16) | (0xb << 12) },
++	{ 52, 0x77700300 | (0x1) | (0xc << 16) | (0xc << 12) },
++	{ 54, 0x77700300 | (0x1) | (0xd << 16) | (0xc << 12) },
++	{ 56, 0x77700300 | (0x1) | (0xd << 16) | (0xd << 12) },
++	{ 58, 0x77700300 | (0x1) | (0xe << 16) | (0xd << 12) },
++	{ 60, 0x77700300 | (0x1) | (0xe << 16) | (0xe << 12) },
++	{ 62, 0x77700300 | (0x1) | (0xf << 16) | (0xe << 12) },
++	{ 64, 0x77700300 | (0x1) | (0xf << 16) | (0xf << 12) },
++
++	{ 68, 0x77700300 | (0x2) | (0x8 << 16) | (0x7 << 12) },
++	{ 72, 0x77700300 | (0x2) | (0x8 << 16) | (0x8 << 12) },
++	{ 76, 0x77700300 | (0x2) | (0x9 << 16) | (0x8 << 12) },
++	{ 80, 0x77700300 | (0x2) | (0x9 << 16) | (0x9 << 12) },
++	{ 84, 0x77700300 | (0x2) | (0xa << 16) | (0x9 << 12) },
++	{ 88, 0x77700300 | (0x2) | (0xa << 16) | (0xa << 12) },
++	{ 92, 0x77700300 | (0x2) | (0xb << 16) | (0xa << 12) },
++	{ 96, 0x77700300 | (0x2) | (0xb << 16) | (0xb << 12) },
++	{ 100, 0x77700300 | (0x2) | (0xc << 16) | (0xb << 12) },
++	{ 104, 0x77700300 | (0x2) | (0xc << 16) | (0xc << 12) },
++	{ 108, 0x77700300 | (0x2) | (0xd << 16) | (0xc << 12) },
++	{ 112, 0x77700300 | (0x2) | (0xd << 16) | (0xd << 12) },
++	{ 116, 0x77700300 | (0x2) | (0xe << 16) | (0xd << 12) },
++	{ 120, 0x77700300 | (0x2) | (0xe << 16) | (0xe << 12) },
++	{ 124, 0x77700300 | (0x2) | (0xf << 16) | (0xe << 12) },
++	{ 128, 0x77700300 | (0x2) | (0xf << 16) | (0xf << 12) },
++
++	{ 136, 0x77700300 | (0x3) | (0x8 << 16) | (0x7 << 12) },
++	{ 144, 0x77700300 | (0x3) | (0x8 << 16) | (0x8 << 12) },
++	{ 152, 0x77700300 | (0x3) | (0x9 << 16) | (0x8 << 12) },
++	{ 160, 0x77700300 | (0x3) | (0x9 << 16) | (0x9 << 12) },
++	{ 168, 0x77700300 | (0x3) | (0xa << 16) | (0x9 << 12) },
++	{ 176, 0x77700300 | (0x3) | (0xa << 16) | (0xa << 12) },
++	{ 184, 0x77700300 | (0x3) | (0xb << 16) | (0xa << 12) },
++	{ 192, 0x77700300 | (0x3) | (0xb << 16) | (0xb << 12) },
++	{ 200, 0x77700300 | (0x3) | (0xc << 16) | (0xb << 12) },
++	{ 208, 0x77700300 | (0x3) | (0xc << 16) | (0xc << 12) },
++	{ 216, 0x77700300 | (0x3) | (0xd << 16) | (0xc << 12) },
++	{ 224, 0x77700300 | (0x3) | (0xd << 16) | (0xd << 12) },
++	{ 232, 0x77700300 | (0x3) | (0xe << 16) | (0xd << 12) },
++	{ 240, 0x77700300 | (0x3) | (0xe << 16) | (0xe << 12) },
++	{ 248, 0x77700300 | (0x3) | (0xf << 16) | (0xe << 12) },
++	{ 256, 0x77700300 | (0x3) | (0xf << 16) | (0xf << 12) },
++
++	{ 272, 0x77700300 | (0x4) | (0x8 << 16) | (0x7 << 12) },
++	{ 288, 0x77700300 | (0x4) | (0x8 << 16) | (0x8 << 12) },
++	{ 304, 0x77700300 | (0x4) | (0x9 << 16) | (0x8 << 12) },
++	{ 320, 0x77700300 | (0x4) | (0x9 << 16) | (0x9 << 12) },
++	{ 336, 0x77700300 | (0x4) | (0xa << 16) | (0x9 << 12) },
++	{ 352, 0x77700300 | (0x4) | (0xa << 16) | (0xa << 12) },
++	{ 368, 0x77700300 | (0x4) | (0xb << 16) | (0xa << 12) },
++	{ 384, 0x77700300 | (0x4) | (0xb << 16) | (0xb << 12) },
++	{ 400, 0x77700300 | (0x4) | (0xc << 16) | (0xb << 12) },
++	{ 416, 0x77700300 | (0x4) | (0xc << 16) | (0xc << 12) },
++	{ 432, 0x77700300 | (0x4) | (0xd << 16) | (0xc << 12) },
++	{ 448, 0x77700300 | (0x4) | (0xd << 16) | (0xd << 12) },
++	{ 464, 0x77700300 | (0x4) | (0xe << 16) | (0xd << 12) },
++	{ 480, 0x77700300 | (0x4) | (0xe << 16) | (0xe << 12) },
++	{ 496, 0x77700300 | (0x4) | (0xf << 16) | (0xe << 12) },
++	{ 512, 0x77700300 | (0x4) | (0xf << 16) | (0xf << 12) },
++
++	{ 544, 0x77700300 | (0x5) | (0x8 << 16) | (0x7 << 12) },
++	{ 576, 0x77700300 | (0x5) | (0x8 << 16) | (0x8 << 12) },
++	{ 608, 0x77700300 | (0x5) | (0x9 << 16) | (0x8 << 12) },
++	{ 640, 0x77700300 | (0x5) | (0x9 << 16) | (0x9 << 12) },
++	{ 672, 0x77700300 | (0x5) | (0xa << 16) | (0x9 << 12) },
++	{ 704, 0x77700300 | (0x5) | (0xa << 16) | (0xa << 12) },
++	{ 736, 0x77700300 | (0x5) | (0xb << 16) | (0xa << 12) },
++	{ 768, 0x77700300 | (0x5) | (0xb << 16) | (0xb << 12) },
++	{ 800, 0x77700300 | (0x5) | (0xc << 16) | (0xb << 12) },
++	{ 832, 0x77700300 | (0x5) | (0xc << 16) | (0xc << 12) },
++	{ 864, 0x77700300 | (0x5) | (0xd << 16) | (0xc << 12) },
++	{ 896, 0x77700300 | (0x5) | (0xd << 16) | (0xd << 12) },
++	{ 928, 0x77700300 | (0x5) | (0xe << 16) | (0xd << 12) },
++	{ 960, 0x77700300 | (0x5) | (0xe << 16) | (0xe << 12) },
++	{ 992, 0x77700300 | (0x5) | (0xf << 16) | (0xe << 12) },
++	{ 1024, 0x77700300 | (0x5) | (0xf << 16) | (0xf << 12) },
++
++	{ 1088, 0x77700300 | (0x6) | (0x8 << 16) | (0x7 << 12) },
++	{ 1152, 0x77700300 | (0x6) | (0x8 << 16) | (0x8 << 12) },
++	{ 1216, 0x77700300 | (0x6) | (0x9 << 16) | (0x8 << 12) },
++	{ 1280, 0x77700300 | (0x6) | (0x9 << 16) | (0x9 << 12) },
++	{ 1344, 0x77700300 | (0x6) | (0xa << 16) | (0x9 << 12) },
++	{ 1408, 0x77700300 | (0x6) | (0xa << 16) | (0xa << 12) },
++	{ 1472, 0x77700300 | (0x6) | (0xb << 16) | (0xa << 12) },
++	{ 1536, 0x77700300 | (0x6) | (0xb << 16) | (0xb << 12) },
++	{ 1600, 0x77700300 | (0x6) | (0xc << 16) | (0xb << 12) },
++	{ 1664, 0x77700300 | (0x6) | (0xc << 16) | (0xc << 12) },
++	{ 1728, 0x77700300 | (0x6) | (0xd << 16) | (0xc << 12) },
++	{ 1792, 0x77700300 | (0x6) | (0xd << 16) | (0xd << 12) },
++	{ 1856, 0x77700300 | (0x6) | (0xe << 16) | (0xd << 12) },
++	{ 1920, 0x77700300 | (0x6) | (0xe << 16) | (0xe << 12) },
++	{ 1984, 0x77700300 | (0x6) | (0xf << 16) | (0xe << 12) },
++	{ 2048, 0x77700300 | (0x6) | (0xf << 16) | (0xf << 12) },
++
++	{ 2176, 0x77700300 | (0x7) | (0x8 << 16) | (0x7 << 12) },
++	{ 2304, 0x77700300 | (0x7) | (0x8 << 16) | (0x8 << 12) },
++	{ 2432, 0x77700300 | (0x7) | (0x9 << 16) | (0x8 << 12) },
++	{ 2560, 0x77700300 | (0x7) | (0x9 << 16) | (0x9 << 12) },
++	{ 2688, 0x77700300 | (0x7) | (0xa << 16) | (0x9 << 12) },
++	{ 2816, 0x77700300 | (0x7) | (0xa << 16) | (0xa << 12) },
++	{ 2944, 0x77700300 | (0x7) | (0xb << 16) | (0xa << 12) },
++	{ 3072, 0x77700300 | (0x7) | (0xb << 16) | (0xb << 12) },
++#else
++	/* Divisor :      [3:0]    :   [18:16]:   [13:12] */
++	{ 6, 0x77700300 | (0x0) | (0x2 << 16) | (0x2 << 12) },
++	{ 7, 0x77700300 | (0x0) | (0x3 << 16) | (0x2 << 12) },
++	{ 8, 0x77700300 | (0x0) | (0x3 << 16) | (0x3 << 12) },
++	{ 9, 0x77700300 | (0x0) | (0x4 << 16) | (0x3 << 12) },
++	{ 10, 0x77700300 | (0x0) | (0x4 << 16) | (0x4 << 12) },
++	{ 11, 0x77700300 | (0x0) | (0x5 << 16) | (0x4 << 12) },
++	{ 12, 0x77700300 | (0x0) | (0x5 << 16) | (0x5 << 12) },
++	{ 13, 0x77700300 | (0x0) | (0x6 << 16) | (0x5 << 12) },
++	{ 14, 0x77700300 | (0x0) | (0x6 << 16) | (0x6 << 12) },
++	{ 15, 0x77700300 | (0x0) | (0x7 << 16) | (0x6 << 12) },
++	{ 16, 0x77700300 | (0x0) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 18, 0x77700300 | (0x1) | (0x4 << 16) | (0x3 << 12) },
++	{ 20, 0x77700300 | (0x1) | (0x4 << 16) | (0x4 << 12) },
++	{ 22, 0x77700300 | (0x1) | (0x5 << 16) | (0x4 << 12) },
++	{ 24, 0x77700300 | (0x1) | (0x5 << 16) | (0x5 << 12) },
++	{ 26, 0x77700300 | (0x1) | (0x6 << 16) | (0x5 << 12) },
++	{ 28, 0x77700300 | (0x1) | (0x6 << 16) | (0x6 << 12) },
++	{ 30, 0x77700300 | (0x1) | (0x7 << 16) | (0x6 << 12) },
++	{ 32, 0x77700300 | (0x1) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 36, 0x77700300 | (0x2) | (0x4 << 16) | (0x3 << 12) },
++	{ 40, 0x77700300 | (0x2) | (0x4 << 16) | (0x4 << 12) },
++	{ 44, 0x77700300 | (0x2) | (0x5 << 16) | (0x4 << 12) },
++	{ 48, 0x77700300 | (0x2) | (0x5 << 16) | (0x5 << 12) },
++	{ 52, 0x77700300 | (0x2) | (0x6 << 16) | (0x5 << 12) },
++	{ 56, 0x77700300 | (0x2) | (0x6 << 16) | (0x6 << 12) },
++	{ 60, 0x77700300 | (0x2) | (0x7 << 16) | (0x6 << 12) },
++	{ 64, 0x77700300 | (0x2) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 72, 0x77700300 | (0x3) | (0x4 << 16) | (0x3 << 12) },
++	{ 80, 0x77700300 | (0x3) | (0x4 << 16) | (0x4 << 12) },
++	{ 88, 0x77700300 | (0x3) | (0x5 << 16) | (0x4 << 12) },
++	{ 96, 0x77700300 | (0x3) | (0x5 << 16) | (0x5 << 12) },
++	{ 104, 0x77700300 | (0x3) | (0x6 << 16) | (0x5 << 12) },
++	{ 112, 0x77700300 | (0x3) | (0x6 << 16) | (0x6 << 12) },
++	{ 120, 0x77700300 | (0x3) | (0x7 << 16) | (0x6 << 12) },
++	{ 128, 0x77700300 | (0x3) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 144, 0x77700300 | (0x4) | (0x4 << 16) | (0x3 << 12) },
++	{ 160, 0x77700300 | (0x4) | (0x4 << 16) | (0x4 << 12) },
++	{ 176, 0x77700300 | (0x4) | (0x5 << 16) | (0x4 << 12) },
++	{ 192, 0x77700300 | (0x4) | (0x5 << 16) | (0x5 << 12) },
++	{ 208, 0x77700300 | (0x4) | (0x6 << 16) | (0x5 << 12) },
++	{ 224, 0x77700300 | (0x4) | (0x6 << 16) | (0x6 << 12) },
++	{ 240, 0x77700300 | (0x4) | (0x7 << 16) | (0x6 << 12) },
++	{ 256, 0x77700300 | (0x4) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 288, 0x77700300 | (0x5) | (0x4 << 16) | (0x3 << 12) },
++	{ 320, 0x77700300 | (0x5) | (0x4 << 16) | (0x4 << 12) },
++	{ 352, 0x77700300 | (0x5) | (0x5 << 16) | (0x4 << 12) },
++	{ 384, 0x77700300 | (0x5) | (0x5 << 16) | (0x5 << 12) },
++	{ 416, 0x77700300 | (0x5) | (0x6 << 16) | (0x5 << 12) },
++	{ 448, 0x77700300 | (0x5) | (0x6 << 16) | (0x6 << 12) },
++	{ 480, 0x77700300 | (0x5) | (0x7 << 16) | (0x6 << 12) },
++	{ 512, 0x77700300 | (0x5) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 576, 0x77700300 | (0x6) | (0x4 << 16) | (0x3 << 12) },
++	{ 640, 0x77700300 | (0x6) | (0x4 << 16) | (0x4 << 12) },
++	{ 704, 0x77700300 | (0x6) | (0x5 << 16) | (0x4 << 12) },
++	{ 768, 0x77700300 | (0x6) | (0x5 << 16) | (0x5 << 12) },
++	{ 832, 0x77700300 | (0x6) | (0x6 << 16) | (0x5 << 12) },
++	{ 896, 0x77700300 | (0x6) | (0x6 << 16) | (0x6 << 12) },
++	{ 960, 0x77700300 | (0x6) | (0x7 << 16) | (0x6 << 12) },
++	{ 1024, 0x77700300 | (0x6) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 1152, 0x77700300 | (0x7) | (0x4 << 16) | (0x3 << 12) },
++	{ 1280, 0x77700300 | (0x7) | (0x4 << 16) | (0x4 << 12) },
++	{ 1408, 0x77700300 | (0x7) | (0x5 << 16) | (0x4 << 12) },
++	{ 1536, 0x77700300 | (0x7) | (0x5 << 16) | (0x5 << 12) },
++	{ 1664, 0x77700300 | (0x7) | (0x6 << 16) | (0x5 << 12) },
++	{ 1792, 0x77700300 | (0x7) | (0x6 << 16) | (0x6 << 12) },
++	{ 1920, 0x77700300 | (0x7) | (0x7 << 16) | (0x6 << 12) },
++	{ 2048, 0x77700300 | (0x7) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 2304, 0x77700300 | (0x8) | (0x4 << 16) | (0x3 << 12) },
++	{ 2560, 0x77700300 | (0x8) | (0x4 << 16) | (0x4 << 12) },
++	{ 2816, 0x77700300 | (0x8) | (0x5 << 16) | (0x4 << 12) },
++	{ 3072, 0x77700300 | (0x8) | (0x5 << 16) | (0x5 << 12) },
++	{ 3328, 0x77700300 | (0x8) | (0x6 << 16) | (0x5 << 12) },
++	{ 3584, 0x77700300 | (0x8) | (0x6 << 16) | (0x6 << 12) },
++	{ 3840, 0x77700300 | (0x8) | (0x7 << 16) | (0x6 << 12) },
++	{ 4096, 0x77700300 | (0x8) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 4608, 0x77700300 | (0x9) | (0x4 << 16) | (0x3 << 12) },
++	{ 5120, 0x77700300 | (0x9) | (0x4 << 16) | (0x4 << 12) },
++	{ 5632, 0x77700300 | (0x9) | (0x5 << 16) | (0x4 << 12) },
++	{ 6144, 0x77700300 | (0x9) | (0x5 << 16) | (0x5 << 12) },
++	{ 6656, 0x77700300 | (0x9) | (0x6 << 16) | (0x5 << 12) },
++	{ 7168, 0x77700300 | (0x9) | (0x6 << 16) | (0x6 << 12) },
++	{ 7680, 0x77700300 | (0x9) | (0x7 << 16) | (0x6 << 12) },
++	{ 8192, 0x77700300 | (0x9) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 9216, 0x77700300 | (0xa) | (0x4 << 16) | (0x3 << 12) },
++	{ 10240, 0x77700300 | (0xa) | (0x4 << 16) | (0x4 << 12) },
++	{ 11264, 0x77700300 | (0xa) | (0x5 << 16) | (0x4 << 12) },
++	{ 12288, 0x77700300 | (0xa) | (0x5 << 16) | (0x5 << 12) },
++	{ 13312, 0x77700300 | (0xa) | (0x6 << 16) | (0x5 << 12) },
++	{ 14336, 0x77700300 | (0xa) | (0x6 << 16) | (0x6 << 12) },
++	{ 15360, 0x77700300 | (0xa) | (0x7 << 16) | (0x6 << 12) },
++	{ 16384, 0x77700300 | (0xa) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 18432, 0x77700300 | (0xb) | (0x4 << 16) | (0x3 << 12) },
++	{ 20480, 0x77700300 | (0xb) | (0x4 << 16) | (0x4 << 12) },
++	{ 22528, 0x77700300 | (0xb) | (0x5 << 16) | (0x4 << 12) },
++	{ 24576, 0x77700300 | (0xb) | (0x5 << 16) | (0x5 << 12) },
++	{ 26624, 0x77700300 | (0xb) | (0x6 << 16) | (0x5 << 12) },
++	{ 28672, 0x77700300 | (0xb) | (0x6 << 16) | (0x6 << 12) },
++	{ 30720, 0x77700300 | (0xb) | (0x7 << 16) | (0x6 << 12) },
++	{ 32768, 0x77700300 | (0xb) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 36864, 0x77700300 | (0xc) | (0x4 << 16) | (0x3 << 12) },
++	{ 40960, 0x77700300 | (0xc) | (0x4 << 16) | (0x4 << 12) },
++	{ 45056, 0x77700300 | (0xc) | (0x5 << 16) | (0x4 << 12) },
++	{ 49152, 0x77700300 | (0xc) | (0x5 << 16) | (0x5 << 12) },
++	{ 53248, 0x77700300 | (0xc) | (0x6 << 16) | (0x5 << 12) },
++	{ 57344, 0x77700300 | (0xc) | (0x6 << 16) | (0x6 << 12) },
++	{ 61440, 0x77700300 | (0xc) | (0x7 << 16) | (0x6 << 12) },
++	{ 65536, 0x77700300 | (0xc) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 73728, 0x77700300 | (0xd) | (0x4 << 16) | (0x3 << 12) },
++	{ 81920, 0x77700300 | (0xd) | (0x4 << 16) | (0x4 << 12) },
++	{ 90112, 0x77700300 | (0xd) | (0x5 << 16) | (0x4 << 12) },
++	{ 98304, 0x77700300 | (0xd) | (0x5 << 16) | (0x5 << 12) },
++	{ 106496, 0x77700300 | (0xd) | (0x6 << 16) | (0x5 << 12) },
++	{ 114688, 0x77700300 | (0xd) | (0x6 << 16) | (0x6 << 12) },
++	{ 122880, 0x77700300 | (0xd) | (0x7 << 16) | (0x6 << 12) },
++	{ 131072, 0x77700300 | (0xd) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 147456, 0x77700300 | (0xe) | (0x4 << 16) | (0x3 << 12) },
++	{ 163840, 0x77700300 | (0xe) | (0x4 << 16) | (0x4 << 12) },
++	{ 180224, 0x77700300 | (0xe) | (0x5 << 16) | (0x4 << 12) },
++	{ 196608, 0x77700300 | (0xe) | (0x5 << 16) | (0x5 << 12) },
++	{ 212992, 0x77700300 | (0xe) | (0x6 << 16) | (0x5 << 12) },
++	{ 229376, 0x77700300 | (0xe) | (0x6 << 16) | (0x6 << 12) },
++	{ 245760, 0x77700300 | (0xe) | (0x7 << 16) | (0x6 << 12) },
++	{ 262144, 0x77700300 | (0xe) | (0x7 << 16) | (0x7 << 12) },
++
++	{ 294912, 0x77700300 | (0xf) | (0x4 << 16) | (0x3 << 12) },
++	{ 327680, 0x77700300 | (0xf) | (0x4 << 16) | (0x4 << 12) },
++	{ 360448, 0x77700300 | (0xf) | (0x5 << 16) | (0x4 << 12) },
++	{ 393216, 0x77700300 | (0xf) | (0x5 << 16) | (0x5 << 12) },
++	{ 425984, 0x77700300 | (0xf) | (0x6 << 16) | (0x5 << 12) },
++	{ 458752, 0x77700300 | (0xf) | (0x6 << 16) | (0x6 << 12) },
++	{ 491520, 0x77700300 | (0xf) | (0x7 << 16) | (0x6 << 12) },
++	{ 524288, 0x77700300 | (0xf) | (0x7 << 16) | (0x7 << 12) },
++#endif
++};
++
++static inline void ast_i2c_write(struct ast_i2c_bus *i2c_bus, u32 val, u32 reg)
++{
++#if 0
++	printf("%x: W : reg %x , val: %x\n", i2c_bus->reg_base, reg, val);
++#endif
++	__raw_writel(val, i2c_bus->reg_base + reg);
++}
++
++static inline u32 ast_i2c_read(struct ast_i2c_bus *i2c_bus, u32 reg)
++{
++#if 0
++	u32 val = __raw_readl(i2c_bus->reg_base + reg);
++	printf("%x: R : reg %x , val: %x\n", i2c_bus->reg_base, reg, val);
++	return val;
++#else
++	return __raw_readl(i2c_bus->reg_base + reg);
++#endif
++}
++
++static u32 select_i2c_clock(unsigned int bus_clk)
++{
++#if 0
++	unsigned int clk, inc = 0, div, divider_ratio;
++	u32 SCL_Low, SCL_High, data;
++
++	clk = ast_get_pclk();
++//	debug("pclk = %d\n", clk);
++	divider_ratio = clk / bus_clk;
++	for (div = 0; divider_ratio >= 16; div++)
++	{
++		inc |= (divider_ratio & 1);
++		divider_ratio >>= 1;
++	}
++	divider_ratio += inc;
++	SCL_Low = (divider_ratio >> 1) - 1;
++	SCL_High = divider_ratio - SCL_Low - 2;
++	data = 0x77700300 | (SCL_High << 16) | (SCL_Low << 12) | div;
++//	printk("I2CD04 for %d = %08X\n", target_speed, data);
++	return data;
++#else
++	int i;
++	unsigned int clk;
++	u32 data;
++
++	clk = ast_get_pclk();
++	//	debug("pclk = %d\n", clk);
++
++	for (i = 0;
++	     i < sizeof(i2c_timing_table) / sizeof(struct ast_i2c_timing_table);
++	     i++) {
++		if ((clk / i2c_timing_table[i].divisor) < bus_clk) {
++			break;
++		}
++	}
++	data = i2c_timing_table[i].timing;
++	//	printk("divisor [%d], timing [%x]\n", i2c_timing_table[i].divisor,
++	// i2c_timing_table[i].timing);
++	return data;
++#endif
++}
++
++static int ast_i2c_wait_isr(struct ast_i2c_bus *i2c_bus, u32 flag)
++{
++	int timeout = 0;
++
++	while (!(ast_i2c_read(i2c_bus, I2C_INTR_STS_REG) & flag) &&
++	       (timeout < I2C_TIMEOUT_COUNT)) {
++		udelay(I2C_SLEEP_US);
++		timeout++;
++	}
++
++	/* Clear Interrupt */
++	ast_i2c_write(i2c_bus, 0xfffffff, I2C_INTR_STS_REG);
++
++	if (timeout >= I2C_TIMEOUT_COUNT) {
++		debug("%s timed out:- flag: %x\n", __func__, flag);
++		return -ETIMEDOUT;
++	}
++
++	return 0;
++}
++
++static int ast_i2c_wait_tx(struct ast_i2c_bus *i2c_bus)
++{
++	int sts;
++	int timeout = 0;
++	while (1) {
++		sts = ast_i2c_read(i2c_bus, I2C_INTR_STS_REG);
++
++		if (timeout > I2C_TIMEOUT_COUNT) {
++			/* I2C Reset */
++			debug("Timeout: Bus:%d, Addr:0x%02x\n", i2c_bus_num,
++			      i2c_bus->addr);
++			ast_i2c_write(i2c_bus, 0, I2C_FUN_CTRL_REG);
++			ast_i2c_write(i2c_bus, AST_I2CD_MASTER_EN,
++				      I2C_FUN_CTRL_REG);
++
++			return -ETIMEDOUT;
++		} else if (sts & AST_I2CD_INTR_STS_TX_NAK) {
++			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_NAK,
++				      I2C_INTR_STS_REG);
++			ast_i2c_write(i2c_bus, AST_I2CD_M_STOP_CMD,
++				      I2C_CMD_REG);
++			ast_i2c_wait_isr(i2c_bus,
++					 AST_I2CD_INTR_STS_NORMAL_STOP);
++
++			return -EREMOTEIO;
++		} else if (sts & AST_I2CD_INTR_STS_TX_ACK) {
++			ast_i2c_write(i2c_bus, AST_I2CD_INTR_STS_TX_ACK,
++				      I2C_INTR_STS_REG);
++			break;
++		} else {
++			timeout++;
++		}
++		udelay(I2C_SLEEP_US);
++	}
++
++	return 0;
++}
++
++static int ast_i2c_deblock(struct ast_i2c_bus *i2c_bus)
++{
++	u32 csr;
++	int ret = 0;
++
++	if ((csr = ast_i2c_read(i2c_bus, I2C_CMD_REG)) &
++	    AST_I2CD_BUS_BUSY_STS) {
++		if ((csr & AST_I2CD_SDA_LINE_STS) &&
++		    (csr & AST_I2CD_SCL_LINE_STS)) {
++			/* Bus idle */
++			debug("Bus(%d) idle\n", i2c_bus_num);
++			ret = 0;
++		} else if (csr & AST_I2CD_SDA_LINE_STS) {
++			/* send stop command */
++			debug("Unterminated TXN in (%x), sending stop...\n",
++			      csr);
++			ast_i2c_write(i2c_bus, AST_I2CD_M_STOP_CMD,
++				      I2C_CMD_REG);
++			ret = ast_i2c_wait_isr(i2c_bus,
++					       AST_I2CD_INTR_STS_NORMAL_STOP);
++		} else if (csr & AST_I2CD_SCL_LINE_STS) {
++			/* Possibly stuck slave */
++			debug("Bus stuck (%x), attempting recovery...\n", csr);
++			ast_i2c_write(i2c_bus, AST_I2CD_BUS_RECOVER_CMD_EN,
++				      I2C_CMD_REG);
++			ret = ast_i2c_wait_isr(i2c_bus,
++					       AST_I2CD_INTR_STS_BUS_RECOVER);
++		} else {
++			debug("Bus(%d) slave(0x%02x) busy. Reseting bus...\n",
++			      i2c_bus_num, i2c_bus->addr);
++			ast_i2c_write(i2c_bus, 0, I2C_FUN_CTRL_REG);
++			ast_i2c_write(i2c_bus, AST_I2CD_MASTER_EN,
++				      I2C_FUN_CTRL_REG);
++			ret = 0;
++		}
++	}
++
++	return ret;
++}
++
++static int ast_i2c_xfer(struct ast_i2c_bus *i2c_bus)
++{
++	int sts, i, ret = 0;
++
++	/* Clear Interrupt */
++	ast_i2c_write(i2c_bus, 0xfffffff, I2C_INTR_STS_REG);
++
++	/* Check for bus busy */
++	ret = ast_i2c_deblock(i2c_bus);
++	if (ret != 0)
++		return ret;
++
++	// first start
++	debug(" %sing %d byte%s %s 0x%02x\n", i2c_bus->flags ? "read" : "write",
++	      i2c_bus->d_len, i2c_bus->d_len > 1 ? "s" : "",
++	      i2c_bus->flags ? "from" : "to", i2c_bus->addr);
++
++	if (i2c_bus->flags) {
++		// READ
++		if (i2c_bus->a_len) {
++			// send start
++			ast_i2c_write(i2c_bus, (i2c_bus->addr << 1),
++				      I2C_BYTE_BUF_REG);
++			ast_i2c_write(i2c_bus,
++				      AST_I2CD_M_TX_CMD | AST_I2CD_M_START_CMD,
++				      I2C_CMD_REG);
++
++			/* Wait for ACK */
++			ret = ast_i2c_wait_tx(i2c_bus);
++			if (ret != 0)
++				return ret;
++
++			/* Send Offset */
++			for (i = 0; i < i2c_bus->a_len; i++) {
++				debug("offset [%x]\n", i2c_bus->a_buf[i]);
++				ast_i2c_write(i2c_bus, i2c_bus->a_buf[i],
++					      I2C_BYTE_BUF_REG);
++				ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD,
++					      I2C_CMD_REG);
++				ret = ast_i2c_wait_tx(i2c_bus);
++				if (ret != 0)
++					return ret;
++			}
++		}
++
++		// repeat-start
++		ast_i2c_write(i2c_bus, (i2c_bus->addr << 1) | 0x1,
++			      I2C_BYTE_BUF_REG);
++		ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD | AST_I2CD_M_START_CMD,
++			      I2C_CMD_REG);
++		ret = ast_i2c_wait_tx(i2c_bus);
++		if (ret != 0)
++			return ret;
++
++		for (i = 0; i < i2c_bus->d_len; i++) {
++			if (i == (i2c_bus->d_len - 1)) {
++				ast_i2c_write(i2c_bus,
++					      AST_I2CD_M_RX_CMD |
++						      AST_I2CD_M_S_RX_CMD_LAST,
++					      I2C_CMD_REG);
++			} else {
++				ast_i2c_write(i2c_bus, AST_I2CD_M_RX_CMD,
++					      I2C_CMD_REG);
++			}
++
++			ret = ast_i2c_wait_isr(i2c_bus,
++					       AST_I2CD_INTR_STS_RX_DOWN);
++			if (ret != 0)
++				return ret;
++
++			i2c_bus->d_buf[i] =
++				(ast_i2c_read(i2c_bus, I2C_BYTE_BUF_REG) &
++				 AST_I2CD_RX_BYTE_BUFFER) >>
++				8;
++		}
++		ast_i2c_write(i2c_bus, AST_I2CD_M_STOP_CMD, I2C_CMD_REG);
++		ret = ast_i2c_wait_isr(i2c_bus, AST_I2CD_INTR_STS_NORMAL_STOP);
++		if (ret != 0)
++			return ret;
++
++	} else {
++		// Write
++		// send start
++		ast_i2c_write(i2c_bus, (i2c_bus->addr << 1), I2C_BYTE_BUF_REG);
++		ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD | AST_I2CD_M_START_CMD,
++			      I2C_CMD_REG);
++
++		/* Wait for ACK */
++		ret = ast_i2c_wait_tx(i2c_bus);
++		if (ret != 0)
++			return ret;
++
++		/* Send Offset */
++		for (i = 0; i < i2c_bus->a_len; i++) {
++			debug("offset [%x]\n", i2c_bus->a_buf[i]);
++			ast_i2c_write(i2c_bus, i2c_bus->a_buf[i],
++				      I2C_BYTE_BUF_REG);
++			ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD, I2C_CMD_REG);
++			ret = ast_i2c_wait_tx(i2c_bus);
++			if (ret != 0)
++				return ret;
++		}
++
++		/* Tx data */
++		for (i = 0; i < i2c_bus->d_len; i++) {
++			debug("Tx data [%x]\n", i2c_bus->d_buf[i]);
++			ast_i2c_write(i2c_bus, i2c_bus->d_buf[i],
++				      I2C_BYTE_BUF_REG);
++			ast_i2c_write(i2c_bus, AST_I2CD_M_TX_CMD, I2C_CMD_REG);
++			ret = ast_i2c_wait_tx(i2c_bus);
++			if (ret != 0)
++				return ret;
++		}
++		ast_i2c_write(i2c_bus, AST_I2CD_M_STOP_CMD, I2C_CMD_REG);
++		ret = ast_i2c_wait_isr(i2c_bus, AST_I2CD_INTR_STS_NORMAL_STOP);
++		if (ret != 0)
++			return ret;
++	}
++
++	return 0;
++}
++
++/*****************************************************************************/
++
++unsigned int i2c_get_bus_speed(void)
++{
++	return ast_i2c[i2c_bus_num].speed;
++}
++
++int i2c_set_bus_speed(unsigned int speed)
++{
++	struct ast_i2c_bus *i2c_bus = &ast_i2c[i2c_bus_num];
++
++	/* Set AC Timing */
++	ast_i2c_write(i2c_bus, select_i2c_clock(speed), I2C_AC_TIMING_REG1);
++	ast_i2c_write(i2c_bus, AST_NO_TIMEOUT_CTRL, I2C_AC_TIMING_REG2);
++
++	i2c_bus->speed = speed;
++
++	return 0;
++}
++
++unsigned int i2c_get_base(int bus_no)
++{
++	switch (bus_no) {
++	case 0:
++		return AST_I2C_DEV0_BASE;
++		break;
++	case 1:
++		return AST_I2C_DEV1_BASE;
++		break;
++	case 2:
++		return AST_I2C_DEV2_BASE;
++		break;
++	case 3:
++		return AST_I2C_DEV3_BASE;
++		break;
++	case 4:
++		return AST_I2C_DEV4_BASE;
++		break;
++	case 5:
++		return AST_I2C_DEV5_BASE;
++		break;
++	case 6:
++		return AST_I2C_DEV6_BASE;
++		break;
++	case 7:
++		return AST_I2C_DEV7_BASE;
++		break;
++	case 8:
++		return AST_I2C_DEV8_BASE;
++		break;
++	case 9:
++		return AST_I2C_DEV9_BASE;
++		break;
++	case 10:
++		return AST_I2C_DEV10_BASE;
++		break;
++	case 11:
++		return AST_I2C_DEV11_BASE;
++		break;
++	case 12:
++		return AST_I2C_DEV12_BASE;
++		break;
++	case 13:
++		return AST_I2C_DEV13_BASE;
++		break;
++	default:
++		printf("i2c base error\n");
++		break;
++	};
++	return 0;
++}
++
++void i2c_init(int speed, int slaveaddr)
++{
++	int i = 0;
++	struct ast_i2c_bus *i2c_bus;
++
++	// SCU I2C Reset
++	ast_scu_init_i2c();
++
++	/* This will override the speed selected in the fdt for that port */
++	debug("i2c_init(speed=%u, slaveaddr=0x%x)\n", speed, slaveaddr);
++
++	for (i = 0; i < CONFIG_SYS_MAX_I2C_BUS; i++) {
++		i2c_bus = &ast_i2c[i];
++		i2c_bus->reg_base = i2c_get_base(i);
++
++		i2c_bus->speed = CONFIG_SYS_I2C_SPEED;
++		i2c_bus->state = 0;
++
++		// I2C Multi-Pin
++		ast_scu_multi_func_i2c(i);
++
++		// I2CG Reset
++		ast_i2c_write(i2c_bus, 0, I2C_FUN_CTRL_REG);
++
++		// Enable Master Mode
++		ast_i2c_write(i2c_bus, AST_I2CD_MASTER_EN, I2C_FUN_CTRL_REG);
++
++		// SLAVE mode enable
++#if 0
++		if (slaveaddr) {
++			ast_i2c_write(i2c_bus, slaveaddr, I2C_DEV_ADDR_REG);
++			ast_i2c_write(i2c_bus,
++				      ast_i2c_read(i2c_bus, I2C_FUN_CTRL_REG) |
++					      AST_I2CD_SLAVE_EN,
++				      I2C_FUN_CTRL_REG);
++		}
++#endif
++
++		/* Set AC Timing */
++		i2c_set_bus_speed(speed);
++
++		// Clear Interrupt
++		ast_i2c_write(i2c_bus, 0xfffffff, I2C_INTR_STS_REG);
++
++		/* Set interrupt generation of I2C controller */
++		ast_i2c_write(i2c_bus, 0, I2C_INTR_CTRL_REG);
++	}
++
++	i2c_bus_num = 0;
++	debug("end\n");
++}
++
++/* Probe to see if a chip is present. */
++int i2c_probe(uchar addr)
++{
++	uchar a_buf[1] = { 0 };
++
++	struct ast_i2c_bus *i2c_bus = &ast_i2c[i2c_bus_num];
++
++	debug("i2c_probe[bus:%d]: addr=0x%x\n", i2c_bus_num, addr);
++
++	i2c_bus->addr = addr;
++	i2c_bus->flags = 1;
++	i2c_bus->a_len = 1;
++	i2c_bus->a_buf = (u8 *)&a_buf;
++	i2c_bus->d_len = 1;
++	i2c_bus->d_buf = (u8 *)&a_buf;
++
++	return ast_i2c_xfer(i2c_bus);
++}
++
++/* Read bytes */
++int i2c_read(uchar addr, uint offset, int alen, uchar *buffer, int len)
++{
++	uchar xoffset[4];
++	struct ast_i2c_bus *i2c_bus = &ast_i2c[i2c_bus_num];
++
++	debug("i2c_read[bus:%d]: addr=0x%x, offset=0x%x, alen=0x%x len=0x%x\n",
++	      i2c_bus_num, addr, offset, alen, len);
++
++	if (alen > 4) {
++		debug("I2C read: addr len %d not supported\n", alen);
++		return 1;
++	}
++
++	if (alen > 0) {
++		xoffset[0] = (offset >> 24) & 0xFF;
++		xoffset[1] = (offset >> 16) & 0xFF;
++		xoffset[2] = (offset >> 8) & 0xFF;
++		xoffset[3] = offset & 0xFF;
++	}
++
++	i2c_bus->addr = addr;
++	i2c_bus->flags = 1;
++	i2c_bus->a_len = alen;
++	i2c_bus->a_buf = &xoffset[4 - alen];
++	i2c_bus->d_len = len;
++	i2c_bus->d_buf = buffer;
++
++	return ast_i2c_xfer(i2c_bus);
++}
++
++/* Write bytes */
++int i2c_write(uchar addr, uint offset, int alen, uchar *buffer, int len)
++{
++	uchar xoffset[4];
++	struct ast_i2c_bus *i2c_bus = &ast_i2c[i2c_bus_num];
++
++	debug("i2c_write[bus:%d]: addr=0x%x, offset=0x%x, alen=0x%x len=0x%x\n",
++	      i2c_bus_num, addr, offset, alen, len);
++
++	if (alen > 0) {
++		xoffset[0] = (offset >> 24) & 0xFF;
++		xoffset[1] = (offset >> 16) & 0xFF;
++		xoffset[2] = (offset >> 8) & 0xFF;
++		xoffset[3] = offset & 0xFF;
++	}
++
++	i2c_bus->addr = addr;
++	i2c_bus->flags = 0;
++	i2c_bus->a_len = alen;
++	i2c_bus->a_buf = &xoffset[4 - alen];
++	i2c_bus->d_len = len;
++	i2c_bus->d_buf = buffer;
++
++	return ast_i2c_xfer(i2c_bus);
++}
++
++#if defined(CONFIG_I2C_MULTI_BUS)
++/*
++ * Functions for multiple I2C bus handling
++ */
++unsigned int i2c_get_bus_num(void)
++{
++	return i2c_bus_num;
++}
++
++int i2c_set_bus_num(unsigned int bus)
++{
++	if (bus >= NUM_BUS)
++		return -1;
++	i2c_bus_num = bus;
++
++	return 0;
++}
++#endif
+diff --git a/drivers/i2c/ast_i2c.h b/drivers/i2c/ast_i2c.h
+new file mode 100644
+index 0000000000..7cff0e5a10
+--- /dev/null
++++ b/drivers/i2c/ast_i2c.h
+@@ -0,0 +1,131 @@
++/* SPDX-License-Identifier: GPL-2.0+ */
++/*
++ * Copyright (C) 2012-2020  ASPEED Technology Inc.
++ * Copyright 2016 IBM Corporation
++ * Copyright 2017 Google, Inc.
++ */
++#ifndef __AST_I2C_H_
++#define __AST_I2C_H_
++
++struct ast_i2c_regs {
++	u32 fcr;
++	u32 cactcr1;
++	u32 cactcr2;
++	u32 icr;
++	u32 isr;
++	u32 csr;
++	u32 sdar;
++	u32 pbcr;
++	u32 trbbr;
++#ifdef CONFIG_ASPEED_AST2500
++	u32 dma_mbar;
++	u32 dma_tlr;
++#endif
++};
++
++/* Device Register Definition */
++/* 0x00 : I2CD Function Control Register  */
++#define I2CD_BUFF_SEL_MASK			(0x7 << 20)
++#define I2CD_BUFF_SEL(x)			(x << 20)
++#define I2CD_M_SDA_LOCK_EN			(0x1 << 16)
++#define I2CD_MULTI_MASTER_DIS			(0x1 << 15)
++#define I2CD_M_SCL_DRIVE_EN			(0x1 << 14)
++#define I2CD_MSB_STS				(0x1 << 9)
++#define I2CD_SDA_DRIVE_1T_EN			(0x1 << 8)
++#define I2CD_M_SDA_DRIVE_1T_EN			(0x1 << 7)
++#define I2CD_M_HIGH_SPEED_EN			(0x1 << 6)
++#define I2CD_DEF_ADDR_EN			(0x1 << 5)
++#define I2CD_DEF_ALERT_EN			(0x1 << 4)
++#define I2CD_DEF_ARP_EN				(0x1 << 3)
++#define I2CD_DEF_GCALL_EN			(0x1 << 2)
++#define I2CD_SLAVE_EN				(0x1 << 1)
++#define I2CD_MASTER_EN				(0x1)
++
++/* 0x04 : I2CD Clock and AC Timing Control Register #1 */
++/* Base register value. These bits are always set by the driver. */
++#define I2CD_CACTC_BASE				0xfff00300
++#define I2CD_TCKHIGH_SHIFT			16
++#define I2CD_TCKLOW_SHIFT			12
++#define I2CD_THDDAT_SHIFT			10
++#define I2CD_TO_DIV_SHIFT			8
++#define I2CD_BASE_DIV_SHIFT			0
++
++/* 0x08 : I2CD Clock and AC Timing Control Register #2 */
++#define I2CD_tTIMEOUT				1
++#define I2CD_NO_TIMEOUT_CTRL			0
++
++/* 0x0c : I2CD Interrupt Control Register &
++ * 0x10 : I2CD Interrupt Status Register
++ *
++ * These share bit definitions, so use the same values for the enable &
++ * status bits.
++ */
++#define I2CD_INTR_SDA_DL_TIMEOUT		(0x1 << 14)
++#define I2CD_INTR_BUS_RECOVER_DONE		(0x1 << 13)
++#define I2CD_INTR_SMBUS_ALERT			(0x1 << 12)
++#define I2CD_INTR_SMBUS_ARP_ADDR		(0x1 << 11)
++#define I2CD_INTR_SMBUS_DEV_ALERT_ADDR		(0x1 << 10)
++#define I2CD_INTR_SMBUS_DEF_ADDR		(0x1 << 9)
++#define I2CD_INTR_GCALL_ADDR			(0x1 << 8)
++#define I2CD_INTR_SLAVE_MATCH			(0x1 << 7)
++#define I2CD_INTR_SCL_TIMEOUT			(0x1 << 6)
++#define I2CD_INTR_ABNORMAL			(0x1 << 5)
++#define I2CD_INTR_NORMAL_STOP			(0x1 << 4)
++#define I2CD_INTR_ARBIT_LOSS			(0x1 << 3)
++#define I2CD_INTR_RX_DONE			(0x1 << 2)
++#define I2CD_INTR_TX_NAK			(0x1 << 1)
++#define I2CD_INTR_TX_ACK			(0x1 << 0)
++
++/* 0x14 : I2CD Command/Status Register   */
++#define I2CD_SDA_OE				(0x1 << 28)
++#define I2CD_SDA_O				(0x1 << 27)
++#define I2CD_SCL_OE				(0x1 << 26)
++#define I2CD_SCL_O				(0x1 << 25)
++#define I2CD_TX_TIMING				(0x1 << 24)
++#define I2CD_TX_STATUS				(0x1 << 23)
++
++/* Tx State Machine */
++#define I2CD_IDLE				0x0
++#define I2CD_MACTIVE				0x8
++#define I2CD_MSTART				0x9
++#define I2CD_MSTARTR				0xa
++#define I2CD_MSTOP				0xb
++#define I2CD_MTXD				0xc
++#define I2CD_MRXACK				0xd
++#define I2CD_MRXD				0xe
++#define I2CD_MTXACK				0xf
++#define I2CD_SWAIT				0x1
++#define I2CD_SRXD				0x4
++#define I2CD_STXACK				0x5
++#define I2CD_STXD				0x6
++#define I2CD_SRXACK				0x7
++#define I2CD_RECOVER				0x3
++
++#define I2CD_SCL_LINE_STS			(0x1 << 18)
++#define I2CD_SDA_LINE_STS			(0x1 << 17)
++#define I2CD_BUS_BUSY_STS			(0x1 << 16)
++#define I2CD_SDA_OE_OUT_DIR			(0x1 << 15)
++#define I2CD_SDA_O_OUT_DIR			(0x1 << 14)
++#define I2CD_SCL_OE_OUT_DIR			(0x1 << 13)
++#define I2CD_SCL_O_OUT_DIR			(0x1 << 12)
++#define I2CD_BUS_RECOVER_CMD			(0x1 << 11)
++#define I2CD_S_ALT_EN				(0x1 << 10)
++#define I2CD_RX_DMA_ENABLE			(0x1 << 9)
++#define I2CD_TX_DMA_ENABLE			(0x1 << 8)
++
++/* Command Bit */
++#define I2CD_RX_BUFF_ENABLE			(0x1 << 7)
++#define I2CD_TX_BUFF_ENABLE			(0x1 << 6)
++#define I2CD_M_STOP_CMD				(0x1 << 5)
++#define I2CD_M_S_RX_CMD_LAST			(0x1 << 4)
++#define I2CD_M_RX_CMD				(0x1 << 3)
++#define I2CD_S_TX_CMD				(0x1 << 2)
++#define I2CD_M_TX_CMD				(0x1 << 1)
++#define I2CD_M_START_CMD			0x1
++
++#define I2CD_RX_DATA_SHIFT			8
++#define I2CD_RX_DATA_MASK			(0xff << I2CD_RX_DATA_SHIFT)
++
++#define I2C_HIGHSPEED_RATE			400000
++
++#endif				/* __AST_I2C_H_ */
+diff --git a/include/configs/ast-common.h b/include/configs/ast-common.h
+index b7d7192cce..0bc7f2d75f 100644
+--- a/include/configs/ast-common.h
++++ b/include/configs/ast-common.h
+@@ -84,6 +84,11 @@
+ #define CONFIG_SYS_MAXARGS		16
+ #define CONFIG_SYS_BARGSIZE		CONFIG_SYS_CBSIZE
+ 
++/* I2C config */
++#define CONFIG_I2C_MULTI_BUS		1
++#define CONFIG_SYS_MAX_I2C_BUS		8
++#define CONFIG_SYS_I2C_SPEED		100000
++
+ /*
+  * Optional MTD and UBI support
+  */

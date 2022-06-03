@@ -1,0 +1,35 @@
+From d0546e59ff42f964ab09cebb1bab0fc2d8e7e6d8 Mon Sep 17 00:00:00 2001
+From: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Date: Tue, 26 Mar 2019 20:34:51 +0530
+Subject: [PATCH] u-boot env change for PFR image
+
+Tested: verified BMC booting from 0x20b00000
+
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
+---
+ include/configs/ast-common.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/configs/ast-common.h b/include/configs/ast-common.h
+index 0bc7f2d75f..821ea8f8eb 100644
+--- a/include/configs/ast-common.h
++++ b/include/configs/ast-common.h
+@@ -108,7 +108,7 @@
+ #define CONFIG_SYS_MAX_FLASH_BANKS 	(CONFIG_FMC_CS)
+ #define CONFIG_SYS_MAX_FLASH_SECT	(8192)		/* max number of sectors on one chip */
+ #define CONFIG_ENV_IS_IN_FLASH		1
+-#define CONFIG_ENV_OFFSET		0x2400000	/* environment starts here  */
++#define CONFIG_ENV_OFFSET		0xa0000	/* environment starts here  */
+ #define CONFIG_ENV_ADDR			(AST_FMC_CS0_BASE + CONFIG_ENV_OFFSET)
+ #define CONFIG_ENV_SIZE			0x10000	/* Total Size of Environment Sector */
+ 
+@@ -116,7 +116,7 @@
+ #define CONFIG_ENV_ADDR_REDUND	(AST_FMC_CS0_BASE + CONFIG_ENV_OFFSET_REDUND)
+ #define CONFIG_ENV_SIZE_REDUND	CONFIG_ENV_SIZE
+ 
+-#define CONFIG_BOOTCOMMAND		"bootm 20080000"
++#define CONFIG_BOOTCOMMAND		"bootm 20b00000"
+ #define CONFIG_ENV_OVERWRITE
+ 
+ #define ASPEED_ENV_SETTINGS \

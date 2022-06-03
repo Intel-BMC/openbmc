@@ -1,0 +1,158 @@
+From c5098f399d379f79c5532d06f816b05ad4ad6d77 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Fri, 16 Nov 2018 14:44:49 -0800
+Subject: [PATCH] Add basic timer support for Aspeed g5 in U-Boot
+
+Timers will be used for timing events and making blinky LEDs. This just
+adds the API and infrastructure.
+
+Change-Id: I8ff03b26070b43a47fb970ddf6124d6c3f29b058
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
+---
+ board/aspeed/ast-g5/Makefile       |  1 +
+ board/aspeed/ast-g5/ast-g5-intel.c |  1 +
+ board/aspeed/ast-g5/ast-g5-timer.c | 66 ++++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-timer.h | 27 ++++++++++++
+ board/aspeed/ast-g5/ast-g5.h       |  1 +
+ 5 files changed, 96 insertions(+)
+ create mode 100644 board/aspeed/ast-g5/ast-g5-timer.c
+ create mode 100644 board/aspeed/ast-g5/ast-g5-timer.h
+
+diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
+index 2970ae5741..90224333c4 100644
+--- a/board/aspeed/ast-g5/Makefile
++++ b/board/aspeed/ast-g5/Makefile
+@@ -3,3 +3,4 @@ obj-y += ast-g5-intel.o
+ obj-y += ast-g5-espi.o
+ obj-y += ast-g5-irq.o
+ obj-y += ast-g5-gpio.o
++obj-y += ast-g5-timer.o
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 9779052da4..4ef25ab8f5 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -15,6 +15,7 @@
+ 
+ #include "ast-g5.h"
+ #include "ast-g5-gpio.h"
++#include "ast-g5-timer.h"
+ 
+ /* Names to match the GPIOs */
+ enum gpio_names {
+diff --git a/board/aspeed/ast-g5/ast-g5-timer.c b/board/aspeed/ast-g5/ast-g5-timer.c
+new file mode 100644
+index 0000000000..56157222d9
+--- /dev/null
++++ b/board/aspeed/ast-g5/ast-g5-timer.c
+@@ -0,0 +1,66 @@
++/*
++ * Copyright 2018 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ */
++
++#include <common.h>
++#include <asm/io.h>
++#include <asm/arch/regs-scu.h>
++#include <asm/arch/ast_scu.h>
++#include <asm/arch/aspeed.h>
++
++#include "ast-g5.h"
++#include "ast-g5-timer.h"
++#include "ast-g5-irq.h"
++
++static const int timer_irqs[] = {16, 17, 18, 35, 37, 37, 38, 39};
++/* offsets from AST_TIMER_BASE for each timer */
++static const uint32_t timer_bases[] = {0, 0x10, 0x20, 0x40,
++				       0x50, 0x60, 0x70, 0x80};
++#define TIMER_1MHZ_CLK_COUNT 1000000u
++#define TIMER_ENABLE 1
++#define TIMER_1MHZ_CLK_SEL 2
++#define TIMER_ENABLE_IRQ 4
++#define TIMER_ENABLE_PULSE 8
++#define TIMER_CONTROL 0x30
++#define TIMER_RELOAD 0x04
++
++void timer_enable(int n, uint32_t freq, interrupt_handler_t *handler)
++{
++	if (n < 0 || n > 7) {
++		return;
++	}
++	uint32_t tctrl = readl(AST_TIMER_BASE + TIMER_CONTROL);
++	writel(tctrl & ~(0x0f << (n * 4)), AST_TIMER_BASE + TIMER_CONTROL);
++
++	// figure out best base for requested frequency
++	// (this will give 1MHz clock preference if period is within 1ms of
++	// requested)
++	uint32_t v = TIMER_1MHZ_CLK_COUNT / freq;
++	if (v > 1000 || v * freq == TIMER_1MHZ_CLK_COUNT) {
++		tctrl |= (TIMER_1MHZ_CLK_SEL << (n * 4));
++	} else {
++		uint32_t pclk = ast_get_ahbclk();
++		v = pclk / freq;
++	}
++	writel(v, AST_TIMER_BASE + timer_bases[n] + TIMER_RELOAD);
++	if (handler) {
++		request_irq(timer_irqs[n], handler);
++		tctrl |= (TIMER_ENABLE_IRQ << (n * 4));
++	}
++	tctrl |= (TIMER_ENABLE << (n * 4));
++	writel(tctrl, AST_TIMER_BASE + TIMER_CONTROL);
++}
++
++void timer_disable(int n)
++{
++	if (n < 0 || n > 7) {
++		return;
++	}
++	uint32_t tctrl = readl(AST_TIMER_BASE + TIMER_CONTROL);
++	writel(tctrl & ~(0x0f << (n * 4)), AST_TIMER_BASE + TIMER_CONTROL);
++}
+diff --git a/board/aspeed/ast-g5/ast-g5-timer.h b/board/aspeed/ast-g5/ast-g5-timer.h
+new file mode 100644
+index 0000000000..4b1ac28a9f
+--- /dev/null
++++ b/board/aspeed/ast-g5/ast-g5-timer.h
+@@ -0,0 +1,27 @@
++/*
++ * Copyright 2018 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ */
++
++#ifndef __AST_G5_TIMER_H__
++#define __AST_G5_TIMER_H__
++
++#include <common.h>
++
++#define TIMER_1 0
++#define TIMER_2 1
++#define TIMER_3 2
++#define TIMER_4 3
++#define TIMER_5 4
++#define TIMER_6 5
++#define TIMER_7 6
++#define TIMER_8 7
++
++void timer_enable(int n, uint32_t freq, interrupt_handler_t handler);
++void timer_disable(int n);
++
++#endif /* __AST_G5_TIMER_H__ */
+diff --git a/board/aspeed/ast-g5/ast-g5.h b/board/aspeed/ast-g5/ast-g5.h
+index 908db1477b..28fe5eafcb 100644
+--- a/board/aspeed/ast-g5/ast-g5.h
++++ b/board/aspeed/ast-g5/ast-g5.h
+@@ -4,5 +4,6 @@
+ #include <common.h>
+ #include "ast-g5-irq.h"
+ #include "ast-g5-gpio.h"
++#include "ast-g5-timer.h"
+ 
+ #endif /* _AST_G5_H_ */

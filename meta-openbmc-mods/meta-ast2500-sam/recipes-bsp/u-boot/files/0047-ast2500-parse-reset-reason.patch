@@ -1,0 +1,63 @@
+From 079424a954cf0c697b65492a2d6a38f1938fe1bf Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Tue, 7 Jul 2020 13:41:48 +0800
+Subject: [PATCH] ast2500: parse reset reason.
+
+Signed-off-by: Kuiying Wang <kuiying.wang@intel.com>
+
+---
+ arch/arm/mach-aspeed/ast-scu.c | 39 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index 28c48c1154..ff90c0fc7e 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -596,9 +596,46 @@ void ast_scu_security_info(void)
+ void ast_scu_sys_rest_info(void)
+ {
+ 	u32 rest = ast_scu_read(AST_SCU_SYS_CTRL);
++	bool unknown_flag = true;
+ 
+ #ifdef AST_SOC_G5
+-	printf("RST : 0x%02x\n", rest);
++	printf("RST : 0x%02x (", rest);
++	if (rest & SCU_SYS_EXT_RESET_FLAG) {
++		unknown_flag = false;
++		printf("External");
++	}
++	if (rest & SCU_SYS_WDT_RESET_FLAG) {
++		if (unknown_flag)
++			printf("WDT1");
++		else
++			printf("|WDT1");
++		unknown_flag = false;
++	}
++	if (rest & SCU_SYS_WDT2_RESET_FLAG) {
++		if (unknown_flag)
++			printf("WDT2");
++		else
++			printf("|WDT2");
++		unknown_flag = false;
++	}
++	if (rest & SCU_SYS_WDT3_RESET_FLAG) {
++		if (unknown_flag)
++			printf("WDT3");
++		else
++			printf("|WDT3");
++		unknown_flag = false;
++	}
++	if (rest & SCU_SYS_PWR_RESET_FLAG) {
++		if (unknown_flag)
++			printf("Power On");
++		else
++			printf("|Power On");
++		unknown_flag = false;
++	}
++	if (unknown_flag) {
++		printf("Unknown");
++	}
++	printf(")\n");
+ #else
+ 	if (rest & SCU_SYS_EXT_RESET_FLAG) {
+ 		printf("RST : External\n");

@@ -1,0 +1,164 @@
+From 4027a17dcfa5749cf2777a62c695a5b04377756b Mon Sep 17 00:00:00 2001
+From: Yong Li <yong.b.li@linux.intel.com>
+Date: Tue, 9 Apr 2019 14:42:05 +0800
+Subject: [PATCH] Add system reset status support
+
+Will display the reset reasons and other CPU information in u-boot,
+and save the reset reasons into kernel command line,
+for applications to query.
+
+Change-Id: I87ada3ecf14368519e4d09035bb1e09fdc05469b
+Signed-off-by: Yong Li <yong.b.li@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+
+---
+ arch/arm/include/asm/arch-aspeed/platform.h |  2 +
+ arch/arm/mach-aspeed/ast-scu.c              |  4 ++
+ board/aspeed/ast-g5/ast-g5-intel.c          | 73 +++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5.c                |  7 ++
+ 4 files changed, 86 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
+index 3b06e526f5..4e4140d8e4 100644
+--- a/arch/arm/include/asm/arch-aspeed/platform.h
++++ b/arch/arm/include/asm/arch-aspeed/platform.h
+@@ -29,6 +29,8 @@
+ #include <asm/arch/ast_g5_platform.h>
+ #include <asm/arch/ast-g5-intel.h>
+ #define CONFIG_BOARD_EARLY_INIT_F	1	/* Call board_early_init_f */
++#define CONFIG_BOARD_LATE_INIT		1	/* Call board_late_init */
++#define CONFIG_DISPLAY_CPUINFO		1
+ #else
+ #err "No define for platform.h"
+ #endif
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index 3a9ba05bf2..976c59b82a 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -494,6 +494,9 @@ void ast_scu_sys_rest_info(void)
+ {
+ 	u32 rest = ast_scu_read(AST_SCU_SYS_CTRL);
+ 
++#ifdef AST_SOC_G5
++	printf("RST : 0x%02x\n", rest);
++#else
+ 	if (rest & SCU_SYS_EXT_RESET_FLAG) {
+ 		printf("RST : External\n");
+ 		ast_scu_write(SCU_SYS_EXT_RESET_FLAG, AST_SCU_SYS_CTRL);
+@@ -506,6 +509,7 @@ void ast_scu_sys_rest_info(void)
+ 	} else {
+ 		printf("RST : CLK en\n");
+ 	}
++#endif
+ }
+ 
+ u32 ast_scu_get_vga_memsize(void)
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 5796ecf055..a223c798ac 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -333,6 +333,79 @@ static void set_pwm_duty_cycle(int duty)
+ 
+ }
+ 
++
++static void update_bootargs_cmd(const char *key, const char *value)
++{
++	int buf_len;
++	char *buf;
++	char *cmdline;
++	char comp_key[128];
++
++	if (!key || (key[0] == '\0')) {
++		printf("%s - Empty key not allowed\n", __func__);
++		return;
++	}
++
++	cmdline = getenv("bootargs");
++
++	/* Allocate space for maximum possible new command line */
++	if (value)
++		buf_len = strlen(cmdline) + strlen(key) + 3 + strlen(value);
++	else
++		buf_len = strlen(cmdline) + strlen(key) + 3;
++
++	buf = malloc(buf_len);
++	if (!buf) {
++		printf("%s: out of memory\n", __func__);
++		return;
++	}
++	memset(buf, 0, buf_len);
++
++	if (!cmdline) {
++		/* lets add key-value, though bootargs are empty */
++		snprintf(buf, buf_len, "%s=%s", key, (value ? value : ""));
++		setenv("bootargs", buf);
++		free(buf);
++		return;
++	}
++
++	snprintf(comp_key, sizeof(comp_key), "%s=", key);
++	char *start = strstr(cmdline, comp_key);
++
++	/* Check for full word match. Match should be start of cmdline
++	 * or there should be space before match */
++	if (start && ((start == cmdline) || (*(start-1) == ' '))) {
++		char *end = strchr(start, ' ');
++		strncpy(buf, cmdline, (start - cmdline));
++
++		if (end)
++			snprintf(buf, buf_len, "%s%s=%s %s", buf, key,
++				 (value ? value : ""), end+1);
++		else
++			snprintf(buf, buf_len, "%s%s=%s", buf, key,
++				 (value ? value : ""));
++	} else {
++		snprintf(buf, buf_len, "%s %s=%s", cmdline, key,
++			 (value ? value : ""));
++	}
++
++	setenv("bootargs", buf);
++	free(buf);
++}
++
++void ast_g5_intel_late_init(void)
++{
++	char value[32];
++	u32 reset_reason = 0;
++
++	/* save and clear reset status */
++	reset_reason = ast_scu_read(AST_SCU_SYS_CTRL);
++	snprintf(value, sizeof(value), "0x%x", reset_reason);
++	ast_scu_write(0, AST_SCU_SYS_CTRL);
++
++	update_bootargs_cmd("resetreason", value);
++}
++
+ static void pwm_init(void)
+ {
+ 	uint32_t val;
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index cab5fabcef..d89a2b799a 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -22,6 +22,7 @@
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+ extern void ast_g5_intel(void);
++extern void ast_g5_intel_late_init(void);
+ 
+ int board_early_init_f(void)
+ {
+@@ -90,6 +91,12 @@ int board_init(void)
+ 	return 0;
+ }
+ 
++int board_late_init(void)
++{
++	ast_g5_intel_late_init();
++	return 0;
++}
++
+ int dram_init(void)
+ {
+ 	u32 vga = ast_scu_get_vga_memsize();

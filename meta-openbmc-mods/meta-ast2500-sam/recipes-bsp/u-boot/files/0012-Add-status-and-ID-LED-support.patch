@@ -1,0 +1,147 @@
+From e252fcfd1ad66f1af57da1851bb39a398a9545e7 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Wed, 14 Nov 2018 12:16:53 -0800
+Subject: [PATCH] Add status and ID LED support
+
+Add status (amber and green) and ID (blue) LED support. In the
+bootloader phase, the LEDs should be blinking. When booting linux, they
+should turn to a fixed state.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Change-Id: Ic9595621b21000ef465ff57ed2047855296e2714
+
+---
+ board/aspeed/ast-g5/ast-g5-intel.c | 113 +++++++++++++++++++++++++++++
+ 1 file changed, 113 insertions(+)
+
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 4ef25ab8f5..e27b538fcc 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -149,6 +149,112 @@ static void sgpio_init(void)
+ 	writel(value, AST_GPIO_BASE + GPIO254);
+ }
+ 
++/* running the timer at 48 hertz will easily give a 24Hz blink */
++#define TICK_HZ 48
++#define BLINK_DELAY(HZ) ((int)((TICK_HZ / (HZ)) / 2) - 1)
++typedef enum {
++	/*
++	 *  Identifies the control request for the ID LED.
++	 */
++	EIDLED_Initialize = 0,
++	EIDLED_Tick,
++	EIDLED_Toggle,
++	EIDLED_Off,
++	EIDLED_On,
++	EIDLED_Blink,
++	EIDLED_Blink_24HZ = EIDLED_Blink + BLINK_DELAY(24),
++	EIDLED_Blink_12HZ = EIDLED_Blink + BLINK_DELAY(12),
++	EIDLED_Blink_6HZ = EIDLED_Blink + BLINK_DELAY(6),
++	EIDLED_Blink_3HZ = EIDLED_Blink + BLINK_DELAY(3),
++	EIDLED_Blink_1HZ = EIDLED_Blink + BLINK_DELAY(1),
++	EIDLED_Blink_0_5HZ = EIDLED_Blink + BLINK_DELAY(0.5),
++} EIDLEDControl;
++
++struct led_info {
++	int gpio;
++	EIDLEDControl mode;
++	int count;
++	int state;
++};
++
++static struct led_info s_led_info[] = {
++	/* BMC Executing bootloader (Default) :-
++	 * ChassisID: Blinking Blue 3Hz, StatusLED: Blinking Green 1Hz */
++	[GPIO_ID_LED] = {GPIO_ID_LED, EIDLED_Blink_3HZ, 1, 0},
++	[GPIO_GREEN_LED] = {GPIO_GREEN_LED, EIDLED_Blink_1HZ, 0, 0},
++	[GPIO_AMBER_LED] = {GPIO_AMBER_LED, EIDLED_Off, 0, 0},
++};
++
++extern void gpio_set_value(int n, int asserted);
++void id_led_control(int id, int action)
++{
++	if (id >= ARRAY_SIZE(s_led_info)) {
++		return;
++	}
++	/* don't bother with LEDs that are not initialized */
++	if (EIDLED_Initialize == s_led_info[id].mode) {
++		return;
++	}
++
++	/* check for a blinker action */
++	if (EIDLED_Tick == action) {
++		if (s_led_info[id].mode < EIDLED_Blink) {
++			return;
++		}
++		/* check countdown for blink */
++		if (s_led_info[id].count == 0) {
++			s_led_info[id].count =
++				s_led_info[id].mode - EIDLED_Blink;
++			s_led_info[id].state = !s_led_info[id].state;
++		} else {
++			s_led_info[id].count--;
++			return;
++		}
++	} else if (EIDLED_Toggle == action) {
++		s_led_info[id].state = !s_led_info[id].state;
++		s_led_info[id].mode =
++			s_led_info[id].state ? EIDLED_On : EIDLED_Off;
++	} else if (action > EIDLED_Toggle) {
++		s_led_info[id].mode = action;
++		if (EIDLED_Off == action) {
++			s_led_info[id].state = 0;
++		} else if (EIDLED_On == action) {
++			s_led_info[id].state = 1;
++		} else if (action >= EIDLED_Blink) {
++			s_led_info[id].count = action - EIDLED_Blink;
++			/* wait for the next tick */
++			return;
++		}
++	} else if (EIDLED_Initialize == action) {
++		if (s_led_info[id].mode >= EIDLED_Blink) {
++			s_led_info[id].count =
++				s_led_info[id].mode - EIDLED_Blink;
++		}
++	}
++	gpio_set_value(s_led_info[id].gpio, s_led_info[id].state);
++}
++
++static void timer8_irq_handler(void *regs)
++{
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(s_led_info); i++) {
++		id_led_control(i, EIDLED_Tick);
++	}
++}
++
++void timer8_init(void)
++{
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(s_led_info); i++) {
++		id_led_control(i, EIDLED_Initialize);
++	}
++
++	/* set up the timer to fire at TICK_HZ HZ */
++	timer_enable(TIMER_8, TICK_HZ, timer8_irq_handler);
++}
++
+ int intel_force_firmware_jumper_enabled(void)
+ {
+ 	return gpio_get_value(GPIO_FF_UPD_JUMPER);
+@@ -160,4 +266,11 @@ void ast_g5_intel(void)
+ 	gpio_init(gpio_table, ARRAY_SIZE(gpio_table));
+ 	espi_init();
+ 	sgpio_init();
++	timer8_init();
++	if (intel_force_firmware_jumper_enabled()) {
++		/* FFUJ mode:- ChassisID: Solid Blue, StatusLED: Solid Amber */
++		id_led_control(GPIO_ID_LED, EIDLED_On);
++		id_led_control(GPIO_GREEN_LED, EIDLED_Off);
++		id_led_control(GPIO_AMBER_LED, EIDLED_On);
++	}
+ }

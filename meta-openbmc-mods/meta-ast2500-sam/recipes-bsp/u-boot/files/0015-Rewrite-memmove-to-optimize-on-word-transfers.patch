@@ -1,0 +1,112 @@
+From e600623b13e3de73be5cd3b2711d58095efb4573 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Mon, 19 Nov 2018 11:04:02 -0800
+Subject: [PATCH] Rewrite memmove to optimize on word transfers
+
+Reading from the flash at boot time was using byte-sized transfers,
+which ultimately turns into four word transfers over spi for every real
+word read. This change breaks memmove down into a header, body, and
+trailer, where the body is all done with word-sized transfers.
+
+Change-Id: Ie0a1f3261e507fb34a908571883d9bf04a1059ee
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
+---
+ lib/string.c | 77 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 64 insertions(+), 13 deletions(-)
+
+diff --git a/lib/string.c b/lib/string.c
+index 67d5f6a421..0bf472f1f6 100644
+--- a/lib/string.c
++++ b/lib/string.c
+@@ -505,26 +505,77 @@ void * memcpy(void *dest, const void *src, size_t count)
+  *
+  * Unlike memcpy(), memmove() copes with overlapping areas.
+  */
+-void * memmove(void * dest,const void *src,size_t count)
++void *memmove(void *dest, const void *src, size_t count)
+ {
+-	char *tmp, *s;
+-
+-	if (src == dest)
++	unsigned char *bdst = (unsigned char *)dest;
++	const unsigned char *bsrc = (const unsigned char *)src;
++	unsigned long *ldst;
++	const unsigned long *lsrc;
++	size_t unaligned_header = 0, unaligned_trailer = 0;
++	size_t unaligned_src =
++		(sizeof(*ldst) - (size_t)src) & (sizeof(*ldst) - 1);
++	size_t unaligned_dst =
++		(sizeof(*ldst) - (size_t)dest) & (sizeof(*ldst) - 1);
++
++	if (src == dest || !count)
+ 		return dest;
+ 
++	if (unaligned_src || unaligned_dst) {
++		if (unaligned_dst != unaligned_src) {
++			unaligned_header = count;
++		} else {
++			unaligned_header = unaligned_src;
++			if (unaligned_header > count) {
++				unaligned_header = count;
++			}
++		}
++		count -= unaligned_header;
++	}
++	if (count & (sizeof(*ldst) - 1)) {
++		unaligned_trailer = count & (sizeof(*ldst) - 1);
++		count -= unaligned_trailer;
++	}
++
+ 	if (dest <= src) {
+-		tmp = (char *) dest;
+-		s = (char *) src;
+-		while (count--)
+-			*tmp++ = *s++;
++		/* possible un-aligned bytes */
++		while (unaligned_header--)
++			*bdst++ = *bsrc++;
++
++		/* aligned words */
++		ldst = (unsigned long *)bdst;
++		lsrc = (const unsigned long *)bsrc;
++		while (count >= sizeof(*ldst)) {
++			count -= sizeof(*ldst);
++			*ldst++ = *lsrc++;
+ 		}
+-	else {
+-		tmp = (char *) dest + count;
+-		s = (char *) src + count;
+-		while (count--)
+-			*--tmp = *--s;
++
++		/* possibly un-aligned bytes */
++		bdst = (unsigned char *)ldst;
++		bsrc = (const unsigned char *)lsrc;
++		while (unaligned_trailer--)
++			*bdst++ = *bsrc++;
++	} else {
++		bdst += unaligned_header + count + unaligned_trailer;
++		bsrc += unaligned_header + count + unaligned_trailer;
++
++		/* possibly un-aligned bytes */
++		while (unaligned_trailer--)
++			*--bdst = *--bsrc;
++
++		/* aligned words */
++		ldst = (unsigned long *)bdst;
++		lsrc = (unsigned long *)bsrc;
++		while (count >= sizeof(*ldst)) {
++			count -= sizeof(*ldst);
++			*--ldst = *--lsrc;
+ 		}
+ 
++		/* possibly un-aligned bytes */
++		bdst = (unsigned char *)ldst;
++		bsrc = (const unsigned char *)lsrc;
++		while (unaligned_header--)
++			*--bdst = *--bsrc;
++	}
+ 	return dest;
+ }
+ #endif

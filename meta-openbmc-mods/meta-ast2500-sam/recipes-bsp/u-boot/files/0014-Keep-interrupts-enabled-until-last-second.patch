@@ -1,0 +1,89 @@
+From 473287e31ebd263e7278dd86e2f5e72aba9ba4db Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Sat, 17 Nov 2018 14:17:27 -0800
+Subject: [PATCH] Keep interrupts enabled until last second
+
+The U-Boot bootm command disabled interrupts almost first thing. This
+would prevent a person hitting the power button on the host immediatly
+after AC on because the BMC would fail to respond to the espi interrupts
+and the host would power off.
+
+Change-Id: I6c0fb5cca1be6c326da4c9a3d3dfbab89dac9928
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
+---
+ board/aspeed/ast-g5/ast-g5-intel.c | 8 ++++++++
+ common/bootm.c                     | 7 -------
+ common/bootm_os.c                  | 1 +
+ 3 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index a6cad69b1e..5796ecf055 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -260,6 +260,14 @@ int intel_force_firmware_jumper_enabled(void)
+ 	return gpio_get_value(GPIO_FF_UPD_JUMPER);
+ }
+ 
++void arch_preboot_os(void)
++{
++	// last second before booting... set the LEDs
++	id_led_control(GPIO_ID_LED, EIDLED_On);
++	id_led_control(GPIO_GREEN_LED, EIDLED_On);
++	id_led_control(GPIO_AMBER_LED, EIDLED_Off);
++}
++
+ /* PWM offsets */
+ 
+ #define PWM_BASE_ADDR 0x1E786000
+diff --git a/common/bootm.c b/common/bootm.c
+index 2431019b3f..46909ecdbb 100644
+--- a/common/bootm.c
++++ b/common/bootm.c
+@@ -602,7 +602,6 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+ 		    int states, bootm_headers_t *images, int boot_progress)
+ {
+ 	boot_os_fn *boot_fn;
+-	ulong iflag = 0;
+ 	int ret = 0, need_boot_fn;
+ 
+ 	images->state |= states;
+@@ -626,7 +625,6 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+ 	if (!ret && (states & BOOTM_STATE_LOADOS)) {
+ 		ulong load_end;
+ 
+-		iflag = bootm_disable_interrupts();
+ 		ret = bootm_load_os(images, &load_end, 0);
+ 		if (ret == 0)
+ 			lmb_reserve(&images->lmb, images->os.load,
+@@ -670,8 +668,6 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+ 			BOOTM_STATE_OS_BD_T | BOOTM_STATE_OS_PREP |
+ 			BOOTM_STATE_OS_FAKE_GO | BOOTM_STATE_OS_GO);
+ 	if (boot_fn == NULL && need_boot_fn) {
+-		if (iflag)
+-			enable_interrupts();
+ 		printf("ERROR: booting os '%s' (%d) is not supported\n",
+ 		       genimg_get_os_name(images->os.os), images->os.os);
+ 		bootstage_error(BOOTSTAGE_ID_CHECK_BOOT_OS);
+@@ -711,9 +707,6 @@ int do_bootm_states(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
+ 
+ 	/* Deal with any fallout */
+ err:
+-	if (iflag)
+-		enable_interrupts();
+-
+ 	if (ret == BOOTM_ERR_UNIMPLEMENTED)
+ 		bootstage_error(BOOTSTAGE_ID_DECOMP_UNIMPL);
+ 	else if (ret == BOOTM_ERR_RESET)
+diff --git a/common/bootm_os.c b/common/bootm_os.c
+index 9ec84bd0db..b56eb39780 100644
+--- a/common/bootm_os.c
++++ b/common/bootm_os.c
+@@ -476,6 +476,7 @@ __weak void arch_preboot_os(void)
+ int boot_selected_os(int argc, char * const argv[], int state,
+ 		     bootm_headers_t *images, boot_os_fn *boot_fn)
+ {
++	disable_interrupts();
+ 	arch_preboot_os();
+ 	boot_fn(state, argc, argv, images);
+ 

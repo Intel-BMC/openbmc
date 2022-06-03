@@ -1,0 +1,158 @@
+From 248f12a6a02819a5318025df0868dfd40efa2207 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Wed, 14 Nov 2018 12:09:52 -0800
+Subject: [PATCH] add sgio support for port80 snoop post LEDs
+
+This ties together the port 80 snooping to the SGPIO output that
+ultimately drives the POST code LEDs.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+Change-Id: Iaa1b91cd40f4b6323dba0598da373cb631459e66
+
+---
+ arch/arm/include/asm/arch-aspeed/ast_scu.h |  1 +
+ arch/arm/mach-aspeed/ast-scu.c             |  8 ++
+ board/aspeed/ast-g5/ast-g5-intel.c         | 96 ++++++++++++++++++++++
+ 3 files changed, 105 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/ast_scu.h b/arch/arm/include/asm/arch-aspeed/ast_scu.h
+index 06825cebbf..369c4e3b60 100644
+--- a/arch/arm/include/asm/arch-aspeed/ast_scu.h
++++ b/arch/arm/include/asm/arch-aspeed/ast_scu.h
+@@ -45,6 +45,7 @@ extern u32 ast_scu_get_vga_memsize(void);
+ extern void ast_scu_init_eth(u8 num);
+ extern void ast_scu_multi_func_eth(u8 num);
+ extern void ast_scu_multi_func_romcs(u8 num);
++extern void ast_scu_multi_func_sgpio(void);
+ 
+ void ast_config_uart5_clk(void);
+ 
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index d27f3d3ede..3a9ba05bf2 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -449,6 +449,14 @@ void ast_scu_multi_func_romcs(u8 num)
+ 		      SCU_FUN_PIN_ROMCS(num), AST_SCU_FUN_PIN_CTRL3);
+ }
+ 
++void ast_scu_multi_func_sgpio(void)
++{
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL2) |
++			SCU_FUN_PIN_SGPMI | SCU_FUN_PIN_SGPMO |
++			SCU_FUN_PIN_SGPMLD | SCU_FUN_PIN_SGPMCK,
++			AST_SCU_FUN_PIN_CTRL2);
++}
++
+ u32 ast_scu_revision_id(void)
+ {
+ 	int i;
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index e79235c8d0..c2a8b33aec 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -8,9 +8,105 @@
+  */
+ 
+ #include <common.h>
++#include <asm/io.h>
++#include <asm/arch/regs-scu.h>
++#include <asm/arch/ast_scu.h>
++#include <asm/arch/aspeed.h>
++
++#include "ast-g5.h"
++
++#define LPC_SNOOP_ADDR 0x80
++#define HICR5 0x080   /* Host Interface Control Register 5 */
++#define HICR6 0x084   /* Host Interface Control Register 6 */
++#define HICR7 0x088   /* Host Interface Control Register 7 */
++#define HICR8 0x08c   /* Host Interface Control Register 8 */
++#define SNPWADR 0x090 /* LPC Snoop Address Register */
++#define SNPWDR 0x094  /* LPC Snoop Data Register */
++#define HICR9 0x098   /* Host Interface Control Register 9 */
++#define HICRA 0x09c   /* Host Interface Control Register A */
++#define LHCR0 0x0a0   /* LPC Host Control Register 0 */
++#define LHCR1 0x0a4   /* LPC Host Control Register 1 */
++#define LHCR2 0x0a8   /* LPC Host Control Register 2 */
++#define LHCR3 0x0ac   /* LPC Host Control Register 3 */
++#define LHCR4 0x0b0   /* LPC Host Control Register 4 */
++#define LHCR5 0x0b4   /* LPC Host Control Register 5 */
++#define LHCR6 0x0b8   /* LPC Host Control Register 6 */
++#define LHCR7 0x0bc   /* LPC Host Control Register 7 */
++#define LHCR8 0x0c0   /* LPC Host Control Register 8 */
++#define PCCR6 0x0c4   /* Post Code Control Register 6 */
++#define LHCRA 0x0c8   /* LPC Host Control Register A */
++#define LHCRB 0x0cc   /* LPC Host Control Register B */
++#define PCCR4 0x0d0   /* Post Code Control Register 4 */
++#define PCCR5 0x0d4   /* Post Code Control Register 5 */
++#define HICRB 0x100   /* Host Interface Control Register B */
++#define HICRC 0x104   /* Host Interface Control Register C */
++/* HICR5 Bits */
++#define HICR5_EN_SIOGIO (1 << 31)	   /* Enable SIOGIO */
++#define HICR5_EN80HGIO (1 << 30)	    /* Enable 80hGIO */
++#define HICR5_SEL80HGIO (0x1f << 24)	/* Select 80hGIO */
++#define SET_SEL80HGIO(x) ((x & 0x1f) << 24) /* Select 80hGIO Offset */
++#define HICR5_UNKVAL_MASK 0x1FFF0000 /* Bits with unknown values on reset */
++#define HICR5_ENINT_SNP0W (1 << 1)   /* Enable Snooping address 0 */
++#define HICR5_EN_SNP0W (1 << 0)      /* Enable Snooping address 0 */
++
++/* HRCR6 Bits */
++#define HICR6_STR_SNP0W (1 << 0) /* Interrupt Status Snoop address 0 */
++#define HICR6_STR_SNP1W (1 << 1) /* Interrupt Status Snoop address 1 */
++
++/* HICRB Bits */
++#define HICRB_EN80HSGIO (1 << 13) /* Enable 80hSGIO */
++
++#define SGPIO_CLK_DIV(N) ((N) << 16)
++#define SGPIO_BYTES(N) ((N) << 6)
++#define SGPIO_ENABLE 1
++#define GPIO254 0x254
++
++static void sgpio_init(void)
++{
++	uint32_t value;
++	/*
++    33.4.2
++    LPC port80h direct to SGPIO
++    In AST2500 SGPIO, it supports output data from 80h. It always uses SGPIOA.
++    1. Configure LPC snoop function.
++	(a) Set SNPWADR(0x1e789090)[15:0] to 0x80.
++	(b) Set HICR5(0x1e789080)[0] to 1 to enable snoop.
++    2. Configure SGPIO
++	(a) Set GPIO254[9:6] to larger than or equal to 0x1.
++	(b) Set GPIO254[0] to 1 to enable SGPIO.
++    3. Set SuperIO
++	(a) Set SIOR7 30h to 0x40.
++    */
++	/* make sure multi-pin stuff goes in our favor */
++	ast_scu_multi_func_sgpio();
++
++	/* set lpc snoop #0 to port 0x80 */
++	value = readl(AST_LPC_BASE + SNPWADR) & 0xffff0000;
++	writel(value | LPC_SNOOP_ADDR, AST_LPC_BASE + SNPWADR);
++
++	/* clear interrupt status */
++	value = readl(AST_LPC_BASE + HICR6);
++	value |= HICR6_STR_SNP0W | HICR6_STR_SNP1W;
++	writel(value, AST_LPC_BASE + HICR6);
++
++	/* enable lpc snoop #0 and SIOGIO */
++	value = readl(AST_LPC_BASE + HICR5) & ~(HICR5_UNKVAL_MASK);
++	value |= HICR5_EN_SIOGIO | HICR5_EN_SNP0W;
++	writel(value, AST_LPC_BASE + HICR5);
++
++
++	/* enable port80h snoop on SGPIO */
++	value = readl(AST_LPC_BASE + HICRB) | HICRB_EN80HSGIO;
++	writel(value, AST_LPC_BASE + HICRB);
++
++	/* set the gpio clock to 2MHz */
++	value = SGPIO_CLK_DIV(24) | SGPIO_BYTES(10) | SGPIO_ENABLE;
++	writel(value, AST_GPIO_BASE + GPIO254);
++}
+ 
+ extern void espi_init(void);
+ void ast_g5_intel(void)
+ {
+ 	espi_init();
++	sgpio_init();
+ }

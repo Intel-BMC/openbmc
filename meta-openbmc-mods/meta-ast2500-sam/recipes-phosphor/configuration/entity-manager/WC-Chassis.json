@@ -1,0 +1,466 @@
+{
+    "Exposes": [
+        {
+            "BindConnector": "System Fan connector 1",
+            "Index": 0,
+            "MaxReading": 21000,
+            "Name": "Fan 1",
+            "Thresholds": [
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1750
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 2000
+                }
+            ],
+            "Type": "AspeedFan"
+        },
+        {
+            "BindConnector": "System Fan connector 2",
+            "Index": 2,
+            "MaxReading": 21000,
+            "Name": "Fan 2",
+            "Thresholds": [
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1750
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 2000
+                }
+            ],
+            "Type": "AspeedFan"
+        },
+        {
+            "BindConnector": "System Fan connector 3",
+            "Index": 4,
+            "MaxReading": 21000,
+            "Name": "Fan 3",
+            "Thresholds": [
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1750
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 2000
+                }
+            ],
+            "Type": "AspeedFan"
+        },
+        {
+            "BindConnector": "System Fan connector 6",
+            "Index": 10,
+            "MaxReading": 21000,
+            "Name": "Fan 4",
+            "Thresholds": [
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1750
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 2000
+                }
+            ],
+            "Type": "AspeedFan"
+        },
+        {
+            "BindConnector": "System Fan connector 7",
+            "Index": 12,
+            "MaxReading": 21000,
+            "Name": "Fan 5",
+            "Thresholds": [
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1750
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 2000
+                }
+            ],
+            "Type": "AspeedFan"
+        },
+        {
+            "BindConnector": "System Fan connector 8",
+            "Index": 14,
+            "MaxReading": 21000,
+            "Name": "Fan 6",
+            "Thresholds": [
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1750
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 2000
+                }
+            ],
+            "Type": "AspeedFan"
+        },
+        {
+            "C1": 92.16,
+            "C2": 107.52,
+            "MaxCFM": 17.5,
+            "Name": "System Airflow",
+            "TachMaxPercent": 100,
+            "TachMinPercent": 20,
+            "Tachs": [
+                "Fan 1",
+                "Fan 2",
+                "Fan 3",
+                "Fan 4",
+                "Fan 5",
+                "Fan 6"
+            ],
+            "Type": "CFMSensor"
+        },
+        {
+            "DisableNode": [
+                "Fan 1a",
+                "Fan 1b",
+                "Fan 2a",
+                "Fan 2b",
+                "Fan 3a",
+                "Fan 3b",
+                "Fan 4a",
+                "Fan 4b",
+                "Fan 5a",
+                "Fan 5b",
+                "Fan 6a",
+                "Fan 6b",
+                "Fan 7a",
+                "Fan 7b",
+                "Fan 8a",
+                "Fan 8b",
+                "Fan 1",
+                "Fan 2",
+                "Fan 3",
+                "Fan 4",
+                "Fan 5",
+                "Fan 6",
+                "Fan 7",
+                "Fan 8",
+                "System Airflow"
+            ],
+            "Name": "Disable Baseboard Configurations",
+            "Type": "Disable"
+        },
+        {
+            "AlphaF": 4.352,
+            "AlphaS": 0.512,
+            "Name": "Exit Air Temp",
+            "PowerFactorMax": 1.2,
+            "PowerFactorMin": 0.9,
+            "QMax": 165,
+            "QMin": 31,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 85
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 80
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "ExitAirTempSensor"
+        },
+        {
+            "AllowedFailures": 1,
+            "Name": "FanRedundancy",
+            "Type": "FanRedundancy"
+        },
+        {
+            "Class": "temp",
+            "FFGainCoefficient": 0.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": -4.64,
+            "ILimitMax": 100,
+            "ILimitMin": 30,
+            "Inputs": [
+                "Exit Air Temp"
+            ],
+            "Name": "Exit Air Temp",
+            "NegativeHysteresis": 5.0,
+            "OutLimitMax": 100,
+            "OutLimitMin": 30,
+            "Outputs": [],
+            "PCoefficient": -0.15,
+            "PositiveHysteresis": 0.0,
+            "SetPoint": 75.0,
+            "SlewNeg": -1,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 1"
+            ],
+            "Name": "Fan 1",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 1"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 2"
+            ],
+            "Name": "Fan 2",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 2"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 3"
+            ],
+            "Name": "Fan 3",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 3"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Left"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 4"
+            ],
+            "Name": "Fan 4",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 6"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 5"
+            ],
+            "Name": "Fan 5",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 7"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right"
+            ]
+        },
+        {
+            "Class": "fan",
+            "FFGainCoefficient": 1.0,
+            "FFOffCoefficient": 0.0,
+            "ICoefficient": 0.0,
+            "ILimitMax": 0.0,
+            "ILimitMin": 0.0,
+            "Inputs": [
+                "Fan 6"
+            ],
+            "Name": "Fan 6",
+            "NegativeHysteresis": 0.0,
+            "OutLimitMax": 100.0,
+            "OutLimitMin": 30.0,
+            "Outputs": [
+                "Pwm 8"
+            ],
+            "PCoefficient": 0.0,
+            "PositiveHysteresis": 0.0,
+            "SlewNeg": 0.0,
+            "SlewPos": 0.0,
+            "Type": "Pid",
+            "Zones": [
+                "Right"
+            ]
+        },
+        {
+            "Class": "Floor",
+            "Inputs": [
+                "Front Panel Temp"
+            ],
+            "Name": "Front Panel LCC",
+            "NegativeHysteresis": 2,
+            "Output": [
+                50.0,
+                60.0
+            ],
+            "PositiveHysteresis": 0,
+            "Reading": [
+                20.0,
+                30.0
+            ],
+            "Type": "Stepwise",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        },
+        {
+            "Class": "Ceiling",
+            "Inputs": [
+                "Front Panel Temp"
+            ],
+            "Name": "Front Panel UCC",
+            "NegativeHysteresis": 2,
+            "Output": [
+                70.0,
+                80.0
+            ],
+            "PositiveHysteresis": 0,
+            "Profiles": [
+                "Acoustic"
+            ],
+            "Reading": [
+                22.0,
+                32.0
+            ],
+            "Type": "Stepwise",
+            "Zones": [
+                "Left",
+                "Right"
+            ]
+        }
+    ],
+    "Name": "R4000 Chassis",
+    "Probe": [
+        "FOUND('Intel Front Panel')",
+        "AND",
+        "FOUND('WC Baseboard')",
+        "AND",
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'WilsonCity'})"
+    ],
+    "Type": "Chassis",
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "$PRODUCT_MANUFACTURER",
+        "Model": "$PRODUCT_PRODUCT_NAME",
+        "PartNumber": "$PRODUCT_PART_NUMBER",
+        "SerialNumber": "$PRODUCT_SERIAL_NUMBER"
+    },
+    "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
+        "AssetTag": "$PRODUCT_ASSET_TAG"
+    }
+}

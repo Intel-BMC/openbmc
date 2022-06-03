@@ -1,0 +1,78 @@
+From 07a269d7873c77c372acbd4ccf83612e14f05404 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 4 Oct 2019 15:54:43 -0700
+Subject: [PATCH] aspeed/ast-scu.c: fix MAC1LINK and MAC2LINK pin pads setting
+
+Intel platforms don't use these pins as PHY link monitoring inputs
+so this commit disables them in SCU pin control register so that
+the pins can be used as GPIOs.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+
+---
+ arch/arm/mach-aspeed/ast-scu.c | 37 +++++++++-------------------------
+ 1 file changed, 9 insertions(+), 28 deletions(-)
+
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index 537cd4b3e1..28c48c1154 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -419,49 +419,30 @@ void ast_scu_multi_func_eth(u8 num)
+ {
+ 	switch (num) {
+ 	case 0:
+-		if (ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_MAC0_RGMII) {
++		if (ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_MAC0_RGMII)
+ 			printf("MAC0 : RGMII\n");
+-			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) |
+-				      SCU_FUN_PIN_MAC0_PHY_LINK,
+-				      AST_SCU_FUN_PIN_CTRL1);
+-		} else {
++		else
+ 			printf("MAC0 : RMII/NCSI\n");
+-			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) &
+-				      ~SCU_FUN_PIN_MAC0_PHY_LINK,
+-				      AST_SCU_FUN_PIN_CTRL1);
+-		}
+-
+-#ifdef AST_SOC_G5
+-		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) |
+-			      SCU_FUN_PIN_MAC0_PHY_LINK, AST_SCU_FUN_PIN_CTRL1);
+ 
+-#endif
++		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) &
++			      ~SCU_FUN_PIN_MAC0_PHY_LINK,
++			      AST_SCU_FUN_PIN_CTRL1);
+ 		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL3) |
+ 			      SCU_FUN_PIN_MAC0_MDIO | SCU_FUN_PIN_MAC0_MDC,
+ 			      AST_SCU_FUN_PIN_CTRL3);
+-
+ 		break;
+ 	case 1:
+-		if (ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_MAC1_RGMII) {
++		if (ast_scu_read(AST_SCU_HW_STRAP1) & SCU_HW_STRAP_MAC1_RGMII)
+ 			printf("MAC1 : RGMII\n");
+-			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) |
+-				      SCU_FUN_PIN_MAC1_PHY_LINK,
+-				      AST_SCU_FUN_PIN_CTRL1);
+-		} else {
++		else
+ 			printf("MAC1 : RMII/NCSI\n");
+-			ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) &
+-				      ~SCU_FUN_PIN_MAC1_PHY_LINK,
+-				      AST_SCU_FUN_PIN_CTRL1);
+-		}
+ 
+-		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) |
+-			      SCU_FUN_PIN_MAC1_PHY_LINK,
++		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) &
++			      ~SCU_FUN_PIN_MAC1_PHY_LINK,
+ 			      AST_SCU_FUN_PIN_CTRL1);
+-
+ 		ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL5) |
+ 			      SCU_FUC_PIN_MAC1_MDIO,
+ 			      AST_SCU_FUN_PIN_CTRL5);
+-
+ 		break;
+ 	}
+ }

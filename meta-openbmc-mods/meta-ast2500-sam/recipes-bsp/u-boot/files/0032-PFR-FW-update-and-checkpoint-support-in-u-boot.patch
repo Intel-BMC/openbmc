@@ -1,0 +1,528 @@
+From 5d16832eb3a65e2d30c732a06abcec801c1edf38 Mon Sep 17 00:00:00 2001
+From: AppaRao Puli <apparao.puli@linux.intel.com>
+Date: Wed, 24 Jul 2019 20:11:30 +0530
+Subject: [PATCH] PFR FW update and checkpoint support in u-boot
+
+1) Added firmware update ipmi commands support
+for PFR images. This enables PFR based firmware
+updates for components BMC, BIOS and CPLD during
+FFUJ mode.
+
+2) Added two PFR boot flow checkpoint in u-boot
+  - Set the booting starts checkpoint(0x01)
+  - Set FFUJ checkpoint(0x07) when jumper on.
+
+Tested:
+
+Tested:
+1) Using debug fwpiaupd.efi utility, validated the PFR
+BMC image update via KCS ( In FFUJ mode).
+2) Loaded the image, dumped all cpld registers and
+cross verified the check-points properly set or not.
+
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
+---
+ board/aspeed/ast-g5/Makefile       |   1 +
+ board/aspeed/ast-g5/ast-g5-intel.c |  10 +++
+ board/aspeed/ast-g5/fw-update.c    | 112 +++++++++++++++--------------
+ board/aspeed/ast-g5/fw-update.h    |   7 ++
+ board/aspeed/ast-g5/ipmi-fwupd.c   |  37 ++++++++++
+ board/aspeed/ast-g5/ipmi-fwupd.h   |   6 --
+ board/aspeed/ast-g5/pfr-mgr.c      |  73 +++++++++++++++++++
+ board/aspeed/ast-g5/pfr-mgr.h      |  73 +++++++++++++++++++
+ 8 files changed, 258 insertions(+), 61 deletions(-)
+ create mode 100644 board/aspeed/ast-g5/pfr-mgr.c
+ create mode 100644 board/aspeed/ast-g5/pfr-mgr.h
+
+diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
+index 0b2d936c23..9021d7fc08 100644
+--- a/board/aspeed/ast-g5/Makefile
++++ b/board/aspeed/ast-g5/Makefile
+@@ -8,3 +8,4 @@ obj-y += ast-g5-kcs.o
+ obj-y += ipmi-handler.o
+ obj-y += ipmi-fwupd.o
+ obj-y += fw-update.o
++obj-y += pfr-mgr.o
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 6e43b74bc4..6a36cfa2ba 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -16,6 +16,7 @@
+ #include "ast-g5.h"
+ #include "ast-g5-gpio.h"
+ #include "ast-g5-timer.h"
++#include "pfr-mgr.h"
+ 
+ /* Names to match the GPIOs */
+ enum gpio_names {
+@@ -664,6 +665,10 @@ void ast_g5_intel(void)
+ 	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) |
+ 		      SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);
+ 
++	/* To notify the CPLD about the start of bootloader
++	 * and hardware initialization */
++	set_cpld_reg(PFR_CPLD_BOOT_CHECKPOINT_REG, PFR_CPLD_CHKPOINT_START);
++
+ 	uart_init();
+ 	mailbox_init();
+ 	pwm_init();
+@@ -683,6 +688,11 @@ void ast_g5_intel(void)
+ 		kcs_init();
+ 		if (intel_get_platform_id() == COOPER_CITY_BOARD_ID)
+ 			set_pwm_duty_cycle(ELEVATED_PWM_DUTY_VALUE);
++		/* Notify CPLD about FFUJ jumper set and pause
++		 * of booting for indefinitely time. It will be
++		 * resumed once reset is done. */
++		set_cpld_reg(PFR_CPLD_BOOT_CHECKPOINT_REG,
++			     PFR_CPLD_CHKPOINT_FFUJ);
+ 		/* TODO: need to stop the booting here. */
+ 	}
+ }
+diff --git a/board/aspeed/ast-g5/fw-update.c b/board/aspeed/ast-g5/fw-update.c
+index 99239938b5..89fe5fd4fd 100644
+--- a/board/aspeed/ast-g5/fw-update.c
++++ b/board/aspeed/ast-g5/fw-update.c
+@@ -6,6 +6,7 @@
+ #include <flash.h>
+ 
+ #include "fw-update.h"
++#include "pfr-mgr.h"
+ 
+ #define BOOTCMD_BOOTM_STR	"bootm "
+ #define RANDOM_NUM_TIMEOUT	30 /* in seconds */
+@@ -15,7 +16,7 @@
+ #define PROTECT_ON		1
+ 
+ extern struct fwupd_global_setting g_fwupd_settings;
+-extern u32 g_write_addr;
++extern struct fwupd_image_info g_img_info;
+ 
+ bool g_fwupd_settings_lock = false;
+ unsigned long long etime;
+@@ -36,16 +37,8 @@ void fwupd_settings_unlock(void)
+ 
+ u8 get_active_boot_image(void)
+ {
+-	char *bootcmd = getenv("bootcmd");
+-	char *start = strstr(bootcmd, BOOTCMD_BOOTM_STR);
++	/* For PFR, its always active region */
+ 	u8 boot_image = PRIMARY_IMAGE;
+-
+-	if (start) {
+-		ulong boot_addr = simple_strtoul(
+-			(start + strlen(BOOTCMD_BOOTM_STR)), NULL, 16);
+-		if (boot_addr == SECONDARY_FITIMAGE_START_ADDR)
+-			return SECONDARY_IMAGE;
+-	}
+ 	return boot_image;
+ }
+ 
+@@ -318,45 +311,22 @@ static int erase_flash_sector(ulong addr_first, ulong addr_last)
+ 	return rcode;
+ }
+ 
+-static int verify_image(void)
++static int verify_image(ulong src_addr, ulong img_length)
+ {
+-	ulong src_addr = IMAGE_LOAD_RAM_ADDR;
+-	void *hdr = (void *)src_addr;
+-
+-	printf("\n## Checking Image at 0x%08lx ...\n", src_addr);
+-	/* AT the moment, we only support FIT image flash */
+-	switch (genimg_get_format(hdr)) {
+-	case IMAGE_FORMAT_FIT:
+-		printf("   FIT image found\n");
+-		if (!fit_check_format(hdr)) {
+-			printf("Bad FIT image format!\n");
+-			return -1;
+-		}
+-
+-		if (!fit_all_image_verify(hdr)) {
+-			printf("Bad hash in FIT image!\n");
+-			return -1;
+-		}
+-		break;
+-	default:
+-		printf("Unknown image format!\n");
+-		return -1;
+-	}
+-
++	/* TODO: Verify the hash alone here.*/
++	/* Full image verification is done in CPLD. */
+ 	return 0;
+ }
+ 
+-static int flash_image(void)
++static int flash_image(ulong src_addr, ulong addr_first, ulong max_size,
++		       ulong img_length)
+ {
+ 	int rcode;
+-	ulong max_size = MAX_FITIMAGE_SIZE;
+-	ulong src_addr = IMAGE_LOAD_RAM_ADDR;
+-	ulong addr_first = get_flash_image_address();
+ 	ulong addr_last = addr_first + max_size - 1;
+ 
+-	if ((g_write_addr > max_size) || (g_write_addr == 0)) {
++	if ((img_length > max_size) || (img_length == 0)) {
+ 		printf("ERROR: %s(): Invalid file uploaded. filesize(0x%08x)\n",
+-		       __func__, g_write_addr);
++		       __func__, img_length);
+ 		return -1;
+ 	}
+ 
+@@ -398,7 +368,7 @@ static int flash_image(void)
+ 
+ 	/* write to flash area */
+ 	printf("Copy to Flash... ");
+-	rcode = flash_write((char *)src_addr, addr_first, g_write_addr * 1);
++	rcode = flash_write((char *)src_addr, addr_first, img_length);
+ 	if (rcode != 0) {
+ 		printf("%s(): Flash copy failed(%d).\n", __func__, rcode);
+ 		flash_perror(rcode);
+@@ -430,10 +400,27 @@ void start_fw_update_loop(void)
+ 		}
+ 
+ 		if (g_fwupd_settings.start_update) {
++			printf("Starting image copy to staging area.....\n");
+ 			update_processing_status(IMG_VALIDATING, 0);
+-
+-			rc = verify_image();
++			u8 update_intent = 0x00;
++			if ((g_fwupd_settings.options_mask &
++			     g_fwupd_settings.options_value) & DEFER_BMC_RESET)
++				update_intent |= DEFER_UPDATES_TO_RESET;
++
++			ulong offset =
++				get_flash_region_offset(g_img_info.img_type);
++			ulong max_size =
++				get_image_max_size(g_img_info.img_type);
++			ulong src_addr = IMAGE_LOAD_RAM_ADDR;
++			ulong flash_addr = PFR_IMAGE_STAGING_BASE_ADDR + offset;
++
++			debug("FWUPD: offset:0x%08lx, max_size:0x%08lx, "
++			      "src_addr:0x%08lx, flash_addr:0x%08lx\n",
++			      offset, max_size, src_addr, flash_addr);
++
++			rc = verify_image(src_addr, g_img_info.img_length);
+ 			if (rc != 0) {
++				printf("Image verification failed.\n");
+ 				update_processing_status(UPDATE_ERROR, 100);
+ 				/* Adding delay to make consumer gets status */
+ 				mdelay(WAIT_STATE_TIMEOUT);
+@@ -441,31 +428,46 @@ void start_fw_update_loop(void)
+ 				reset_all_settings();
+ 				continue;
+ 			}
++			printf("Image verification success.\n");
+ 
+ 			update_processing_status(IMG_PROGRAMMING, 10);
+ 
+-			rc = flash_image();
++			rc = flash_image(src_addr, flash_addr, max_size,
++					 g_img_info.img_length);
+ 			if (rc == 0) {
+-				/* Update successful, change the boot command */
+-				boot_addr = get_flash_image_address();
+-				snprintf(boot_cmd, sizeof(boot_cmd),
+-					 "bootm %08x", boot_addr);
+-				setenv("bootcmd", boot_cmd);
+-				saveenv();
++				update_processing_status(IMG_PROGRAMMING, 90);
++			} else {
++				update_processing_status(UPDATE_ERROR, 100);
++			}
+ 
++			printf("Image copy to staging area %s.\n",
++			       ((rc == 0) ? "successful" : "failed"));
++
++			/* Set the BMC update intent BIT to CPLD register */
++			update_intent != get_update_intent(g_img_info.img_type);
++
++			/* TODO: We ned a way to protect the staging area from
++			 * next write data. After setting cpld intent bit, CPLD
++			 * read the stagging region for associated image types
++			 * and update active/recovery area. During this stage,
++			 * staging area should be protected from next write.
++			 * Working with CPLD team for identifying this state. */
++			if (0 != set_cpld_reg(PFR_CPLD_BMC_UPDATE_INTENT_REG,
++					      update_intent)) {
++				update_processing_status(UPDATE_ERROR, 100);
++			} else {
++				printf("CPLD: Update intent set successfully.\n");
+ 				update_processing_status(UPDATE_SUCCESSFUL,
+ 							 100);
+-			} else {
+-				update_processing_status(UPDATE_ERROR, 100);
++
++				if (update_intent & DEFER_UPDATES_TO_RESET)
++					printf("CPLD: Update defered to next reset.\n");
+ 			}
+ 
+ 			/* Adding delay to make sure consumer gets status */
+ 			mdelay(WAIT_STATE_TIMEOUT);
+-
+ 			reset_all_settings();
+ 
+-			/* Reset BMC */
+-			do_reset(NULL, 0, 0, NULL);
+ 		}
+ 		mdelay(WAIT_STATE_TIMEOUT);
+ 	}
+diff --git a/board/aspeed/ast-g5/fw-update.h b/board/aspeed/ast-g5/fw-update.h
+index ed033adfed..45e46ba596 100644
+--- a/board/aspeed/ast-g5/fw-update.h
++++ b/board/aspeed/ast-g5/fw-update.h
+@@ -28,6 +28,12 @@ enum update_status {
+ 	UPDATE_FORBIDDEN = 0x80,
+ 	AC_CYCLE_REQUIRED = 0x83
+ };
++enum update_options {
++	NO_DOWN_REVISION = BIT(0),
++	DEFER_BMC_RESET = BIT(1),
++	SHA32_INTEGRITY_CHECK = BIT(2),
++	CRC32_INTEGRITY_CHECK = BIT(3)
++};
+ 
+ struct fwupd_global_setting {
+ 	bool fwupd_mode_active;
+@@ -48,3 +54,4 @@ bool fwupd_settings_trylock(void);
+ void fwupd_settings_unlock(void);
+ u8 get_active_boot_image(void);
+ int generate_random_number(void);
++
+diff --git a/board/aspeed/ast-g5/ipmi-fwupd.c b/board/aspeed/ast-g5/ipmi-fwupd.c
+index 3eba056e7f..6afc8d66b7 100644
+--- a/board/aspeed/ast-g5/ipmi-fwupd.c
++++ b/board/aspeed/ast-g5/ipmi-fwupd.c
+@@ -2,10 +2,14 @@
+ // Copyright (c) 2018-2019 Intel Corporation
+ 
+ #include "ipmi-fwupd.h"
++#include "pfr-mgr.h"
+ 
+ struct fwupd_global_setting g_fwupd_settings;
+ u32 g_write_addr = 0;
+ 
++struct fwupd_image_info g_img_info;
++static bool block0_mapped = false;
++
+ u16 fwupd_get_execution_ctx(u8 *req, u16 req_len, u8 *res)
+ {
+ 	int booting_image = 0x01;
+@@ -395,6 +399,39 @@ u16 fwupd_image_write(u8 *req, u16 req_len, u8 *res)
+ 	memcpy(mem_addr, req, req_len);
+ 	g_write_addr += req_len;
+ 
++	/* Get the PFR block 0 data and read the uploaded image
++	 * information( Image type, length, hash etc) */
++	if ((g_write_addr >= sizeof(struct pfr_image_block0)) &&
++	    (!block0_mapped)) {
++		struct pfr_image_block0 *block0_data =
++			(struct pfr_image_block0 *)IMAGE_LOAD_RAM_ADDR;
++		u32 magic_num = (u32)((*block0_data->tag) |
++				      LSH(*(block0_data->tag + 1), 8) |
++				      LSH(*(block0_data->tag + 2), 16) |
++				      LSH(*(block0_data->tag + 3), 24));
++		/* Validate the magic number */
++		if (magic_num != PFR_BLOCK0_MAGIC_NUM) {
++			result->completion_code = IPMI_CC_INVALID_DATA_LENGTH;
++			return sizeof(result->completion_code);
++		}
++
++		/* Fill the image info structure for later use */
++		g_img_info.magic_num = magic_num;
++		g_img_info.img_length =
++			(u32)((*block0_data->pc_length) |
++			      LSH(*(block0_data->pc_length + 1), 8) |
++			      LSH(*(block0_data->pc_length + 2), 16) |
++			      LSH(*(block0_data->pc_length + 3), 24));
++		g_img_info.img_type =
++			(u32)((*block0_data->pc_type) |
++			      LSH(*(block0_data->pc_type + 1), 8) |
++			      LSH(*(block0_data->pc_type + 2), 16) |
++			      LSH(*(block0_data->pc_type + 3), 24));
++		/* Add Authentication data struct length for full image */
++		g_img_info.img_length += PFR_AUTH_DATA_STRUCT_LEN;
++		block0_mapped = true;
++	}
++
+ 	result->completion_code = IPMI_CC_OK;
+ 	result->no_of_bytes_written = (u8)req_len;
+ 
+diff --git a/board/aspeed/ast-g5/ipmi-fwupd.h b/board/aspeed/ast-g5/ipmi-fwupd.h
+index e490f6b527..7409d2e2f9 100644
+--- a/board/aspeed/ast-g5/ipmi-fwupd.h
++++ b/board/aspeed/ast-g5/ipmi-fwupd.h
+@@ -19,12 +19,6 @@ enum control_state_bit {
+ 	IMG_TRANSFER_CTRL_BIT_ABORT = (0x01 << 2),
+ 	USB_CTRL_BIT_ATTACH = (0x01 << 3)
+ };
+-enum update_options_bit {
+-	NO_DOWN_REVISION = 0,
+-	DEFER_BMC_RESET = 1,
+-	SHA32_INTEGRITY_CHECK = 2,
+-	CRC32_INTEGRITY_CHECK = 3
+-};
+ 
+ struct fwupd_get_exe_ctx_res {
+ 	u8 completion_code;
+diff --git a/board/aspeed/ast-g5/pfr-mgr.c b/board/aspeed/ast-g5/pfr-mgr.c
+new file mode 100644
+index 0000000000..77131688e7
+--- /dev/null
++++ b/board/aspeed/ast-g5/pfr-mgr.c
+@@ -0,0 +1,73 @@
++// SPDX-License-Identifier: GPL-2.0+
++// Copyright (c) 2018-2019 Intel Corporation
++
++#include "pfr-mgr.h"
++
++int set_cpld_reg(u8 reg_addr, u8 value)
++{
++	int ret = 0;
++	int chip = (PFR_CPLD_SLAVE_ADDR >> 1);
++
++	/* Get current I2C bus number to restore later. */
++	int current_bus_no = i2c_get_bus_num();
++
++	/* Set I2C bus number to PFR CPLD I2C bus. */
++	ret = i2c_set_bus_num(PFR_CPLD_I2C_BUSNO);
++	if (ret) {
++		printf("Failed to change I2C bus number (%d)\n", ret);
++		goto done;
++	}
++
++	ret = i2c_write(chip, reg_addr, 1, &value, 1);
++	if (ret) {
++		printf("Error writing the chip: %d\n", ret);
++		goto done;
++	}
++
++done:
++	/* Restore I2C bus number */
++	if (i2c_set_bus_num(current_bus_no))
++		printf("Failed to restore I2C bus number.\n");
++
++	return ret;
++}
++
++ulong get_update_intent(u32 type)
++{
++	ulong intent = 0;
++	if (type == PFR_CPLD_UPDATE_CAPSULE)
++		intent = CPLD_IMAGE_UPDATE;
++	else if (type == PFR_PCH_UPDATE_CAPSULE)
++		intent = PCH_SPI_FLASH_ACTIVE;
++	else if (type == PFR_BMC_UPDATE_CAPSULE)
++		intent = BMC_SPI_FLASH_ACTIVE;
++
++	return intent;
++}
++
++ulong get_image_max_size(u32 type)
++{
++	ulong max_size = MAX_BMC_IMAGE_SIZE;
++	if (type == PFR_CPLD_UPDATE_CAPSULE)
++		max_size = MAX_CPLD_IMAGE_SIZE;
++	else if (type == PFR_PCH_UPDATE_CAPSULE)
++		max_size = MAX_BIOS_IMAGE_SIZE;
++	else if (type == PFR_BMC_UPDATE_CAPSULE)
++		max_size = MAX_BMC_IMAGE_SIZE;
++
++	return max_size;
++}
++
++ulong get_flash_region_offset(u32 type)
++{
++	ulong offset = 0;
++	if (type == PFR_CPLD_UPDATE_CAPSULE)
++		offset = PFR_CPLD_IMAGE_REGION_OFFSET;
++	else if (type == PFR_PCH_UPDATE_CAPSULE)
++		offset = PFR_BIOS_IMAGE_REGION_OFFSET;
++	else if (type == PFR_BMC_UPDATE_CAPSULE)
++		offset = PFR_BMC_IMAGE_REGION_OFFSET;
++
++	return offset;
++}
++
+diff --git a/board/aspeed/ast-g5/pfr-mgr.h b/board/aspeed/ast-g5/pfr-mgr.h
+new file mode 100644
+index 0000000000..5c5b98bbe0
+--- /dev/null
++++ b/board/aspeed/ast-g5/pfr-mgr.h
+@@ -0,0 +1,73 @@
++// SPDX-License-Identifier: GPL-2.0+
++// Copyright (c) 2018-2019 Intel Corporation
++
++#include <common.h>
++
++/* CPLD I2C device defines */
++#define PFR_CPLD_I2C_BUSNO		4
++#define PFR_CPLD_SLAVE_ADDR		0x70
++
++/* CPLD registers */
++#define PFR_CPLD_BOOT_CHECKPOINT_REG	0x0F
++#define PFR_CPLD_BMC_UPDATE_INTENT_REG	0x13
++
++/* PFR checkpoints */
++#define PFR_CPLD_CHKPOINT_START		0x01
++#define PFR_CPLD_CHKPOINT_FFUJ		0x07
++#define PFR_CPLD_CHKPOINT_FINISHED	0x09
++
++#define PFR_BLOCK0_MAGIC_NUM		0xB6EAFD19
++#define PFR_AUTH_DATA_STRUCT_LEN	1024 /* Block0 & Block1 */
++
++/* SPI Flash MAP */
++#define PFR_IMAGE_STAGING_BASE_ADDR	0x24A00000 /* 54MB */
++#define MAX_BMC_IMAGE_SIZE		0x2000000 /* 32MB */
++#define MAX_BIOS_IMAGE_SIZE		0x1000000 /* 16MB */
++#define MAX_CPLD_IMAGE_SIZE		0x400000  /* 4MB */
++#define PFR_BMC_IMAGE_REGION_OFFSET	0
++#define PFR_BIOS_IMAGE_REGION_OFFSET	\
++	(PFR_BMC_IMAGE_REGION_OFFSET + MAX_BMC_IMAGE_SIZE)
++#define PFR_CPLD_IMAGE_REGION_OFFSET	\
++	(PFR_BIOS_IMAGE_REGION_OFFSET + MAX_BIOS_IMAGE_SIZE)
++
++#define LSH(data, num)			((data) << (num))
++
++/* Bit mapping for CPLD 'BMC update intent' */
++enum cpld_update_intent {
++	PCH_SPI_FLASH_ACTIVE = BIT(0),
++	PCH_SPI_FLASH_RECOVERY = BIT(1),
++	CPLD_IMAGE_UPDATE = BIT(2),
++	BMC_SPI_FLASH_ACTIVE = BIT(3),
++	BMC_SPI_FLASH_RECOVERY = BIT(4),
++	DEFER_UPDATES_TO_RESET = BIT(7)
++};
++
++enum pfr_block0_pc_type {
++	PFR_CPLD_UPDATE_CAPSULE = 0x00,
++	PFR_PCH_PFM = 0x01,
++	PFR_PCH_UPDATE_CAPSULE = 0x02,
++	PFR_BMC_PFM = 0x03,
++	PFR_BMC_UPDATE_CAPSULE = 0x04
++};
++
++/* PFR image block 0 - As defined in HAS */
++struct pfr_image_block0 {
++	u8 tag[4];
++	u8 pc_length[4];
++	u8 pc_type[4];
++	u8 reserved_1[4];
++	u8 hash_256[32];
++	u8 hash_384[48];
++	u8 reserved_2[32];
++};
++
++struct fwupd_image_info {
++	u32 magic_num;
++	u32 img_length;
++	u32 img_type;
++};
++
++int set_cpld_reg(u8 reg_addr, u8 value);
++ulong get_update_intent(u32 type);
++ulong get_flash_region_offset(u32 type);
++ulong get_image_max_size(u32 type);

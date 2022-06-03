@@ -1,0 +1,53 @@
+From 872e3fd3ae8f692ab11c49dbbd1c5b311c2aaad1 Mon Sep 17 00:00:00 2001
+From: Kuiying Wang <kuiying.wang@intel.com>
+Date: Wed, 7 Nov 2018 13:57:57 +0800
+Subject: [PATCH] enable passthrough in uboot
+
+---
+ arch/arm/mach-aspeed/ast-scu.c | 22 ++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5.c   |  2 ++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index fff02dc000..d27f3d3ede 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -544,3 +544,25 @@ void ast_config_uart5_clk(void)
+ 	ast_scu_write(ast_scu_read(AST_SCU_MISC2_CTRL) &
+ 				~(1 << 28), AST_SCU_MISC2_CTRL);
+ }
++
++
++void ast_enable_pass_through(void)
++{
++	//Enable GPIOE pin mode, SCU80[16:23] = 00 */
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) & (~0x00FF0000),
++		AST_SCU_FUN_PIN_CTRL1);
++
++	//Enable all pass through pins by setting SCU8C[15:12] = 0x3.
++	//Pass-through pins set:
++	//GPIOE0 -> GPIOE1
++	//GPIOE2 -> GPIOE3
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL4) | (0x3000),
++		AST_SCU_FUN_PIN_CTRL4);
++
++	//Disable HWStrap for GPIOE pass-through mode
++	//The write operation to SCU70(0x1e6e2070) only can set to '1'.
++	//To clear to '0', it must write '1' to 0x1e6e207c
++	if (ast_scu_read(AST_SCU_HW_STRAP1) & (0x1 << 22)){
++		ast_scu_write((0x1 << 22), AST_SCU_REVISION_ID);
++	}
++}
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index 45353b8f78..02eb2c3990 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -23,6 +23,8 @@ int board_early_init_f(void)
+ {
+ 	/* make sure uart5 is using 24MHz clock */
+ 	ast_config_uart5_clk();
++	/*enable pass through*/
++	ast_enable_pass_through();
+ 
+ 	return 0;
+ }

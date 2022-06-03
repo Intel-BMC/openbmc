@@ -1,0 +1,50 @@
+From ad47771d6210d686082498e4e829b41b8fd8e160 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 29 Mar 2019 12:30:20 -0700
+Subject: [PATCH] Add TPM enable pulse triggering
+
+This commit adds onboard TPM enable pulse triggering.
+
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+
+---
+ board/aspeed/ast-g5/ast-g5-intel.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index ac2af9af56..45ecd83fd3 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -56,8 +56,8 @@ static const GPIOValue gpio_table[] = {
+ 				GPIO_DEBOUNCE_8MS},
+ 
+ 	/* Enable Pulse -- pin D6 */
+-	[GPIO_ENABLE_TPM_PULSE] = {PORT_PIN(GPIO_PORT_D, GPIO_PIN_6),
+-				   GPIO_CFG_DEFAULT, 0, GPIO_DEBOUNCE_8MS},
++	[GPIO_ENABLE_TPM_PULSE] = {TPM_EN_PULSE_PORT_PIN, GPCFG_OUTPUT_EN, 0,
++				   GPIO_DEBOUNCE_NONE},
+ };
+ 
+ #define LPC_SNOOP_ADDR 0x80
+@@ -237,6 +237,13 @@ void id_led_control(int id, int action)
+ 	gpio_set_value(s_led_info[id].gpio, s_led_info[id].state);
+ }
+ 
++static void enable_onboard_tpm(void)
++{
++	gpio_set_value(GPIO_ENABLE_TPM_PULSE, 1);
++	mdelay(50);
++	gpio_set_value(GPIO_ENABLE_TPM_PULSE, 0);
++}
++
+ static void timer8_irq_handler(void *regs)
+ {
+ 	int i;
+@@ -501,6 +508,7 @@ void ast_g5_intel(void)
+ 	espi_init();
+ 	sgpio_init();
+ 	timer8_init();
++	enable_onboard_tpm();
+ 	if (intel_force_firmware_jumper_enabled()) {
+ 		/* FFUJ mode:- ChassisID: Solid Blue, StatusLED: Solid Amber */
+ 		id_led_control(GPIO_ID_LED, EIDLED_On);

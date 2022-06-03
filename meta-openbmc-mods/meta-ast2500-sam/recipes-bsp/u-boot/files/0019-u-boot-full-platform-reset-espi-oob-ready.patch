@@ -1,0 +1,46 @@
+From ec61ed244f574158315df42c17f4a8d3b3504b97 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@intel.com>
+Date: Mon, 17 Dec 2018 20:37:23 -0800
+Subject: [PATCH] u-boot: full platform reset + espi oob-ready
+
+If the platform is strapped for fast reset, have platform-g5.S do a full
+reset and then immediately set oob-ready so the espi master controller
+can initiate communication.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+
+---
+ arch/arm/mach-aspeed/platform_g5.S | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
+index 2ac1ca4721..66427b6f33 100644
+--- a/arch/arm/mach-aspeed/platform_g5.S
++++ b/arch/arm/mach-aspeed/platform_g5.S
+@@ -139,7 +139,7 @@
+   But if FW has other initial code executed before platform.S, then it should use WDT_SOC mode.
+   Use WDT_Full may clear the initial result of prior initial code.
+  ******************************************************************************/
+-//#define ASTMMC_INIT_RESET_MODE_FULL
++#define ASTMMC_INIT_RESET_MODE_FULL
+ 
+ /******************************************************************************
+   There is a compatibility issue for Hynix DDR4 SDRAM.
+@@ -563,6 +563,17 @@ wait_first_reset:
+      *******************************************/
+ 
+ bypass_first_reset:
++    /* Timing from ESPI master requires OOB channel ready bit be set early */
++    ldr   r0, =0x1e6e2070             @ check strapping for eSPI mode
++    tst   r0, #0x02000000             @ Test for bit 25 - eSPI Mode
++    beq   espi_early_init_done        @ if bit 25 clear, dont set OOB ready
++
++    ldr   r0, =0x1e6ee000
++    ldr   r1, [r0]                    @ ESPI000: ESPI Engine Control Reg
++    orr   r1, r1, #0x00000010         @ Set OOB Channel Ready bit
++    str   r1, [r0]
++espi_early_init_done:
++
+     /* Enable Timer separate clear mode */
+     ldr   r0, =0x1e782038
+     mov   r1, #0xAE

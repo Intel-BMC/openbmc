@@ -1,0 +1,149 @@
+From da1a1d60346118e6d05efc39c8899f590b483a25 Mon Sep 17 00:00:00 2001
+From: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+Date: Fri, 19 Jun 2020 16:30:47 -0700
+Subject: [PATCH] Enable FMC DMA for memmove
+
+This commit enables FMC DMA for memmove so that kernel loading can be
+completed quickly.
+
+Signed-off-by: Chia-Wei Wang <chiawei_wang@aspeedtech.com>
+Signed-off-by: Jae Hyun Yoo <jae.hyun.yoo@intel.com>
+
+---
+ arch/arm/mach-aspeed/Makefile |  2 +-
+ arch/arm/mach-aspeed/utils.S  | 53 +++++++++++++++++++++++++++++++++++
+ lib/Kconfig                   |  6 ++++
+ lib/string.c                  | 12 +++++++-
+ 4 files changed, 71 insertions(+), 2 deletions(-)
+ create mode 100644 arch/arm/mach-aspeed/utils.S
+
+diff --git a/arch/arm/mach-aspeed/Makefile b/arch/arm/mach-aspeed/Makefile
+index 7d8930beb9..b9fcf41d8c 100644
+--- a/arch/arm/mach-aspeed/Makefile
++++ b/arch/arm/mach-aspeed/Makefile
+@@ -11,7 +11,7 @@
+ #
+ 
+ 
+-obj-y += timer.o reset.o cpuinfo.o ast-scu.o ast-ahbc.o ast-sdmc.o
++obj-y += timer.o reset.o cpuinfo.o ast-scu.o ast-ahbc.o ast-sdmc.o utils.o
+ obj-$(CONFIG_AST_SPI_NOR) += flash.o
+ obj-$(CONFIG_ARCH_AST2500) += platform_g5.o
+ obj-$(CONFIG_ARCH_AST2400) += platform_g4.o
+diff --git a/arch/arm/mach-aspeed/utils.S b/arch/arm/mach-aspeed/utils.S
+new file mode 100644
+index 0000000000..a06d72552e
+--- /dev/null
++++ b/arch/arm/mach-aspeed/utils.S
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) ASPEED Technology Inc.
++ * Chia-Wei Wang <chiawei_wang@aspeedtech.com>
++ */
++
++#include <config.h>
++#include <asm/armv7.h>
++#include <linux/linkage.h>
++
++#define AST_FMC_BASE		(0x1E620000)
++#define AST_FMC_INT_CTRL_STAT	(AST_FMC_BASE + 0x008)
++#define AST_FMC_DMA_CTRL	(AST_FMC_BASE + 0x080)
++#define AST_FMC_DMA_FLASH_ADDR	(AST_FMC_BASE + 0x084)
++#define AST_FMC_DMA_DRAM_ADDR	(AST_FMC_BASE + 0x088)
++#define AST_FMC_DMA_LENGTH	(AST_FMC_BASE + 0x08C)
++
++/*
++ * void aspeed_spi_fastcpy(u32 mem_addr, u32 spi_addr, u32 count)
++ *
++ * perform FMC SPI DMA to speed up flash copy.
++ * @dst: destination memory address
++ * @src: source SPI address
++ * @count: number of bytes to be copied, 4-byte aligned
++ *
++ * NOTE that the caller must ensure the validity of parameters.
++ */
++ENTRY(aspeed_spi_fastcpy)
++	ldr	r3, =AST_FMC_DMA_DRAM_ADDR
++	str	r0, [r3]
++
++	ldr	r3, =AST_FMC_DMA_FLASH_ADDR
++	str	r1, [r3]
++
++	ldr	r3, =AST_FMC_DMA_LENGTH
++	str	r2, [r3]
++
++	ldr	r0, =AST_FMC_DMA_CTRL
++	mov	r1, #1
++	str	r1, [r0]
++
++	ldr	r0, =AST_FMC_INT_CTRL_STAT
++polling:
++	ldr	r1, [r0]
++	tst	r1, #(1 << 11)
++	beq	polling
++
++	ldr	r0, =AST_FMC_DMA_CTRL
++	mov	r1, #0
++	str	r1, [r0]
++
++	mov	pc, lr
++ENDPROC(aspeed_spi_fastcpy)
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 02ca4058d3..8c8fde6b1b 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -149,6 +149,12 @@ config SPL_OF_LIBFDT
+ 	  particular compatible nodes. The library operates on a flattened
+ 	  version of the device tree.
+ 
++config ASPEED_FMC_DMA
++	bool "Enable Aspeed SPI DMA"
++	default n
++	help
++	  This enables fast memmove using FMC DMA on Aspeed SoCs.
++
+ source lib/efi/Kconfig
+ source lib/efi_loader/Kconfig
+ 
+diff --git a/lib/string.c b/lib/string.c
+index 0bf472f1f6..f95b8e478f 100644
+--- a/lib/string.c
++++ b/lib/string.c
+@@ -15,11 +15,12 @@
+  *    reentrant and should be faster). Use only strsep() in new code, please.
+  */
+ 
++#include <config.h>
+ #include <linux/types.h>
+ #include <linux/string.h>
+ #include <linux/ctype.h>
+ #include <malloc.h>
+-
++#include <common.h>
+ 
+ /**
+  * strncasecmp - Case insensitive, length-limited string comparison
+@@ -497,6 +498,7 @@ void * memcpy(void *dest, const void *src, size_t count)
+ #endif
+ 
+ #ifndef __HAVE_ARCH_MEMMOVE
++extern void aspeed_spi_fastcpy(u32 mem_addr, u32 spi_addr, u32 count);
+ /**
+  * memmove - Copy one area of memory to another
+  * @dest: Where to copy to
+@@ -520,6 +522,14 @@ void *memmove(void *dest, const void *src, size_t count)
+ 	if (src == dest || !count)
+ 		return dest;
+ 
++#ifdef CONFIG_ASPEED_FMC_DMA
++	if ((u32)src >= AST_FMC_CS0_BASE && (u32)src < AST_SPI0_CS0_BASE) {
++		count = ((count + 3) / 4) * 4;
++		aspeed_spi_fastcpy((u32)dest, (u32)src, (u32)count);
++		return dest;
++	}
++#endif
++
+ 	if (unaligned_src || unaligned_dst) {
+ 		if (unaligned_dst != unaligned_src) {
+ 			unaligned_header = count;

@@ -1,0 +1,38 @@
+From 853894273464f068107f8de3a786327871df699f Mon Sep 17 00:00:00 2001
+From: James Feist <james.feist@linux.intel.com>
+Date: Tue, 16 Jul 2019 16:30:02 -0700
+Subject: [PATCH] Make it so TFTP port can be modified
+
+This makes it so we can use non-privileged tftp ports.
+
+Tested: Can load fw from non-privileged port.
+
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+
+---
+ include/configs/ast-g5-ncsi.h | 2 ++
+ include/configs/ast-g5-phy.h  | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/include/configs/ast-g5-ncsi.h b/include/configs/ast-g5-ncsi.h
+index 12d6684551..20864b2798 100644
+--- a/include/configs/ast-g5-ncsi.h
++++ b/include/configs/ast-g5-ncsi.h
+@@ -28,4 +28,6 @@
+ 
+ #define CONFIG_HW_WATCHDOG
+ 
++#define CONFIG_TFTP_PORT
++
+ #endif	/* __AST_G5_NCSI_CONFIG_H */
+diff --git a/include/configs/ast-g5-phy.h b/include/configs/ast-g5-phy.h
+index 62ddb841e5..371f50a1db 100644
+--- a/include/configs/ast-g5-phy.h
++++ b/include/configs/ast-g5-phy.h
+@@ -30,4 +30,6 @@
+ /* platform.S */
+ #define	CONFIG_DRAM_ECC_SIZE		0x10000000
+ 
++#define CONFIG_TFTP_PORT
++
+ #endif	/* __AST_G5_PHY_CONFIG_H */

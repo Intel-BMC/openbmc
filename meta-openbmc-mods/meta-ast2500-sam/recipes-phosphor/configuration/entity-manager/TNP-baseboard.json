@@ -1,0 +1,1777 @@
+{
+    "Exposes": [
+        {
+            "Index": 0,
+            "Name": "Baseboard 12 Volt",
+            "PowerState": "On",
+            "ScaleFactor": 0.1124,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 13.494
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 13.101
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 10.945
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 10.616
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "Index": 4,
+            "Name": "P0V83_LAN_AUX",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 0.901
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 0.875
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 0.786
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0.763
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "Index": 3,
+            "Name": "P105_PCH_AUX",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.139
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.106
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 0.995
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0.966
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "Index": 5,
+            "Name": "P12V_AUX",
+            "ScaleFactor": 0.1124,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 13.494
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 13.101
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 10.945
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 10.616
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "Index": 6,
+            "Name": "P1V8_PCH",
+            "ScaleFactor": 0.7505,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.961
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.904
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 1.699
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1.648
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "Index": 1,
+            "Name": "P3V3",
+            "PowerState": "On",
+            "ScaleFactor": 0.4107,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 3.647
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 3.541
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 3.066
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 2.974
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "BridgeGpio": [
+                {
+                    "Name": "P3VBAT_BRIDGE_EN",
+                    "Polarity": "High"
+                }
+            ],
+            "Index": 7,
+            "Name": "P3VBAT",
+            "ScaleFactor": 0.3333,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 3.296
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 3.263
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 2.457
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 2.138
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 1,
+            "Index": 8,
+            "Name": "PVCCIN_CPU1",
+            "PowerState": "On",
+            "ScaleFactor": 0.7505,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 2.151
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 2.088
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 1.418
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1.376
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 2,
+            "Index": 9,
+            "Name": "PVCCIN_CPU2",
+            "PowerState": "On",
+            "ScaleFactor": 0.7505,
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 2.151
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 2.088
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 1.418
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1.376
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 1,
+            "Index": 14,
+            "Name": "PVCCIO_CPU1",
+            "PowerState": "On",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.19
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.155
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 0.752
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0.729
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 2,
+            "Index": 15,
+            "Name": "PVCCIO_CPU2",
+            "PowerState": "On",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.19
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.155
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 0.752
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0.729
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 1,
+            "Index": 10,
+            "Name": "PVDQ_ABCD_CPU1",
+            "PowerState": "On",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.301
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.263
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 1.138
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1.104
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 2,
+            "Index": 12,
+            "Name": "PVDQ_ABCD_CPU2",
+            "PowerState": "On",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.301
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.263
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 1.138
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1.104
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 1,
+            "Index": 11,
+            "Name": "PVDQ_EFGH_CPU1",
+            "PowerState": "On",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.301
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.263
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 1.138
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1.104
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "CPURequired": 2,
+            "Index": 13,
+            "Name": "PVDQ_EFGH_CPU2",
+            "PowerState": "On",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.301
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.263
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 1.138
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 1.104
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "Index": 2,
+            "Name": "PVNN_PCH_AUX",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 1.081
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 1.049
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 0.807
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0.783
+                }
+            ],
+            "Type": "ADC"
+        },
+        {
+            "Direction": "Input",
+            "Index": 214,
+            "Name": "Nmi Button",
+            "Polarity": "High",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 232,
+            "Name": "Post Complete led0",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 233,
+            "Name": "Post Complete led1",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 233,
+            "Name": "CPU1 Thermaltrip",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 234,
+            "Name": "Post Complete led2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 234,
+            "Name": "CPU1 VR Hot",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 235,
+            "Name": "Post Complete led3",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 236,
+            "Name": "Post Complete led4",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 236,
+            "Name": "CPU1 Mem VR Hot1",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 237,
+            "Name": "Post Complete led5",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 237,
+            "Name": "CPU1 Mem VR Hot2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 238,
+            "Name": "Post Complete led6",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 239,
+            "Name": "Post Complete led7",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 232,
+            "Name": "CPU1 Present",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 235,
+            "Name": "CPU1 FIVR Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 238,
+            "Name": "CPU1 ID0",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 240,
+            "Name": "CPU1 CH1 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 240,
+            "Name": "CPU1 Mismatch",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 241,
+            "Name": "CPU1 CH1 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 241,
+            "Name": "CPU1 DIMM Thermaltrip",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 242,
+            "Name": "CPU1 CH2 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 242,
+            "Name": "CPU2 Present",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 243,
+            "Name": "CPU1 CH2 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 243,
+            "Name": "CPU2 Thermaltrip",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 244,
+            "Name": "CPU1 CH3 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 244,
+            "Name": "CPU2 VR Hot",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 245,
+            "Name": "CPU1 CH3 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 245,
+            "Name": "CPU2 FIVR Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 246,
+            "Name": "CPU1 CH4 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 246,
+            "Name": "CPU2 Mem VR Hot1",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 247,
+            "Name": "CPU1 CH4 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 247,
+            "Name": "CPU1 Mem VR Hot2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 248,
+            "Name": "CPU1 CH5 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 248,
+            "Name": "CPU2 ID0",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 249,
+            "Name": "CPU1 CH5 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 250,
+            "Name": "CPU1 CH6 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 250,
+            "Name": "CPU2 Mismatch",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 251,
+            "Name": "CPU1 CH6 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 251,
+            "Name": "CPU2 DIMM Thermaltrip",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 252,
+            "Name": "Fan1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 253,
+            "Name": "Fan2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 254,
+            "Name": "Fan3 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 255,
+            "Name": "Fan4 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 256,
+            "Name": "Fan5 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 257,
+            "Name": "Fan6 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 258,
+            "Name": "Fan7 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 259,
+            "Name": "Fan8 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 260,
+            "Name": "CPU2 CH1 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 261,
+            "Name": "CPU2 CH1 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 262,
+            "Name": "CPU2 CH2 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 263,
+            "Name": "CPU2 CH2 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 264,
+            "Name": "CPU2 CH3 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 265,
+            "Name": "CPU2 CH3 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 266,
+            "Name": "CPU2 CH4 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 267,
+            "Name": "CPU2 CH4 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 268,
+            "Name": "CPU2 CH5 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 269,
+            "Name": "CPU2 CH5 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 270,
+            "Name": "CPU2 CH6 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 271,
+            "Name": "CPU2 CH6 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 272,
+            "Name": "CPU3 CH1 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 272,
+            "Name": "PLD Minor Revison Bit 0",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 273,
+            "Name": "CPU3 CH1 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 273,
+            "Name": "PLD Minor Revison Bit 1",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 274,
+            "Name": "CPU3 CH2 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 274,
+            "Name": "PLD Minor Revison Bit 2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 275,
+            "Name": "CPU3 CH2 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 275,
+            "Name": "PLD Minor Revison Bit 3",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 276,
+            "Name": "CPU3 CH3 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 276,
+            "Name": "PLD Major Revison Bit 0",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 277,
+            "Name": "CPU3 CH3 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 277,
+            "Name": "PLD Major Revison Bit 1",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 278,
+            "Name": "CPU3 CH4 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 278,
+            "Name": "PLD Major Revison Bit 2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 279,
+            "Name": "CPU3 CH4 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 279,
+            "Name": "PLD Major Revison Bit 2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 280,
+            "Name": "CPU3 CH5 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 280,
+            "Name": "Main PLD Minor Revison Bit 0",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 281,
+            "Name": "CPU3 CH5 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 281,
+            "Name": "Main PLD Minor Revison Bit 1",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 282,
+            "Name": "CPU3 CH6 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 282,
+            "Name": "Main PLD Minor Revison Bit 2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 283,
+            "Name": "CPU3 CH6 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 283,
+            "Name": "Main PLD Minor Revison Bit 3",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 284,
+            "Name": "CPU4 CH1 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 284,
+            "Name": "Main PLD Major Revison Bit 0",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 285,
+            "Name": "CPU4 CH1 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 285,
+            "Name": "Main PLD Major Revison Bit 1",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 286,
+            "Name": "CPU4 CH2 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 286,
+            "Name": "Main PLD Major Revison Bit 2",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 287,
+            "Name": "CPU4 CH2 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 287,
+            "Name": "Main PLD Major Revison Bit 3",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 288,
+            "Name": "CPU4 CH3 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 289,
+            "Name": "CPU4 CH3 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 289,
+            "Name": "Memory Pwr Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 290,
+            "Name": "CPU4 CH4 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 290,
+            "Name": "CPU Pwr Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 291,
+            "Name": "CPU4 CH4 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 291,
+            "Name": "P5V P3V3 Pwr Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 292,
+            "Name": "CPU4 CH5 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 292,
+            "Name": "PSU Pwr Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 293,
+            "Name": "CPU4 CH5 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 293,
+            "Name": "SAS Pwr Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 294,
+            "Name": "CPU4 CH6 DIMM1 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 294,
+            "Name": "Lan Aux Pwr Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Out",
+            "Index": 295,
+            "Name": "CPU4 CH6 DIMM2 FAULT",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 295,
+            "Name": "PCH Pwr Fault",
+            "Polarity": "Low",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 27,
+            "Name": "Node ID GPIO 0",
+            "Polarity": "High",
+            "Type": "Gpio"
+        },
+        {
+            "Direction": "Input",
+            "Index": 26,
+            "Name": "Node ID GPIO 1",
+            "Polarity": "High",
+            "Type": "Gpio"
+        },
+        {
+            "Name": "CPU 1 Fan Connector",
+            "Pwm": 7,
+            "Status": "disabled",
+            "Tachs": [
+                13
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Name": "CPU 2 Fan Connector",
+            "Pwm": 8,
+            "Status": "disabled",
+            "Tachs": [
+                14
+            ],
+            "Type": "IntelFanConnector"
+        },
+        {
+            "Address": "0x8",
+            "Class": "METemp",
+            "Name": "SSB Temp",
+            "PowerState": "BiosPost",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 103
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 98
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x7c",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU1 P12V PVCCIO VR Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x70",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU1 P12V PVCCIN VR Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x74",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU1 VR Mem ABC Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x78",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU1 VR Mem DEF Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x9c",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU2 P12V PVCCIO VR Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x50",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU2 P12V PVCCIN VR Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x94",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU2 VR Mem ABC Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x98",
+            "Class": "PxeBridgeTemp",
+            "Name": "CPU2 VR Mem DEF Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0xAC",
+            "Class": "PxeBridgeTemp",
+            "Name": "VR P1V05 Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IpmbSensor"
+        },
+        {
+            "Address": "0x20",
+            "Bus": 10,
+            "Class": "NodePower",
+            "Name": "Node Power",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 255
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 250
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "MP5920"
+        },
+        {
+            "GpioPins": [
+                27,
+                26
+            ],
+            "Name": "Multi Node ID",
+            "Type": "MultiNodeID"
+        },
+        {
+            "Address": "0x71",
+            "Bus": 2,
+            "ChannelNames": [
+                "M2_Slot1",
+                "M2_Slot2",
+                "",
+                ""
+            ],
+            "Name": "M.2 Mux",
+            "Type": "PCA9543Mux"
+        },
+        {
+            "Address": "0x4E",
+            "Bus": 6,
+            "Name": "Exit Air Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x4B",
+            "Bus": 6,
+            "Name": "Inlet Air Temp",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 115
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 110
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 5
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "TMP75"
+        },
+        {
+            "Address": "0x30",
+            "Bus": 0,
+            "CpuID": 1,
+            "Name": "CPU 1",
+            "Type": "XeonCPU"
+        },
+        {
+            "Address": "0x31",
+            "Bus": 0,
+            "CpuID": 2,
+            "Name": "CPU 2",
+            "Type": "XeonCPU"
+        }
+    ],
+    "Name": "TNP Baseboard",
+    "Probe": [
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'D50TNP1SB'})",
+        "OR",
+        "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '.*TNP'})"
+    ],
+    "Type": "Board",
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "$PRODUCT_MANUFACTURER",
+        "Model": "$PRODUCT_PRODUCT_NAME",
+        "PartNumber": "$PRODUCT_PART_NUMBER",
+        "SerialNumber": "$PRODUCT_SERIAL_NUMBER"
+    },
+    "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
+        "AssetTag": "$PRODUCT_ASSET_TAG"
+    },
+    "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
+        "ProductId": 153
+    },
+    "xyz.openbmc_project.Inventory.Item.System": {}
+}

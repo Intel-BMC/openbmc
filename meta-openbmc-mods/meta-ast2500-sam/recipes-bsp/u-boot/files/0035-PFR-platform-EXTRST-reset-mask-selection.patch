@@ -1,0 +1,122 @@
+From 6b62f592434eaadc02057c0d35c3b79982f555bc Mon Sep 17 00:00:00 2001
+From: Vikram Bodireddy <vikram.bodireddy@intel.com>
+Date: Thu, 5 Sep 2019 15:03:21 +0530
+Subject: [PATCH] PFR platform - EXTRST# reset mask selection
+
+This is a fix taken from Purely PFR.
+This commit will enable specific reset mask for EXTRST# signal.
+On PFR platforms, EXTRST# signal is used by PFR CPLD to put BMC
+in reset during firmware authentications, recovery and firmware
+update flow, during which certain modules of BMC should be chosen
+to be reset so that Host functionality would be intact.
+
+Signed-off-by: Vikram Bodireddy <vikram.bodireddy@intel.com>
+
+---
+ .../include/asm/arch-aspeed/ast-g5-intel.h    | 31 +++++++++++++++++++
+ arch/arm/include/asm/arch-aspeed/regs-scu.h   | 29 +++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c            |  9 ++++++
+ 3 files changed, 69 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
+index 64f4ed17bf..b9386b2cf6 100644
+--- a/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
++++ b/arch/arm/include/asm/arch-aspeed/ast-g5-intel.h
+@@ -12,6 +12,37 @@
+ 
+ #define AST_G5_INTEL 1
+ 
++/* EXTRST# mask for PFR platform
++ * EXTRST# is used by PFR CPLD to keep BMC in
++ * reset during firmware authentication, updates and recovery
++ * this mask selects the modules to be reset along with BMC so that
++ * Host functions are intact.
++ * (this is fix from Purley PFR )
++ */
++#define AST_WDT_RESET_MASK (  \
++    WDT_RESET_MASK_SPI  |     \
++    WDT_RESET_MASK_XDMA |     \
++    WDT_RESET_MASK_MCTP |     \
++    WDT_RESET_MASK_ADC |      \
++    WDT_RESET_MASK_JTAG |     \
++    WDT_RESET_MASK_PECI |     \
++    WDT_RESET_MASK_CRT |      \
++    WDT_RESET_MASK_MIC |      \
++    WDT_RESET_MASK_SDIO |     \
++    WDT_RESET_MASK_HAC |      \
++    WDT_RESET_MASK_VIDEO |    \
++    WDT_RESET_MASK_HID11 |    \
++    WDT_RESET_MASK_USB11 |    \
++    WDT_RESET_MASK_USB20 |    \
++    WDT_RESET_MASK_GRAPHICS | \
++    WDT_RESET_MASK_MAC2 |     \
++    WDT_RESET_MASK_MAC1 |     \
++    WDT_RESET_MASK_I2C |      \
++    WDT_RESET_MASK_AHB |      \
++    WDT_RESET_MASK_COPROC |   \
++    WDT_RESET_MASK_ARM |      \
++    0)
++
+ #ifndef __ASSEMBLY__
+ int intel_force_firmware_jumper_enabled(void);
+ int intel_failed_boot(void);
+diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+index 1bdb1d8574..0a4fb6f773 100644
+--- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
++++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+@@ -144,6 +144,35 @@
+ #define SCU_RESET_AHB			(0x1 << 1)
+ #define SCU_RESET_SRAM_CTRL		(0x1 << 0)
+ 
++/* AST_WDT/EXTRST - 0x9C selection masks */
++#define WDT_RESET_MASK_MISC (1 << 25)    /* Misc. SOC controller (WDT, RTC, Timer, UART, SRAM.) */
++#define WDT_RESET_MASK_SPI (1 << 24)     /* SPI controller */
++#define WDT_RESET_MASK_XDMA (1 << 23)    /* X-DMA controller */
++#define WDT_RESET_MASK_MCTP (1 << 22)    /* MCTP controller */
++#define WDT_RESET_MASK_GPIO (1 << 21)    /* GPIO controller */
++#define WDT_RESET_MASK_ADC (1 << 20)     /* ADC controller */
++#define WDT_RESET_MASK_JTAG (1 << 19)    /* JTAG master controller */
++#define WDT_RESET_MASK_PECI (1 << 18)    /* PECI controller */
++#define WDT_RESET_MASK_PWM (1 << 17)     /* PWM controller */
++#define WDT_RESET_MASK_CRT (1 << 16)     /* CRT mode 2D engine */
++#define WDT_RESET_MASK_MIC (1 << 15)     /* MIC controller */
++#define WDT_RESET_MASK_SDIO (1 << 14)    /* SD/SDIO controller */
++#define WDT_RESET_MASK_LPC (1 << 13)     /* LPC controller */
++#define WDT_RESET_MASK_HAC (1 << 12)     /* HAC engine */
++#define WDT_RESET_MASK_VIDEO (1 << 11)   /* Video engine */
++#define WDT_RESET_MASK_HID11 (1 << 10)   /* USB1.1 HID/USB2.0 Host EHCI2 controller */
++#define WDT_RESET_MASK_USB11 (1 << 9)    /* USB1.1 Host controller */
++#define WDT_RESET_MASK_USB20 (1 << 8)    /* USB2.0 Host/Hub controller */
++#define WDT_RESET_MASK_GRAPHICS (1 << 7) /* Graphics CRT controller */
++#define WDT_RESET_MASK_MAC2 (1 << 6)     /* MAC#2 controller */
++#define WDT_RESET_MASK_MAC1 (1 << 5)     /* MAC#1 controller */
++#define WDT_RESET_MASK_I2C (1 << 4)      /* I2C controller */
++#define WDT_RESET_MASK_AHB (1 << 3)      /* AHB bridges */
++#define WDT_RESET_MASK_SDRAM (1 << 2)    /* SDRAM controller */
++#define WDT_RESET_MASK_COPROC (1 << 1)   /* Coprocessor */
++#define WDT_RESET_MASK_ARM (1 << 0)      /* ARM */
++#define WDT_RESET_MASK_ALL 0x03ffffff    /* all the bits above: 0-25*/
++
+ /* AST_SCU_RESET2			0xD4 - Reset Control register set 2 */
+ #define SCU_RESET_CRT3			(0x1 << 8)
+ #define SCU_RESET_CRT2			(0x1 << 7)
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+index 6a36cfa2ba..2d260a7759 100644
+--- a/board/aspeed/ast-g5/ast-g5-intel.c
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -661,6 +661,15 @@ extern void espi_init(void);
+ extern void kcs_init(void);
+ void ast_g5_intel(void)
+ {
++	/* EXTRST# mask for PFR platform
++	 * EXTRST# is used by PFR CPLD to keep BMC in
++	 * reset during firmware authentication, updates and recovery
++	 * this mask selects the modules to be reset along with BMC so that
++	 * Host functions are intact.
++	 * (this is fix from Purley PFR )
++	 */
++	ast_scu_write(AST_WDT_RESET_MASK, AST_SCU_WDT_RESET);
++
+ 	/* Disable uart port debug function */
+ 	ast_scu_write(ast_scu_read(AST_SCU_MISC1_CTRL) |
+ 		      SCU_MISC_UART_DEBUG_DIS, AST_SCU_MISC1_CTRL);

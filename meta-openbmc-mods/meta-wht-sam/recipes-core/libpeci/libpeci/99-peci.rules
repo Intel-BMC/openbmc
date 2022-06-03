@@ -1,0 +1,2 @@
+ACTION=="add", SUBSYSTEM=="peci_dev", ATTRS{name}=="*.peci-bus", SYMLINK+="peci-wire" TAG+="peci-wire"
+ACTION=="add", SUBSYSTEM=="peci_dev", TAG=="peci-wire", SYMLINK+="peci-default"

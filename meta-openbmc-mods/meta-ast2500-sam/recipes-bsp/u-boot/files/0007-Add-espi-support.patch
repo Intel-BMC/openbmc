@@ -1,0 +1,345 @@
+From 212e72b6df74af242b23443b252deed4d06129f4 Mon Sep 17 00:00:00 2001
+From: Vernon Mauery <vernon.mauery@linux.intel.com>
+Date: Wed, 14 Nov 2018 10:21:40 -0800
+Subject: [PATCH] Add espi support
+
+This adds basic eSPI support for U-Boot. The eSPI driver works best with
+interrupts because the timing of the initialization with the PCH is not
+trivial.
+
+The espi driver is currently just a bare-minimum driver allowing the
+host to boot. In the future it may be expanded to have further
+functions.
+
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+Signed-off-by: James Feist <james.feist@linux.intel.com>
+
+---
+ arch/arm/include/asm/arch-aspeed/regs-scu.h |   2 +
+ board/aspeed/ast-g5/Makefile                |   2 +
+ board/aspeed/ast-g5/ast-g5-espi.c           | 248 ++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5-intel.c          |  16 ++
+ board/aspeed/ast-g5/ast-g5.c                |   3 +
+ 5 files changed, 271 insertions(+)
+ create mode 100644 board/aspeed/ast-g5/ast-g5-espi.c
+ create mode 100644 board/aspeed/ast-g5/ast-g5-intel.c
+
+diff --git a/arch/arm/include/asm/arch-aspeed/regs-scu.h b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+index c9b91795d1..019c00036a 100644
+--- a/arch/arm/include/asm/arch-aspeed/regs-scu.h
++++ b/arch/arm/include/asm/arch-aspeed/regs-scu.h
+@@ -554,6 +554,8 @@
+ 
+ #define CLK_25M_IN			(0x1 << 23)
+ 
++#define SCU_HW_STRAP_FAST_RESET		(1 << 27)
++#define SCU_HW_STRAP_ESPI_ENABLED	(1 << 25)
+ #define SCU_HW_STRAP_2ND_BOOT_WDT	(0x1 << 17)
+ #define SCU_HW_STRAP_SUPER_IO_CONFIG	(0x1 << 16)
+ #define SCU_HW_STRAP_VGA_CLASS_CODE	(0x1 << 15)
+diff --git a/board/aspeed/ast-g5/Makefile b/board/aspeed/ast-g5/Makefile
+index df4e63966e..58e0c648f4 100644
+--- a/board/aspeed/ast-g5/Makefile
++++ b/board/aspeed/ast-g5/Makefile
+@@ -1,2 +1,4 @@
+ obj-y += ast-g5.o
++obj-y += ast-g5-intel.o
++obj-y += ast-g5-espi.o
+ obj-y += ast-g5-irq.o
+diff --git a/board/aspeed/ast-g5/ast-g5-espi.c b/board/aspeed/ast-g5/ast-g5-espi.c
+new file mode 100644
+index 0000000000..7c82cdfd65
+--- /dev/null
++++ b/board/aspeed/ast-g5/ast-g5-espi.c
+@@ -0,0 +1,248 @@
++/*
++ * Copyright 2018 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ */
++
++#include <common.h>
++#include <asm/io.h>
++#include <asm/arch/regs-scu.h>
++#include <asm/arch/ast_scu.h>
++#include <asm/arch/aspeed.h>
++
++#include "ast-g5.h"
++
++#define DEBUG_ESPI_ENABLED 1
++#ifdef DEBUG_ESPI_ENABLED
++#define DBG_ESPI debug
++#else
++#define DBG_ESPI(...)
++#endif
++/* eSPI controller registers */
++#define ESPI000 0x000 /* Engine Control. */
++#define ESPI004 0x004 /* Engine Status. */
++#define ESPI008 0x008 /* Interrupt Status. */
++#define ESPI00C 0x00C /* Interrupt Enable. */
++#define ESPI010 0x010 /* DMA Addr of Peripheral Channel Posted Rx pkt */
++#define ESPI014 0x014 /* Control of Peripheral Channel Posted Rx pkt. */
++#define ESPI018 0x018 /* Data port of Peripheral Channel Posted Rx pkt. */
++#define ESPI020 0x020 /* DMA Addr of Peripheral Channel Posted Tx pkt. */
++#define ESPI024 0x024 /* Control of Peripheral Channel Posted Tx pkt. */
++#define ESPI028 0x028 /* Data port of Peripheral Channel Posted Tx pkt. */
++#define ESPI030 0x030 /* DMA Addr of Peripheral Channel Non-Posted Tx pkt. */
++#define ESPI034 0x034 /* Control of Peripheral Channel Non-Posted Tx pkt. */
++#define ESPI038 0x038 /* Data port of Peripheral Channel Non-Posted Tx pkt. */
++#define ESPI040 0x040 /* DMA Addr of OOB Channel Rx pkt. */
++#define ESPI044 0x044 /* Control of OOB Channel Rx pkt. */
++#define ESPI048 0x048 /* Data port of OOB Channel Rx pkt. */
++#define ESPI050 0x050 /* DMA Addr of OOB Channel Tx pkt. */
++#define ESPI054 0x054 /* Control of OOB Channel Tx pkt. */
++#define ESPI058 0x058 /* Data port of OOB Channel Tx pkt. */
++#define ESPI060 0x060 /* DMA Addr of Flash Channel Rx pkt. */
++#define ESPI064 0x064 /* Control of Flash Channel Rx pkt. */
++#define ESPI068 0x068 /* Data port of Flash Channel Rx pkt. */
++#define ESPI070 0x070 /* DMA Addr of Flash Channel Tx pkt. */
++#define ESPI074 0x074 /* Control of Flash Channel Tx pkt. */
++#define ESPI078 0x078 /* Data port of Flash Channel Tx pkt. */
++#define ESPI084 0x084 /* Mapping Src Addr of Peripheral Channel Rx pkt. */
++#define ESPI088 0x088 /* Mapping Tgt Addr of Peripheral Channel Rx pkt. */
++#define ESPI08C 0x08C /* Mapping Addr Mask of Peripheral Channel Rx pkt. */
++#define ESPI090 0x090 /* Mapping Target Addr and Mask of Flash Channel. */
++#define ESPI094 0x094 /* Interrupt enable of System Event from Master. */
++#define ESPI098 0x098 /* System Event from and to Master. */
++#define ESPI09C 0x09C /* GPIO through Virtual Wire Channel. */
++#define ESPI0A0 0x0A0 /* General Capabilities and Configurations. */
++#define ESPI0A4 0x0A4 /* Channel 0 Capabilities and Configurations. */
++#define ESPI0A8 0x0A8 /* Channel 1 Capabilities and Configurations. */
++#define ESPI0AC 0x0AC /* Channel 2 Capabilities and Configurations. */
++#define ESPI0B0 0x0B0 /* Channel 3 Capabilities and Configurations. */
++#define ESPI0B4 0x0B4 /* GPIO Direction of Virtual Wire Channel. */
++#define ESPI0B8 0x0B8 /* GPIO Selection of Virtual Wire Channel. */
++#define ESPI0BC 0x0BC /* GPIO Reset Selection of Virtual Wire Channel. */
++#define ESPI100 0x100 /* Interrupt enable of System Event 1 from Master. */
++#define ESPI104 0x104 /* System Event 1 from and to Master. */
++#define ESPI110 0x110 /* Interrupt type 0 of System Event from Master. */
++#define ESPI114 0x114 /* Interrupt type 1 of System Event from Master. */
++#define ESPI118 0x118 /* Interrupt type 2 of System Event from Master. */
++#define ESPI11C 0x11C /* Interrupt status of System Event from Master. */
++#define ESPI120 0x120 /* Interrupt type 0 of System Event 1 from Master. */
++#define ESPI124 0x124 /* Interrupt type 1 of System Event 1 from Master. */
++#define ESPI128 0x128 /* Interrupt type 2 of System Event 1 from Master. */
++#define ESPI12C 0x12C /* Interrupt status of System Event 1 from Master. */
++#define ESPICFG004 0x004 /* Device Identification. */
++#define ESPICFG008 0x008 /* General Capabilities and Configurations. */
++#define ESPICFG010 0x010 /* Channel 0 Capabilities and Configurations. */
++#define ESPICFG020 0x020 /* Channel 1 Capabilities and Configurations. */
++#define ESPICFG030 0x030 /* Channel 2 Capabilities and Configurations. */
++#define ESPICFG040 0x040 /* Channel 3 Capabilities and Configurations. */
++#define ESPICFG044 0x044 /* Channel 3 Capabilities and Configurations 2. */
++#define ESPICFG800 0x800 /* GPIO Direction of Virtual Wire Channel. */
++#define ESPICFG804 0x804 /* GPIO Selection of Virtual Wire Channel. */
++#define ESPICFG808 0x808 /* GPIO Reset Selection of Virtual Wire Channel. */
++#define ESPICFG810 0x810 /* Mapping Src Addr of Peripheral Channel Rx pkt */
++#define ESPICFG814 0x814 /* Mapping Tgt Addr of Peripheral Channel Rx pkt */
++#define ESPICFG818 0x818 /* Mapping Addr Mask of Peripheral Channel Rx pkt */
++
++/* ESPI000 bits */
++#define AST_ESPI_OOB_CHRDY (1 << 4)
++#define AST_ESPI_FLASH_SW_CHRDY (0x1 << 7)
++#define AST_ESPI_FLASH_SW_READ (0x1 << 10)
++#define ASPEED_ESPI_CTRL_SW_RESET GENMASK(31, 24)
++
++/* ESPI00C bits (Interrupt Enable) */
++#define AST_ESPI_IEN_SYS_EV (1 << 8)
++#define AST_ESPI_IEN_GPIO_EV (1 << 9)
++#define AST_ESPI_IEN_HW_RST (1 << 31)
++
++/* ESPI008 bits ISR */
++#define AST_ESPI_VW_SYS_EVT (1 << 8)
++#define AST_ESPI_VW_SYS_EV1 (1 << 22)
++
++/* ESPI098 and ESPI11C bits */
++#define AST_ESPI_OOB_RST_WARN (1 << 6)
++#define AST_ESPI_HOST_RST_WARN (1 << 8)
++#define AST_ESPI_OOB_RST_ACK (1 << 16)
++#define AST_ESPI_SL_BT_DONE (1 << 20)
++#define AST_ESPI_SL_BT_STATUS (1 << 23)
++#define AST_ESPI_HOST_RST_ACK (1 << 27)
++
++/* ESPI104 bits */
++#define AST_ESPI_SUS_WARN (1 << 0)
++#define AST_ESPI_SUS_ACK (1 << 20)
++
++/* LPC chip ID */
++#define SCR0SIO 0x170
++#define IRQ_SRC_ESPI 23 /* IRQ 23 */
++
++static void espi_handshake_ack(void)
++{
++	// IRQ only serviced if strapped, so no strap check
++	if (!(readl(AST_ESPI_BASE + ESPI098) & AST_ESPI_SL_BT_STATUS)) {
++		DBG_ESPI("Setting espi slave boot done\n");
++		uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++			     | AST_ESPI_SL_BT_STATUS | AST_ESPI_SL_BT_DONE;
++		writel(v, AST_ESPI_BASE + ESPI098);
++	}
++
++	if (readl(AST_ESPI_BASE + ESPI104) & AST_ESPI_SUS_WARN) {
++		DBG_ESPI("Boot SUS WARN set %08x\n",
++			 readl(AST_ESPI_BASE + ESPI104));
++		uint32_t v = readl(AST_ESPI_BASE + ESPI104) | AST_ESPI_SUS_ACK;
++		writel(v, AST_ESPI_BASE + ESPI104);
++	}
++}
++
++static int espi_irq_handler(struct pt_regs *regs)
++{
++	uint32_t irq_status = readl(AST_ESPI_BASE + ESPI008);
++	DBG_ESPI("ISR irq_status : 0x%08X\n", irq_status);
++
++	if (irq_status & AST_ESPI_VW_SYS_EV1) {
++		uint32_t sys1_status = readl(AST_ESPI_BASE + ESPI12C);
++		uint32_t sys1_event = readl(AST_ESPI_BASE + ESPI104);
++
++		DBG_ESPI("sys1_status : 0x%08X\n", sys1_status);
++		if (sys1_status & AST_ESPI_SUS_WARN) {
++			DBG_ESPI("SUS WARN ev: %08X\n", sys1_event);
++			if (sys1_event & AST_ESPI_SUS_WARN) {
++				uint32_t v = readl(AST_ESPI_BASE + ESPI104)
++						 | AST_ESPI_SUS_ACK;
++				writel(v, AST_ESPI_BASE + ESPI104);
++			}
++		}
++		writel(sys1_status, AST_ESPI_BASE + ESPI12C); // clear status
++	}
++
++	if (irq_status & AST_ESPI_VW_SYS_EVT) {
++		uint32_t sys_status = readl(AST_ESPI_BASE + ESPI11C);
++		uint32_t sys_event = readl(AST_ESPI_BASE + ESPI098);
++
++		if (!(sys_event & AST_ESPI_SL_BT_STATUS)) {
++			DBG_ESPI("Setting espi slave boot done\n");
++			uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++					| AST_ESPI_SL_BT_STATUS | AST_ESPI_SL_BT_DONE;
++			writel(v, AST_ESPI_BASE + ESPI098);
++		 }
++
++		DBG_ESPI("sys_status : 0x%08X\n", sys_status);
++		if (sys_status & AST_ESPI_HOST_RST_WARN) {
++				DBG_ESPI("HOST_RST_WARN ev: %08X\n", sys_event);
++				if (sys_event & AST_ESPI_HOST_RST_WARN) {
++						uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++										| AST_ESPI_HOST_RST_ACK;
++						writel(v, AST_ESPI_BASE + ESPI098);
++				}
++		}
++		if (sys_status & AST_ESPI_OOB_RST_WARN) {
++			DBG_ESPI("OOB_RST_WARN ev: %08X\n", sys_event);
++			if (sys_event & AST_ESPI_OOB_RST_WARN) {
++				uint32_t v = readl(AST_ESPI_BASE + ESPI098)
++							| AST_ESPI_OOB_RST_ACK;
++				writel(v, AST_ESPI_BASE + ESPI098);
++			}
++		}
++		writel(sys_status, AST_ESPI_BASE + ESPI11C); // clear status
++	}
++
++	if (irq_status & AST_ESPI_IEN_HW_RST) {
++		uint32_t v = readl(AST_ESPI_BASE + ESPI000);
++		writel(v & ~ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
++		writel(v | ASPEED_ESPI_CTRL_SW_RESET, AST_ESPI_BASE + ESPI000);
++		espi_handshake_ack();
++	}
++
++	writel(irq_status, AST_ESPI_BASE + ESPI008); // clear irq_status
++	return 0;
++}
++
++void espi_init(void)
++{
++	if (readl(AST_SCU_BASE + AST_SCU_HW_STRAP1)
++	    & SCU_HW_STRAP_ESPI_ENABLED) {
++		uint32_t v;
++		DBG_ESPI("espi_init\n");
++
++		/* Block flash access from Host */
++		v = readl(AST_ESPI_BASE + ESPI000) & ~AST_ESPI_FLASH_SW_CHRDY;
++		v |= AST_ESPI_FLASH_SW_READ;
++		writel(v, AST_ESPI_BASE + ESPI000);
++
++		/* Set SIO register 0x28 to 0xa8 as a faked ASPEED ChipID for
++		 * BIOS using in eSPI mode */
++		v = readl(AST_LPC_BASE + SCR0SIO) & ~0x000000ff;
++		writel(v, AST_LPC_BASE + SCR0SIO);
++		v = readl(AST_LPC_BASE + SCR0SIO) | 0xa8;
++		writel(v, AST_LPC_BASE + SCR0SIO);
++
++		v = readl(AST_ESPI_BASE + ESPI000) | AST_ESPI_OOB_CHRDY;
++		writel(v, AST_ESPI_BASE + ESPI000);
++
++		writel(0, AST_ESPI_BASE + ESPI110);
++		writel(0, AST_ESPI_BASE + ESPI114);
++		writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN,
++		       AST_ESPI_BASE + ESPI118);
++		writel(AST_ESPI_HOST_RST_WARN | AST_ESPI_OOB_RST_WARN,
++		       AST_ESPI_BASE + ESPI094);
++
++		writel(AST_ESPI_SUS_WARN,
++		       AST_ESPI_BASE + ESPI120); // int type 0 susp warn
++		writel(0, AST_ESPI_BASE + ESPI124);
++		writel(0, AST_ESPI_BASE + ESPI128);
++		writel(AST_ESPI_SUS_WARN,
++		       AST_ESPI_BASE
++			       + ESPI100); // Enable sysev1 ints for susp warn
++
++		writel(AST_ESPI_IEN_SYS_EV | AST_ESPI_IEN_HW_RST
++			   | AST_ESPI_VW_SYS_EV1,
++			   AST_ESPI_BASE + ESPI00C); // Enable events
++
++		espi_handshake_ack();
++
++		request_irq(IRQ_SRC_ESPI, espi_irq_handler);
++	} else {
++		DBG_ESPI("No espi strap\n");
++	}
++}
+diff --git a/board/aspeed/ast-g5/ast-g5-intel.c b/board/aspeed/ast-g5/ast-g5-intel.c
+new file mode 100644
+index 0000000000..e79235c8d0
+--- /dev/null
++++ b/board/aspeed/ast-g5/ast-g5-intel.c
+@@ -0,0 +1,16 @@
++/*
++ * Copyright 2018 Intel Corporation
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License
++ * as published by the Free Software Foundation; either version
++ * 2 of the License, or (at your option) any later version.
++ */
++
++#include <common.h>
++
++extern void espi_init(void);
++void ast_g5_intel(void)
++{
++	espi_init();
++}
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index ca25348178..cab5fabcef 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -21,6 +21,8 @@
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
++extern void ast_g5_intel(void);
++
+ int board_early_init_f(void)
+ {
+ 	/* make sure uart5 is using 24MHz clock */
+@@ -84,6 +86,7 @@ int board_init(void)
+ 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+ 	gd->flags = 0;
+ 
++	ast_g5_intel();
+ 	return 0;
+ }
+ 

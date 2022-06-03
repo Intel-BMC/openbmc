@@ -1,0 +1,196 @@
+{
+	"image-parts": [{
+			"name": "u-boot",
+			"index": 0,
+			"offset": "0",
+			"size": "0x80000",
+			"prot_mask": 29,
+			"pfm": 1,
+			"hash": 1,
+			"compress": 1
+		},
+		{
+			"name": "pfm",
+			"index": 1,
+			"offset": "0x80000",
+			"size": "0x20000",
+			"prot_mask": 0,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		},
+		{
+			"name": "u-boot-env",
+			"index": 2,
+			"offset": "0xa0000",
+			"size": "0x20000",
+			"prot_mask": 31,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 1
+		},
+		{
+			"name": "sofs",
+			"index": 3,
+			"offset": "0xc0000",
+			"size": "0x200000",
+			"prot_mask": 31,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 1
+		},
+		{
+			"name": "rwfs",
+			"index": 4,
+			"offset": "0x2c0000",
+			"size": "0x840000",
+			"prot_mask": 31,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 1
+		},
+		{
+			"name": "fit-image-a",
+			"index": 5,
+			"offset": "0xb00000",
+			"size": "0x1f00000",
+			"prot_mask": 29,
+			"pfm": 1,
+			"hash": 1,
+			"compress": 1
+		},
+		{
+			"name": "rc-image",
+			"index": 6,
+			"offset": "0x2a00000",
+			"size": "0x2000000",
+			"prot_mask": 0,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		},
+		{
+			"name": "image-stg",
+			"index": 7,
+			"offset": "0x4a00000",
+			"size": "0x3500000",
+			"prot_mask": 3,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		},
+		{
+			"name": "cpld-rc",
+			"index": 8,
+			"offset": "0x7f00000",
+			"size": "0x100000",
+			"prot_mask": 0,
+			"pfm": 1,
+			"hash": 0,
+			"compress": 0
+		}
+	],
+	"i2c-rules": [{
+			"bus-id": 3,
+			"rule-id": 3,
+			"address": "0xD0",
+			"cmd-whitelist": ["0x00", "0x01", "0x02", "0x03", "0x04", "0x09", "0x0A", "0x0B", "0x0C", "0x0D", "0x0E", "0x0F",
+                              "0x10", "0x13", "0x17", "0x1B", "0x1C", "0x1D", "0x02", "0x021", "0x22", "0x23", "0x25", "0x30",
+                              "0x31", "0x32", "0x33", "0x035", "0x36", "0x37", "0x38", "0x39", "0x3A", "0x3B", "0x3C", "0x3D"]
+                },
+                {
+			"bus-id": 3,
+			"rule-id": 4,
+			"address": "0xD8",
+			"cmd-whitelist": ["0x00", "0x01", "0x02", "0x03", "0x04", "0x09", "0x0A", "0x0B", "0x0C", "0x0D", "0x0E", "0x0F",
+                              "0x10", "0x13", "0x17", "0x1B", "0x1C", "0x1D", "0x02", "0x021", "0x22", "0x23", "0x25", "0x30",
+                              "0x31", "0x32", "0x33", "0x035", "0x36", "0x37", "0x38", "0x39", "0x3A", "0x3B", "0x3C", "0x3D"]
+		},
+		{
+			"bus-id": 1,
+			"rule-id": 6,
+			"address": "0xB0",
+			"cmd-whitelist": ["0x00", "0x03", "0x05", "0x06", "0x19", "0x1A", "0x30", "0x3A", "0x3B", "0x3C", "0x3D", "0x3E", "0x3F",
+                              "0x79", "0x7A", "0x7B", "0x7C", "0x7D", "0x7E", "0x7F", "0x81", "0x82", "0x86", "0x87", "0x88",
+                              "0x89", "0x8C", "0x8D", "0x8E", "0x8F", "0x90", "0x91", "0x92", "0x93", "0x94", "0x95", "0x96",
+                              "0x97", "0x98", "0x9A", "0xA6", "0xA7", "0xD0", "0xD3", "0xD4", "0xD5", "0xD6", "0xD7", "0xD8",
+                              "0xD9", "0xDC", "0xDD", "0xDE", "0xDE"]
+		},
+		{
+			"bus-id": 1,
+			"rule-id": 4,
+			"address": "0xB2",
+			"cmd-whitelist": ["0x00", "0x03", "0x05", "0x06", "0x19", "0x1A", "0x30", "0x3A", "0x3B", "0x3C", "0x3D", "0x3E", "0x3F",
+                              "0x79", "0x7A", "0x7B", "0x7C", "0x7D", "0x7E", "0x7F", "0x81", "0x82", "0x86", "0x87", "0x88",
+                              "0x89", "0x8C", "0x8D", "0x8E", "0x8F", "0x90", "0x91", "0x92", "0x93", "0x94", "0x95", "0x96",
+                              "0x97", "0x98", "0x9A", "0xA6", "0xA7", "0xD0", "0xD3", "0xD4", "0xD5", "0xD6", "0xD7", "0xD8",
+                              "0xD9", "0xDC", "0xDD", "0xDE", "0xDE"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 1,
+			"address": "0xB4",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 2,
+			"address": "0xD4",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 3,
+			"address": "0x4A",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 4,
+			"address": "0x4C",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 5,
+			"address": "0xDC",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 6,
+			"address": "0xEC",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 7,
+			"address": "0xE0",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 8,
+			"address": "0xB0",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 9,
+			"address": "0xC4",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 10,
+			"address": "0xCC",
+			"cmd-whitelist": ["0x00"]
+		},
+		{
+			"bus-id": 2,
+			"rule-id": 11,
+			"address": "0xE4",
+			"cmd-whitelist": ["0x00"]
+		}
+	]
+}

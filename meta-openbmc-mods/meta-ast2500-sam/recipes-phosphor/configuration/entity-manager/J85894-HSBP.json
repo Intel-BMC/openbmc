@@ -1,0 +1,92 @@
+{
+    "Exposes": [
+        {
+            "Address": "$address",
+            "Bus": "$bus",
+            "Name": "J85894 HSBP FRU",
+            "Type": "EEPROM"
+        },
+        {
+            "Address": "0x68",
+            "Bus": "$bus",
+            "Index": "$index",
+            "Name": "J85894 HSBP $index",
+            "Type": "Intel HSBP CPLD"
+        },
+        {
+            "Address": "0x74",
+            "Bus": "$bus",
+            "ChannelNames": [
+                "Pcie_Slot_1",
+                "Pcie_Slot_2",
+                "Pcie_Slot_3",
+                "Pcie_Slot_4"
+            ],
+            "Name": "HSBP $index Mux 1",
+            "Type": "PCA9545Mux"
+        },
+        {
+            "Address": "0x70",
+            "Bus": "$bus",
+            "ChannelNames": [
+                "Pcie_Slot_5",
+                "Pcie_Slot_6",
+                "Pcie_Slot_7",
+                "Pcie_Slot_8"
+            ],
+            "Name": "HSBP $index Mux 2",
+            "Type": "PCA9545Mux"
+        },
+        {
+            "Address": "0x4b",
+            "Bus": "$bus",
+            "Name": "HSBP $index Temp",
+            "PowerState": "On",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 57
+                },
+                {
+                    "Direction": "greater than",
+                    "Name": "upper non critical",
+                    "Severity": 0,
+                    "Value": 52
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower non critical",
+                    "Severity": 0,
+                    "Value": 12
+                },
+                {
+                    "Direction": "less than",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 7
+                }
+            ],
+            "Type": "TMP75"
+        }
+    ],
+    "Name": "J85894 HSBP $index",
+    "PowerState": "On",
+    "Probe": [
+        "FOUND('WC Baseboard')",
+        "OR",
+        "FOUND('WP Baseboard')",
+        "OR",
+        "FOUND('CPC Baseboard')",
+        "AND",
+        "xyz.openbmc_project.Inventory.Item.I2CDevice({'Bus': 4, 'Address': 82})"
+    ],
+    "Type": "Board",
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "$BOARD_MANUFACTURER",
+        "Model": "$BOARD_PRODUCT_NAME",
+        "PartNumber": "$BOARD_PART_NUMBER",
+        "SerialNumber": "$BOARD_SERIAL_NUMBER"
+    }
+}
