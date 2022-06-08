@@ -21,7 +21,7 @@ BBLAYERS ?= " \
   ##OEROOT##/meta-intel-openbmc \
   ##OEROOT##/meta-openbmc-mods/meta-common \
   ##OEROOT##/meta-openbmc-mods/meta-common-small \
-  ##OEROOT##/meta-openbmc-mods/meta-ast2500 \
+  ##OEROOT##/meta-openbmc-mods/meta-ast2500-sam \
   ##OEROOT##/meta-openbmc-mods/meta-wht-sam \
   ##OEROOT##/meta-security \
   "
