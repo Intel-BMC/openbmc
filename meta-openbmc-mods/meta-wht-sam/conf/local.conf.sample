@@ -1,4 +1,4 @@
-MACHINE ??= "intel-ast2500-sam"
+MACHINE ??= "intel-ast2500"
 #DL_DIR ?= "/~YoctoDownloads"
 #SSTATE_DIR ?= "/~YoctoSstate-cache"
 DISTRO ?= "openbmc-phosphor"
