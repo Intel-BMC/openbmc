@@ -51,8 +51,8 @@ SRC_URI:append:intel-ast2500-sam = " \
     file://0050-Set-UART-routing-in-lowlevel_init.patch \
     "
 # CVE-2020-10648 vulnerability fix
-FILESEXTRAPATHS:append:intel-ast2500:= "${THISDIR}/files/CVE-2020-10648:"
-SRC_URI:append:intel-ast2500 = " \
+FILESEXTRAPATHS:append:intel-ast2500-sam:= "${THISDIR}/files/CVE-2020-10648:"
+SRC_URI:append:intel-ast2500-sam = " \
     file://0001-image-Correct-comment-for-fit_conf_get_node.patch \
     file://0002-image-Be-a-little-more-verbose-when-checking-signatu.patch \
     file://0003-image-Return-an-error-message-from-fit_config_verify.patch \
