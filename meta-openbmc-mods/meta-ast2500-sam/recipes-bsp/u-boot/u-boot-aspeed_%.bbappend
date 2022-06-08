@@ -1,6 +1,7 @@
 COMPATIBLE_MACHINE = "intel-ast2500-sam"
 FILESEXTRAPATHS:append:intel-ast2500-sam:= "${THISDIR}/files:"
 
+
 # the meta-phosphor layer adds this patch, which conflicts
 # with the intel layout for environment
 SRC_URI:remove:intel-ast2500-sam = " file://0001-configs-ast-Add-redundnant-env.patch"
