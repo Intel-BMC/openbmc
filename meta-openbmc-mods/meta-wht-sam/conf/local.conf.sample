@@ -33,3 +33,4 @@ FULL_OPTIMIZATION = "-Os -pipe ${DEBUG_FLAGS}"
 # Once enabled, run 'bitbake intel-platforms --runonly print_src'
 # on a clean workspace to get the output
 #INHERIT += "print-src"
+
