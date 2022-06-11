@@ -1,6 +1,6 @@
 KMACHINE = "aspeed"
 KERNEL_DEVICETREE = " \
-    ${KMACHINE}-bmc-intel-ast2500sam.dtb \
+    ${KMACHINE}-bmc-intel-ast2500.dtb \
     ${KMACHINE}-bmc-intel-s2600wf.dtb \
     "
 
