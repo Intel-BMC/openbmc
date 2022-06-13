@@ -171,7 +171,7 @@ index 1451830..2a5ff90 100644
              }
          ],
 -        "Name": "SOLUM CO IS162F22 PSU$ADDRESS % 4 + 1",
-+        "Name": "$MUX SOLUM CO IS162F22 $ADDRESS % 4 + 1",
++        "Name": "$MUX SOLUM CO IS162F22 PSU$ADDRESS % 4 + 1",
          "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'IS162F22*'})",
          "Type": "PowerSupply",
          "xyz.openbmc_project.Inventory.Decorator.Asset": {

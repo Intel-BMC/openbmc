@@ -60,7 +60,6 @@ IMAGE_INSTALL:append = " \
         ac-boot-check \
         host-error-monitor \
         beepcode-mgr \
-        psu-manager \
         kernel-panic-check \
         id-led-off \
         hsbp-manager \

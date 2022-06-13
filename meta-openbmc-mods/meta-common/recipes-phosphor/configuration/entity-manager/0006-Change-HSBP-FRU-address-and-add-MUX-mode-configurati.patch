@@ -30,7 +30,7 @@ index e2eedfa..60e7817 100644
                      "Drive_4"
                  ],
 +                "MuxIdleMode": "Disconnect",
-                 "Name": "Drive Mux 1",
+                 "Name": "HSBP 1 Mux 1",
                  "Type": "PCA9546Mux"
              },
 @@ -28,6 +29,7 @@
@@ -38,7 +38,7 @@ index e2eedfa..60e7817 100644
                      "Drive_8"
                  ],
 +                "MuxIdleMode": "Disconnect",
-                 "Name": "Drive Mux 2",
+                 "Name": "HSBP 1 Mux 2",
                  "Type": "PCA9546Mux"
              },
 @@ -65,7 +67,7 @@
@@ -55,7 +55,7 @@ index e2eedfa..60e7817 100644
                      "Drive_12"
                  ],
 +                "MuxIdleMode": "Disconnect",
-                 "Name": "Drive Mux 3",
+                 "Name": "HSBP 2 Mux 1",
                  "Type": "PCA9546Mux"
              },
 @@ -103,6 +106,7 @@
@@ -63,7 +63,7 @@ index e2eedfa..60e7817 100644
                      "Drive_16"
                  ],
 +                "MuxIdleMode": "Disconnect",
-                 "Name": "Drive Mux 4",
+                 "Name": "HSBP 2 Mux 2",
                  "Type": "PCA9546Mux"
              },
 @@ -140,7 +144,7 @@
@@ -80,7 +80,7 @@ index e2eedfa..60e7817 100644
                      "Drive_20"
                  ],
 +                "MuxIdleMode": "Disconnect",
-                 "Name": "Drive Mux 5",
+                 "Name": "HSBP 3 Mux 1",
                  "Type": "PCA9546Mux"
              },
 @@ -178,6 +183,7 @@
@@ -88,7 +88,7 @@ index e2eedfa..60e7817 100644
                      "Drive_24"
                  ],
 +                "MuxIdleMode": "Disconnect",
-                 "Name": "Drive Mux 6",
+                 "Name": "HSBP 3 Mux 2",
                  "Type": "PCA9546Mux"
              },
 -- 

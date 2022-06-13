@@ -13,7 +13,7 @@ SRC_URI += "\
     file://0005-Fix-PECI-ioctl-number.patch \
     file://0006-CPUSensor-create-RequirediTempSensor-if-defined.patch \
     file://0007-Add-support-for-the-energy-hwmon-type.patch \
-    file://0008-CPUSensor-additional-debug-message.patch \
+    file://0008-CPUSensor-update-threshold-when-Tcontrol-changes.patch \
     file://0009-CPUSensor-Create-CPUConfig-for-each-PECI-adapter.patch \
     file://0010-Add-support-for-Get-PMBUS-Readings-method.patch \
     file://0011-Fix-for-cpusensor-going-into-D-state.patch \

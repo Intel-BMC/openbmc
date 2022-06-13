@@ -42,6 +42,7 @@ SRC_URI:append:intel-ast2600 = " \
     file://0036-Disable-BMC-MMIO-Decode-on-VGA-SCU-register-bit.patch \
     file://0037-Enable-I2C-clock-stretching-and-multi-master-support.patch \
     file://0038-Disabling-serial-console-if-FFUJ-is-enabled.patch \
+    file://0044-Enable-WDT2-for-causing-reset-in-Kernel-u-boot-hang.patch \
     "
 
 # CVE-2020-10648 vulnerability fix
@@ -99,6 +100,7 @@ SRC_URI:append:intel-ast2600 = " \
 
 PFR_SRC_URI = " \
     file://0043-AST2600-PFR-u-boot-env-changes-as-per-PFR-BMC-image.patch \
+    file://0045-PFR-Skip-counting-WDT2-event-when-EXTRST-is-set.patch \
     "
 
 AUTOBOOT_SRC_URI = " \

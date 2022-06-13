@@ -1,0 +1,95 @@
+From 51374967e9c5be8b0bfa093d7c62e7093f1eff94 Mon Sep 17 00:00:00 2001
+From: "Arun P. Mohanan" <arun.p.m@linux.intel.com>
+Date: Wed, 27 Apr 2022 10:16:47 +0530
+Subject: [PATCH] i2c: mux: Add mux deselect support on timeout
+
+Add support to deselect the mux when there is a timeout.
+The mux idle_state settings will be configured on startup. In case of
+MCTP it is MUX_IDLE_DISCONNECT. But when there is a timeout, mux ends
+up in connected position and the devices behind the mux will appear under
+different muxes connected to the same bus. This change fix the same.
+
+Signed-off-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+---
+ drivers/i2c/i2c-mux.c   | 15 ++++++++++-----
+ include/linux/i2c-mux.h |  1 +
+ 2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/i2c/i2c-mux.c b/drivers/i2c/i2c-mux.c
+index ce3c3ad3f129..abdfd7513df2 100644
+--- a/drivers/i2c/i2c-mux.c
++++ b/drivers/i2c/i2c-mux.c
+@@ -36,9 +36,11 @@ struct i2c_mux_priv {
+ 	u32 chan_id;
+ };
+ 
+-static void i2c_mux_hold(struct i2c_mux_core *muxc, unsigned long timeout)
++static void i2c_mux_hold(struct i2c_mux_core *muxc, u32 chan_id,
++			 unsigned long timeout)
+ {
+ 	mutex_lock(&muxc->hold_lock);
++	muxc->holder_chan_id = chan_id;
+ 	schedule_delayed_work(&muxc->unhold_work, timeout);
+ }
+ 
+@@ -54,6 +56,9 @@ static void i2c_mux_unhold_work(struct work_struct *work)
+ 	struct i2c_mux_core *muxc = container_of(dwork, struct i2c_mux_core,
+ 						 unhold_work);
+ 
++	if (muxc->deselect)
++		muxc->deselect(muxc, muxc->holder_chan_id);
++
+ 	mutex_unlock(&muxc->hold_lock);
+ }
+ 
+@@ -74,7 +79,7 @@ static int __i2c_mux_master_xfer(struct i2c_adapter *adap,
+ 				      (u16 *)msgs[num - 1].buf);
+ 	if (hold_msg == I2C_HOLD_MSG_SET) {
+ 		timeout = msecs_to_jiffies(*(u16 *)msgs[num - 1].buf);
+-		i2c_mux_hold(muxc, timeout);
++		i2c_mux_hold(muxc, priv->chan_id, timeout);
+ 	} else if (hold_msg == I2C_HOLD_MSG_NONE) {
+ 		mutex_lock(&muxc->hold_lock);
+ 	}
+@@ -112,7 +117,7 @@ static int i2c_mux_master_xfer(struct i2c_adapter *adap,
+ 				      (u16 *)msgs[num - 1].buf);
+ 	if (hold_msg == I2C_HOLD_MSG_SET) {
+ 		timeout = msecs_to_jiffies(*(u16 *)msgs[num - 1].buf);
+-		i2c_mux_hold(muxc, timeout);
++		i2c_mux_hold(muxc, priv->chan_id, timeout);
+ 	} else if (hold_msg == I2C_HOLD_MSG_NONE) {
+ 		mutex_lock(&muxc->hold_lock);
+ 	}
+@@ -150,7 +155,7 @@ static int __i2c_mux_smbus_xfer(struct i2c_adapter *adap,
+ 				      &data->word);
+ 	if (hold_msg == I2C_HOLD_MSG_SET) {
+ 		timeout = msecs_to_jiffies(data->word);
+-		i2c_mux_hold(muxc, timeout);
++		i2c_mux_hold(muxc, priv->chan_id, timeout);
+ 	} else if (hold_msg == I2C_HOLD_MSG_NONE) {
+ 		mutex_lock(&muxc->hold_lock);
+ 	}
+@@ -189,7 +194,7 @@ static int i2c_mux_smbus_xfer(struct i2c_adapter *adap,
+ 				      &data->word);
+ 	if (hold_msg == I2C_HOLD_MSG_SET) {
+ 		timeout = msecs_to_jiffies(data->word);
+-		i2c_mux_hold(muxc, timeout);
++		i2c_mux_hold(muxc, priv->chan_id, timeout);
+ 	} else if (hold_msg == I2C_HOLD_MSG_NONE) {
+ 		mutex_lock(&muxc->hold_lock);
+ 	}
+diff --git a/include/linux/i2c-mux.h b/include/linux/i2c-mux.h
+index 43c40680d8c5..3d2586062ccc 100644
+--- a/include/linux/i2c-mux.h
++++ b/include/linux/i2c-mux.h
+@@ -29,6 +29,7 @@ struct i2c_mux_core {
+ 	int (*deselect)(struct i2c_mux_core *, u32 chan_id);
+ 
+ 	struct mutex hold_lock; /* mutex for channel holding */
++	u32 holder_chan_id;
+ 	struct delayed_work unhold_work;
+ 
+ 	int num_adapters;
+-- 
+2.17.1
+

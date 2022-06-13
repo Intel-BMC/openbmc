@@ -1,0 +1,47 @@
+From 9f159168ab5b1e0e73f4af8dd4536e77b440ad0b Mon Sep 17 00:00:00 2001
+From: Anjaliintel-21 <anjali.ray@intel.com>
+Date: Mon, 28 Mar 2022 09:43:03 +0000
+Subject: [PATCH] Update odata.type version of /redfish/v1/AccountService/
+
+Redfish validator was failing and throwing below error:
+*** /redfish/v1/AccountService
+AccountService.v1_10_0.ExternalAccountProvider:OAuth2Service :
+Could not get details on this property (argument of type 'NoneType' is not iterable)
+Type (#AccountService.v1_5_0.AccountService), GET SUCCESS (time: 1.283549)
+complex @odata.id: Expected @odata.id to match URI link
+/redfish/v1/AccountService#/Oem/OpenBMC
+FAIL...
+
+As AccountService_v1.xml version was v1.10.0 and the odata.type was
+"AccountService.v1_5_0.AccountService" which was mismatch.
+So I updated odata.type to AccountService.v1_10_0.AccountService".
+
+Tested:
+
+*** /redfish/v1/AccountService
+         Type (#AccountService.v1_10_0.AccountService), GET SUCCESS (time: 1.286845)
+complex @odata.id: Expected @odata.id to match URI link
+/redfish/v1/AccountService#/Oem/OpenBMC
+         PASS
+
+Signed-off-by: Anjaliintel-21 <anjali.ray@intel.com>
+---
+ redfish-core/lib/account_service.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/account_service.hpp b/redfish-core/lib/account_service.hpp
+index 55ce6ae..b1950f7 100644
+--- a/redfish-core/lib/account_service.hpp
++++ b/redfish-core/lib/account_service.hpp
+@@ -1280,7 +1280,7 @@ inline void requestAccountServiceRoutes(App& app)
+             asyncResp->res.jsonValue = {
+                 {"@odata.id", "/redfish/v1/AccountService"},
+                 {"@odata.type", "#AccountService."
+-                                "v1_5_0.AccountService"},
++                                "v1_10_0.AccountService"},
+                 {"Id", "AccountService"},
+                 {"Name", "Account Service"},
+                 {"Description", "Account Service"},
+-- 
+2.17.1
+

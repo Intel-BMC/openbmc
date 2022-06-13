@@ -1,0 +1,170 @@
+From 0f38d31ab5812e3791b4394b7e8adae44a2c2fb1 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Tue, 22 Jun 2021 14:49:44 -0700
+Subject: [PATCH] CPUSensor: update threshold when Tcontrol changes
+
+CPUSensor threshold values are derived from thermal target Tcontrol.
+When a new Tcontrol value is returned from PECI, thresholds values are
+updated by reading from tempx_crit and tempx_max in hwmon directory.
+The issue is that if the read fails, thresholds can get deleted and
+they don't get added back. Fix the issue by only update the thresholds
+when new threshold values are read successfully.
+
+Another issue is that, currently, thresholds interfaces do not get
+created if the read from the limit file fails because resource is
+unavailable at the init time. Thresholds interfaces do not get added
+even after resource become available. Create the thresholds interfaces
+with NaN as the value if the limit files exist. Values get updated when
+resources gets available. This is a workaround until dbus-sensors is
+refactored to support dynamically create threshold interfaces.
+
+Add debug message to capture more information on threshold changes.
+
+Example output - DTS threshold changes when Tcontrol was first read
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: DTS_CPU1: Tcontrol changed from nan to 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: Threshold: /sys/bus/peci/devices/peci-0/0-30/peci-cputemp.0/hwmon/hwmon12/temp2_max: 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: Threshold: /sys/bus/peci/devices/peci-0/0-30/peci-cputemp.0/hwmon/hwmon12/temp2_crit: 100
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: DTS_CPU1: new threshold value 92
+    Jan 01 00:06:06 intel-obmc cpusensor[461]: DTS_CPU1: new threshold value 100
+
+The above message will be logged when BMC reset or host resets.
+
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+Change-Id: I24ade7751a6b2802c8eaef9a52d2578fff11da75
+
+---
+ include/Utils.hpp  |  2 +-
+ src/CPUSensor.cpp  | 39 +++++++++++++++++++++++++--------------
+ src/Thresholds.cpp | 13 +++++++------
+ src/Utils.cpp      |  7 ++++++-
+ 4 files changed, 39 insertions(+), 22 deletions(-)
+
+diff --git a/include/Utils.hpp b/include/Utils.hpp
+index 0a89d13..f5939c7 100644
+--- a/include/Utils.hpp
++++ b/include/Utils.hpp
+@@ -324,6 +324,6 @@ struct GetSensorConfiguration :
+ std::optional<std::tuple<std::string, std::string, std::string>>
+     splitFileName(const std::filesystem::path& filePath);
+ std::optional<double> readFile(const std::string& thresholdFile,
+-                               const double& scaleFactor);
++                               const double& scaleFactor, bool nanOk = false);
+ void setupManufacturingModeMatch(sdbusplus::asio::connection& conn);
+ bool getManufacturingMode();
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index fefd89a..4671e6a 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -313,19 +313,21 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+             double gTcontrol = gCpuSensors[nameTcontrol]
+                                    ? gCpuSensors[nameTcontrol]->value
+                                    : std::numeric_limits<double>::quiet_NaN();
+-            if (gTcontrol != privTcontrol)
++            if (std::isfinite(gTcontrol) && (gTcontrol != privTcontrol))
+             {
+-                privTcontrol = gTcontrol;
+-
+-                if (!thresholds.empty())
++                // update thresholds when
++                // 1) A different valid Tcontrol value is received
++                // 2) New threshold values have been read successfully
++                // Note: current thresholds can be empty if hwmon attr was not
++                // ready when sensor was first created
++                std::vector<thresholds::Threshold> newThresholds;
++                if (parseThresholdsFromAttr(newThresholds, path, scaleFactor,
++                                            dtsOffset))
+                 {
+-                    std::vector<thresholds::Threshold> newThresholds;
+-                    if (parseThresholdsFromAttr(newThresholds, path,
+-                                                scaleFactor, dtsOffset))
++                    if (!std::equal(thresholds.begin(), thresholds.end(),
++                                    newThresholds.begin(), newThresholds.end()))
+                     {
+-                        if (!std::equal(thresholds.begin(), thresholds.end(),
+-                                        newThresholds.begin(),
+-                                        newThresholds.end()))
++                        if (!newThresholds.empty())
+                         {
+                             thresholds = newThresholds;
+                             if (show)
+@@ -333,13 +335,22 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+                                 thresholds::updateThresholds(this);
+                             }
+                         }
+-                    }
+-                    else
+-                    {
+-                        std::cerr << "Failure to update thresholds for " << name
++                        std::cout << name << ": Tcontrol changed from "
++                                  << privTcontrol << " to " << gTcontrol
+                                   << "\n";
++                        for (auto& threshold : thresholds)
++                        {
++                            std::cout << name << ": new threshold value "
++                                      << threshold.value << "\n";
++                        }
+                     }
+                 }
++                else
++                {
++                    std::cerr << "Failure to update thresholds for " << name
++                              << "\n";
++                }
++                privTcontrol = gTcontrol;
+             }
+         }
+         catch (const std::invalid_argument&)
+diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
+index 84df7cf..aef084e 100644
+--- a/src/Thresholds.cpp
++++ b/src/Thresholds.cpp
+@@ -589,14 +589,15 @@ bool parseThresholdsFromAttr(
+                 auto& [suffix, level, direction, offset] = t;
+                 auto attrPath =
+                     boost::replace_all_copy(inputPath, item, suffix);
+-                if (auto val = readFile(attrPath, scaleFactor))
++                //create threshold with value NaN if file exists
++                //read can fail because resource is busy
++                //This allows thresholds interfaces created during init
++                //values will be updated when resource is available later.
++                if (auto val = readFile(attrPath, scaleFactor, true))
+                 {
+                     *val += offset;
+-                    if (debug)
+-                    {
+-                        std::cout << "Threshold: " << attrPath << ": " << *val
+-                                  << "\n";
+-                    }
++                    std::cout << "Threshold: " << attrPath << ": " << *val
++                              << "\n";
+                     thresholdVector.emplace_back(level, direction, *val);
+                 }
+             }
+diff --git a/src/Utils.cpp b/src/Utils.cpp
+index 6d017ec..ef709f6 100644
+--- a/src/Utils.cpp
++++ b/src/Utils.cpp
+@@ -554,7 +554,7 @@ void createInventoryAssoc(
+ }
+ 
+ std::optional<double> readFile(const std::string& thresholdFile,
+-                               const double& scaleFactor)
++                               const double& scaleFactor, bool nanOk)
+ {
+     std::string line;
+     std::ifstream labelFile(thresholdFile);
+@@ -569,6 +569,11 @@ std::optional<double> readFile(const std::string& thresholdFile,
+         }
+         catch (const std::invalid_argument&)
+         {
++            if (nanOk)
++            {
++                //indicate file exists, but read failed
++                return std::numeric_limits<double>::quiet_NaN();
++            }
+             return std::nullopt;
+         }
+     }
+-- 
+2.17.1
+

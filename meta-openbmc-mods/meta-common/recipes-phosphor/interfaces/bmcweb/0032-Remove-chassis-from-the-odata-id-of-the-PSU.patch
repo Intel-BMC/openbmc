@@ -1,0 +1,49 @@
+From dd4a6807841555ccc23aa2ac8b2c876101408563 Mon Sep 17 00:00:00 2001
+From: Anjaliintel-21 <anjali.ray@intel.com>
+Date: Thu, 3 Mar 2022 19:42:05 +0000
+Subject: [PATCH] Remove chassis from the odata.id of the PSU
+
+As the Redfish validator was failing for the PSU because odata.id
+of the PSU was showing a chassis device URI and the GET operation on
+that URI was giving error.
+So, to resolve this problem we removed chassis URI from the PSU's json
+response.
+
+Tested:
+
+*** /redfish/v1/Managers/bmc#/Oem/OpenBmc/Fan/FanZones/PSU
+No parent found with which to test @odata.id of ReferenceableMember
+Type (#OemManager.FanZone), GET SUCCESS (time: 1.212592)
+PASS
+Elapsed time: 0:01:06
+Counter({'metadataNamespaces': 2335, 'pass': 2, 'passGet': 1,
+'skipOptional': 1, 'warningPresent': 1, 'serviceNamespaces': 1})
+Validation has succeeded.
+
+Signed-off-by: Anjaliintel-21 <anjali.ray@intel.com>
+---
+ redfish-core/lib/managers.hpp | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/lib/managers.hpp b/redfish-core/lib/managers.hpp
+index 7b0e14c..9ed87ef 100644
+--- a/redfish-core/lib/managers.hpp
++++ b/redfish-core/lib/managers.hpp
+@@ -371,8 +371,12 @@ inline void
+                             chassis = "#IllegalValue";
+                         }
+                         nlohmann::json& zone = zones[name];
+-                        zone["Chassis"] = {
+-                            {"@odata.id", "/redfish/v1/Chassis/" + chassis}};
++                        if (name != "PSU")
++                        {
++                            zone["Chassis"] = {
++                                {"@odata.id",
++                                 "/redfish/v1/Chassis/" + chassis}};
++                        }
+                         zone["@odata.id"] =
+                             "/redfish/v1/Managers/bmc#/Oem/OpenBmc/Fan/FanZones/" +
+                             name;
+-- 
+2.17.1
+

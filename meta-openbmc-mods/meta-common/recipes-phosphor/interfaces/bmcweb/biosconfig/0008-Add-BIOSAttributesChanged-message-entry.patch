@@ -1,0 +1,88 @@
+From d2b0499ad8b8610f8be1963f5ca1bb8548a97641 Mon Sep 17 00:00:00 2001
+From: Snehalatha Venkatesh <snehalathax.v@intel.com>
+Date: Mon, 11 Apr 2022 07:12:53 +0000
+Subject: [PATCH] Add BIOSAttributesChanged message entry
+
+When BIOS attributes are changed via OOB (using Redfish PATCH operation)
+No Redfish event is logged.
+
+Added a Message Registry entry to inform that a set of BIOS attributes
+are changed via OOB. It will be logged after BIOS reset, during which
+attributes are re-populated with patched values.
+
+Changing the BIOS attributes via OOB is possible only through
+Redfish PATCH operation currently and not supported through IPMI.
+
+This event is implemented for the following review.
+https://gerrit.openbmc-project.xyz/c/openbmc/intel-ipmi-oem/+/52320
+
+Tested:
+1. Redfish validator - passed for this new addition.
+2. Enable "BMC Remote Setup" and Set BIOS admin password.
+3. Do BIOS reset.
+4. Check for the attributes in redfish uri
+GET: /redfish/v1/Systems/system/Bios
+Response: Success
+5. Patch any attribute.
+PATCH: /redfish/v1/Systems/system/Bios/Settings
+Body:
+{
+    "data": {
+        "serialDebugMsgLvl": "0x2"
+}}
+Response: Success
+6. Do BIOS reset.
+7. Verified in Redfish, Biosattribute change message populated.
+GET: /redfish/v1/Systems/system/LogServices/EventLog/Entries
+Response:
+{
+    "@odata.id": "/redfish/v1/Systems/system/LogServices/EventLog/Entries/32635",
+    "@odata.type": "#LogEntry.v1_8_0.LogEntry",
+    "Created": "1970-01-01T09:03:55+00:00",
+    "EntryType": "Event",
+    "Id": "32635",
+    "Message": "Set of BIOS Attributes changed.",
+    "MessageArgs": [],
+    "MessageId": "OpenBMC.0.1.BIOSAttributesChanged",
+    "Name": "System Event Log Entry",
+    "Severity": "OK"
+}
+
+Signed-off-by: Snehalatha Venkatesh <snehalathax.v@intel.com>
+---
+ .../include/registries/openbmc_message_registry.hpp  | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index a181080..f0e0e59 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -29,7 +29,7 @@ const Header header = {
+     "0.3.1",
+     "OpenBMC",
+ };
+-constexpr std::array<MessageEntry, 200> registry = {
++constexpr std::array<MessageEntry, 201> registry = {
+     MessageEntry{
+         "ADDDCCorrectable",
+         {
+@@ -139,6 +139,16 @@ constexpr std::array<MessageEntry, 200> registry = {
+                      "None.",
+                  }},
+ 
++    MessageEntry{"BIOSAttributesChanged",
++                 {
++                     "Indicates that a set of BIOS attributes changed.",
++                     "Set of BIOS Attributes changed.",
++                     "OK",
++                     "OK",
++                     0,
++                     {},
++                     "None.",
++                 }},
+     MessageEntry{
+         "BIOSBoot",
+         {
+-- 
+2.17.1
+
