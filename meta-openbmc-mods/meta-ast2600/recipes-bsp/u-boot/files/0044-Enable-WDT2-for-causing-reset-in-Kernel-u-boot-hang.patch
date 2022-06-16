@@ -1,0 +1,77 @@
+From 6a5cf930c34fe2ba29fa3361b07ae42e1e1a66d3 Mon Sep 17 00:00:00 2001
+From: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+Date: Mon, 11 Apr 2022 12:24:33 +0000
+Subject: [PATCH] Enable WDT2 for causing reset in Kernel/u-boot hang
+
+In the current implementation, WDT1 is enabled as the reset reason
+for u-boot/kernel hang recovery. This fix changes the watchdog timer from
+WDT1 to WDT2 for the u-boot/kernel hang or panic as WDT2 is expected
+here.
+
+Along with this fix, panic time out value is changed from "-1" to "0" in
+kernel configuration file. Which will make the system remain in hang
+instead of rebooting immediately. This will allow WDT2 to complete the
+time out period and trigger the reset.
+
+Tested:
+1. Triggered a kernel panic using "echo c > /proc/sysrq-trigger" command
+and confirmed the reset reason is WDT2 reset.
+2. After 3 kernel panics the BMC is booted to u-boot prompt
+3. The normal BMC resets(ipmitool raw 6 2) are caused by WDT1 only as
+expected.
+
+Signed-off-by: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+---
+ arch/arm/dts/ast2600-intel.dts          |  2 +-
+ arch/arm/mach-aspeed/ast2600/platform.S | 11 +++++++----
+ 2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
+index dba62fd254..b894be2a64 100644
+--- a/arch/arm/dts/ast2600-intel.dts
++++ b/arch/arm/dts/ast2600-intel.dts
+@@ -98,7 +98,7 @@
+ 
+ &wdt1 {
+ 	u-boot,dm-pre-reloc;
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &wdt2 {
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index cc1d6b7a61..967c255cd5 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -78,6 +78,9 @@
+ #define AST_WDT1_RESET_MASK2	(AST_WDT1_BASE + 0x020)
+ 
+ #define AST_WDT2_BASE		0x1E785040
++#define AST_WDT2_RELOAD_VAL     (AST_WDT2_BASE + 0x004)
++#define AST_WDT2_RESTART_CTRL   (AST_WDT2_BASE + 0x008)
++#define AST_WDT2_CTRL           (AST_WDT2_BASE + 0x00C)
+ #define AST_WDT2_RESET_MASK1	(AST_WDT2_BASE + 0x01C)
+ #define AST_WDT2_RESET_MASK2	(AST_WDT2_BASE + 0x020)
+ 
+@@ -388,14 +391,14 @@ wait_lock:
+ 	str	r0, [r1]
+ 
+ #ifdef CONFIG_HW_WATCHDOG
+-	/* Enable WDT1 to recover u-boot hang */
+-	ldr   r0, =AST_WDT1_RELOAD_VAL
++	/* Enable WDT2 to recover u-boot hang */
++	ldr   r0, =AST_WDT2_RELOAD_VAL
+ 	ldr   r1, =0x00500000             @ ~5 seconds
+ 	str   r1, [r0]
+-	ldr   r0, =AST_WDT1_RESTART_CTRL
++	ldr   r0, =AST_WDT2_RESTART_CTRL
+ 	ldr   r1, =0x00004755
+ 	str   r1, [r0]
+-	ldr   r0, =AST_WDT1_CTRL
++	ldr   r0, =AST_WDT2_CTRL
+ 	ldr   r1, =0x00000013
+ 	str   r1, [r0]
+ #endif
+-- 
+2.17.1
+

@@ -5,7 +5,7 @@ Subject: [PATCH] IPMI command handler implementation in uboot
 
 IPMI command handler implementation in uBoot.
 Implemented IPMI commands:
- 1) Get Device ID
+ 1) Get Device ID with default Product ID=0
  2) Get Self Test Result
 
 Tested By:
@@ -13,7 +13,7 @@ Ran the above IPMI command Via KCS channel
 and got proper response.
 - Get Device ID
   Req: ipmitool raw 6 1
-  Res: 00 23 00 82 03 02 00 57 01 00 7b 00 00 00 00 00
+  Res: 00 23 00 82 03 02 00 57 01 00 00 00 00 00 00 00
 - Get Self Test Results
   Req: ipmitool raw 6 4
   Res: 56 00
@@ -205,7 +205,7 @@ index 000000000000..04732846ac28
 +	/* Get Device ID */
 +	bool operation = 1; /* Firmware operation */
 +	u8 intel_mfg_id[3] = { 0x57, 0x01, 0x00 };
-+	u8 platform_id[2] = { 0x7B, 0x00 };
++	u8 platform_id[2] = { 0x00, 0x00 };
 +	u8 aux_fw_rev[4] = { 0x00, 0x00, 0x00, 0x00 };
 +	struct get_dev_id *result = (struct get_dev_id *)res;
 +

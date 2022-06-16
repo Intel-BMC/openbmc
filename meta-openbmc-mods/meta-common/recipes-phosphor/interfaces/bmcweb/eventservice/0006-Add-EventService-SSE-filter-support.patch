@@ -33,18 +33,18 @@ Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
 Signed-off-by: P Dheeraj Srujan Kumar <p.dheeraj.srujan.kumar@intel.com>
 Change-Id: I55c6f53bb5e57aa1f2d1601f1a16525a33b13bd2
 ---
- include/eventservice_sse.hpp                  | 145 +++++++++++++++++-
+ include/eventservice_sse.hpp                  | 146 +++++++++++++++++-
  redfish-core/include/error_messages.hpp       |   9 ++
  .../include/event_service_manager.hpp         |   5 +
  redfish-core/lib/event_service.hpp            |   5 -
  redfish-core/src/error_messages.cpp           |  26 ++++
- 5 files changed, 181 insertions(+), 9 deletions(-)
+ 5 files changed, 182 insertions(+), 9 deletions(-)
 
 diff --git a/include/eventservice_sse.hpp b/include/eventservice_sse.hpp
 index 14daf00..fed7fec 100644
 --- a/include/eventservice_sse.hpp
 +++ b/include/eventservice_sse.hpp
-@@ -23,16 +23,153 @@ static bool createSubscription(std::shared_ptr<crow::SseConnection>& conn,
+@@ -23,16 +23,154 @@ static bool createSubscription(std::shared_ptr<crow::SseConnection>& conn,
      }
      BMCWEB_LOG_DEBUG << "Request query param size: " << req.urlParams.size();
  
@@ -199,6 +199,7 @@ index 14daf00..fed7fec 100644
 +    subValue->registryMsgIds = msgIds;
 +    subValue->registryPrefixes = regPrefixes;
 +    subValue->metricReportDefinitions = mrdsArray;
++    subValue->subscriptionOwner = req.session->username;
  
      std::string id =
          redfish::EventServiceManager::getInstance().addSubscription(subValue,

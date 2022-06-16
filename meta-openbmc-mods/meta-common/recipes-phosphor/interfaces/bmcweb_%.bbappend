@@ -27,6 +27,10 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0029-Fix-Property-PhysicalContext-is-invalid-none.patch \
             file://0030-Change-Severity-for-ServiceFailure-redfish-event.patch \
             file://0031-Change-PcieType-to-PCIeType.patch \
+            file://0032-Remove-chassis-from-the-odata-id-of-the-PSU.patch \
+            file://0033-Add-message-registry-entry-for-Memhot-event.patch \
+            file://0034-Update-odata.type-version-of-redfish-v1-AccountService.patch \
+            file://0035-Add-MemoryMetrics-schema-file.patch \
 "
 
 # OOB Bios Config:
@@ -37,6 +41,7 @@ SRC_URI += "file://biosconfig/0001-Define-Redfish-interface-Registries-Bios.patc
             file://biosconfig/0005-Fix-remove-bios-user-pwd-change-option-via-Redfish.patch \
             file://biosconfig/0006-Add-fix-for-broken-feature-Pending-Attributes.patch \
             file://biosconfig/0007-Add-BiosAttributeRegistry-node-under-Registries.patch \
+            file://biosconfig/0008-Add-BIOSAttributesChanged-message-entry.patch \
 "
 
 # Virtual Media: Backend code is not upstreamed so downstream only patches.
@@ -64,6 +69,7 @@ SRC_URI += "file://eventservice/0001-Add-unmerged-changes-for-http-retry-support
             file://eventservice/0012-Add-support-for-deleting-terminated-subscriptions.patch \
             file://eventservice/0013-event-service-fix-added-Context-field-to-response.patch \
             file://eventservice/0014-Fix-Event-Subscription-URI.patch \
+            file://eventservice/0015-Add-Configure-Self-support-for-Event-Subscriptions.patch \
 "
 
 

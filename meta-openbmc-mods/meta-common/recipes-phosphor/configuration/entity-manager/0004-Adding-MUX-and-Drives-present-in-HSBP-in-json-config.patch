@@ -37,7 +37,7 @@ index c6c7678..e2eedfa 100644
 +                    "Drive_3",
 +                    "Drive_4"
 +                ],
-+                "Name": "Drive Mux 1",
++                "Name": "HSBP 1 Mux 1",
 +                "Type": "PCA9546Mux"
 +            },
 +            {
@@ -49,7 +49,7 @@ index c6c7678..e2eedfa 100644
 +                    "Drive_7",
 +                    "Drive_8"
 +                ],
-+                "Name": "Drive Mux 2",
++                "Name": "HSBP 1 Mux 2",
 +                "Type": "PCA9546Mux"
 +            },
              {
@@ -77,7 +77,7 @@ index c6c7678..e2eedfa 100644
 +                    "Drive_11",
 +                    "Drive_12"
 +                ],
-+                "Name": "Drive Mux 3",
++                "Name": "HSBP 2 Mux 1",
 +                "Type": "PCA9546Mux"
 +            },
 +            {
@@ -89,7 +89,7 @@ index c6c7678..e2eedfa 100644
 +                    "Drive_15",
 +                    "Drive_16"
 +                ],
-+                "Name": "Drive Mux 4",
++                "Name": "HSBP 2 Mux 2",
 +                "Type": "PCA9546Mux"
 +            },
              {
@@ -117,7 +117,7 @@ index c6c7678..e2eedfa 100644
 +                    "Drive_19",
 +                    "Drive_20"
 +                ],
-+                "Name": "Drive Mux 5",
++                "Name": "HSBP 3 Mux 1",
 +                "Type": "PCA9546Mux"
 +            },
 +            {
@@ -129,7 +129,7 @@ index c6c7678..e2eedfa 100644
 +                    "Drive_23",
 +                    "Drive_24"
 +                ],
-+                "Name": "Drive Mux 6",
++                "Name": "HSBP 3 Mux 2",
 +                "Type": "PCA9546Mux"
 +            },
              {

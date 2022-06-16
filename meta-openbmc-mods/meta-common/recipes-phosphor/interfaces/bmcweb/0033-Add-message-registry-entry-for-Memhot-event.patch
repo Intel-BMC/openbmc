@@ -1,0 +1,80 @@
+From 31661f341a32e07967f5e3279b79771823275395 Mon Sep 17 00:00:00 2001
+From: Hardik Panchal <hardikx.panchal@intel.com>
+Date: Thu, 24 Mar 2022 12:29:48 +0000
+Subject: [PATCH] Add message registry entry for Memhot event
+
+Add "ComponentOverTemperature" event message entry in RedFish for
+Memhot monitor to log based on the MEMHOT pins.
+
+Tested:
+1. Redfish validator - passed for this new addition
+2. Verified in Redfish, ComponentOverTemperature event logged properly.
+GET:
+https:/<BMC-IP>/redfish/v1/Systems/system/LogServices/EventLog/Entries
+{
+    "@odata.id": "/redfish/v1/Systems/system/LogServices/EventLog/
+    Entries/1648143395",
+    "@odata.type": "#LogEntry.v1_8_0.LogEntry",
+    "Created": "2022-03-24T17:36:35+00:00",
+    "EntryType": "Event",
+    "Id": "1648143395",
+    "Message": "CPU 1 memory over temperature and being throttled.",
+    "MessageArgs": [
+        "CPU 1 memory"
+    ],
+    "MessageId": "OpenBMC.0.1.ComponentOverTemperature",
+    "Name": "System Event Log Entry",
+    "Severity": "Critical"
+}
+
+Signed-off-by: Hardik Panchal <hardikx.panchal@intel.com>
+---
+ .../registries/openbmc_message_registry.hpp    | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 0b409cf..a181080 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -19,17 +19,17 @@
+ namespace redfish::message_registries::openbmc
+ {
+ const Header header = {
+-    "Copyright 2018 OpenBMC. All rights reserved.",
++    "Copyright 2022 OpenBMC. All rights reserved.",
+     "#MessageRegistry.v1_4_0.MessageRegistry",
+-    "OpenBMC.0.3.0",
++    "OpenBMC.0.3.1",
+     "OpenBMC Message Registry",
+     "en",
+     "This registry defines the base messages for OpenBMC.",
+     "OpenBMC",
+-    "0.3.0",
++    "0.3.1",
+     "OpenBMC",
+ };
+-constexpr std::array<MessageEntry, 199> registry = {
++constexpr std::array<MessageEntry, 200> registry = {
+     MessageEntry{
+         "ADDDCCorrectable",
+         {
+@@ -340,6 +340,16 @@ constexpr std::array<MessageEntry, 199> registry = {
+                      {},
+                      "None.",
+                  }},
++    MessageEntry{"ComponentOverTemperature",
++                 {
++                     "Indicates that the specified component is over temperature.",
++                     "%1 over temperature and being throttled.",
++                     "Critical",
++                     "Critical",
++                     1,
++                     {"string"},
++                     "None.",
++                 }},
+     MessageEntry{"CPLDFirmwarePanicReason",
+                  {
+                      "Indicates the reason for CPLD firmware panic.",
+-- 
+2.17.1
+

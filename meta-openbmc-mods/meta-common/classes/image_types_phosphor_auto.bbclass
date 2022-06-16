@@ -16,7 +16,9 @@ IMAGE_TYPES += "mtd-auto"
 
 IMAGE_TYPEDEP:mtd-auto = "${IMAGE_BASETYPE}"
 IMAGE_TYPES_MASKED += "mtd-auto"
-
+FLASH_UBOOT_SPL_IMAGE ?= "u-boot-spl"
+FLASH_UBOOT_IMAGE ?= "u-boot"
+image_dst ?= "image-u-boot"
 # Flash characteristics in KB unless otherwise noted
 python() {
     types = d.getVar('IMAGE_FSTYPES', True).split()
@@ -47,9 +49,23 @@ do_generate_auto() {
     bbdebug 1 "do_generate_auto IMAGE_TYPES=${IMAGE_TYPES} size=${FLASH_SIZE}KB (${DEPLOY_DIR_IMAGE}/${IMAGE_NAME}.auto.mtd)"
     # Assemble the flash image
     mk_nor_image ${IMGDEPLOYDIR}/${IMAGE_NAME}.auto.mtd ${FLASH_SIZE}
+    uboot_offset=${FLASH_UBOOT_OFFSET}
+    if [ ! -z ${SPL_BINARY} ]; then
     dd bs=1k conv=notrunc seek=${FLASH_UBOOT_OFFSET} \
+            if=${DEPLOY_DIR_IMAGE}/${FLASH_UBOOT_SPL_IMAGE}.${UBOOT_SUFFIX} \
+            of=${DEPLOY_DIR_IMAGE}/${image_dst}
+        uboot_offset=${FLASH_UBOOT_SPL_SIZE}
+        dd bs=1k conv=notrunc seek=${uboot_offset} \
+            if=${DEPLOY_DIR_IMAGE}/${FLASH_UBOOT_IMAGE}.${UBOOT_SUFFIX} \
+            of=${DEPLOY_DIR_IMAGE}/${image_dst}
+        dd bs=1k conv=notrunc seek=${FLASH_UBOOT_OFFSET} \
+            if=${DEPLOY_DIR_IMAGE}/${image_dst} \
+            of=${IMGDEPLOYDIR}/${IMAGE_NAME}.auto.mtd
+    else
+        dd bs=1k conv=notrunc seek=${FLASH_UBOOT_OFFSET} \
         if=${DEPLOY_DIR_IMAGE}/u-boot.${UBOOT_SUFFIX} \
         of=${IMGDEPLOYDIR}/${IMAGE_NAME}.auto.mtd
+    fi
 
     for OFFSET in ${FLASH_RUNTIME_OFFSETS}; do
         dd bs=1k conv=notrunc seek=${OFFSET} \
