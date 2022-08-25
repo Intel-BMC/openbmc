@@ -1,1 +1,0 @@
-DEFAULT_INSTANCE = "ttyS2"
