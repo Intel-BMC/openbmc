@@ -1,1 +1,0 @@
-SUBSYSTEM=="tty", ATTRS{iomem_base}=="0x1E787000", SYMLINK+="ttyVUART0", TAG+="systemd"
