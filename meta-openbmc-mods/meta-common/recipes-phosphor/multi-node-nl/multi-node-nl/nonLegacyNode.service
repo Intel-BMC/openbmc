@@ -1,9 +1,0 @@
-[Unit]
-Description=Non Legacy node
-
-[Service]
-ExecStart=/usr/bin/nonLegacyNode.sh
-Type=exec
-
-[Install]
-WantedBy=multi-node-nl.target
