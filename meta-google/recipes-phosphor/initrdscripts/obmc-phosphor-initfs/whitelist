@@ -1,7 +1,0 @@
-/etc/dropbear/dropbear_rsa_host_key
-/etc/hostname
-/etc/machine-id
-/etc/systemd/network
-/var/google
-/var/lib/phosphor-inventory-manager
-/var/lib/smbios/smbios2

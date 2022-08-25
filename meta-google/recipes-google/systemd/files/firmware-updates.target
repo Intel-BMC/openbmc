@@ -1,6 +1,0 @@
-[Unit]
-Description=Firmware Updates and Configuration
-Wants=firmware-updates-pre.target
-
-[Install]
-WantedBy=multi-user.target

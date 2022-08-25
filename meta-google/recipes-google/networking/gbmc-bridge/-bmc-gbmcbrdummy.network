@@ -1,4 +1,0 @@
-[Match]
-Name=gbmcbrdummy
-[Network]
-Bridge=gbmcbr

@@ -1,6 +1,0 @@
-[Unit]
-Description=Cold Reset Host
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/host_reset.sh cold

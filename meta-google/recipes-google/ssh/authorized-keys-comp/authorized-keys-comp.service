@@ -1,6 +1,0 @@
-[Service]
-Type=oneshot
-ExecStart=/usr/libexec/authorized-keys-comp.sh
-
-[Install]
-WantedBy=multi-user.target

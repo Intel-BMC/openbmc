@@ -1,6 +1,0 @@
-[Socket]
-BindToDevice=@NCSI_IF@
-ListenStream=3967
-
-[Install]
-WantedBy=sockets.target

@@ -1,9 +1,0 @@
-[Unit]
-Before=systemd-networkd.service
-
-[Service]
-Type=notify
-ExecStart=/usr/libexec/gbmc-ip-monitor.sh
-
-[Install]
-WantedBy=multi-user.target
