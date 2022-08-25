@@ -1,1 +1,0 @@
-inherit gxp-bootblock-n
