@@ -1,7 +1,0 @@
-[Unit]
-Description=Ampere service for flashing the Host firmware image
-
-[Service]
-Type=oneshot
-RemainAfterExit=no
-ExecStart=/usr/sbin/firmware_update.sh /tmp/images/%I
