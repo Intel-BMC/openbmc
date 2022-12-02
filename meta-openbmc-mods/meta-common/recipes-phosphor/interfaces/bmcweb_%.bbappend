@@ -31,6 +31,7 @@ SRC_URI += "file://0001-Firmware-update-configuration-changes.patch \
             file://0033-Add-message-registry-entry-for-Memhot-event.patch \
             file://0034-Update-odata.type-version-of-redfish-v1-AccountService.patch \
             file://0035-Add-MemoryMetrics-schema-file.patch \
+            file://0036-PCIeFunctions-not-showing-in-Redfish.patch \
 "
 
 # OOB Bios Config:

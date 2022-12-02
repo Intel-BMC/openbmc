@@ -29,6 +29,26 @@ SRC_URI += " \
         file://CVE-2021-4197-003.patch\
         file://CVE-2021-44733.patch\
         file://CVE-2022-29582.patch\
+        file://CVE-2022-30594.patch\
+        file://CVE-2022-20008.patch\
+        file://CVE-2022-1998.patch\
+        file://CVE-2022-32296.patch\
+        file://CVE-2021-39685.patch\
+        file://CVE-2021-39685-1.patch\
+        file://CVE-2021-39685-2.patch\
+        file://CVE-2021-39698.patch\
+        file://CVE-2021-39698-1.patch\
+        file://CVE-2021-4083.patch\
+        file://CVE-2022-1729.patch\
+        file://CVE-2022-1184_1.patch\
+        file://CVE-2022-1184_2.patch\
+        file://CVE-2022-2938.patch\
+        file://CVE-2022-2959.patch\
+        file://CVE-2022-1012.patch\
+        file://CVE-2022-2503.patch\
+        file://CVE-2022-20368.patch\
+        file://CVE-2022-0168.patch\
+        file://CVE-2022-40476.patch\
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://1000-128MB-flashmap-for-PFR.patch', '', d)}"

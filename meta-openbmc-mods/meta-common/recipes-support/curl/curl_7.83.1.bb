@@ -7,13 +7,17 @@ HOMEPAGE = "http://curl.haxx.se/"
 BUGTRACKER = "http://curl.haxx.se/mail/list.cgi?list=curl-tracker"
 SECTION = "console/network"
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://COPYING;md5=425f6fdc767cc067518eef9bbdf4ab7b"
+LIC_FILES_CHKSUM = "file://COPYING;md5=190c514872597083303371684954f238"
 
 SRC_URI = "https://curl.haxx.se/download/curl-${PV}.tar.bz2 \
            file://0001-replace-krb5-config-with-pkg-config.patch \
+           file://CVE-2022-32205-cookie-apply-limits.patch \
+           file://CVE-2022-32206-return-error-on-too-many-compression-steps.patch \
+           file://CVE-2022-32207-fopen-add-Curl_fopen-for-better-overwriting-of-fi.patch \
+           file://CVE-2022-32208-krb5-return-error-properly-on-decode-errors.patch \
 "
 
-SRC_URI[sha256sum] = "de62c4ab9a9316393962e8b94777a570bb9f71feb580fb4475e412f2f9387851"
+SRC_URI[sha256sum] = "f539a36fb44a8260ec5d977e4e0dbdd2eee29ed90fcedaa9bc3c9f78a113bff0"
 
 # Curl has used many names over the years...
 CVE_PRODUCT = "haxx:curl haxx:libcurl curl:curl curl:libcurl libcurl:libcurl daniel_stenberg:curl"

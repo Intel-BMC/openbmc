@@ -7,9 +7,9 @@ A missing macro was defined to ensure sprintf_s macro defintion is
 set when safe_str_lib.h is included.
 
 Test:
-Remove openbmc-meta-intel/meta-common/recipes-core/safec/safec_3.4.bb
+Remove meta-openbmc-mods/meta-common/recipes-core/safec/safec_3.4.bb
 Compile at-scale-debug using devtool
-ASD Sanity finished successfully(SPR).
+ASD Sanity finished successfully.
 
 Signed-off-by: Ernesto Corona <ernesto.corona@intel.com>
 Change-Id: Idd94b4ba9ff8b4194317a045b140ce90db2ee860
