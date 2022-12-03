@@ -6,4 +6,4 @@ SRC_URI += " \
            "
 
 # Temporary pin to resolve build breaks
-SRCREV="6adfe948ee55ffde8457047042d0d55aa3d8b4a7"
+SRCREV="90fab6bb667460053cfc4587b58c987f74b1bf58"

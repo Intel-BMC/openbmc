@@ -1,0 +1,39 @@
+From 5606cfc0857dc6fe1071c14f6906d866048f6c18 Mon Sep 17 00:00:00 2001
+From: AkshayRav <akshay.raveendran.k@intel.com>
+Date: Thu, 28 Apr 2022 13:57:32 +0530
+Subject: [PATCH] Add fix for possible freeing of mismatched memory (#8)
+
+* Add fix for possible freeing of mismatched memory
+
+Memory referenced by "buf" was allocated through function
+"new[]" and released through function "delete". The fix changes the
+release function to "delete[]" to remove the possible freeing of
+mismatched memory.
+
+Signed-off-by: AKSHAY RAVEENDRAN K <akshay.raveendran.k@intel.com>
+---
+ mtd-util.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mtd-util.cpp b/mtd-util.cpp
+index 7f2f98d..d6136f0 100644
+--- a/mtd-util.cpp
++++ b/mtd-util.cpp
+@@ -391,7 +391,7 @@ int main(int argc, char* argv[])
+             {
+                 std::cerr << "failed to parse '" << argv[optind]
+                           << "' as integer" << std::endl;
+-                delete buf;
++                delete[] buf;
+                 return 1;
+             }
+             optind++;
+@@ -473,7 +473,7 @@ int main(int argc, char* argv[])
+                 break;
+             case ACTION_WRITE_TO_FLASH:
+                 ret = buf_to_flash(dev, buf, start, len);
+-                delete buf;
++                delete[] buf;
+                 break;
+ #endif /* DEVELOPER_OPTIONS */
+             case ACTION_CP_TO_FILE:

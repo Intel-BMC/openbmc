@@ -1,0 +1,224 @@
+From a3eba12b5c85add20a248bb95d1b9e884a1f6262 Mon Sep 17 00:00:00 2001
+From: Ankita Vilas Gawade <ankita.gawade@intel.com>
+Date: Tue, 26 Jul 2022 20:22:10 +0000
+Subject: [PATCH] Fix Key Cancellation Update Capsule Flow
+
+In the current code flow, the block 1 component of key cancellation
+capsule is not being mapped to the correct structure which results
+in failure of key cancellation update as improper value would be picked up.
+
+This commit fixes the above issue by introducing an union, using which
+the correct block 1 strcuture can be picked up depending on the type of
+capsule.
+
+This commit also fixes the check on contents of cancellation payload and
+corrects the payload length.
+
+Tested
+1.Posted a key cancellation capsule to cancel CSK ID 2(For BMC and PFM)
+2.Performed BMC Firmware update with the image signed with CSK ID 2.
+3.Firmware Update failed succesfully implying CSK key being cancelled.
+
+Signed-off-by: Ankita Vilas Gawade <ankita.gawade@intel.com>
+---
+ pfr.cpp | 33 ++++++++++++++++-----------------
+ pfr.hpp | 27 +++++++++++++++++----------
+ 2 files changed, 33 insertions(+), 27 deletions(-)
+
+diff --git a/pfr.cpp b/pfr.cpp
+index 4ec9638..b74c166 100644
+--- a/pfr.cpp
++++ b/pfr.cpp
+@@ -599,18 +599,18 @@ static bool is_block0_sig_entry_valid(uint32_t curve, const uint8_t* root_key_x,
+  *
+  * @return bool true if this Block 1 is valid; false, otherwise
+  */
+-static bool is_block1_valid(const blk0* b0, const blk1* b1,
++static bool is_block1_valid(const blk0* b0, const sig_blk1* sig,
+                             bool is_key_cancellation_cert, bool check_root_key)
+ {
+     // Verify magic number
+-    if (b1->magic != blk1_magic)
++    if (sig->b1.magic != blk1_magic)
+     {
+         FWERROR("b1 magic invalid");
+         return false;
+     }
+ 
+     // Validate Block1 Root Entry
+-    const key_entry* root_entry = &b1->root_key;
++    const key_entry* root_entry = &sig->b1.root_key;
+     if (!is_root_entry_valid(root_entry, check_root_key))
+     {
+         FWERROR("root_entry invalid");
+@@ -621,7 +621,7 @@ static bool is_block1_valid(const blk0* b0, const blk1* b1,
+     {
+         // In the signature of the Key Cancellation Certificate, there's no CSK
+         // entry
+-        const block0_sig_entry* b0_entry = &b1->block0_sig;
++        const block0_sig_entry* b0_entry = &sig->cncl_b1.block0_sig;
+ 
+         // Validate Block 0 Entry in Block 1
+         return is_block0_sig_entry_valid(root_entry->curve, root_entry->key_x,
+@@ -629,7 +629,7 @@ static bool is_block1_valid(const blk0* b0, const blk1* b1,
+     }
+ 
+     // Validate Block1 CSK Entry
+-    const csk_entry* csk = &b1->csk;
++    const csk_entry* csk = &sig->b1.csk;
+     if (!is_csk_entry_valid(root_entry, csk, b0->pc_type))
+     {
+         FWERROR("csk_entry invalid");
+@@ -637,7 +637,7 @@ static bool is_block1_valid(const blk0* b0, const blk1* b1,
+     }
+ 
+     // Validate Block 0 Entry in Block 1
+-    const block0_sig_entry* block0_sig = &b1->block0_sig;
++    const block0_sig_entry* block0_sig = &sig->b1.block0_sig;
+     if (is_block0_sig_entry_valid(root_entry->curve, csk->key.key_x,
+                                   csk->key.key_y, block0_sig, b0))
+     {
+@@ -657,23 +657,21 @@ static bool is_block1_valid(const blk0* b0, const blk1* b1,
+  * @return uint32_t 1 if this key cancellation certificate is valid; 0,
+  * otherwise
+  */
+-static uint32_t is_key_can_cert_valid(const cancel_cert* cert)
++static uint32_t is_key_can_cert_valid(const cancel_payload* cert)
+ {
+     // Check for the 0s in the reserved field
+     // This reduces the degree of freedom for attackers
+-    const uint32_t* key_can_cert_reserved = cert->rsvd;
+-    for (uint32_t word_i = 0; word_i < cancel_pad_size / 4; word_i++)
++    const uint32_t* key_can_cert_reserved = cert->padding;
++    for (uint32_t word_i = 0; word_i < cancel_payload_pad_size; word_i++)
+     {
+         if (key_can_cert_reserved[word_i] != 0)
+         {
+             return 0;
+         }
+     }
+-    const cancel_payload* cancel =
+-        reinterpret_cast<const cancel_payload*>(cert + 1);
+ 
+     // If the key ID is within 0-127 (inclusive), return 1
+-    return cancel->csk_id <= pfr_max_key_id;
++    return cert->csk_id <= pfr_max_key_id;
+ }
+ 
+ /**
+@@ -692,11 +690,11 @@ static uint32_t is_key_can_cert_valid(const cancel_cert* cert)
+ static bool is_signature_valid(const b0b1_signature* sig, bool check_root_key)
+ {
+     const blk0* b0 = &sig->b0;
+-    const blk1* b1 = &sig->b1;
+     bool is_key_cancellation_cert = b0->pc_type & pfr_pc_type_cancel_cert;
+ 
+     // Get pointer to protected content
+     const uint8_t* pc = reinterpret_cast<const uint8_t*>(sig + 1);
++
+     if (is_key_cancellation_cert)
+     {
+         // Check the size of the cancellation certificate
+@@ -706,7 +704,7 @@ static bool is_signature_valid(const b0b1_signature* sig, bool check_root_key)
+         }
+ 
+         // Validate the cancellation certificate content
+-        if (!is_key_can_cert_valid(reinterpret_cast<const cancel_cert*>(pc)))
++        if (!is_key_can_cert_valid(reinterpret_cast<const cancel_payload*>(pc)))
+         {
+             FWERROR("cancel cert invalid");
+             return false;
+@@ -717,7 +715,8 @@ static bool is_signature_valid(const b0b1_signature* sig, bool check_root_key)
+     if (is_block0_valid(b0, pc))
+     {
+         // Validate block1 (contains the signature chain used to sign block0)
+-        if (is_block1_valid(b0, b1, is_key_cancellation_cert, check_root_key))
++        if (is_block1_valid(b0, &sig->b1_sig, is_key_cancellation_cert,
++                            check_root_key))
+         {
+             return true;
+         }
+@@ -753,7 +752,7 @@ static bool fvm_authenticate(const b0b1_signature* img_sig)
+     // but it is authenticated as follows:
+     const b0b1_signature* sig = img_sig + 1;
+     const blk0* b0 = &sig->b0;
+-    const blk1* b1 = &sig->b1;
++    const blk1* b1 = &sig->b1_sig.b1;
+     const uint8_t* pc = reinterpret_cast<const uint8_t*>(sig + 1);
+ 
+     if (!is_block0_valid(b0, pc))
+@@ -762,7 +761,7 @@ static bool fvm_authenticate(const b0b1_signature* img_sig)
+         return false;
+     }
+     // Validate block1 (contains the signature chain used to sign block0)
+-    if (!is_block1_valid(b0, b1, false, false))
++    if (!is_block1_valid(b0, &sig->b1_sig, false, false))
+     {
+         FWERROR("block1 failed authentication");
+         return false;
+diff --git a/pfr.hpp b/pfr.hpp
+index efe737a..94b7e45 100644
+--- a/pfr.hpp
++++ b/pfr.hpp
+@@ -62,7 +62,7 @@ constexpr size_t pfr_cpld_update_size = 1 * 1024 * 1024; // 1 MB
+ constexpr size_t pfr_pch_max_size = 24 * 1024 * 1024;    // 24 MB
+ constexpr size_t pfr_bmc_max_size = 32 * 1024 * 1024;    // 32 MB
+ constexpr size_t pfr_afm_max_size = 128 * 1024;          // 128KB
+-constexpr size_t pfr_cancel_cert_size = 8;
++constexpr size_t pfr_cancel_cert_size = 128;
+ constexpr uint32_t pfr_max_key_id = 127;
+ 
+ constexpr uint32_t curve_secp256r1 = 0xc7b88c74;
+@@ -179,14 +179,6 @@ struct blk1
+     uint32_t rsvd[blk1_pad_size];
+ } __attribute__((packed));
+ 
+-struct b0b1_signature
+-{
+-    blk0 b0;
+-    blk1 b1;
+-} __attribute__((packed));
+-static_assert(sizeof(b0b1_signature) == 1024,
+-              "block0 + block1 size is not 1024 bytes");
+-
+ constexpr size_t cancel_pad_size = 9;
+ struct cancel_cert
+ {
+@@ -200,11 +192,12 @@ struct cancel_cert
+ 
+ constexpr size_t cancel_sig_pad_size =
+     (blk0blk1_size - sizeof(cancel_cert) - sizeof(uint32_t) -
+-     sizeof(key_entry) - sizeof(block0_sig_entry)) /
++     (3 * sizeof(uint32_t)) - sizeof(key_entry) - sizeof(block0_sig_entry)) /
+     sizeof(uint32_t);
+ struct cancel_sig
+ {
+     uint32_t magic;
++    uint32_t pad[3];
+     key_entry root_key;
+     block0_sig_entry block0_sig;
+     uint32_t rsvd[cancel_sig_pad_size];
+@@ -219,6 +212,20 @@ struct cancel_payload
+     uint32_t padding[cancel_payload_pad_size];
+ } __attribute__((packed));
+ 
++union sig_blk1
++{
++    blk1 b1;
++    cancel_sig cncl_b1;
++};
++
++struct b0b1_signature
++{
++    blk0 b0;
++    sig_blk1 b1_sig;
++} __attribute__((packed));
++static_assert(sizeof(b0b1_signature) == 1024,
++              "block0 + block1 size is not 1024 bytes");
++
+ constexpr uint32_t pfm_magic = 0x02b3ce1d;
+ constexpr uint32_t afm_magic = 0x8883ce1d;
+ constexpr size_t pfm_block_size = 128;
+-- 
+2.25.1
+

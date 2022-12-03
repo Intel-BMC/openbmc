@@ -340,8 +340,11 @@ fitimage_assemble() {
     DTBS=""
     ramdiskcount=${3}
     setupcount=""
-    #hash_type="sha256"
-    hash_type=""
+    if [ ! -z ${SPL_BINARY} ]; then
+        hash_type="sha256"
+    else
+        hash_type=""
+    fi
     rm -f ${1} ${2}
 
     #

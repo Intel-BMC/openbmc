@@ -18,6 +18,9 @@ SRC_URI = "http://www.openssl.org/source/openssl-${PV}.tar.gz \
            file://afalg.patch \
            file://reproducible.patch \
            file://CVE-2022-0778.patch \
+           file://CVE-2022-1292-Fix-openssl-c_rehash.patch \
+           file://CVE-2022-2068-Fix-file-operations-in-c_rehash.patch \
+           file://CVE-2022-2097-openssl-Fix-AES-OCB-encryptdecrypt-for-x86-AES-NI.patch \
            "
 
 SRC_URI:append:class-nativesdk = " \

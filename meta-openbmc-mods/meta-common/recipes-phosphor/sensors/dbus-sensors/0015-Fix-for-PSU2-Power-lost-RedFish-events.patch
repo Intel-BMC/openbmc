@@ -1,0 +1,124 @@
+From bb67f9718411fc9e485d945b8ec13a61f5fec2be Mon Sep 17 00:00:00 2001
+From: Jitendra Tripathy <jitendra.kumarx.tripathy@intel.com>
+Date: Fri, 24 Jun 2022 09:13:30 +0000
+Subject: [PATCH] Fix for PSU2 Power-lost RedFish events
+
+In a dual power supply system, after Removing the PSU2 power
+cable/module, power-lost RedFish events are not getting logged in the
+RedFish logs. Only SEL entries are getting logged for PSU2. But all the
+events are getting logged for PSU1 in the redfish logs.
+
+To get PSU2 events also, replace async_wait instead of async_read_until
+while reading the hwmon files.
+
+Tested:
+1. The system should have connected with dual PSU's which are drawing
+same power.
+2. Verified both PSU are connected by executing below ipmitool command.
+"ipmitool fru"
+3. Removed one of 1600W PSU, which server holding 2 PSU's drawing 1600W.
+4. Above step try for both PSU1 and PSU2 by removing and connecting.
+5. Verified for both PSU1 and PSU2, eventlogs generated on Redfish
+respectively.
+Get: https://<BMC-IP>/redfish/v1/Systems/system/LogServices/
+             EventLog/Entries
+
+Signed-off-by: Jitendra Tripathy <jitendra.kumarx.tripathy@intel.com>
+---
+ include/PSUEvent.hpp |  1 -
+ src/PSUEvent.cpp     | 42 +++++++++++++++++++++---------------------
+ 2 files changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/include/PSUEvent.hpp b/include/PSUEvent.hpp
+index 3a39164..72abbae 100644
+--- a/include/PSUEvent.hpp
++++ b/include/PSUEvent.hpp
+@@ -57,7 +57,6 @@ class PSUSubEvent : public std::enable_shared_from_this<PSUSubEvent>
+ 
+     PowerState readState;
+     boost::asio::deadline_timer waitTimer;
+-    std::shared_ptr<boost::asio::streambuf> readBuf;
+     void restartRead();
+     void handleResponse(const boost::system::error_code& err);
+     void updateValue(const int& newValue);
+diff --git a/src/PSUEvent.cpp b/src/PSUEvent.cpp
+index 44275a3..446f14f 100644
+--- a/src/PSUEvent.cpp
++++ b/src/PSUEvent.cpp
+@@ -157,7 +157,7 @@ PSUSubEvent::PSUSubEvent(
+     {
+         eventPollMs = static_cast<unsigned int>(pollRate * 1000);
+     }
+-    fd = open(path.c_str(), O_RDONLY);
++    fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
+     if (fd < 0)
+     {
+         std::cerr << "PSU sub event failed to open file\n";
+@@ -205,20 +205,15 @@ void PSUSubEvent::setupRead(void)
+         return;
+     }
+ 
+-    std::shared_ptr<boost::asio::streambuf> buffer =
+-        std::make_shared<boost::asio::streambuf>();
+     std::weak_ptr<PSUSubEvent> weakRef = weak_from_this();
+-    boost::asio::async_read_until(
+-        inputDev, *buffer, '\n',
+-        [weakRef, buffer](const boost::system::error_code& ec,
+-                          std::size_t /*bytes_transfered*/) {
+-            std::shared_ptr<PSUSubEvent> self = weakRef.lock();
+-            if (self)
+-            {
+-                self->readBuf = buffer;
+-                self->handleResponse(ec);
+-            }
+-        });
++    inputDev.async_wait(boost::asio::posix::descriptor_base::wait_read,
++                        [weakRef](const boost::system::error_code& ec) {
++                            std::shared_ptr<PSUSubEvent> self = weakRef.lock();
++                            if (self)
++                            {
++                                self->handleResponse(ec);
++                            }
++                        });
+ }
+ 
+ void PSUSubEvent::restartRead()
+@@ -238,23 +233,28 @@ void PSUSubEvent::restartRead()
+     });
+ }
+ 
++// Create a buffer expected to be able to hold more characters than will be
++// present in the input file.
++static constexpr uint32_t psuBufLen = 128;
+ void PSUSubEvent::handleResponse(const boost::system::error_code& err)
+ {
+     if ((err == boost::system::errc::bad_file_descriptor) ||
+         (err == boost::asio::error::misc_errors::not_found))
+     {
++        std::cerr << "Bad file descriptor for " << path << "\n";
+         return;
+     }
+-    std::istream responseStream(readBuf.get());
+-    if (!err)
++
++    std::string buffer;
++    buffer.resize(psuBufLen);
++    lseek(fd, 0, SEEK_SET);
++    int rdLen = read(fd, buffer.data(), psuBufLen);
++
++    if (rdLen > 0)
+     {
+-        std::string response;
+         try
+         {
+-            std::getline(responseStream, response);
+-            int nvalue = std::stoi(response);
+-            responseStream.clear();
+-
++            int nvalue = std::stoi(buffer);
+             updateValue(nvalue);
+             errCount = 0;
+         }
+-- 
+2.17.1
+

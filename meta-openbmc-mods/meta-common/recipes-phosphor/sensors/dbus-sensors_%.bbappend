@@ -20,6 +20,8 @@ SRC_URI += "\
     file://0012-Serialize-cpusensor-polling.patch \
     file://0013-Add-dummy-cpu-sensor-flag.patch \
     file://0014-Treat-zero-temperatures-readings-as-errors-in-IpmbSe.patch \
+    file://0015-Fix-for-PSU2-Power-lost-RedFish-events.patch \
+    file://0016-Ignore-VR-sensor-readings-if-content-is-0xFF.patch \
     "
 
 DEPENDS:append = " libgpiod libmctp"

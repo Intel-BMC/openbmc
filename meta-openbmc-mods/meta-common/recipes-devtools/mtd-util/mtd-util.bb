@@ -8,6 +8,11 @@ SRC_URI = "git://git@github.com/Intel-BMC/mtd-util.git;protocol=ssh"
 PV = "1.0+git${SRCPV}"
 SRCREV = "708072b62a3cecb520eeaacac88b4f2c2e101fe4"
 
+SRC_URI += " \
+            file://0001-Firmware-update-fix-for-mis-aligned-sectors.patch \
+            file://0002-Add-fix-for-possible-freeing-of-mismatched-memory.patch \
+            file://0003-Fix-Key-Cancellation-Update-Capsule-Flow.patch \
+           "
 
 S = "${WORKDIR}/git"
 

@@ -1,0 +1,62 @@
+From 2939f827a10f0104d06d74d9744dffeae6b1af7a Mon Sep 17 00:00:00 2001
+From: "D M, Karthik" <karthik.d.m@intel.com>
+Date: Tue, 14 Jun 2022 09:46:20 +0530
+Subject: [PATCH] PCIeFunctions not showing in Redfish
+
+For PCIe devices which do not have PCIeType, will not get
+PCIeFunctions populated due to a "return" statement while parsing
+for PCIeType.
+
+Missing Data:
+"PCIeFunctions": {
+"@odata.id": "/redfish/v1/Systems/system/PCIeDevices/<device>/PCIeFunctions"
+}
+
+Tested for all 3 PCIe devices, PCIeFunction details after fixing
+{
+"@odata.id": "/redfish/v1/Systems/system/PCIeDevices/S0B3D0",
+"@odata.type": "#PCIeDevice.v1_4_0.PCIeDevice",
+"DeviceType": "SingleFunction",
+"Id": "S0B3D0",
+"Manufacturer": "ASPEED Technology Inc.",
+"Name": "PCIe Device",
+"PCIeFunctions": {
+"@odata.id": "/redfish/v1/Systems/system/PCIeDevices/S0B3D0/PCIeFunctions"
+}
+}
+
+Signed-off-by: D M, Karthik <karthik.d.m@intel.com>
+---
+ redfish-core/lib/pcie.hpp | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/redfish-core/lib/pcie.hpp b/redfish-core/lib/pcie.hpp
+index 1b9e28e..95c2b2c 100644
+--- a/redfish-core/lib/pcie.hpp
++++ b/redfish-core/lib/pcie.hpp
+@@ -176,6 +176,11 @@ inline void requestRoutesSystemPCIeDevice(App& app)
+                             {"Name", "PCIe Device"},
+                             {"Id", device}};
+ 
++                        asyncResp->res.jsonValue["PCIeFunctions"] = {
++                            {"@odata.id",
++                             "/redfish/v1/Systems/system/PCIeDevices/" +
++                                 device + "/PCIeFunctions"}};
++
+                         if (std::string* property = std::get_if<std::string>(
+                                 &pcieDevProperties["Manufacturer"]);
+                             property)
+@@ -226,10 +231,6 @@ inline void requestRoutesSystemPCIeDevice(App& app)
+                                 .jsonValue["PCIeInterface"]["PCIeType"] =
+                                 *generationInUse;
+                         }
+-                        asyncResp->res.jsonValue["PCIeFunctions"] = {
+-                            {"@odata.id",
+-                             "/redfish/v1/Systems/system/PCIeDevices/" +
+-                                 device + "/PCIeFunctions"}};
+                     };
+                 std::string escapedPath = std::string(pciePath) + "/" + device;
+                 dbus::utility::escapePathForDbus(escapedPath);
+-- 
+2.20.0.windows.1
+

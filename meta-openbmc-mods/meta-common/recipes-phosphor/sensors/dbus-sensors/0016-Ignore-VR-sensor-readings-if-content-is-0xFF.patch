@@ -1,0 +1,44 @@
+From d8583d8b347b2f4c3d6e84f333df4cd137085189 Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 4 Jul 2022 16:03:35 +0000
+Subject: [PATCH] Ignore VR sensor readings if content is 0xFF
+
+As per NM 6.0 specification SPS FW will return 0xFF in certain
+erroneous condition with error code stating transaction successful.
+BMC need to ignore such readings.
+
+Tested:
+Verified by monitoring more than 1 hour, ignored VR sensor readings when
+content is 0xFF.
+
+Signed-off-by: Vikash Chandola vikash.chandola@intel.com
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ src/IpmbSensor.cpp | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 2cb2495..a41209d 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -321,7 +321,16 @@ void IpmbSensor::checkThresholds(void)
+ 
+ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+ {
+-
++    if (isReadMe && data.size() >= 5)
++    {
++        // This is VR sensor. Mark failure if byte at index 3 and 4 are 0xFF
++        if (data[3] == 0xFF && data[4] == 0xFF)
++        {
++            std::cerr << name << " value is 0xFFFF. Marking error\n";
++            markFunctional(false);
++            return false;
++        }
++    }
+     switch (readingFormat)
+     {
+         case (ReadingFormat::byte0):
+-- 
+2.17.1
+
