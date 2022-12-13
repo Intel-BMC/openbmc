@@ -3,6 +3,8 @@ SRC_URI_append = " file://0001-Blacklist-DIMM-Bus.patch \
                    file://WC-Baseboard.json \
                    file://WP-Baseboard.json \
                    file://TNP-baseboard.json \
+                   file://BC-Baseboard.json \
+                   file://MC-Baseboard.json \
                    file://FCXXPDBASSMBL_PDB.json \
                    file://OPB2RH-Chassis.json \
                    file://CYP-baseboard.json \
