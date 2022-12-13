@@ -49,6 +49,9 @@ SRC_URI += " \
         file://CVE-2022-20368.patch\
         file://CVE-2022-0168.patch\
         file://CVE-2022-40476.patch\
+        file://CVE-2022-2663-1.patch\
+        file://CVE-2022-2663-2.patch\
+        file://CVE-2022-20158-1.patch\
         "
 
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://1000-128MB-flashmap-for-PFR.patch', '', d)}"

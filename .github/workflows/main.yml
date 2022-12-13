@@ -12,7 +12,7 @@ jobs:
     - name: Run a multi-line script
       run: |
         sudo apt update
-        sudo apt-get install gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat
+        sudo apt-get install gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat lz4
         sudo apt autoremove
         rm -rf build
         export TEMPLATECONF=meta-openbmc-mods/meta-wht/conf
