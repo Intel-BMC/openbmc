@@ -7,7 +7,8 @@ early access to features and capabilities which have not yet been accepted or
 merged in the OpenBMC main project (github.com/openbmc). In due course, all of
 the capabilities here will be brought to the OpenBMC project.
 
-For questions or support please email OpenBMC.Support@intel.com.
+For questions not addressed below or addtional support please contact your IBV
+or use your Intel support channel.
 
 Some answers to the main questions that tend to get asked: 
 
