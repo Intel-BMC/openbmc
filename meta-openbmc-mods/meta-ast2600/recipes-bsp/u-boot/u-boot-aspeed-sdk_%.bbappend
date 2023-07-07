@@ -41,7 +41,6 @@ SRC_URI:append:intel-ast2600 = " \
     file://0034-Implement-the-IPMI-commands-in-FFUJ-mode-in-u-boot.patch \
     file://0036-Disable-BMC-MMIO-Decode-on-VGA-SCU-register-bit.patch \
     file://0037-Enable-I2C-clock-stretching-and-multi-master-support.patch \
-    file://0038-Disabling-serial-console-if-FFUJ-is-enabled.patch \
     file://0044-Enable-WDT2-for-causing-reset-in-Kernel-u-boot-hang.patch \
     "
 
@@ -103,12 +102,13 @@ PFR_SRC_URI = " \
     file://0045-PFR-Skip-counting-WDT2-event-when-EXTRST-is-set.patch \
     "
 
-AUTOBOOT_SRC_URI = " \
+U_BOOT_RELEASE_FEATURE = " \
     file://0035-Remove-u-boot-delay-before-autoboot-in-release-image.patch \
+    file://0038-Disabling-serial-console-if-FFUJ-is-enabled.patch \
     "
 
 SRC_URI:append:intel-ast2600 += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', PFR_SRC_URI, '', d)}"
-SRC_URI:append:intel-ast2600 += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', AUTOBOOT_SRC_URI, d)}"
+SRC_URI:append:intel-ast2600 += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', '', U_BOOT_RELEASE_FEATURE, d)}"
 
 do_install:append () {
     install -m 0644 ${WORKDIR}/fw_env.config ${D}${sysconfdir}/fw_env.config

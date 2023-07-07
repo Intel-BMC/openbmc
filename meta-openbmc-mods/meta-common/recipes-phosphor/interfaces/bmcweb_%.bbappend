@@ -55,6 +55,7 @@ SRC_URI += " \
             file://vm/0006-Bmcweb-handle-permission-denied-exception.patch \
             file://vm/0007-Fix-unmounting-image-in-proxy-mode.patch \
             file://vm/0008-Return-404-for-POST-on-Proxy-InsertMedia.patch \
+            file://vm/0009-virtual_media-Fix-for-bmcweb-crash.patch \
 "
 
 # EventService: Temporary pulled to downstream. See eventservice\README for details

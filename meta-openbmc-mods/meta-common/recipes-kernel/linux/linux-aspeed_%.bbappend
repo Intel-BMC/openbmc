@@ -52,7 +52,22 @@ SRC_URI += " \
         file://CVE-2022-2663-1.patch\
         file://CVE-2022-2663-2.patch\
         file://CVE-2022-20158-1.patch\
+        file://0004-soc-aspeed-lpc-mbox-Don-t-allow-partial-reads.patch \
+        file://CVE-2022-3543.patch \
+        file://CVE-2022-42703.patch \
+        file://CVE-2022-4378-1.patch \
+        file://CVE-2022-4378-2.patch \
+        file://CVE-2022-2978.patch \
+        file://CVE-2022-3623.patch \
+        file://CVE-2023-0394.patch \
+        file://CVE-2023-1252.patch\
+        file://CVE-2023-1073.patch\
+        file://CVE-2023-1077.patch\
+        file://CVE-2023-1582.patch \
+        file://CVE-2020-36516.patch \
+        file://0005-ext4-add-EXT4_INODE_HAS_XATTR_SPACE-macro-in-xattr-h.patch \
+        file://CVE-2023-2513.patch \
+        file://CVE-2023-2269.patch \
         "
-
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://1000-128MB-flashmap-for-PFR.patch', '', d)}"
 SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'file://debug.cfg', '', d)}"

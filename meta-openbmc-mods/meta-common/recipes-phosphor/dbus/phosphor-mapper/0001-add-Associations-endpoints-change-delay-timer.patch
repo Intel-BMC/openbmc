@@ -1,0 +1,978 @@
+From 48c39d798ce9683c186395272452893e2227d984 Mon Sep 17 00:00:00 2001
+From: "Kallas, Pawel" <pawel.kallas@intel.com>
+Date: Mon, 9 Jan 2023 13:27:45 +0100
+Subject: [PATCH] add Associations endpoints change delay timer
+
+When multiple associations that point to the same interface are
+created, each change (adding or removing one) leads to updating
+"endpoints" property on dbus. This property update is time consuming
+with many endpoints already present, because each update needs to send
+the whole list of current elements plus/minus one. With a lot of
+changes in short time it can cause the service to be unresponsive.
+This change adds timer to delay updating dbus property. This way many
+associations updates can be aggregated into single dbus property
+update.
+
+Tested: Ran on hardware with dbus sensor tester. 4000 created sensors
+with interfaces are processed within 10 seconds. Time before the change
+was above 2 minutes.
+
+Signed-off-by: Kallas, Pawel <pawel.kallas@intel.com>
+Change-Id: I1083c027ab12238249cffc67fb29a8ffef6baf83
+---
+ src/associations.cpp          | 156 ++++++++++++++++++++++------------
+ src/associations.hpp          |  32 +++++--
+ src/main.cpp                  |  48 ++++++-----
+ src/processing.cpp            |  13 +--
+ src/processing.hpp            |   6 +-
+ src/test/associations.cpp     |  43 ++++++----
+ src/test/interfaces_added.cpp |   6 +-
+ src/test/name_change.cpp      |  10 ++-
+ 8 files changed, 202 insertions(+), 112 deletions(-)
+
+diff --git a/src/associations.cpp b/src/associations.cpp
+index 9fd72ab..7730bbd 100644
+--- a/src/associations.cpp
++++ b/src/associations.cpp
+@@ -1,10 +1,81 @@
+ #include "associations.hpp"
+ 
+ #include <boost/algorithm/string/predicate.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <iostream>
+ #include <sdbusplus/exception.hpp>
+ 
+-void removeAssociation(const std::string& sourcePath, const std::string& owner,
++void updateEndpointsOnDbus(sdbusplus::asio::object_server& objectServer,
++                           const std::string& assocPath,
++                           AssociationMaps& assocMaps)
++{
++    auto& iface = assocMaps.ifaces[assocPath];
++    auto& i = std::get<ifacePos>(iface);
++    auto& endpoints = std::get<endpointsPos>(iface);
++
++    // If the interface already exists, only need to update
++    // the property value, otherwise create it
++    if (i)
++    {
++        if (endpoints.empty())
++        {
++            objectServer.remove_interface(i);
++            i = nullptr;
++        }
++        else
++        {
++            i->set_property("endpoints", endpoints);
++        }
++    }
++    else
++    {
++        if (!endpoints.empty())
++        {
++            i = objectServer.add_interface(assocPath,
++                                           XYZ_ASSOCIATION_INTERFACE);
++            i->register_property("endpoints", endpoints);
++            i->initialize();
++        }
++    }
++}
++
++void scheduleUpdateEndpointsOnDbus(boost::asio::io_context& io,
++                                   sdbusplus::asio::object_server& objectServer,
++                                   const std::string& assocPath,
++                                   AssociationMaps& assocMaps)
++{
++    static std::set<std::string> delayedUpdatePaths;
++
++    if (delayedUpdatePaths.contains(assocPath))
++    {
++        return;
++    }
++
++    auto& iface = assocMaps.ifaces[assocPath];
++    auto& endpoints = std::get<endpointsPos>(iface);
++
++    if (endpoints.size() > endpointsCountTimerThreshold)
++    {
++        delayedUpdatePaths.emplace(assocPath);
++        auto timer = std::make_shared<boost::asio::steady_timer>(
++            io, std::chrono::seconds(endpointUpdateDelaySeconds));
++        timer->async_wait([&objectServer, &assocMaps, timer,
++                           assocPath](const boost::system::error_code& ec) {
++            if (!ec)
++            {
++                updateEndpointsOnDbus(objectServer, assocPath, assocMaps);
++            }
++            delayedUpdatePaths.erase(assocPath);
++        });
++    }
++    else
++    {
++        updateEndpointsOnDbus(objectServer, assocPath, assocMaps);
++    }
++}
++
++void removeAssociation(boost::asio::io_context& io,
++                       const std::string& sourcePath, const std::string& owner,
+                        sdbusplus::asio::object_server& server,
+                        AssociationMaps& assocMaps)
+ {
+@@ -34,7 +105,7 @@ void removeAssociation(const std::string& sourcePath, const std::string& owner,
+ 
+     for (const auto& [assocPath, endpointsToRemove] : assocs->second)
+     {
+-        removeAssociationEndpoints(server, assocPath, endpointsToRemove,
++        removeAssociationEndpoints(io, server, assocPath, endpointsToRemove,
+                                    assocMaps);
+     }
+ 
+@@ -51,7 +122,8 @@ void removeAssociation(const std::string& sourcePath, const std::string& owner,
+ }
+ 
+ void removeAssociationEndpoints(
+-    sdbusplus::asio::object_server& objectServer, const std::string& assocPath,
++    boost::asio::io_context& io, sdbusplus::asio::object_server& objectServer,
++    const std::string& assocPath,
+     const boost::container::flat_set<std::string>& endpointsToRemove,
+     AssociationMaps& assocMaps)
+ {
+@@ -74,22 +146,12 @@ void removeAssociationEndpoints(
+         }
+     }
+ 
+-    if (endpointsInDBus.empty())
+-    {
+-        objectServer.remove_interface(std::get<ifacePos>(assoc->second));
+-        std::get<ifacePos>(assoc->second) = nullptr;
+-        std::get<endpointsPos>(assoc->second).clear();
+-    }
+-    else
+-    {
+-        std::get<ifacePos>(assoc->second)
+-            ->set_property("endpoints", endpointsInDBus);
+-    }
++    scheduleUpdateEndpointsOnDbus(io, objectServer, assocPath, assocMaps);
+ }
+ 
+ void checkAssociationEndpointRemoves(
+-    const std::string& sourcePath, const std::string& owner,
+-    const AssociationPaths& newAssociations,
++    boost::asio::io_context& io, const std::string& sourcePath,
++    const std::string& owner, const AssociationPaths& newAssociations,
+     sdbusplus::asio::object_server& objectServer, AssociationMaps& assocMaps)
+ {
+     // Find the services that have associations on this path.
+@@ -118,7 +180,7 @@ void checkAssociationEndpointRemoves(
+         auto newEndpoints = newAssociations.find(originalAssocPath);
+         if (newEndpoints == newAssociations.end())
+         {
+-            removeAssociationEndpoints(objectServer, originalAssocPath,
++            removeAssociationEndpoints(io, objectServer, originalAssocPath,
+                                        originalEndpoints, assocMaps);
+         }
+         else
+@@ -138,7 +200,7 @@ void checkAssociationEndpointRemoves(
+             }
+             if (!toRemove.empty())
+             {
+-                removeAssociationEndpoints(objectServer, originalAssocPath,
++                removeAssociationEndpoints(io, objectServer, originalAssocPath,
+                                            toRemove, assocMaps);
+             }
+         }
+@@ -146,12 +208,12 @@ void checkAssociationEndpointRemoves(
+ }
+ 
+ void addEndpointsToAssocIfaces(
+-    sdbusplus::asio::object_server& objectServer, const std::string& assocPath,
++    boost::asio::io_context& io, sdbusplus::asio::object_server& objectServer,
++    const std::string& assocPath,
+     const boost::container::flat_set<std::string>& endpointPaths,
+     AssociationMaps& assocMaps)
+ {
+     auto& iface = assocMaps.ifaces[assocPath];
+-    auto& i = std::get<ifacePos>(iface);
+     auto& endpoints = std::get<endpointsPos>(iface);
+ 
+     // Only add new endpoints
+@@ -162,22 +224,11 @@ void addEndpointsToAssocIfaces(
+             endpoints.push_back(e);
+         }
+     }
+-
+-    // If the interface already exists, only need to update
+-    // the property value, otherwise create it
+-    if (i)
+-    {
+-        i->set_property("endpoints", endpoints);
+-    }
+-    else
+-    {
+-        i = objectServer.add_interface(assocPath, XYZ_ASSOCIATION_INTERFACE);
+-        i->register_property("endpoints", endpoints);
+-        i->initialize();
+-    }
++    scheduleUpdateEndpointsOnDbus(io, objectServer, assocPath, assocMaps);
+ }
+ 
+-void associationChanged(sdbusplus::asio::object_server& objectServer,
++void associationChanged(boost::asio::io_context& io,
++                        sdbusplus::asio::object_server& objectServer,
+                         const std::vector<Association>& associations,
+                         const std::string& path, const std::string& owner,
+                         const interface_map_type& interfaceMap,
+@@ -217,12 +268,12 @@ void associationChanged(sdbusplus::asio::object_server& objectServer,
+     }
+     for (const auto& object : objects)
+     {
+-        addEndpointsToAssocIfaces(objectServer, object.first, object.second,
++        addEndpointsToAssocIfaces(io, objectServer, object.first, object.second,
+                                   assocMaps);
+     }
+ 
+     // Check for endpoints being removed instead of added
+-    checkAssociationEndpointRemoves(path, owner, objects, objectServer,
++    checkAssociationEndpointRemoves(io, path, owner, objects, objectServer,
+                                     assocMaps);
+ 
+     if (!objects.empty())
+@@ -312,7 +363,8 @@ void removeFromPendingAssociations(const std::string& endpointPath,
+     }
+ }
+ 
+-void addSingleAssociation(sdbusplus::asio::object_server& server,
++void addSingleAssociation(boost::asio::io_context& io,
++                          sdbusplus::asio::object_server& server,
+                           const std::string& assocPath,
+                           const std::string& endpoint, const std::string& owner,
+                           const std::string& ownerPath,
+@@ -320,7 +372,7 @@ void addSingleAssociation(sdbusplus::asio::object_server& server,
+ {
+     boost::container::flat_set<std::string> endpoints{endpoint};
+ 
+-    addEndpointsToAssocIfaces(server, assocPath, endpoints, assocMaps);
++    addEndpointsToAssocIfaces(io, server, assocPath, endpoints, assocMaps);
+ 
+     AssociationPaths objects;
+     boost::container::flat_set e{endpoint};
+@@ -355,7 +407,8 @@ void addSingleAssociation(sdbusplus::asio::object_server& server,
+     }
+ }
+ 
+-void checkIfPendingAssociation(const std::string& objectPath,
++void checkIfPendingAssociation(boost::asio::io_context& io,
++                               const std::string& objectPath,
+                                const interface_map_type& interfaceMap,
+                                AssociationMaps& assocMaps,
+                                sdbusplus::asio::object_server& server)
+@@ -399,13 +452,13 @@ void checkIfPendingAssociation(const std::string& objectPath,
+ 
+         try
+         {
+-            addSingleAssociation(server, assocPath, endpointPath, owner,
++            addSingleAssociation(io, server, assocPath, endpointPath, owner,
+                                  ownerPath, assocMaps);
+ 
+             // Now the reverse direction (still the same owner and ownerPath)
+             assocPath = endpointPath + '/' + std::get<reverseTypePos>(e);
+             endpointPath = objectPath;
+-            addSingleAssociation(server, assocPath, endpointPath, owner,
++            addSingleAssociation(io, server, assocPath, endpointPath, owner,
+                                  ownerPath, assocMaps);
+         }
+         catch (const sdbusplus::exception::exception& e)
+@@ -495,7 +548,8 @@ void findAssociations(const std::string& endpointPath,
+  * @param[in,out] assocMaps - the association maps
+  * @param[in,out] server    - sdbus system object
+  */
+-void removeAssociationIfacesEntry(const std::string& assocPath,
++void removeAssociationIfacesEntry(boost::asio::io_context& io,
++                                  const std::string& assocPath,
+                                   const std::string& endpointPath,
+                                   AssociationMaps& assocMaps,
+                                   sdbusplus::asio::object_server& server)
+@@ -509,16 +563,7 @@ void removeAssociationIfacesEntry(const std::string& assocPath,
+         {
+             endpoints.erase(e);
+ 
+-            if (endpoints.empty())
+-            {
+-                server.remove_interface(std::get<ifacePos>(assoc->second));
+-                std::get<ifacePos>(assoc->second) = nullptr;
+-            }
+-            else
+-            {
+-                std::get<ifacePos>(assoc->second)
+-                    ->set_property("endpoints", endpoints);
+-            }
++            scheduleUpdateEndpointsOnDbus(io, server, assocPath, assocMaps);
+         }
+     }
+ }
+@@ -577,7 +622,8 @@ void removeAssociationOwnersEntry(const std::string& assocPath,
+     }
+ }
+ 
+-void moveAssociationToPending(const std::string& endpointPath,
++void moveAssociationToPending(boost::asio::io_context& io,
++                              const std::string& endpointPath,
+                               AssociationMaps& assocMaps,
+                               sdbusplus::asio::object_server& server)
+ {
+@@ -599,9 +645,9 @@ void moveAssociationToPending(const std::string& endpointPath,
+                               reverseType, owner, assocMaps);
+ 
+         // Remove both sides of the association from assocMaps.ifaces
+-        removeAssociationIfacesEntry(forwardPath + '/' + forwardType,
++        removeAssociationIfacesEntry(io, forwardPath + '/' + forwardType,
+                                      reversePath, assocMaps, server);
+-        removeAssociationIfacesEntry(reversePath + '/' + reverseType,
++        removeAssociationIfacesEntry(io, reversePath + '/' + reverseType,
+                                      forwardPath, assocMaps, server);
+ 
+         // Remove both sides of the association from assocMaps.owners
+diff --git a/src/associations.hpp b/src/associations.hpp
+index dd6cbdb..b4ee91b 100644
+--- a/src/associations.hpp
++++ b/src/associations.hpp
+@@ -5,8 +5,12 @@
+ constexpr const char* XYZ_ASSOCIATION_INTERFACE =
+     "xyz.openbmc_project.Association";
+ 
++constexpr size_t endpointsCountTimerThreshold = 100;
++constexpr int endpointUpdateDelaySeconds = 1;
++
+ /** @brief Remove input association
+  *
++ * @param[in] io                  - io context
+  * @param[in] sourcePath          - Path of the object that contains the
+  *                                  org.openbmc.Associations
+  * @param[in] owner               - The Dbus service having its associations
+@@ -16,7 +20,8 @@ constexpr const char* XYZ_ASSOCIATION_INTERFACE =
+  *
+  * @return Void, server, assocMaps updated if needed
+  */
+-void removeAssociation(const std::string& sourcePath, const std::string& owner,
++void removeAssociation(boost::asio::io_context& io,
++                       const std::string& sourcePath, const std::string& owner,
+                        sdbusplus::asio::object_server& server,
+                        AssociationMaps& assocMaps);
+ 
+@@ -25,6 +30,7 @@ void removeAssociation(const std::string& sourcePath, const std::string& owner,
+  * If the last endpoint was removed, then remove the whole
+  * association object, otherwise just set the property
+  *
++ * @param[in] io                  - io context
+  * @param[in] objectServer        - sdbus system object
+  * @param[in] assocPath           - Path of the object that contains the
+  *                                  org.openbmc.Associations
+@@ -34,7 +40,8 @@ void removeAssociation(const std::string& sourcePath, const std::string& owner,
+  * @return Void, objectServer and assocMaps updated if needed
+  */
+ void removeAssociationEndpoints(
+-    sdbusplus::asio::object_server& objectServer, const std::string& assocPath,
++    boost::asio::io_context& io, sdbusplus::asio::object_server& objectServer,
++    const std::string& assocPath,
+     const boost::container::flat_set<std::string>& endpointsToRemove,
+     AssociationMaps& assocMaps);
+ 
+@@ -47,6 +54,7 @@ void removeAssociationEndpoints(
+  * from the endpoints property, remove that whole association object from
+  * D-Bus.
+  *
++ * @param[in] io                  - io context
+  * @param[in] sourcePath         - Path of the object that contains the
+  *                                 org.openbmc.Associations
+  * @param[in] owner              - The Dbus service having it's associatons
+@@ -58,8 +66,8 @@ void removeAssociationEndpoints(
+  * @return Void, objectServer and assocMaps updated if needed
+  */
+ void checkAssociationEndpointRemoves(
+-    const std::string& sourcePath, const std::string& owner,
+-    const AssociationPaths& newAssociations,
++    boost::asio::io_context& io, const std::string& sourcePath,
++    const std::string& owner, const AssociationPaths& newAssociations,
+     sdbusplus::asio::object_server& objectServer, AssociationMaps& assocMaps);
+ 
+ /** @brief Handle new or changed association interfaces
+@@ -67,6 +75,7 @@ void checkAssociationEndpointRemoves(
+  * Called when either a new org.openbmc.Associations interface was
+  * created, or the associations property on that interface changed
+  *
++ * @param[in] io                  - io context
+  * @param[in,out] objectServer    - sdbus system object
+  * @param[in] associations        - New associations to look at for change
+  * @param[in] path                - Path of the object that contains the
+@@ -78,7 +87,8 @@ void checkAssociationEndpointRemoves(
+  *
+  * @return Void, objectServer and assocMaps updated if needed
+  */
+-void associationChanged(sdbusplus::asio::object_server& objectServer,
++void associationChanged(boost::asio::io_context& io,
++                        sdbusplus::asio::object_server& objectServer,
+                         const std::vector<Association>& associations,
+                         const std::string& path, const std::string& owner,
+                         const interface_map_type& interfaceMap,
+@@ -123,6 +133,7 @@ void removeFromPendingAssociations(const std::string& endpointPath,
+ 
+ /** @brief Adds a single association D-Bus object (<path>/<type>)
+  *
++ * @param[in] io            - io context
+  * @param[in,out] server    - sdbus system object
+  * @param[in] assocPath     - The association D-Bus path
+  * @param[in] endpoint      - The association's D-Bus endpoint path
+@@ -130,7 +141,8 @@ void removeFromPendingAssociations(const std::string& endpointPath,
+  * @param[in] ownerPath     - The D-Bus path hosting the Associations property
+  * @param[in,out] assocMaps - The association maps
+  */
+-void addSingleAssociation(sdbusplus::asio::object_server& server,
++void addSingleAssociation(boost::asio::io_context& io,
++                          sdbusplus::asio::object_server& server,
+                           const std::string& assocPath,
+                           const std::string& endpoint, const std::string& owner,
+                           const std::string& ownerPath,
+@@ -143,12 +155,14 @@ void addSingleAssociation(sdbusplus::asio::object_server& server,
+  * map, create the 2 real association objects and remove its pending
+  * associations entry.  Used when a new path shows up in D-Bus.
+  *
++ * @param[in] io            - io context
+  * @param[in] objectPath    - the path to check
+  * @param[in] interfaceMap  - The master interface map
+  * @param[in,out] assocMaps - The association maps
+  * @param[in,out] server    - sdbus system object
+  */
+-void checkIfPendingAssociation(const std::string& objectPath,
++void checkIfPendingAssociation(boost::asio::io_context& io,
++                               const std::string& objectPath,
+                                const interface_map_type& interfaceMap,
+                                AssociationMaps& assocMaps,
+                                sdbusplus::asio::object_server& server);
+@@ -172,10 +186,12 @@ void findAssociations(const std::string& endpointPath,
+  *  association endpoint (the path that owns the association is still
+  *  on D-Bus), then move the association it's involved in to pending.
+  *
++ * @param[in] io            - io context
+  * @param[in] endpointPath  - the D-Bus endpoint path to check
+  * @param[in,out] assocMaps - The association maps
+  * @param[in,out] server    - sdbus system object
+  */
+-void moveAssociationToPending(const std::string& endpointPath,
++void moveAssociationToPending(boost::asio::io_context& io,
++                              const std::string& endpointPath,
+                               AssociationMaps& assocMaps,
+                               sdbusplus::asio::object_server& server);
+diff --git a/src/main.cpp b/src/main.cpp
+index 53b36d5..ee03be7 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -131,7 +131,8 @@ struct InProgressIntrospect
+ #endif
+ };
+ 
+-void do_associations(sdbusplus::asio::connection* system_bus,
++void do_associations(boost::asio::io_context& io,
++                     sdbusplus::asio::connection* system_bus,
+                      interface_map_type& interfaceMap,
+                      sdbusplus::asio::object_server& objectServer,
+                      const std::string& processName, const std::string& path,
+@@ -139,7 +140,7 @@ void do_associations(sdbusplus::asio::connection* system_bus,
+ {
+     constexpr int maxTimeoutRetries = 3;
+     system_bus->async_method_call(
+-        [&objectServer, path, processName, &interfaceMap, system_bus,
++        [&io, &objectServer, path, processName, &interfaceMap, system_bus,
+          timeoutRetries](
+             const boost::system::error_code ec,
+             const std::variant<std::vector<Association>>& variantAssociations) {
+@@ -148,7 +149,7 @@ void do_associations(sdbusplus::asio::connection* system_bus,
+                 if (ec.value() == boost::system::errc::timed_out &&
+                     timeoutRetries < maxTimeoutRetries)
+                 {
+-                    do_associations(system_bus, interfaceMap, objectServer,
++                    do_associations(io, system_bus, interfaceMap, objectServer,
+                                     processName, path, timeoutRetries + 1);
+                     return;
+                 }
+@@ -156,14 +157,15 @@ void do_associations(sdbusplus::asio::connection* system_bus,
+             }
+             std::vector<Association> associations =
+                 std::get<std::vector<Association>>(variantAssociations);
+-            associationChanged(objectServer, associations, path, processName,
+-                               interfaceMap, associationMaps);
++            associationChanged(io, objectServer, associations, path,
++                               processName, interfaceMap, associationMaps);
+         },
+         processName, path, "org.freedesktop.DBus.Properties", "Get",
+         assocDefsInterface, assocDefsProperty);
+ }
+ 
+-void do_introspect(sdbusplus::asio::connection* system_bus,
++void do_introspect(boost::asio::io_context& io,
++                   sdbusplus::asio::connection* system_bus,
+                    std::shared_ptr<InProgressIntrospect> transaction,
+                    interface_map_type& interface_map,
+                    sdbusplus::asio::object_server& objectServer,
+@@ -171,7 +173,7 @@ void do_introspect(sdbusplus::asio::connection* system_bus,
+ {
+     constexpr int maxTimeoutRetries = 3;
+     system_bus->async_method_call(
+-        [&interface_map, &objectServer, transaction, path, system_bus,
++        [&io, &interface_map, &objectServer, transaction, path, system_bus,
+          timeoutRetries](const boost::system::error_code ec,
+                          const std::string& introspect_xml) {
+             if (ec)
+@@ -179,7 +181,7 @@ void do_introspect(sdbusplus::asio::connection* system_bus,
+                 if (ec.value() == boost::system::errc::timed_out &&
+                     timeoutRetries < maxTimeoutRetries)
+                 {
+-                    do_introspect(system_bus, transaction, interface_map,
++                    do_introspect(io, system_bus, transaction, interface_map,
+                                   objectServer, path, timeoutRetries + 1);
+                     return;
+                 }
+@@ -220,7 +222,7 @@ void do_introspect(sdbusplus::asio::connection* system_bus,
+ 
+                 if (std::strcmp(iface_name, assocDefsInterface) == 0)
+                 {
+-                    do_associations(system_bus, interface_map, objectServer,
++                    do_associations(io, system_bus, interface_map, objectServer,
+                                     transaction->process_name, path);
+                 }
+ 
+@@ -229,7 +231,7 @@ void do_introspect(sdbusplus::asio::connection* system_bus,
+ 
+             // Check if this new path has a pending association that can
+             // now be completed.
+-            checkIfPendingAssociation(path, interface_map,
++            checkIfPendingAssociation(io, path, interface_map,
+                                       transaction->assocMaps, objectServer);
+ 
+             pElement = pRoot->FirstChildElement("node");
+@@ -244,7 +246,7 @@ void do_introspect(sdbusplus::asio::connection* system_bus,
+                         parent_path.clear();
+                     }
+ 
+-                    do_introspect(system_bus, transaction, interface_map,
++                    do_introspect(io, system_bus, transaction, interface_map,
+                                   objectServer, parent_path + "/" + child_path);
+                 }
+                 pElement = pElement->NextSiblingElement("node");
+@@ -275,7 +277,7 @@ void start_new_introspect(
+ #endif
+             );
+ 
+-        do_introspect(system_bus, transaction, interface_map, objectServer,
++        do_introspect(io, system_bus, transaction, interface_map, objectServer,
+                       "/");
+     }
+ }
+@@ -684,7 +686,7 @@ int main(int argc, char** argv)
+ 
+             if (!old_owner.empty())
+             {
+-                processNameChangeDelete(name_owners, name, old_owner,
++                processNameChangeDelete(io, name_owners, name, old_owner,
+                                         interface_map, associationMaps, server);
+             }
+ 
+@@ -715,7 +717,7 @@ int main(int argc, char** argv)
+         sdbusplus::bus::match::rules::nameOwnerChanged(), nameChangeHandler);
+ 
+     std::function<void(sdbusplus::message::message & message)>
+-        interfacesAddedHandler = [&interface_map, &name_owners, &server](
++        interfacesAddedHandler = [&io, &interface_map, &name_owners, &server](
+                                      sdbusplus::message::message& message) {
+             sdbusplus::message::object_path obj_path;
+             InterfacesAdded interfaces_added;
+@@ -728,8 +730,9 @@ int main(int argc, char** argv)
+             if (needToIntrospect(well_known, service_whitelist,
+                                  service_blacklist))
+             {
+-                processInterfaceAdded(interface_map, obj_path, interfaces_added,
+-                                      well_known, associationMaps, server);
++                processInterfaceAdded(io, interface_map, obj_path,
++                                      interfaces_added, well_known,
++                                      associationMaps, server);
+             }
+         };
+ 
+@@ -739,7 +742,7 @@ int main(int argc, char** argv)
+         interfacesAddedHandler);
+ 
+     std::function<void(sdbusplus::message::message & message)>
+-        interfacesRemovedHandler = [&interface_map, &name_owners, &server](
++        interfacesRemovedHandler = [&io, &interface_map, &name_owners, &server](
+                                        sdbusplus::message::message& message) {
+             sdbusplus::message::object_path obj_path;
+             std::vector<std::string> interfaces_removed;
+@@ -765,7 +768,7 @@ int main(int argc, char** argv)
+ 
+                 if (interface == assocDefsInterface)
+                 {
+-                    removeAssociation(obj_path.str, sender, server,
++                    removeAssociation(io, obj_path.str, sender, server,
+                                       associationMaps);
+                 }
+ 
+@@ -788,8 +791,8 @@ int main(int argc, char** argv)
+                     {
+                         // Remove the 2 association D-Bus paths and move the
+                         // association to pending.
+-                        moveAssociationToPending(obj_path.str, associationMaps,
+-                                                 server);
++                        moveAssociationToPending(io, obj_path.str,
++                                                 associationMaps, server);
+                     }
+                 }
+             }
+@@ -809,7 +812,8 @@ int main(int argc, char** argv)
+         interfacesRemovedHandler);
+ 
+     std::function<void(sdbusplus::message::message & message)>
+-        associationChangedHandler = [&server, &name_owners, &interface_map](
++        associationChangedHandler = [&io, &server, &name_owners,
++                                     &interface_map](
+                                         sdbusplus::message::message& message) {
+             std::string objectName;
+             boost::container::flat_map<std::string,
+@@ -828,7 +832,7 @@ int main(int argc, char** argv)
+                 {
+                     return;
+                 }
+-                associationChanged(server, associations, message.get_path(),
++                associationChanged(io, server, associations, message.get_path(),
+                                    well_known, interface_map, associationMaps);
+             }
+         };
+diff --git a/src/processing.cpp b/src/processing.cpp
+index f144b77..5e61fbc 100644
+--- a/src/processing.cpp
++++ b/src/processing.cpp
+@@ -40,6 +40,7 @@ bool needToIntrospect(const std::string& processName,
+ }
+ 
+ void processNameChangeDelete(
++    boost::asio::io_context& io,
+     boost::container::flat_map<std::string, std::string>& nameOwners,
+     const std::string& wellKnown, const std::string& oldOwner,
+     interface_map_type& interfaceMap, AssociationMaps& assocMaps,
+@@ -67,7 +68,8 @@ void processNameChangeDelete(
+                                    assocDefsInterface);
+             if (assoc != ifaces->second.end())
+             {
+-                removeAssociation(pathIt->first, wellKnown, server, assocMaps);
++                removeAssociation(io, pathIt->first, wellKnown, server,
++                                  assocMaps);
+             }
+ 
+             // Instead of checking if every single path is the endpoint of an
+@@ -80,7 +82,7 @@ void processNameChangeDelete(
+             {
+                 // Remove the 2 association D-Bus paths and move the
+                 // association to pending.
+-                moveAssociationToPending(pathIt->first, assocMaps, server);
++                moveAssociationToPending(io, pathIt->first, assocMaps, server);
+             }
+         }
+         pathIt->second.erase(wellKnown);
+@@ -95,7 +97,8 @@ void processNameChangeDelete(
+     }
+ }
+ 
+-void processInterfaceAdded(interface_map_type& interfaceMap,
++void processInterfaceAdded(boost::asio::io_context& io,
++                           interface_map_type& interfaceMap,
+                            const sdbusplus::message::object_path& objPath,
+                            const InterfacesAdded& intfAdded,
+                            const std::string& wellKnown,
+@@ -127,7 +130,7 @@ void processInterfaceAdded(interface_map_type& interfaceMap,
+             }
+             std::vector<Association> associations =
+                 std::get<std::vector<Association>>(*variantAssociations);
+-            associationChanged(server, associations, objPath.str, wellKnown,
++            associationChanged(io, server, associations, objPath.str, wellKnown,
+                                interfaceMap, assocMaps);
+         }
+     }
+@@ -178,5 +181,5 @@ void processInterfaceAdded(interface_map_type& interfaceMap,
+     }
+ 
+     // The new interface might have an association pending
+-    checkIfPendingAssociation(objPath.str, interfaceMap, assocMaps, server);
++    checkIfPendingAssociation(io, objPath.str, interfaceMap, assocMaps, server);
+ }
+diff --git a/src/processing.hpp b/src/processing.hpp
+index 114b502..98be262 100644
+--- a/src/processing.hpp
++++ b/src/processing.hpp
+@@ -60,6 +60,7 @@ bool needToIntrospect(const std::string& processName,
+ 
+ /** @brief Handle the removal of an existing name in objmgr data structures
+  *
++ * @param[in] io                  - io context
+  * @param[in,out] nameOwners      - Map of unique name to well known name
+  * @param[in]     wellKnown       - Well known name that has new owner
+  * @param[in]     oldOwner        - Old unique name
+@@ -69,6 +70,7 @@ bool needToIntrospect(const std::string& processName,
+  *
+  */
+ void processNameChangeDelete(
++    boost::asio::io_context& io,
+     boost::container::flat_map<std::string, std::string>& nameOwners,
+     const std::string& wellKnown, const std::string& oldOwner,
+     interface_map_type& interfaceMap, AssociationMaps& assocMaps,
+@@ -76,6 +78,7 @@ void processNameChangeDelete(
+ 
+ /** @brief Handle an interfaces added signal
+  *
++ * @param[in] io                  - io context
+  * @param[in,out] interfaceMap    - Global map of interfaces
+  * @param[in]     objPath         - New path to process
+  * @param[in]     interfacesAdded - New interfaces to process
+@@ -84,7 +87,8 @@ void processNameChangeDelete(
+  * @param[in,out] server          - sdbus system object
+  *
+  */
+-void processInterfaceAdded(interface_map_type& interfaceMap,
++void processInterfaceAdded(boost::asio::io_context& io,
++                           interface_map_type& interfaceMap,
+                            const sdbusplus::message::object_path& objPath,
+                            const InterfacesAdded& intfAdded,
+                            const std::string& wellKnown,
+diff --git a/src/test/associations.cpp b/src/test/associations.cpp
+index 73c36ed..f019a76 100644
+--- a/src/test/associations.cpp
++++ b/src/test/associations.cpp
+@@ -11,6 +11,12 @@
+ 
+ class TestAssociations : public AsioServerClassTest
+ {
++  public:
++    boost::asio::io_context io;
++    virtual void SetUp()
++    {
++        io.run();
++    }
+ };
+ sdbusplus::asio::object_server* TestAssociations::AsioServerClassTest::server =
+     nullptr;
+@@ -22,7 +28,7 @@ TEST_F(TestAssociations, SourcePathNotInAssociations)
+     std::string sourcePath = "/xyz/openbmc_project/no/association";
+     AssociationMaps assocMaps;
+ 
+-    removeAssociation(sourcePath, DEFAULT_DBUS_SVC, *server, assocMaps);
++    removeAssociation(io, sourcePath, DEFAULT_DBUS_SVC, *server, assocMaps);
+ }
+ 
+ // Verify call when owner is not in associated owners
+@@ -31,7 +37,7 @@ TEST_F(TestAssociations, OwnerNotInAssociations)
+     AssociationMaps assocMaps;
+     assocMaps.owners = createDefaultOwnerAssociation();
+ 
+-    removeAssociation(DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
++    removeAssociation(io, DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
+                       assocMaps);
+ }
+ 
+@@ -42,7 +48,7 @@ TEST_F(TestAssociations, PathNotInAssocInterfaces)
+ 
+     assocMaps.owners = createDefaultOwnerAssociation();
+ 
+-    removeAssociation(DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
++    removeAssociation(io, DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
+                       assocMaps);
+ 
+     EXPECT_TRUE(assocMaps.owners.empty());
+@@ -57,7 +63,7 @@ TEST_F(TestAssociations, PathIsInAssociatedInterfaces)
+     assocMaps.owners = createDefaultOwnerAssociation();
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+-    removeAssociation(DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
++    removeAssociation(io, DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
+                       assocMaps);
+ 
+     // Verify owner association was deleted
+@@ -83,7 +89,7 @@ TEST_F(TestAssociations, PathIsInAssociatedInterfacesExtraEndpoints)
+     // Add another endpoint to the assoc interfaces
+     addEndpointToInterfaceAssociation(assocMaps.ifaces);
+ 
+-    removeAssociation(DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
++    removeAssociation(io, DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, *server,
+                       assocMaps);
+ 
+     // Verify owner association was deleted
+@@ -109,7 +115,7 @@ TEST_F(TestAssociations, checkAssociationEndpointRemovesNoEpRemove)
+     assocMaps.owners = createDefaultOwnerAssociation();
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+-    checkAssociationEndpointRemoves(DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC,
++    checkAssociationEndpointRemoves(io, DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC,
+                                     newAssocPaths, *server, assocMaps);
+ 
+     // Verify endpoints were not deleted because they matche with what was
+@@ -130,7 +136,7 @@ TEST_F(TestAssociations, checkAssociationEndpointRemovesEpRemoveApDiff)
+     assocMaps.owners = createDefaultOwnerAssociation();
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+-    checkAssociationEndpointRemoves(DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC,
++    checkAssociationEndpointRemoves(io, DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC,
+                                     newAssocPaths, *server, assocMaps);
+ 
+     // Verify initial endpoints were deleted because the new path
+@@ -152,7 +158,7 @@ TEST_F(TestAssociations, checkAssociationEndpointRemovesEpRemoveEpChanged)
+     assocMaps.owners = createDefaultOwnerAssociation();
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+-    checkAssociationEndpointRemoves(DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC,
++    checkAssociationEndpointRemoves(io, DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC,
+                                     newAssocPaths, *server, assocMaps);
+ 
+     // Verify initial endpoints were deleted because of different endpoints
+@@ -175,7 +181,7 @@ TEST_F(TestAssociations, associationChangedEmptyEndpoint)
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+     // Empty endpoint will result in deletion of corresponding assocInterface
+-    associationChanged(*server, associations, DEFAULT_SOURCE_PATH,
++    associationChanged(io, *server, associations, DEFAULT_SOURCE_PATH,
+                        DEFAULT_DBUS_SVC, interfaceMap, assocMaps);
+ 
+     // Both of these should be 0 since we have an invalid endpoint
+@@ -203,7 +209,7 @@ TEST_F(TestAssociations, associationChangedAddNewAssoc)
+         {"/new/source/path", {{DEFAULT_DBUS_SVC, {"a"}}}},
+         {"/xyz/openbmc_project/new/endpoint", {{DEFAULT_DBUS_SVC, {"a"}}}}};
+ 
+-    associationChanged(*server, associations, "/new/source/path",
++    associationChanged(io, *server, associations, "/new/source/path",
+                        DEFAULT_DBUS_SVC, interfaceMap, assocMaps);
+ 
+     // Two source paths
+@@ -237,7 +243,7 @@ TEST_F(TestAssociations, associationChangedAddNewAssocEmptyObj)
+     // Make it look like the assoc endpoints are on D-Bus
+     interface_map_type interfaceMap = createDefaultInterfaceMap();
+ 
+-    associationChanged(*server, associations, DEFAULT_SOURCE_PATH,
++    associationChanged(io, *server, associations, DEFAULT_SOURCE_PATH,
+                        DEFAULT_DBUS_SVC, interfaceMap, assocMaps);
+ 
+     // New associations so ensure it now contains a single entry
+@@ -273,7 +279,7 @@ TEST_F(TestAssociations, associationChangedAddNewAssocNewOwner)
+     assocMaps.owners = createDefaultOwnerAssociation();
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+-    associationChanged(*server, associations, DEFAULT_SOURCE_PATH, newOwner,
++    associationChanged(io, *server, associations, DEFAULT_SOURCE_PATH, newOwner,
+                        interfaceMap, assocMaps);
+ 
+     // New endpoint so assocOwners should be same size
+@@ -306,7 +312,7 @@ TEST_F(TestAssociations, associationChangedAddNewAssocSameInterface)
+     assocMaps.owners = createDefaultOwnerAssociation();
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+-    associationChanged(*server, associations, DEFAULT_SOURCE_PATH,
++    associationChanged(io, *server, associations, DEFAULT_SOURCE_PATH,
+                        DEFAULT_DBUS_SVC, interfaceMap, assocMaps);
+ 
+     // Should have 3 entries in AssociationInterfaces, one is just missing an
+@@ -406,7 +412,7 @@ TEST_F(TestAssociations, associationChangedPending)
+     AssociationMaps assocMaps;
+     interface_map_type interfaceMap;
+ 
+-    associationChanged(*server, associations, "/new/source/path",
++    associationChanged(io, *server, associations, "/new/source/path",
+                        DEFAULT_DBUS_SVC, interfaceMap, assocMaps);
+ 
+     // No associations were actually added
+@@ -460,7 +466,7 @@ TEST_F(TestAssociations, checkIfPending)
+     EXPECT_EQ(assocMaps.pending.size(), 1);
+ 
+     // Move the pending association to a real association
+-    checkIfPendingAssociation(DEFAULT_SOURCE_PATH, interfaceMap, assocMaps,
++    checkIfPendingAssociation(io, DEFAULT_SOURCE_PATH, interfaceMap, assocMaps,
+                               *server);
+ 
+     EXPECT_TRUE(assocMaps.pending.empty());
+@@ -468,7 +474,8 @@ TEST_F(TestAssociations, checkIfPending)
+     EXPECT_EQ(assocMaps.ifaces.size(), 2);
+ 
+     // This shouldn't do anything, since /new/path isn't pending
+-    checkIfPendingAssociation("/new/path", interfaceMap, assocMaps, *server);
++    checkIfPendingAssociation(io, "/new/path", interfaceMap, assocMaps,
++                              *server);
+     EXPECT_TRUE(assocMaps.pending.empty());
+     EXPECT_EQ(assocMaps.owners.size(), 1);
+     EXPECT_EQ(assocMaps.ifaces.size(), 2);
+@@ -525,7 +532,7 @@ TEST_F(TestAssociations, moveAssocToPendingNoOp)
+     AssociationMaps assocMaps;
+ 
+     // Not an association, so it shouldn't do anything
+-    moveAssociationToPending(DEFAULT_ENDPOINT, assocMaps, *server);
++    moveAssociationToPending(io, DEFAULT_ENDPOINT, assocMaps, *server);
+ 
+     EXPECT_TRUE(assocMaps.pending.empty());
+     EXPECT_TRUE(assocMaps.owners.empty());
+@@ -538,7 +545,7 @@ TEST_F(TestAssociations, moveAssocToPending)
+     assocMaps.owners = createDefaultOwnerAssociation();
+     assocMaps.ifaces = createDefaultInterfaceAssociation(server);
+ 
+-    moveAssociationToPending(DEFAULT_ENDPOINT, assocMaps, *server);
++    moveAssociationToPending(io, DEFAULT_ENDPOINT, assocMaps, *server);
+ 
+     // Check it's now pending
+     EXPECT_EQ(assocMaps.pending.size(), 1);
+diff --git a/src/test/interfaces_added.cpp b/src/test/interfaces_added.cpp
+index ee0e438..14cdc85 100644
+--- a/src/test/interfaces_added.cpp
++++ b/src/test/interfaces_added.cpp
+@@ -38,9 +38,13 @@ TEST_F(TestInterfacesAdded, InterfacesAddedGoodPath)
+     auto intfAdded =
+         createInterfacesAdded(assocDefsInterface, assocDefsProperty);
+ 
+-    processInterfaceAdded(interfaceMap, DEFAULT_SOURCE_PATH, intfAdded,
++    boost::asio::io_context io;
++
++    processInterfaceAdded(io, interfaceMap, DEFAULT_SOURCE_PATH, intfAdded,
+                           DEFAULT_DBUS_SVC, assocMaps, *server);
+ 
++    io.run();
++
+     // Interface map will get the following:
+     // /logging/entry/1 /logging/entry /logging/ / system/chassis
+     // dump_InterfaceMapType(interfaceMap);
+diff --git a/src/test/name_change.cpp b/src/test/name_change.cpp
+index 95d02af..3ac4e41 100644
+--- a/src/test/name_change.cpp
++++ b/src/test/name_change.cpp
+@@ -6,6 +6,12 @@
+ 
+ class TestNameChange : public AsioServerClassTest
+ {
++  public:
++    boost::asio::io_context io;
++    virtual void SetUp()
++    {
++        io.run();
++    }
+ };
+ sdbusplus::asio::object_server* TestNameChange::AsioServerClassTest::server =
+     nullptr;
+@@ -20,7 +26,7 @@ TEST_F(TestNameChange, UniqueNameNoInterfaces)
+     interface_map_type interfaceMap;
+     AssociationMaps assocMaps;
+ 
+-    processNameChangeDelete(nameOwners, wellKnown, oldOwner, interfaceMap,
++    processNameChangeDelete(io, nameOwners, wellKnown, oldOwner, interfaceMap,
+                             assocMaps, *server);
+     EXPECT_EQ(nameOwners.size(), 0);
+ }
+@@ -42,7 +48,7 @@ TEST_F(TestNameChange, UniqueNameAssociationsAndInterface)
+     auto interfaceMap = createInterfaceMap(
+         DEFAULT_SOURCE_PATH, DEFAULT_DBUS_SVC, assocInterfacesSet);
+ 
+-    processNameChangeDelete(nameOwners, DEFAULT_DBUS_SVC, oldOwner,
++    processNameChangeDelete(io, nameOwners, DEFAULT_DBUS_SVC, oldOwner,
+                             interfaceMap, assocMaps, *server);
+     EXPECT_EQ(nameOwners.size(), 0);
+ 
+-- 
+2.25.1
+

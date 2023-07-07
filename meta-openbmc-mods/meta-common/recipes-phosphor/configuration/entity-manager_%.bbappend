@@ -11,5 +11,6 @@ SRC_URI += " file://0001-fru-device-Add-MUX-channel-name-to-FRU-objects.patch \
              file://0005-Allow-MUX-idle-state-to-be-configured-as-DISCONNECT.patch \
              file://0006-Change-HSBP-FRU-address-and-add-MUX-mode-configurati.patch \
              file://0007-Add-HSBP-FRU-details-in-json-configuration.patch \
+             file://0008-dynamic-threshold-configuration-for-SOLUM-PSU.patch \
            "
 

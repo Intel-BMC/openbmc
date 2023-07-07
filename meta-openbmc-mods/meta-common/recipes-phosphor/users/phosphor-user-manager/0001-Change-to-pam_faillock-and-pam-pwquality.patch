@@ -1,0 +1,492 @@
+From 0636e9177c718cd46023c454fb36825e1d000a4f Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@intel.com>
+Date: Tue, 28 Mar 2023 15:32:45 -0700
+Subject: [PATCH] Change to pam_faillock and pam pwquality
+
+pam_tally2 is being replaced by pam_faillock. The parameters in
+common-auth have moved to faillock.conf, so this commit adds a new
+method to modify paramters in a given configuration file.
+
+The output from the 'faillock' command differs from 'pam_tally2', so
+this commit adds a new function to parse the output from 'faillock' to
+determine if the user is currently locked.
+
+pam_cracklib is being replaced by pam_pwquality. The parameters in
+common-password have moved to pwquality.conf.
+
+I referenced the work done by Joseph Reynolds in this commit [1] to know
+what changes were required.
+
+[1]: https://gerrit.openbmc.org/c/openbmc/phosphor-user-manager/+/39853
+
+Tested:
+Confirmed that the AccountLockoutDuration and AccountLockoutThreshold
+parameters under /redfish/v1/AccountService both return the correct
+value from common-auth.
+
+Set deny to 10 and unlock_time to 30 seconds and confirmed that a user
+account will correctly show as locked after 10 failed login attempts,
+and that user will show as unlocked 30 seconds later.
+
+Used Redfish to PATCH both AccountLockoutDuration and
+AccountLockoutThreshold and confirmed that the updated values are
+correctly reported in Redfish and that the correct lines in
+faillock.conf are modified.
+
+Confirmed that the MinPasswordLength parameter under
+/redfish/v1/AccountService returns the correct value from
+common-password.
+
+Set minlen to 9 and confirmed that a user password could not be set with
+a length of 8.
+
+Used Redfish to PATCH MinPasswordLength and confirmed that the updated
+value is correctly reported in Redfish and that the correct line in
+pwquality.conf is modified.
+
+Change-Id: I0701e4148c0b8333c6b8889d4695e61ce7f5366d
+Signed-off-by: Jason M. Bills <jason.m.bills@intel.com>
+---
+ user_mgr.cpp | 257 +++++++++++++++++++++++++++++++++++++--------------
+ user_mgr.hpp |  37 ++++++++
+ 2 files changed, 224 insertions(+), 70 deletions(-)
+
+diff --git a/user_mgr.cpp b/user_mgr.cpp
+index c49fbef..68ca0ff 100644
+--- a/user_mgr.cpp
++++ b/user_mgr.cpp
+@@ -51,15 +51,15 @@ static constexpr int success = 0;
+ static constexpr int failure = -1;
+ 
+ // pam modules related
+-static constexpr const char* pamTally2 = "pam_tally2.so";
+-static constexpr const char* pamCrackLib = "pam_cracklib.so";
+ static constexpr const char* pamPWHistory = "pam_pwhistory.so";
+ static constexpr const char* minPasswdLenProp = "minlen";
+ static constexpr const char* remOldPasswdCount = "remember";
+ static constexpr const char* maxFailedAttempt = "deny";
+ static constexpr const char* unlockTimeout = "unlock_time";
+ static constexpr const char* pamPasswdConfigFile = "/etc/pam.d/common-password";
+-static constexpr const char* pamAuthConfigFile = "/etc/pam.d/common-auth";
++static constexpr const char* faillockConfigFile = "/etc/security/faillock.conf";
++static constexpr const char* pwQualityConfigFile =
++    "/etc/security/pwquality.conf";
+ 
+ // Object Manager related
+ static constexpr const char* ldapMgrObjBasePath =
+@@ -320,8 +320,8 @@ uint8_t UserMgr::minPasswordLength(uint8_t value)
+     {
+         return value;
+     }
+-    if (setPamModuleArgValue(pamCrackLib, minPasswdLenProp,
+-                             std::to_string(value)) != success)
++    if (setPamModuleConfValue(pwQualityConfigFile, minPasswdLenProp,
++                              std::to_string(value)) != success)
+     {
+         log<level::ERR>("Unable to set minPasswordLength");
+         elog<InternalFailure>();
+@@ -350,8 +350,8 @@ uint16_t UserMgr::maxLoginAttemptBeforeLockout(uint16_t value)
+     {
+         return value;
+     }
+-    if (setPamModuleArgValue(pamTally2, maxFailedAttempt,
+-                             std::to_string(value)) != success)
++    if (setPamModuleConfValue(faillockConfigFile, maxFailedAttempt,
++                              std::to_string(value)) != success)
+     {
+         log<level::ERR>("Unable to set maxLoginAttemptBeforeLockout");
+         elog<InternalFailure>();
+@@ -365,8 +365,8 @@ uint32_t UserMgr::accountUnlockTimeout(uint32_t value)
+     {
+         return value;
+     }
+-    if (setPamModuleArgValue(pamTally2, unlockTimeout, std::to_string(value)) !=
+-        success)
++    if (setPamModuleConfValue(faillockConfigFile, unlockTimeout,
++                              std::to_string(value)) != success)
+     {
+         log<level::ERR>("Unable to set accountUnlockTimeout");
+         elog<InternalFailure>();
+@@ -378,15 +378,7 @@ int UserMgr::getPamModuleArgValue(const std::string& moduleName,
+                                   const std::string& argName,
+                                   std::string& argValue)
+ {
+-    std::string fileName;
+-    if (moduleName == pamTally2)
+-    {
+-        fileName = pamAuthConfigFile;
+-    }
+-    else
+-    {
+-        fileName = pamPasswdConfigFile;
+-    }
++    std::string fileName = pamPasswdConfigFile;
+     std::ifstream fileToRead(fileName, std::ios::in);
+     if (!fileToRead.is_open())
+     {
+@@ -427,19 +419,52 @@ int UserMgr::getPamModuleArgValue(const std::string& moduleName,
+     return failure;
+ }
+ 
+-int UserMgr::setPamModuleArgValue(const std::string& moduleName,
+-                                  const std::string& argName,
+-                                  const std::string& argValue)
++int UserMgr::getPamModuleConfValue(const std::string& confFile,
++                                   const std::string& argName,
++                                   std::string& argValue)
+ {
+-    std::string fileName;
+-    if (moduleName == pamTally2)
++    std::ifstream fileToRead(confFile, std::ios::in);
++    if (!fileToRead.is_open())
+     {
+-        fileName = pamAuthConfigFile;
++        log<level::ERR>("Failed to open pam configuration file",
++                        entry("FILE_NAME=%s", confFile.c_str()));
++        return failure;
+     }
+-    else
++    std::string line;
++    auto argSearch = argName + "=";
++    size_t startPos = 0;
++    size_t endPos = 0;
++    while (getline(fileToRead, line))
+     {
+-        fileName = pamPasswdConfigFile;
++        // skip comments section starting with #
++        if ((startPos = line.find('#')) != std::string::npos)
++        {
++            if (startPos == 0)
++            {
++                continue;
++            }
++            // skip comments after meaningful section and process those
++            line = line.substr(0, startPos);
++        }
++        if ((startPos = line.find(argSearch)) != std::string::npos)
++        {
++            if ((endPos = line.find(' ', startPos)) == std::string::npos)
++            {
++                endPos = line.size();
++            }
++            startPos += argSearch.size();
++            argValue = line.substr(startPos, endPos - startPos);
++            return success;
++        }
+     }
++    return failure;
++}
++
++int UserMgr::setPamModuleArgValue(const std::string& moduleName,
++                                  const std::string& argName,
++                                  const std::string& argValue)
++{
++    std::string fileName = pamPasswdConfigFile;
+     std::string tmpFileName = fileName + "_tmp";
+     std::ifstream fileToRead(fileName, std::ios::in);
+     std::ofstream fileToWrite(tmpFileName, std::ios::out);
+@@ -497,6 +522,64 @@ int UserMgr::setPamModuleArgValue(const std::string& moduleName,
+     return failure;
+ }
+ 
++int UserMgr::setPamModuleConfValue(const std::string& confFile,
++                                   const std::string& argName,
++                                   const std::string& argValue)
++{
++    std::string tmpConfFile = confFile + "_tmp";
++    std::ifstream fileToRead(confFile, std::ios::in);
++    std::ofstream fileToWrite(tmpConfFile, std::ios::out);
++    if (!fileToRead.is_open() || !fileToWrite.is_open())
++    {
++        log<level::ERR>("Failed to open pam configuration /tmp file",
++                        entry("FILE_NAME=%s", confFile.c_str()));
++        return failure;
++    }
++    std::string line;
++    auto argSearch = argName + "=";
++    size_t startPos = 0;
++    size_t endPos = 0;
++    bool found = false;
++    while (getline(fileToRead, line))
++    {
++        // skip comments section starting with #
++        if ((startPos = line.find('#')) != std::string::npos)
++        {
++            if (startPos == 0)
++            {
++                fileToWrite << line << std::endl;
++                continue;
++            }
++            // skip comments after meaningful section and process those
++            line = line.substr(0, startPos);
++        }
++        if ((startPos = line.find(argSearch)) != std::string::npos)
++        {
++            if ((endPos = line.find(' ', startPos)) == std::string::npos)
++            {
++                endPos = line.size();
++            }
++            startPos += argSearch.size();
++            fileToWrite << line.substr(0, startPos) << argValue
++                        << line.substr(endPos, line.size() - endPos)
++                        << std::endl;
++            found = true;
++            continue;
++        }
++        fileToWrite << line << std::endl;
++    }
++    fileToWrite.close();
++    fileToRead.close();
++    if (found)
++    {
++        if (std::rename(tmpConfFile.c_str(), confFile.c_str()) == 0)
++        {
++            return success;
++        }
++    }
++    return failure;
++}
++
+ void UserMgr::userEnable(const std::string& userName, bool enabled)
+ {
+     throwForUserDoesNotExist(userName);
+@@ -510,51 +593,87 @@ void UserMgr::userEnable(const std::string& userName, bool enabled)
+ }
+ 
+ /**
+- * pam_tally2 app will provide the user failure count and failure status
+- * in second line of output with words position [0] - user name,
+- * [1] - failure count, [2] - latest timestamp, [3] - failure timestamp
+- * [4] - failure app
++ * faillock app will provide the user failed login list with when the attempt
++ * was made, the type, the source, and if it's valid.
++ *
++ * Valid in this case means that the attempt was made within the fail_interval
++ * time. So, we can check this list for the number of valid entries (lines
++ * ending with 'V') compared to the maximum allowed to determine if the user is
++ * locked out.
++ *
++ * This data is only refreshed when an attempt is made, so if the user appears
++ * to be locked out, we must also check if the most recent attempt was older
++ * than the unlock_time to know if the user has since been unlocked.
+  **/
+-
+-static constexpr size_t t2UserIdx = 0;
+-static constexpr size_t t2FailCntIdx = 1;
+-static constexpr size_t t2OutputIndex = 1;
+-
+-bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
++bool UserMgr::parseFaillockForLockout(
++    const std::vector<std::string>& faillockOutput)
+ {
+-    // All user management lock has to be based on /etc/shadow
+-    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
+-    std::vector<std::string> output;
+-
+-    output = executeCmd("/usr/sbin/pam_tally2", "-u", userName.c_str());
++    uint16_t failAttempts = 0;
++    time_t lastFailedAttempt{};
++    for (const std::string& line : faillockOutput)
++    {
++        if (!boost::ends_with(line, "V"))
++        {
++            continue;
++        }
+ 
+-    std::vector<std::string> splitWords;
+-    boost::algorithm::split(splitWords, output[t2OutputIndex],
+-                            boost::algorithm::is_any_of("\t "),
+-                            boost::token_compress_on);
++        // Count this failed attempt
++        failAttempts++;
+ 
+-    try
+-    {
+-        unsigned long tmp = std::stoul(splitWords[t2FailCntIdx], nullptr);
+-        uint16_t value16 = 0;
+-        if (tmp > std::numeric_limits<decltype(value16)>::max())
++        // Update the last attempt time
++        // First get the "when" which is the first two words (date and time)
++        size_t pos = line.find(" ");
++        if (pos == std::string::npos)
++        {
++            continue;
++        }
++        pos = line.find(" ", pos + 1);
++        if (pos == std::string::npos)
+         {
+-            throw std::out_of_range("Out of range");
++            continue;
+         }
+-        value16 = static_cast<decltype(value16)>(tmp);
+-        if (AccountPolicyIface::maxLoginAttemptBeforeLockout() != 0 &&
+-            value16 >= AccountPolicyIface::maxLoginAttemptBeforeLockout())
++        std::string failDateTime = line.substr(0, pos);
++
++        // NOTE: Cannot use std::get_time() here as the implementation of %y in
++        // libstdc++ does not match POSIX strptime() before gcc 12.1.0
++        // https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=a8d3c98746098e2784be7144c1ccc9fcc34a0888
++        std::tm tmStruct = {};
++        if (!strptime(failDateTime.c_str(), "%F %T", &tmStruct))
+         {
+-            return true; // User account is locked out
++            // log<level::ERR>("Failed to parse latest failure date/time");
++            // elog<InternalFailure>();
+         }
+-        return false; // User account is un-locked
++
++        time_t failTimestamp = std::mktime(&tmStruct);
++        lastFailedAttempt = std::max(failTimestamp, lastFailedAttempt);
++    }
++
++    if (failAttempts < AccountPolicyIface::maxLoginAttemptBeforeLockout())
++    {
++        return false;
+     }
+-    catch (const std::exception& e)
++
++    if (lastFailedAttempt +
++            static_cast<time_t>(AccountPolicyIface::accountUnlockTimeout()) <=
++        std::time(NULL))
+     {
+-        log<level::ERR>("Exception for userLockedForFailedAttempt",
+-                        entry("WHAT=%s", e.what()));
+-        throw;
++        return false;
+     }
++
++    return true;
++}
++
++bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
++{
++    // All user management lock has to be based on /etc/shadow
++    // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
++
++    std::vector<std::string> output;
++
++    output =
++        executeCmd("/usr/sbin/faillock", "--user", userName.c_str(), "--reset");
++
++    return parseFaillockForLockout(output);
+ }
+ 
+ bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
+@@ -567,12 +686,8 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
+     {
+         return userLockedForFailedAttempt(userName);
+     }
+-    output = executeCmd("/usr/sbin/pam_tally2", "-u", userName.c_str(), "-r");
+-
+-    std::vector<std::string> splitWords;
+-    boost::algorithm::split(splitWords, output[t2OutputIndex],
+-                            boost::algorithm::is_any_of("\t "),
+-                            boost::token_compress_on);
++    output =
++        executeCmd("/usr/sbin/faillock", "--user", userName.c_str(), "--reset");
+ 
+     return userLockedForFailedAttempt(userName);
+ }
+@@ -940,8 +1055,8 @@ UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path,
+     std::string valueStr;
+     auto value = minPasswdLength;
+     unsigned long tmp = 0;
+-    if (getPamModuleArgValue(pamCrackLib, minPasswdLenProp, valueStr) !=
+-        success)
++    if (getPamModuleConfValue(pwQualityConfigFile, minPasswdLenProp,
++                              valueStr) != success)
+     {
+         AccountPolicyIface::minPasswordLength(minPasswdLength);
+     }
+@@ -991,7 +1106,8 @@ UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path,
+         AccountPolicyIface::rememberOldPasswordTimes(value);
+     }
+     valueStr.clear();
+-    if (getPamModuleArgValue(pamTally2, maxFailedAttempt, valueStr) != success)
++    if (getPamModuleConfValue(faillockConfigFile, maxFailedAttempt, valueStr) !=
++        success)
+     {
+         AccountPolicyIface::maxLoginAttemptBeforeLockout(0);
+     }
+@@ -1016,7 +1132,8 @@ UserMgr::UserMgr(sdbusplus::bus::bus& bus, const char* path,
+         AccountPolicyIface::maxLoginAttemptBeforeLockout(value16);
+     }
+     valueStr.clear();
+-    if (getPamModuleArgValue(pamTally2, unlockTimeout, valueStr) != success)
++    if (getPamModuleConfValue(faillockConfigFile, unlockTimeout, valueStr) !=
++        success)
+     {
+         AccountPolicyIface::accountUnlockTimeout(0);
+     }
+diff --git a/user_mgr.hpp b/user_mgr.hpp
+index 5d5ca99..92a265b 100644
+--- a/user_mgr.hpp
++++ b/user_mgr.hpp
+@@ -155,6 +155,14 @@ class UserMgr : public Ifaces
+      */
+     uint32_t accountUnlockTimeout(uint32_t val) override;
+ 
++    /** @brief parses the faillock output for locked user status
++     *
++     * @param[in] - output from faillock for the user
++     * @return - true / false indicating user locked / un-locked
++     **/
++    bool
++        parseFaillockForLockout(const std::vector<std::string>& faillockOutput);
++
+     /** @brief lists user locked state for failed attempt
+      *
+      * @param[in] - user name
+@@ -311,6 +319,20 @@ class UserMgr : public Ifaces
+     int getPamModuleArgValue(const std::string& moduleName,
+                              const std::string& argName, std::string& argValue);
+ 
++    /** @brief get pam argument value
++     *  method to get argument value from pam configuration
++     *
++     *  @param[in] confFile - path of the module config file from where arg has
++     * to be read
++     *  @param[in] argName - argument name
++     *  @param[out] argValue - argument value
++     *
++     *  @return 0 - success state of the function
++     */
++    int getPamModuleConfValue(const std::string& confFile,
++                              const std::string& argName,
++                              std::string& argValue);
++
+     /** @brief set pam argument value
+      *  method to set argument value in pam configuration
+      *
+@@ -325,6 +347,20 @@ class UserMgr : public Ifaces
+                              const std::string& argName,
+                              const std::string& argValue);
+ 
++    /** @brief set pam argument value
++     *  method to set argument value in pam configuration
++     *
++     *  @param[in] confFile - path of the module config file in which argument
++     * value has to be set
++     *  @param[in] argName - argument name
++     *  @param[out] argValue - argument value
++     *
++     *  @return 0 - success state of the function
++     */
++    int setPamModuleConfValue(const std::string& confFile,
++                              const std::string& argName,
++                              const std::string& argValue);
++
+     /** @brief get service name
+      *  method to get dbus service name
+      *
+@@ -351,6 +387,7 @@ class UserMgr : public Ifaces
+     virtual DbusUserObj getPrivilegeMapperObject(void);
+ 
+     friend class TestUserMgr;
++
+ };
+ 
+ } // namespace user
+-- 
+2.25.1
+
