@@ -1,8 +1,11 @@
-# DISCONTINUATION OF PROJECT  
-This project will no longer be maintained by Intel.  
-This project has been identified as having known security escapes.  
-Intel has ceased development and contributions including, but not limited to, maintenance, bug fixes, new releases, or updates, to this project.  
-Intel no longer accepts patches to this project.  
+# DISCONTINUATION OF SUPPORT FOR THIS PUBLIC DISTRIBUTION OF OPENBMC
+This public distribution of OpenBMC is no longer maintained by Intel.
+This public distribution is not updated to the latest OpenBMC versions and has
+been identified as having known security escapes.
+Intel has ceased development and contributions to this public distribution and
+is not doing any maintenance, bug fixes, new releases, or updates here.
+Intel no longer accepts patches to this public distribution.
+Intel recommends working with an independent firmware vendor for future support
 
 # OpenBMC
 
