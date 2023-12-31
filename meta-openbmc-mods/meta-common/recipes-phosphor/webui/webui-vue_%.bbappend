@@ -6,6 +6,7 @@ FILESEXTRAPATHS:append := "${THISDIR}/${PN}:"
 SRC_URI += " \
     file://login-company-logo.svg \
     file://logo-header.svg \
+    file://0001-Old-password-input-in-change-password-screen.patch \
     "
 
 do_compile:prepend() {

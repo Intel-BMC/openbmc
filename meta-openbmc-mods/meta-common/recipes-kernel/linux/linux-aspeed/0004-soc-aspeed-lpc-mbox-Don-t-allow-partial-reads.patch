@@ -1,0 +1,40 @@
+From d655ada2fc4b5065c2be6943f28aa4e4f694a1a3 Mon Sep 17 00:00:00 2001
+From: Iwona Winiarska <iwona.winiarska@intel.com>
+Date: Mon, 9 Jan 2023 21:09:44 +0100
+Subject: [PATCH] soc: aspeed: lpc-mbox: Don't allow partial reads
+
+IRQ handler always adds all registers to the fifo, while the userspace
+can potentially consume a smaller amount. Unfortunately, when smaller
+amount is consumed, it permanently shifts the fifo.
+Serialize the "empty" state check to avoid partial reads.
+
+Fixes: 60fde6cf7114 ("soc: aspeed: lpc-mbox: Avoid calling kfifo_to_user in atomic context")
+Reported-by: Arun P. Mohanan <arun.p.m@linux.intel.com>
+Signed-off-by: Iwona Winiarska <iwona.winiarska@intel.com>
+---
+ drivers/soc/aspeed/aspeed-lpc-mbox.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/soc/aspeed/aspeed-lpc-mbox.c b/drivers/soc/aspeed/aspeed-lpc-mbox.c
+index 7941792abacb..564c7318da10 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-mbox.c
++++ b/drivers/soc/aspeed/aspeed-lpc-mbox.c
+@@ -172,7 +172,14 @@ static ssize_t aspeed_mbox_read(struct file *file, char __user *buf,
+ 	}
+ 
+ 	mutex_lock(&mbox->mutex);
+-	if (kfifo_is_empty(&mbox->fifo)) {
++	/*
++	 * Since fifo on the producer side will drop the oldest values, causing
++	 * a shift if the data is not consumed fully, when we're using count ==
++	 * num_regs reads, we need to serialize with the producer to make
++	 * sure that all regs were inserted into fifo (avoiding a partial
++	 * read).
++	 */
++	if (kfifo_is_empty_spinlocked(&mbox->fifo, &mbox->lock)) {
+ 		if (file->f_flags & O_NONBLOCK) {
+ 			ret = -EAGAIN;
+ 			goto out_unlock;
+-- 
+2.17.1
+

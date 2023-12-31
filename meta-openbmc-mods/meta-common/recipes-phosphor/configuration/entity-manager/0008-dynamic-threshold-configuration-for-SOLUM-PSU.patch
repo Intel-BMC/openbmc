@@ -1,0 +1,90 @@
+From d7425aa548716339e9c00a45695f93c294613cd4 Mon Sep 17 00:00:00 2001
+From: Vikash Chandola <vikash.chandola@intel.com>
+Date: Fri, 5 Aug 2022 12:57:51 +0000
+Subject: [PATCH] dynamic threshold configuration for SOLUM PSU
+
+PSU output current threshold is different for high line and low line
+input. Using static threshold value doesn't allow thresholds
+to be set based on input voltage. Update SOLUM configurtion file
+to provide sensor label and scale factor to calculate threshold.
+This allows thresholds to get updated on input voltage change.
+
+Tested:
+Successfully able to build and pass through validate-configs.py.
+
+Signed-off-by: Vikash Chandola <vikash.chandola@intel.com>
+Change-Id: I84e425f1e75ce04be96b70b8a91e90f7c796c9e8
+---
+ configurations/PSSF162205A.json          | 4 ++++
+ configurations/SOLUM_PSSF162202_PSU.json | 4 ++++
+ schemas/legacy.json                      | 8 ++++++++
+ 3 files changed, 16 insertions(+)
+
+diff --git a/configurations/PSSF162205A.json b/configurations/PSSF162205A.json
+index d272ef1..7402947 100644
+--- a/configurations/PSSF162205A.json
++++ b/configurations/PSSF162205A.json
+@@ -86,14 +86,18 @@
+                         "Direction": "greater than",
+                         "Label": "iout1",
+                         "Name": "upper critical",
++                        "ScaleFactor": 0.001,
+                         "Severity": 1,
++                        "ThresholdLabel": "iout_oc_warn_limit",
+                         "Value": 122
+                     },
+                     {
+                         "Direction": "greater than",
+                         "Label": "iout1",
+                         "Name": "upper non critical",
++                        "ScaleFactor": 0.00091,
+                         "Severity": 0,
++                        "ThresholdLabel": "iout_oc_warn_limit",
+                         "Value": 100
+                     },
+                     {
+diff --git a/configurations/SOLUM_PSSF162202_PSU.json b/configurations/SOLUM_PSSF162202_PSU.json
+index c3ca25c..176a3d6 100644
+--- a/configurations/SOLUM_PSSF162202_PSU.json
++++ b/configurations/SOLUM_PSSF162202_PSU.json
+@@ -145,14 +145,18 @@
+                         "Direction": "greater than",
+                         "Label": "iout1",
+                         "Name": "upper critical",
++                        "ScaleFactor": 0.001,
+                         "Severity": 1,
++                        "ThresholdLabel": "iout_oc_warn_limit",
+                         "Value": 122
+                     },
+                     {
+                         "Direction": "greater than",
+                         "Label": "iout1",
+                         "Name": "upper non critical",
++                        "ScaleFactor": 0.00091,
+                         "Severity": 0,
++                        "ThresholdLabel": "iout_oc_warn_limit",
+                         "Value": 100
+                     },
+                     {
+diff --git a/schemas/legacy.json b/schemas/legacy.json
+index 47a6c7b..c3339ef 100644
+--- a/schemas/legacy.json
++++ b/schemas/legacy.json
+@@ -698,6 +698,14 @@
+                         },
+                         "Value": {
+                             "type": "number"
++                        },
++                        "ThresholdLabel": {
++                            "enum": [
++                                "iout_oc_warn_limit"
++                            ]
++                        },
++                        "ScaleFactor": {
++                            "type": "number"
+                         }
+                     },
+                     "required": [
+-- 
+2.25.1
+

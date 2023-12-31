@@ -22,6 +22,7 @@ SRC_URI += "\
     file://0014-Treat-zero-temperatures-readings-as-errors-in-IpmbSe.patch \
     file://0015-Fix-for-PSU2-Power-lost-RedFish-events.patch \
     file://0016-Ignore-VR-sensor-readings-if-content-is-0xFF.patch \
+    file://0017-psusensor-Determine-PSU-threshold-dynamically.patch \
     "
 
 DEPENDS:append = " libgpiod libmctp"

@@ -1,0 +1,160 @@
+From 654fef4afba55c4f84f664b43d8a1fecc1224e7b Mon Sep 17 00:00:00 2001
+From: Vikash Chandola <vikash.chandola@intel.com>
+Date: Wed, 27 Jul 2022 10:07:25 +0000
+Subject: [PATCH] psusensor: Determine PSU threshold dynamically
+
+PSU output current range(rated, max etc) are dependent on input
+voltage. A power supply can deliver higher output on high line input
+compared to low line input. Existing implementation uses static
+thresholds which causes thresholds to get hit too early for high line
+input. This change allows threshold to be set dynamically.
+
+"ThresholdLabel" and "ScaleFactor" are added in SOLUM's entity-manager
+configuration file. These parameters provide pmbus register name and
+scaling factor to be used for threshold calculation. psusensor fetches
+"ThresholdLabel" and multiplies it with "ScaleFactor" to determine
+threshold value. "ScaleFactor" allows threshold to be set in ratio to
+a value. Example create a threshold that gets triggered at 0.8 times
+max permissible current value.
+
+"ThresholdLabel" and "ScaleFactor" can be used for the cases where
+threshold need to be determined on the basis on another parameter's
+value.
+
+Tested:
+Tested by running system on High line and low line input. In both
+cases critical and warning thresholds were updated as per
+"ThresholdLabel" and "ScaleFactor". If configuration file doesn't
+contain "ThresholdLabel" and "ScaleFactor" then "Value" was used.
+
+Signed-off-by: Vikash Chandola <vikash.chandola@intel.com>
+Change-Id: Ia588ee0971e3d4e79a9827ffd6f39398725a4273
+---
+ include/Thresholds.hpp |  3 +-
+ src/PSUSensorMain.cpp  |  2 +-
+ src/Thresholds.cpp     | 64 +++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 60 insertions(+), 9 deletions(-)
+
+diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
+index 640fdb4..7373507 100644
+--- a/include/Thresholds.hpp
++++ b/include/Thresholds.hpp
+@@ -111,7 +111,8 @@ struct ThresholdTimer
+ bool parseThresholdsFromConfig(
+     const SensorData& sensorData,
+     std::vector<thresholds::Threshold>& thresholdVector,
+-    const std::string* matchLabel = nullptr, const int* sensorIndex = nullptr);
++    const std::string* matchLabel = nullptr, const int* sensorIndex = nullptr,
++    const std::string* sensorPathStr = nullptr);
+ 
+ bool parseThresholdsFromAttr(std::vector<thresholds::Threshold>& thresholds,
+                              const std::string& inputPath,
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index ae7afc3..5847863 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -846,7 +846,7 @@ static void createSensorsCallback(
+ 
+             std::vector<thresholds::Threshold> sensorThresholds;
+             if (!parseThresholdsFromConfig(*sensorData, sensorThresholds,
+-                                           &labelHead))
++                                           &labelHead ,nullptr, &sensorPathStr))
+             {
+                 std::cerr << "error populating thresholds for "
+                           << sensorNameSubStr << "\n";
+diff --git a/src/Thresholds.cpp b/src/Thresholds.cpp
+index aef084e..cddfa2b 100644
+--- a/src/Thresholds.cpp
++++ b/src/Thresholds.cpp
+@@ -56,11 +56,48 @@ std::string toBusValue(const Direction& direction)
+         }
+     }
+ }
++static const std::unordered_map<std::string, std::string> labelToHwmonSuffix = {
++    {"iout_oc_warn_limit", "max"},
++};
++
++static std::optional<double>
++    parseThresholdFromLabel(const std::string* sensorPathStr,
++                            const SensorBaseConfigMap& sensorData)
++{
++    if (sensorPathStr == nullptr)
++    {
++        return std::nullopt;
++    }
++    auto thresholdLabelFind = sensorData.find("ThresholdLabel");
++    auto scaleFactorFind = sensorData.find("ScaleFactor");
++    if (thresholdLabelFind == sensorData.end() ||
++        scaleFactorFind == sensorData.end())
++    {
++        return std::nullopt;
++    }
++    auto hwmonFileSuffix = labelToHwmonSuffix.find(
++        std::visit(VariantToStringVisitor(), thresholdLabelFind->second));
++    if (hwmonFileSuffix == labelToHwmonSuffix.end())
++    {
++        return std::nullopt;
++    }
++    auto fileParts = splitFileName(*sensorPathStr);
++    if (!fileParts.has_value())
++    {
++        return std::nullopt;
++    }
++    auto& [type, nr, item] = fileParts.value();
++    auto attrPath =
++        boost::replace_all_copy(*sensorPathStr, item, hwmonFileSuffix->second);
++    return readFile(attrPath, (1.0 / std::visit(VariantToDoubleVisitor(),
++                                                scaleFactorFind->second)));
++}
+ 
+ bool parseThresholdsFromConfig(
+     const SensorData& sensorData,
+     std::vector<thresholds::Threshold>& thresholdVector,
+-    const std::string* matchLabel, const int* sensorIndex)
++    const std::string* matchLabel, const int* sensorIndex,
++    const std::string* sensorPathStr)
+ {
+     for (const auto& item : sensorData)
+     {
+@@ -110,10 +147,7 @@ bool parseThresholdsFromConfig(
+ 
+         auto directionFind = item.second.find("Direction");
+         auto severityFind = item.second.find("Severity");
+-        auto valueFind = item.second.find("Value");
+-        if (valueFind == item.second.end() ||
+-            severityFind == item.second.end() ||
+-            directionFind == item.second.end())
++        if (severityFind == item.second.end() || directionFind == item.second.end())
+         {
+             std::cerr << "Malformed threshold on configuration interface "
+                       << item.first << "\n";
+@@ -139,8 +173,24 @@ bool parseThresholdsFromConfig(
+         {
+             direction = Direction::HIGH;
+         }
+-        double val = std::visit(VariantToDoubleVisitor(), valueFind->second);
+-
++        double val = 0;
++        auto valueFind = item.second.find("Value");
++        auto labelValueOption = parseThresholdFromLabel(sensorPathStr, item.second);
++        if (labelValueOption.has_value())
++        {
++            val = labelValueOption.value();
++        }
++        else if (valueFind != item.second.end())
++        {
++            val = std::visit(VariantToDoubleVisitor(), valueFind->second);
++        }
++        else
++        {
++            std::cerr << "Failed to parse threshold value configuration for "
++                         "interface "
++                      << item.first << "\n";
++            return false;
++        }
+         thresholdVector.emplace_back(level, direction, val, hysteresis);
+     }
+     return true;
+-- 
+2.25.1
+

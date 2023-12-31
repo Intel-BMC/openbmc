@@ -1,0 +1,58 @@
+From 3311e449da0c7431f5512138aa61212af3d769a1 Mon Sep 17 00:00:00 2001
+From: Zhikui Ren <zhikui.ren@intel.com>
+Date: Mon, 14 Nov 2022 14:14:33 -0800
+Subject: [PATCH] Avoid negated postcode write to D-Bus
+
+This commit removes the code which writes the negated
+postcode value to D-Bus object. This has some side effects
+when bombarded data pushed to port 80.
+
+With this change, if same post code is written on LPC channel
+it will be set but D-Bus will not emit the 'PropertiesChanged'
+signal. Actually there is no need to emit the signal if actual
+property value(postcode) is not changed.
+
+So if post code changes, D-Bus will emit the signal as usual
+with this code. Any client applications depends on this, still
+can register for signal for knowing postcode change.
+
+Renamed bbappend file for generic notation.
+
+Tested:
+ - Manually verified by setting different post code,
+   emits the signal.
+
+   busctl set-property xyz.openbmc_project.State.Boot.Raw
+   /xyz/openbmc_project/state/boot/raw0 xyz.openbmc_project.State.Boot.Raw
+   Value t 00
+
+   dbus-monitor --system "type='signal',member='PropertiesChanged',
+   interface='org.freedesktop.DBus.Properties',
+   path_namespace=/xyz/openbmc_project/state/boot/raw0,
+   arg0=xyz.openbmc_project.State.Boot.Raw"
+
+ - Verified functionality with real post code changes.
+
+Change-Id: I13e7879a19ada593891821df3702613cc8e84572
+Signed-off-by: AppaRao Puli <apparao.puli@linux.intel.com>
+Signed-off-by: Zhikui Ren <zhikui.ren@intel.com>
+---
+ main.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/main.cpp b/main.cpp
+index 3a3b4ce..764c855 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -66,7 +66,7 @@ void PostCodeEventHandler(sdeventplus::source::IO& s, int postFd, uint32_t,
+         // HACK: Always send property changed signal even for the same code
+         // since we are single threaded, external users will never see the
+         // first value.
+-        reporter->value(std::make_tuple(~code, secondary_post_code_t{}), true);
++        // reporter->value(std::make_tuple(~code, secondary_post_code_t{}), true);
+         reporter->value(std::make_tuple(code, secondary_post_code_t{}));
+ 
+         // read depends on old data being cleared since it doens't always read
+-- 
+2.25.1
+
