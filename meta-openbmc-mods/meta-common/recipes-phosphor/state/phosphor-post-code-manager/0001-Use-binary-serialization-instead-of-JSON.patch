@@ -1,0 +1,104 @@
+From 3f362d5e15dd3c20d1026bd814fe52b9793025e5 Mon Sep 17 00:00:00 2001
+From: Jonathan Doman <jonathan.doman@intel.com>
+Date: Wed, 23 Nov 2022 15:04:17 -0800
+Subject: [PATCH 1/2] Use binary serialization instead of JSON
+
+The binary format is much more efficient than JSON in terms of
+computational speed and disk space consumption. The former is important
+in case the host is sending a constant stream of POST codes.
+post-code-manager can fall behind because it takes too long to store
+each new POST code on disk, causing D-Bus messages to pile up and
+increase memory consumption inside dbus-broker.
+
+Tested:
+Rebooted the host a few times and observed that POST code history is
+populated normally in Redfish. After upgrading to this change, old POST
+code history stored in JSON format is lost, but remains on disk until it
+gets overwritten during subsequent host boots.
+
+Signed-off-by: Jonathan Doman <jonathan.doman@intel.com>
+Change-Id: Id55909a55d950e6e62b78b3333df687b4c582c42
+Signed-off-by: Manish Baing <manish.baing@intel.com>
+---
+ inc/post_code.hpp |  6 ------
+ src/post_code.cpp | 17 ++++++++++++-----
+ 2 files changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/inc/post_code.hpp b/inc/post_code.hpp
+index be800f2..3d790b8 100644
+--- a/inc/post_code.hpp
++++ b/inc/post_code.hpp
+@@ -18,12 +18,6 @@
+ #include <fcntl.h>
+ #include <unistd.h>
+ 
+-#include <cereal/access.hpp>
+-#include <cereal/archives/json.hpp>
+-#include <cereal/cereal.hpp>
+-#include <cereal/types/map.hpp>
+-#include <cereal/types/tuple.hpp>
+-#include <cereal/types/vector.hpp>
+ #include <chrono>
+ #include <filesystem>
+ #include <fstream>
+diff --git a/src/post_code.cpp b/src/post_code.cpp
+index 1fcbe55..dfe6ce7 100644
+--- a/src/post_code.cpp
++++ b/src/post_code.cpp
+@@ -17,6 +17,13 @@
+ 
+ #include "iomanip"
+ 
++#include <cereal/access.hpp>
++#include <cereal/archives/binary.hpp>
++#include <cereal/cereal.hpp>
++#include <cereal/types/map.hpp>
++#include <cereal/types/tuple.hpp>
++#include <cereal/types/vector.hpp>
++
+ PostCodeDataHolder* PostCodeDataHolder::instance = 0;
+ 
+ void PostCode::deleteAll()
+@@ -129,18 +136,18 @@ fs::path PostCode::serialize(const std::string& path)
+     {
+         fs::path idxPath(path + strCurrentBootCycleIndexName);
+         std::ofstream osIdx(idxPath.c_str(), std::ios::binary);
+-        cereal::JSONOutputArchive idxArchive(osIdx);
++        cereal::BinaryOutputArchive idxArchive(osIdx);
+         idxArchive(currentBootCycleIndex);
+ 
+         uint16_t count = currentBootCycleCount();
+         fs::path cntPath(path + strCurrentBootCycleCountName);
+         std::ofstream osCnt(cntPath.c_str(), std::ios::binary);
+-        cereal::JSONOutputArchive cntArchive(osCnt);
++        cereal::BinaryOutputArchive cntArchive(osCnt);
+         cntArchive(count);
+ 
+         std::ofstream osPostCodes(
+             (path + std::to_string(currentBootCycleIndex)));
+-        cereal::JSONOutputArchive oarchivePostCodes(osPostCodes);
++        cereal::BinaryOutputArchive oarchivePostCodes(osPostCodes);
+         oarchivePostCodes(postCodes);
+     }
+     catch (const cereal::Exception& e)
+@@ -163,7 +170,7 @@ bool PostCode::deserialize(const fs::path& path, uint16_t& index)
+         if (fs::exists(path))
+         {
+             std::ifstream is(path.c_str(), std::ios::in | std::ios::binary);
+-            cereal::JSONInputArchive iarchive(is);
++            cereal::BinaryInputArchive iarchive(is);
+             iarchive(index);
+             return true;
+         }
+@@ -190,7 +197,7 @@ bool PostCode::deserializePostCodes(const fs::path& path,
+         if (fs::exists(path))
+         {
+             std::ifstream is(path.c_str(), std::ios::in | std::ios::binary);
+-            cereal::JSONInputArchive iarchive(is);
++            cereal::BinaryInputArchive iarchive(is);
+             iarchive(codes);
+             return true;
+         }
+-- 
+2.17.1
+

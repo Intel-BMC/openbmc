@@ -15,7 +15,7 @@ PV = "1.0+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
-SRCREV = "3f499b24f3bcd66db022074f7e8b4f6ee266a3ae"
+SRCREV = "5dae6451aac56bdf5be8dc5f20519da0bc55451a"
 
 SRC_URI = "git://github.com/openssl/openssl.git;branch=OpenSSL_1_1_1-stable;protocol=https \
            file://run-ptest \

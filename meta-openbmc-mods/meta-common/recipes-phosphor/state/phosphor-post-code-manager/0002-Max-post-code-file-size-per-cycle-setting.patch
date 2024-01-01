@@ -1,0 +1,63 @@
+From 4415432e32ac8cbc6ec59815a9b9893c2d832c07 Mon Sep 17 00:00:00 2001
+From: Bonnie Lo <Bonnie_Lo@wiwynn.com>
+Date: Thu, 27 Oct 2022 17:14:55 +0800
+Subject: [PATCH 2/2] Max post code file size per cycle setting
+
+Let user could set POST code file size per cycle
+
+The default size is 512 counts
+
+Reason:
+BMC may crash caused by nonstop saving POST code when BIOS has
+some unusual behavior like PXE loop
+Thus, BMC should set a limit size to prevent this risk
+
+Test Case:
+Manually send POST code to check the POST code file rotation
+
+Signed-off-by: Bonnie Lo <Bonnie_Lo@wiwynn.com>
+Change-Id: Ic7fbafe532a79123e6ae880a8a3506f9c397d933
+---
+ meson.build       | 1 +
+ meson_options.txt | 1 +
+ src/post_code.cpp | 4 ++++
+ 3 files changed, 6 insertions(+)
+
+diff --git a/meson.build b/meson.build
+index 2c44f72..632e07e 100644
+--- a/meson.build
++++ b/meson.build
+@@ -16,6 +16,7 @@ conf_data = configuration_data()
+ conf_data.set_quoted('DBUS_OBJECT_NAME', '/xyz/openbmc_project/State/Boot/PostCode0')
+ conf_data.set_quoted('DBUS_INTF_NAME','xyz.openbmc_project.State.Boot.PostCode')
+ conf_data.set('MAX_BOOT_CYCLE_COUNT',get_option('max-boot-cycle-count'))
++conf_data.set('MAX_POST_CODE_SIZE_PER_CYCLE',get_option('max-post-code-size-per-cycle'))
+ 
+ if get_option('bios-post-code-log').enabled()
+   add_project_arguments('-DENABLE_BIOS_POST_CODE_LOG',language: 'cpp')
+diff --git a/meson_options.txt b/meson_options.txt
+index c3d63fd..d877b97 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -1,2 +1,3 @@
+ option('max-boot-cycle-count', type:'integer', min:1, max: 100, description: 'Maximum boot cycles for which the post codes should be persisted', value:100)
+ option('bios-post-code-log', type:'feature',description:'bios post code log',value:'disabled')
++option('max-post-code-size-per-cycle', type:'integer', min:64, max: 1024, description: 'Maximum post code file size per cycle', value:512)
+diff --git a/src/post_code.cpp b/src/post_code.cpp
+index dfe6ce7..8411718 100644
+--- a/src/post_code.cpp
++++ b/src/post_code.cpp
+@@ -102,6 +102,10 @@ void PostCode::savePostCodes(postcode_t code)
+     }
+ 
+     postCodes.insert(std::make_pair(tsUS, code));
++    if (postCodes.size() > MAX_POST_CODE_SIZE_PER_CYCLE)
++    {
++        postCodes.erase(postCodes.begin());
++    }
+     serialize(fs::path(strPostCodeListPath));
+ 
+ #ifdef ENABLE_BIOS_POST_CODE_LOG
+-- 
+2.17.1
+

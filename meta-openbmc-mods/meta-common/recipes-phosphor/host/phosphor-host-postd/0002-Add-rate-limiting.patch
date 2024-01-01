@@ -1,0 +1,287 @@
+From 0a8ecbadb73d597da114d77853793e8642102de9 Mon Sep 17 00:00:00 2001
+From: Jonathan Doman <jonathan.doman@intel.com>
+Date: Wed, 26 Apr 2023 11:45:39 -0700
+Subject: [PATCH] Add rate limiting
+
+A host CPU can write POST codes much faster than the BMC can handle
+them, considering all the D-Bus/IPC work required. Ideally `dbus-broker`
+would apply backpressure when it gets full of unhandled signals, but its
+quota mechanism uses a simple per-user accounting that doesn't
+differentiate between all the connections from OpenBMC daemons running
+as root. So there is no way to configure it to prevent just `snoopd`
+from sending too many messages - instead it will disconnect arbitrary
+services leading to mass chaos.
+
+So without a D-Bus policy mechanism to prevent excess memory usage,
+there are 2 different failure cases during a POST code storm:
+1. `snoopd` continues to send messages faster than `post-code-manager`
+   can process them, leading to `dbus-broker` consuming all the system
+   memory.
+2. `snoopd` fills up the D-Bus socket buffer. Once sd-bus fails to send
+   a message across the socket, it starts queuing messages internally
+   leading to `snoopd` consuming all the system memory. This only
+   happens because we get stuck in the `snoopd` read loop during a POST
+   code storm, and we don't process other events that would allow the
+   write queue to drain.
+
+As a workaround, introduce configurable rate limiting to `snoopd`. A new
+meson option 'rate-limit' sets the corresponding '--rate-limit'
+command-line parameter. These options take an integer value representing
+the maximum number of POST codes to process per second. The default
+meson option value is 1000, and the value of 0 will disable rate limiting.
+
+Tested: Ran the POST code stress on host for 30 minutes:
+```
+[root@sut ~]# stress-ng --ioport 2
+```
+
+Watched BMC process memory usage and CPU usage in `top`, verified that
+`post-code-manager`, `dbus-broker`, and `snoopd` each used less than 10%
+CPU and 2% memory on AST2600 with 512 MiB of DRAM.
+
+Change-Id: If03a01e0cd62366d188109bb4dff52958346e1db
+Signed-off-by: Jonathan Doman <jonathan.doman@intel.com>
+---
+ lpcsnoop/snoop.hpp |   1 +
+ main.cpp           | 109 +++++++++++++++++++++++++++++++++++++++++----
+ meson.build        |   5 +++
+ meson_options.txt  |   8 ++++
+ 4 files changed, 115 insertions(+), 8 deletions(-)
+
+diff --git a/lpcsnoop/snoop.hpp b/lpcsnoop/snoop.hpp
+index 68d51b4..c66e421 100644
+--- a/lpcsnoop/snoop.hpp
++++ b/lpcsnoop/snoop.hpp
+@@ -24,4 +24,5 @@ class PostReporter : public PostObject
+         PostObject(bus, objPath, defer)
+     {
+     }
++    unsigned int rateLimit = 0;
+ };
+diff --git a/main.cpp b/main.cpp
+index 764c855..11310ba 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -23,6 +23,7 @@
+ #include <systemd/sd-event.h>
+ #include <unistd.h>
+ 
++#include <chrono>
+ #include <cstdint>
+ #include <exception>
+ #include <iostream>
+@@ -31,10 +32,13 @@
+ #include <sdeventplus/source/event.hpp>
+ #include <sdeventplus/source/io.hpp>
+ #include <sdeventplus/source/signal.hpp>
++#include <sdeventplus/source/time.hpp>
++#include <span>
+ #include <stdplus/signal.hpp>
+ #include <thread>
+ 
+ static size_t codeSize = 1; /* Size of each POST code in bytes */
++static bool verbose = false;
+ 
+ static void usage(const char* name)
+ {
+@@ -47,15 +51,76 @@ static void usage(const char* name)
+             name, codeSize);
+ }
+ 
++/**
++ * Call once for each POST code received. If the number of POST codes exceeds
++ * the configured rate limit, this function will disable the snoop device IO
++ * source until the end of the 1 second interval, then re-enable it.
++ *
++ * @return Whether the rate limit is exceeded.
++ */
++bool rateLimit(PostReporter& reporter, sdeventplus::source::IO& ioSource)
++{
++    if (reporter.rateLimit == 0)
++    {
++        // Rate limiting is disabled.
++        return false;
++    }
++
++    using Clock = sdeventplus::Clock<sdeventplus::ClockId::Monotonic>;
++
++    static constexpr std::chrono::seconds rateLimitInterval(1);
++    static unsigned int rateLimitCount = 0;
++    static Clock::time_point rateLimitEndTime;
++
++    const sdeventplus::Event& event = ioSource.get_event();
++
++    if (rateLimitCount == 0)
++    {
++        // Initialize the end time when we start a new interval
++        rateLimitEndTime = Clock(event).now() + rateLimitInterval;
++    }
++
++    if (++rateLimitCount < reporter.rateLimit)
++    {
++        return false;
++    }
++
++    rateLimitCount = 0;
++
++    if (rateLimitEndTime < Clock(event).now())
++    {
++        return false;
++    }
++
++    if (verbose)
++    {
++        fprintf(stderr, "Hit POST code rate limit - disabling temporarily\n");
++    }
++
++    ioSource.set_enabled(sdeventplus::source::Enabled::Off);
++    sdeventplus::source::Time<sdeventplus::ClockId::Monotonic>(
++        event, rateLimitEndTime, std::chrono::milliseconds(100),
++        [&ioSource](auto&, auto) {
++            if (verbose)
++            {
++                fprintf(stderr, "Reenabling POST code handler\n");
++            }
++            ioSource.set_enabled(sdeventplus::source::Enabled::On);
++        })
++        .set_floating(true);
++    return true;
++}
++
+ /*
+  * Callback handling IO event from the POST code fd. i.e. there is new
+  * POST code available to read.
+  */
+-void PostCodeEventHandler(sdeventplus::source::IO& s, int postFd, uint32_t,
+-                          PostReporter* reporter, bool verbose)
++void PostCodeEventHandler(PostReporter* reporter, sdeventplus::source::IO& s,
++                          int postFd, uint32_t)
+ {
+     uint64_t code = 0;
+     ssize_t readb;
++
+     while ((readb = read(postFd, &code, codeSize)) > 0)
+     {
+         code = le64toh(code);
+@@ -72,6 +137,11 @@ void PostCodeEventHandler(sdeventplus::source::IO& s, int postFd, uint32_t,
+         // read depends on old data being cleared since it doens't always read
+         // the full code size
+         code = 0;
++
++        if (rateLimit(*reporter, s))
++        {
++            return;
++        }
+     }
+ 
+     if (readb < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+@@ -103,6 +173,7 @@ int main(int argc, char* argv[])
+     int rc = 0;
+     int opt;
+     int postFd = -1;
++    unsigned int rateLimit = 0;
+ 
+     /*
+      * These string constants are only used in this method within this object
+@@ -115,18 +186,19 @@ int main(int argc, char* argv[])
+     const char* snoopDbus = SNOOP_BUSNAME;
+ 
+     bool deferSignals = true;
+-    bool verbose = false;
+ 
+     // clang-format off
+     static const struct option long_options[] = {
+         {"bytes",  required_argument, NULL, 'b'},
+         {"device", optional_argument, NULL, 'd'},
++        {"rate-limit", optional_argument, NULL, 'r'},
+         {"verbose", no_argument, NULL, 'v'},
+         {0, 0, 0, 0}
+     };
+     // clang-format on
+ 
+-    while ((opt = getopt_long(argc, argv, "b:d:v", long_options, NULL)) != -1)
++    while ((opt = getopt_long(argc, argv, "h:b:d:r:v", long_options, NULL)) !=
++           -1)
+     {
+         switch (opt)
+         {
+@@ -153,6 +225,28 @@ int main(int argc, char* argv[])
+                 }
+ 
+                 break;
++            case 'r': {
++                int argVal = -1;
++                try
++                {
++                    argVal = std::stoi(optarg);
++                }
++                catch (...)
++                {
++                }
++
++                if (argVal < 1)
++                {
++                    fprintf(stderr, "Invalid rate limit '%s'. Must be >= 1.\n",
++                            optarg);
++                    return EXIT_FAILURE;
++                }
++
++                rateLimit = static_cast<unsigned int>(argVal);
++                fprintf(stderr, "Rate limiting to %d POST codes per second.\n",
++                        argVal);
++                break;
++            }
+             case 'v':
+                 verbose = true;
+                 break;
+@@ -178,11 +272,10 @@ int main(int argc, char* argv[])
+         std::optional<sdeventplus::source::IO> reporterSource;
+         if (postFd > 0)
+         {
++            reporter.rateLimit = rateLimit;
+             reporterSource.emplace(
+-                event, postFd, EPOLLIN | EPOLLET,
+-                std::bind(PostCodeEventHandler, std::placeholders::_1,
+-                          std::placeholders::_2, std::placeholders::_3,
+-                          &reporter, verbose));
++                event, postFd, EPOLLIN,
++                std::bind_front(PostCodeEventHandler, &reporter));
+         }
+         // Enable bus to handle incoming IO and bus events
+         bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+diff --git a/meson.build b/meson.build
+index 2bafd48..f54ee8c 100644
+--- a/meson.build
++++ b/meson.build
+@@ -27,7 +27,12 @@ conf_data.set('SYSTEMD_TARGET', get_option('systemd-target'))
+ snoopd_args = '-b ' + get_option('post-code-bytes').to_string()
+ if get_option('snoop-device') != ''
+   snoopd_args += ' -d /dev/' + get_option('snoop-device')
++  rate_limit = get_option('rate-limit')
++  if rate_limit > 0
++    snoopd_args += ' --rate-limit=' + rate_limit.to_string()
++  endif
+ endif
++
+ conf_data.set('SNOOPD_ARGS', snoopd_args)
+ 
+ configure_file(
+diff --git a/meson_options.txt b/meson_options.txt
+index 763c73e..da151e1 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -20,3 +20,11 @@ option(
+ option(
+     'tests', type: 'feature', description: 'Build tests.',
+ )
++option(
++    'rate-limit',
++    description: 'Maximum number of POST codes to read from snoop device every'
++    + 'second. Value of 0 disables rate limiting.',
++    type: 'integer',
++    min: 0,
++    value: 1000
++)
+-- 
+2.17.1
+

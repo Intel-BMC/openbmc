@@ -1,0 +1,35 @@
+From 966c2c347b3ab96bcedd362b690e66f39802b660 Mon Sep 17 00:00:00 2001
+From: Manish Baing <manish.baing@intel.com>
+Date: Thu, 10 Aug 2023 05:48:48 +0000
+Subject: [PATCH] Fix certificate replacement URI response error code
+
+
+We get 500 Internal Server Error when we try to replace certificate
+without providing certificate but expected response is 400
+So fixed the issue by checking for json (body) content before looking
+for specific keys and identifying it as 500 Internal Server Error.
+
+Tested:
+Response for attempt to replace certificate without providing
+certificate is now 400 (Bad Request response)
+
+Signed-off-by: Manish Baing <manish.baing@intel.com>
+---
+ redfish-core/lib/certificate_service.hpp | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/redfish-core/lib/certificate_service.hpp b/redfish-core/lib/certificate_service.hpp
+index f0891771..fd4836bd 100644
+--- a/redfish-core/lib/certificate_service.hpp
++++ b/redfish-core/lib/certificate_service.hpp
+@@ -691,7 +691,6 @@ inline void requestRoutesCertificateActionsReplaceCertificate(App& app)
+                                      certificateType))
+             {
+                 BMCWEB_LOG_ERROR << "Required parameters are missing";
+-                messages::internalError(asyncResp->res);
+                 return;
+             }
+ 
+-- 
+2.17.1
+

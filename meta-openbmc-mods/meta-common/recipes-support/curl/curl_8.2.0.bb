@@ -14,7 +14,7 @@ SRC_URI = " \
     file://run-ptest \
     file://disable-tests \
 "
-SRC_URI[sha256sum] = "6bd80ad4f07187015911216ee7185b90d285ac5162aed1bded144f9f93232a3c"
+SRC_URI[sha256sum] = "2859ec79e2cd96e976a99493547359b8001af1d1e21f3a3a3b846544ef54500f"
 
 # Curl has used many names over the years...
 CVE_PRODUCT = "haxx:curl haxx:libcurl curl:curl curl:libcurl libcurl:libcurl daniel_stenberg:curl"
