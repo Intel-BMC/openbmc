@@ -68,6 +68,11 @@ SRC_URI += " \
         file://0005-ext4-add-EXT4_INODE_HAS_XATTR_SPACE-macro-in-xattr-h.patch \
         file://CVE-2023-2513.patch \
         file://CVE-2023-2269.patch \
+        file://CVE-2023-2156.patch \
+        file://CVE-2023-3355.patch \
+        file://CVE-2023-3357.patch \
+        file://CVE-2022-3566.patch \
+        file://CVE-2023-3161.patch \
         "
 SRC_URI += "${@bb.utils.contains('IMAGE_FSTYPES', 'intel-pfr', 'file://1000-128MB-flashmap-for-PFR.patch', '', d)}"
 SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks', 'file://debug.cfg', '', d)}"
