@@ -5,6 +5,7 @@ SRC_URI += " \
            file://CVE-2022-28391_1.patch \
            file://CVE-2022-28391_2.patch \
            file://CVE-2022-30065.patch \
+           file://CVE-2022-48174.patch \
 		"
 
 SRC_URI += "${@bb.utils.contains('EXTRA_IMAGE_FEATURES', 'debug-tweaks','file://dev-only.cfg','',d)}"

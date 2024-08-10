@@ -10,4 +10,6 @@ SRC_URI += " \
     file://CVE-2021-43396.patch \
     file://CVE-2021-3998.patch \
     file://CVE-2023-0687.patch \
+    file://CVE-2023-4813.patch \
+    file://CVE-2023-4911.patch \
     "

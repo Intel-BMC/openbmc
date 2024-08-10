@@ -9,6 +9,10 @@ DEPENDS = "boost sdbusplus"
 PV = "0.1+git${SRCPV}"
 SRCREV = "26067f6af051ccf8feff251a081aa46e45dfa4dc"
 
+SRC_URI += " \
+    file://0001-Static-analyser-issue-resolution.patch \
+    "
+
 S = "${WORKDIR}/git/callback-manager"
 
 SYSTEMD_SERVICE:${PN} += "callback-manager.service"

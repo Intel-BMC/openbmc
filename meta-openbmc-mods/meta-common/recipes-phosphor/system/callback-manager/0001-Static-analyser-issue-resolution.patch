@@ -1,0 +1,44 @@
+From a13b83e8058f2507dbd783985794790df8137f61 Mon Sep 17 00:00:00 2001
+From: Yaswanth Reddy M <yaswanthx.reddy.munukuru@intel.com>
+Date: Thu, 5 Oct 2023 12:55:06 +0000
+Subject: [PATCH] Fix for static analyser tool reported issues.
+
+In this code, we first save the original format flags of std::cerr 
+using std::ios_base::fmtflags originalFlags = std::cerr.flags(). 
+Then, we can modify the format flags as needed. Finally, after 
+using the modified format flags, we restore the original format 
+flags using std::cerr.flags(originalFlags);
+
+Signed-off-by: Yaswanth Reddy M <yaswanthx.reddy.munukuru@intel.com>
+---
+ callback-manager/src/callback_manager.cpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/callback_manager.cpp b/src/callback_manager.cpp
+index 5050205..6651ae1 100644
+--- a/src/callback_manager.cpp
++++ b/src/callback_manager.cpp
+@@ -110,17 +110,20 @@ void updateLedStatus(std::shared_ptr<sdbusplus::asio::connection>& conn,
+         {
+             conn->async_method_call(
+                 [ledPair](const boost::system::error_code ec) {
++		    std::ios_base::fmtflags originalFlags = std::cerr.flags();
+                     if (ec)
+                     {
+                         std::cerr << "Cannot set " << ledPair.first << " to "
+                                   << std::boolalpha
+                                   << std::get<bool>(ledPair.second) << "\n";
++			std::cerr.flags(originalFlags);
+                     }
+                     if constexpr (debug)
+                     {
+                         std::cerr << "Set " << ledPair.first << " to "
+                                   << std::boolalpha
+                                   << std::get<bool>(ledPair.second) << "\n";
++			std::cerr.flags(originalFlags);
+                     }
+                 },
+                 ledManagerBusname, ledPair.first,
+-- 
+2.25.1
+

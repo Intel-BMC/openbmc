@@ -1,0 +1,103 @@
+From 926403c3e73db3fb59661b6360890c1b4efc46f2 Mon Sep 17 00:00:00 2001
+From: Yaswanth Reddy M <yaswanthx.reddy.munukuru@intel.com>
+Date: Tue, 17 Oct 2023 23:07:09 -0700
+Subject: [PATCH] Fix for static analyser tool reported issues.
+
+Signed-off-by: Yaswanth Reddy M <yaswanthx.reddy.munukuru@intel.com>
+---
+ main.cpp                          | 17 +++++++++++++----
+ protocol/admin/admin_cmd.hpp      |  4 ++--
+ protocol/mi/subsystem_hs_poll.hpp |  5 ++---
+ protocol/mi_msg.hpp               |  4 ++--
+ 4 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/main.cpp b/main.cpp
+index 25f4aa3..3914a37 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -256,8 +256,17 @@ void DeviceUpdateHandler::operator()(
+ 
+ int main()
+ {
+-    Application app;
+-    app.init();
+-    app.run();
+-    return 0;
++   try
++   {
++	Application app;
++       app.init();
++       app.run();
++	return 0;
++   }
++   catch(const std::exception& e)
++   {
++	 phosphor::logging::log<phosphor::logging::level::ERR>(
++			 (std::string( "Error running nvme-mi application") + e.what()).c_str());
++	 return -1;
++   }
+ }
+diff --git a/protocol/admin/admin_cmd.hpp b/protocol/admin/admin_cmd.hpp
+index 6bac094..fc5d2b4 100644
+--- a/protocol/admin/admin_cmd.hpp
++++ b/protocol/admin/admin_cmd.hpp
+@@ -151,7 +151,7 @@ class AdminCommand<uint8_t*> : public NVMeMessage<uint8_t*>,
+     {
+         return buffer;
+     }
+-    void setAdminOpCode(AdminOpCode opCode) noexcept
++    void setAdminOpCode(AdminOpCode opCode)
+     {
+         buffer->opCode = opCode;
+         setCRC();
+@@ -234,4 +234,4 @@ AdminCommand(T&) -> AdminCommand<uint8_t*>;
+ template <typename T>
+ AdminCommand(T&, AdminOpCode) -> AdminCommand<uint8_t*>;
+ 
+-} // namespace nvmemi::protocol
+\ No newline at end of file
++} // namespace nvmemi::protocol
+diff --git a/protocol/mi/subsystem_hs_poll.hpp b/protocol/mi/subsystem_hs_poll.hpp
+index d3fa139..196197b 100644
+--- a/protocol/mi/subsystem_hs_poll.hpp
++++ b/protocol/mi/subsystem_hs_poll.hpp
+@@ -92,8 +92,7 @@ static inline int8_t convertToCelsius(uint8_t tempByte)
+     }
+ 
+     constexpr uint8_t negativeMin = 0xC5;
+-    constexpr uint8_t negativeMax = 0xFF;
+-    if (negativeMin <= tempByte && tempByte <= negativeMax)
++    if (negativeMin <= tempByte)
+     {
+         auto tempVal = static_cast<int8_t>(-1 * (256 - tempByte));
+         return tempVal;
+@@ -104,4 +103,4 @@ static inline int8_t convertToCelsius(uint8_t tempByte)
+     }
+ }
+ 
+-} // namespace nvmemi::protocol::subsystemhs
+\ No newline at end of file
++} // namespace nvmemi::protocol::subsystemhs
+diff --git a/protocol/mi_msg.hpp b/protocol/mi_msg.hpp
+index 88f20ef..730b696 100644
+--- a/protocol/mi_msg.hpp
++++ b/protocol/mi_msg.hpp
+@@ -123,7 +123,7 @@ class ManagementInterfaceMessage<uint8_t*>
+     {
+         return buffer;
+     }
+-    void setMiOpCode(MiOpCode opCode) noexcept
++    void setMiOpCode(MiOpCode opCode)
+     {
+         this->buffer->opCode = opCode;
+         setCRC();
+@@ -174,4 +174,4 @@ template <typename T>
+ ManagementInterfaceMessage(T&, MiOpCode)
+     -> ManagementInterfaceMessage<uint8_t*>;
+ 
+-} // namespace nvmemi::protocol
+\ No newline at end of file
++} // namespace nvmemi::protocol
+-- 
+2.25.1
+

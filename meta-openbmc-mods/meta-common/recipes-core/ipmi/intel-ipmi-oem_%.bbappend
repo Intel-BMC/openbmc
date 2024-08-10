@@ -6,3 +6,5 @@ SRCREV = "6346e98cd5f33be2328478f865b34edc7203a99d"
 
 FILESEXTRAPATHS:append := ":${THISDIR}/${PN}"
 
+SRC_URI += "file://0001-static-analyzer-issue-resolution.patch \
+           "

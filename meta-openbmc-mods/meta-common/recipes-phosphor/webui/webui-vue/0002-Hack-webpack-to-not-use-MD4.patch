@@ -1,0 +1,51 @@
+From 0be88e6e4dff8a9e0b1ae1d72d1736186ba28a33 Mon Sep 17 00:00:00 2001
+From: Gunnar Mills <gmills@us.ibm.com>
+Date: Fri, 14 Jan 2022 19:52:33 +0000
+Subject: [PATCH] Hack webpack to not use MD4
+
+No longer have support for MD4, the default hashFunction.
+Mess with webpack to use sha256.
+
+This solution is from:
+https://github.com/webpack/webpack/issues/13572#issuecomment-923736472
+
+And was added to phosphor-webui here:
+https://github.com/openbmc/phosphor-webui/commit/85884002164aacfeac8ca40e6fd169b0a2de43f0
+
+Ideally --openssl-legacy-provider would work as
+https://github.com/webpack/webpack/issues/14532 describes but Node 16
+supports linking with SSL 3.0 but doesn't support
+openssl-legacy-provider. See
+https://github.com/nodejs/node/issues/40948.
+
+This should enable the new Yocto bump to pass.
+
+Tested: Build Witherspoon Tacoma with
+https://gerrit.openbmc-project.xyz/c/openbmc/openbmc/+/48473 and the 3
+and this change. The webui looked good.
+
+Change-Id: I66f2cc45af85096f9abe935d269838c6a680bc9b
+Signed-off-by: Gunnar Mills <gmills@us.ibm.com>
+---
+ vue.config.js | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/vue.config.js b/vue.config.js
+index 0268002..de0ad12 100644
+--- a/vue.config.js
++++ b/vue.config.js
+@@ -55,6 +55,11 @@ module.exports = {
+   },
+   productionSourceMap: false,
+   configureWebpack: (config) => {
++    const crypto = require('crypto');
++    const crypto_orig_createHash = crypto.createHash;
++    crypto.createHash = (algorithm) =>
++      crypto_orig_createHash(algorithm == 'md4' ? 'sha256' : algorithm);
++
+     const envName = process.env.VUE_APP_ENV_NAME;
+     const hasCustomStore = process.env.CUSTOM_STORE === 'true' ? true : false;
+     const hasCustomRouter = process.env.CUSTOM_ROUTER === 'true' ? true : false;
+-- 
+2.17.1
+

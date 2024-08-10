@@ -1,0 +1,28 @@
+From f62ee5b5ccc0496c864ad2844af93b2a99ed0ed2 Mon Sep 17 00:00:00 2001
+From: "Munukuru, YaswanthX Reddy" <yaswanthx.reddy.munukuru@intel.com>
+Date: Fri, 6 Oct 2023 05:01:55 -0700
+Subject: [PATCH] This Commit fixes the Uninitialized scalar variable issue
+
+Variable is declared but not initialized before it's used.
+
+Signed-off-by: Munukuru, YaswanthX Reddy <yaswanthx.reddy.munukuru@intel.com>
+---
+ src/manufacturingcommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/manufacturingcommands.cpp b/src/manufacturingcommands.cpp
+index 9f16d95..14dc96a 100644
+--- a/src/manufacturingcommands.cpp
++++ b/src/manufacturingcommands.cpp
+@@ -642,7 +642,7 @@ ipmi::RspType<> appMTMSetSignal(ipmi::Context::ptr ctx, uint8_t signalTypeByte,
+                         return ipmi::responseUnspecifiedError();
+                     }
+ 
+-                    struct input_event event;
++                    struct input_event event = {0};
+                     event.type = EV_SND;
+                     event.code = SND_TONE;
+                     event.value = 2000;
+-- 
+2.25.1
+
