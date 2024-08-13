@@ -1,0 +1,186 @@
+From 1b5c7030d1d9b13e73fb5779498233630f76bdf8 Mon Sep 17 00:00:00 2001
+From: PavanKumarIntel <pavanx.kumar.martha@intel.com>
+Date: Thu, 14 Sep 2023 12:14:25 +0000
+Subject: [PATCH] Fix for static analyser tool reported issues
+
+Signed-off-by: PavanKumarIntel <pavanx.kumar.martha@intel.com>
+
+%% original patch: 0066-Fix-for-Coverity-Issues.patch
+---
+ apphandler.cpp                   | 11 ++---------
+ storagehandler.cpp               | 11 ++++++-----
+ transporthandler.cpp             |  6 +++---
+ user_channel/channel_layer.cpp   |  4 +---
+ user_channel/channelcommands.cpp |  4 ++--
+ user_channel/passwd_mgr.cpp      | 10 ++++++++--
+ 6 files changed, 22 insertions(+), 24 deletions(-)
+
+diff --git a/apphandler.cpp b/apphandler.cpp
+index 41dbc8f..bd2bd6f 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -88,9 +88,7 @@ static constexpr const char* cmdStr = "command";
+ static constexpr const char* cmdMaskStr = "commandMask";
+ static constexpr int base_16 = 16;
+ #endif // ENABLE_I2C_WHITELIST_CHECK
+-static constexpr uint8_t maxIPMIWriteReadSize = 255;
+ static constexpr uint8_t oemCmdStart = 192;
+-static constexpr uint8_t oemCmdEnd = 255;
+ static constexpr uint8_t invalidParamSelectorStart = 8;
+ static constexpr uint8_t invalidParamSelectorEnd = 191;
+ 
+@@ -1292,7 +1290,7 @@ ipmi::RspType<uint8_t,                // Parameter revision
+     {
+         return ipmi::responseInvalidFieldRequest();
+     }
+-    if ((paramSelector >= oemCmdStart) && (paramSelector <= oemCmdEnd))
++    if (paramSelector >= oemCmdStart)
+     {
+         return ipmi::responseParmNotSupported();
+     }
+@@ -1369,7 +1367,7 @@ ipmi::RspType<> ipmiAppSetSystemInfo(uint8_t paramSelector, uint8_t data1,
+     {
+         return ipmi::responseInvalidFieldRequest();
+     }
+-    if ((paramSelector >= oemCmdStart) && (paramSelector <= oemCmdEnd))
++    if (paramSelector >= oemCmdStart)
+     {
+         return ipmi::responseParmNotSupported();
+     }
+@@ -1633,11 +1631,6 @@ ipmi::RspType<std::vector<uint8_t>>
+     {
+         return ipmi::responseInvalidFieldRequest();
+     }
+-    if (readCount > maxIPMIWriteReadSize)
+-    {
+-        log<level::ERR>("Master write read command: Read count exceeds limit");
+-        return ipmi::responseParmOutOfRange();
+-    }
+     const size_t writeCount = writeData.size();
+     if (!readCount && !writeCount)
+     {
+diff --git a/storagehandler.cpp b/storagehandler.cpp
+index cdd61da..d2f06cc 100644
+--- a/storagehandler.cpp
++++ b/storagehandler.cpp
+@@ -437,14 +437,15 @@ ipmi::RspType<uint16_t // deleted record ID
+     }
+     else
+     {
+-        iter = selCacheMap.find(selRecordID);
+-        if (iter == selCacheMap.end())
+-        {
+-            return ipmi::responseSensorInvalid();
+-        }
+         delRecordID = selRecordID;
+     }
+ 
++    iter = selCacheMap.find(delRecordID);
++    if (iter == selCacheMap.end())
++    {
++        return ipmi::responseSensorInvalid();
++    }
++
+     sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+     std::string service;
+ 
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 5f70d96..0713440 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -55,7 +55,6 @@ const std::unordered_set<IP::AddressOrigin> originsV4 = {
+ };
+ 
+ static constexpr uint8_t oemCmdStart = 192;
+-static constexpr uint8_t oemCmdEnd = 255;
+ 
+ std::optional<ChannelParams> maybeGetChannelParams(sdbusplus::bus::bus& bus,
+                                                    uint8_t channel)
+@@ -1234,7 +1233,7 @@ RspType<> setLan(Context::ptr ctx, uint4_t channelBits, uint4_t reserved1,
+         }
+     }
+ 
+-    if ((parameter >= oemCmdStart) && (parameter <= oemCmdEnd))
++    if (parameter >= oemCmdStart)
+     {
+         return setLanOem(channel, parameter, req);
+     }
+@@ -1521,7 +1520,7 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
+         }
+     }
+ 
+-    if ((parameter >= oemCmdStart) && (parameter <= oemCmdEnd))
++    if (parameter >= oemCmdStart)
+     {
+         return getLanOem(channel, parameter, set, block);
+     }
+@@ -1982,6 +1981,7 @@ ipmi::RspType<uint8_t, std::optional<uint8_t>, std::optional<uint8_t>>
+             {
+                 phosphor::logging::log<phosphor::logging::level::ERR>(
+                     "Failed to get valid baud rate from D-Bus interface");
++                return ipmi::responseUnspecifiedError();
+             }
+             switch (*pBaudRate)
+             {
+diff --git a/user_channel/channel_layer.cpp b/user_channel/channel_layer.cpp
+index 03b1729..022c132 100644
+--- a/user_channel/channel_layer.cpp
++++ b/user_channel/channel_layer.cpp
+@@ -51,9 +51,7 @@ bool isValidPrivLimit(const uint8_t privLimit)
+ 
+ bool isValidAccessMode(const uint8_t accessMode)
+ {
+-    return (
+-        (accessMode >= static_cast<uint8_t>(EChannelAccessMode::disabled)) &&
+-        (accessMode <= static_cast<uint8_t>(EChannelAccessMode::shared)));
++    return (accessMode <= static_cast<uint8_t>(EChannelAccessMode::shared));
+ }
+ 
+ bool isValidChannel(const uint8_t chNum)
+diff --git a/user_channel/channelcommands.cpp b/user_channel/channelcommands.cpp
+index 769f9ff..e3dffe8 100644
+--- a/user_channel/channelcommands.cpp
++++ b/user_channel/channelcommands.cpp
+@@ -194,9 +194,9 @@ ipmi ::RspType<uint3_t, // access mode,
+         return response(ccActionNotSupportedForChannel);
+     }
+ 
+-    ChannelAccess chAccess;
++    ChannelAccess chAccess = {};
+ 
+-    Cc compCode;
++    Cc compCode = ipmi::ccUnspecifiedError;
+ 
+     if (types::enum_cast<EChannelActionType>(accessSetMode) == nvData)
+     {
+diff --git a/user_channel/passwd_mgr.cpp b/user_channel/passwd_mgr.cpp
+index 9b232b5..86a38d5 100644
+--- a/user_channel/passwd_mgr.cpp
++++ b/user_channel/passwd_mgr.cpp
+@@ -74,7 +74,10 @@ void PasswdMgr::restrictFilesPermission(void)
+     {
+         if ((st.st_mode & modeMask) != (S_IRUSR | S_IWUSR))
+         {
+-            chmod(passwdFileName, S_IRUSR | S_IWUSR);
++            if (chmod(passwdFileName, S_IRUSR | S_IWUSR) == -1)
++            {
++                log<level::DEBUG>("Error setting chmod for ipmi_pass file");
++            }
+         }
+     }
+ 
+@@ -82,7 +85,10 @@ void PasswdMgr::restrictFilesPermission(void)
+     {
+         if ((st.st_mode & modeMask) != (S_IRUSR | S_IWUSR))
+         {
+-            chmod(encryptKeyFileName, S_IRUSR | S_IWUSR);
++            if (chmod(encryptKeyFileName, S_IRUSR | S_IWUSR) == -1)
++            {
++                log<level::DEBUG>("Error setting chmod for key_file file");
++            }
+         }
+     }
+ }
+-- 
+2.25.1
+

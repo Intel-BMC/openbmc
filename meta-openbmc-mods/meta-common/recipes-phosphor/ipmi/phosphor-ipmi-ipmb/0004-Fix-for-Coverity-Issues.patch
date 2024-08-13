@@ -1,0 +1,49 @@
+From 68dc114230d309f2214500978ed0406335fd5036 Mon Sep 17 00:00:00 2001
+From: PavanKumarIntel <pavanx.kumar.martha@intel.com>
+Date: Wed, 13 Sep 2023 13:20:22 +0000
+Subject: [PATCH] This Commit resolves the Coverity issues
+
+Signed-off-by: PavanKumarIntel <pavanx.kumar.martha@intel.com>
+---
+ ipmbbridged.cpp | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/ipmbbridged.cpp b/ipmbbridged.cpp
+index 0508fcc..d54df31 100644
+--- a/ipmbbridged.cpp
++++ b/ipmbbridged.cpp
+@@ -27,6 +27,7 @@
+ #include <boost/asio/write.hpp>
+ #include <filesystem>
+ #include <fstream>
++#include <list>
+ #include <nlohmann/json.hpp>
+ #include <phosphor-logging/log.hpp>
+ #include <tuple>
+@@ -320,10 +321,6 @@ bool IpmbChannel::seqNumGet(uint8_t &seq)
+     for (int i = 0; i < ipmbMaxOutstandingRequestsCount; i++)
+     {
+         seqNum = ++seqNum & ipmbSeqMask;
+-        if (seqNum == ipmbMaxOutstandingRequestsCount)
+-        {
+-            seqNum = 0;
+-        }
+ 
+         if (outstandingRequests[seqNum] == nullptr)
+         {
+@@ -363,6 +360,12 @@ void IpmbChannel::processI2cEvent()
+     lseek(ipmbi2cSlaveFd, 0, SEEK_SET);
+     int r = read(ipmbi2cSlaveFd, buffer.data(), ipmbMaxFrameLength);
+ 
++    // Handle error cases.
++    if (r < 0)
++    {
++        goto end;
++    }
++
+     /* Substract first byte len size from total frame length */
+     r--;
+ 
+-- 
+2.25.1
+

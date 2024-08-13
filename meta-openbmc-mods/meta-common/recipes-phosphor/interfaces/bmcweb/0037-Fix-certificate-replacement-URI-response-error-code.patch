@@ -3,9 +3,8 @@ From: Manish Baing <manish.baing@intel.com>
 Date: Thu, 10 Aug 2023 05:48:48 +0000
 Subject: [PATCH] Fix certificate replacement URI response error code
 
-
 We get 500 Internal Server Error when we try to replace certificate
-without providing certificate but expected response is 400
+without providing certificate but expected response is 404 Not Found.
 So fixed the issue by checking for json (body) content before looking
 for specific keys and identifying it as 500 Internal Server Error.
 

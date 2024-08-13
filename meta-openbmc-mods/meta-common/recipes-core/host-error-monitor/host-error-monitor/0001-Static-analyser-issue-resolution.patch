@@ -1,0 +1,35 @@
+From a9d4919f7eb92fecbcea141200ca04507fa8c73b Mon Sep 17 00:00:00 2001
+From: Yaswanth Reddy M <yaswanthx.reddy.munukuru@intel.com>
+Date: Thu, 5 Oct 2023 12:50:39 +0000
+Subject: [PATCH] Fix for static analyser tool reported issues.
+
+In this code, we first save the original format flags of std::cerr 
+using std::ios_base::fmtflags originalFlags = std::cerr.flags(). 
+Then, we can modify the format flags as needed. Finally, after 
+using the modified format flags, we restore the original format 
+flags using std::cerr.flags(originalFlags);
+
+Signed-off-by: Yaswanth Reddy M <yaswanthx.reddy.munukuru@intel.com>
+---
+ include/host_error_monitor.hpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/host_error_monitor.hpp b/include/host_error_monitor.hpp
+index 4bccdcc..a4aa5a3 100644
+--- a/include/host_error_monitor.hpp
++++ b/include/host_error_monitor.hpp
+@@ -169,9 +169,11 @@ static inline bool peciError(EPECIStatus peciStatus, uint8_t cc)
+ static void printPECIError(const std::string& reg, const size_t addr,
+                            const EPECIStatus peciStatus, const size_t cc)
+ {
++    std::ios_base::fmtflags originalFlags = std::cerr.flags();
+     std::cerr << "Failed to read " << reg << " on CPU address " << std::dec
+               << addr << ". Error: " << peciStatus << ": cc: 0x" << std::hex
+               << cc << "\n";
++    std::cerr.flags(originalFlags);
+ }
+ 
+ static void beep(std::shared_ptr<sdbusplus::asio::connection> conn,
+-- 
+2.25.1
+

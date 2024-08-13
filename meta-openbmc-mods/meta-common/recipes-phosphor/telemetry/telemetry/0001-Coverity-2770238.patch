@@ -1,0 +1,40 @@
+From 50e811dee326936f3de8cb9df6c623d8d4858577 Mon Sep 17 00:00:00 2001
+From: Wojciech Tempczyk <wojciechx.tempczyk@intel.com>
+Date: Tue, 19 Sep 2023 14:32:05 +0200
+Subject: [PATCH] Coverity 2770238
+
+---
+ src/report.cpp | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/report.cpp b/src/report.cpp
+index 26fcd0b..c480675 100644
+--- a/src/report.cpp
++++ b/src/report.cpp
+@@ -409,10 +409,19 @@ void Report::timerProcForOnChangeReport(boost::system::error_code ec,
+ 
+ void Report::scheduleTimerForPeriodicReport(Milliseconds timerInterval)
+ {
+-    timer.expires_after(timerInterval);
+-    timer.async_wait([this](boost::system::error_code ec) {
+-        timerProcForPeriodicReport(ec, *this);
+-    });
++    try
++    {
++        timer.expires_after(timerInterval);
++        timer.async_wait([this](boost::system::error_code ec) {
++            timerProcForPeriodicReport(ec, *this);
++        });
++    }
++    catch (const boost::system::system_error& exception)
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "Failed to schedule timer for periodic report: ",
++            phosphor::logging::entry("EXCEPTION_MSG=%s", exception.what()));
++    }
+ }
+ 
+ void Report::scheduleTimerForOnChangeReport()
+-- 
+2.34.1
+

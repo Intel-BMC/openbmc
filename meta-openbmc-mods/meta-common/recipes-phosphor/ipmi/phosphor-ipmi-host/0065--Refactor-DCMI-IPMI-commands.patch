@@ -1,0 +1,2845 @@
+From 2cced6aac7e35f8f3c1d9c5f56a8c8873556bd7d Mon Sep 17 00:00:00 2001
+From: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+Date: Mon, 28 Aug 2023 18:18:43 +0000
+Subject: [PATCH] Refactor DCMI IPMI commands
+
+This PR ported from below upstream commit ID's
+82cffccd642142b7dd48c9a874718e69e83b2ef3
+f4eb35d069bb338506dcac80905c0bc9e929ac89
+d4222fd3b66e4fd69b42ea7b91ad2af11fd77cce
+dca4720fe3d0af8c433614a6199f0a6b41ade6a4
+efb5ae550fe5033742c74b611c5c3f1791261414
+f038dc095f8d9089d92d89740177b19a5d2b5f5b
+cce9ffd9efea31ea6c42692a6d3ba50a3fccaacf
+056fab1a60e1b23de2526f6d7a06b419e8ac8008
+53d0cf1d4aacbea483d0fe99e1bb9b57da70fc2f
+6475b5c9d7efc23a48d0c522d1eb7fecde09bd55
+
+Tested:
+Testing is in progress
+
+Signed-off-by: Vernon Mauery <vernon.mauery@linux.intel.com>
+Signed-off-by: Jayaprakash Mutyala <mutyalax.jayaprakash@intel.com>
+---
+ dcmihandler.cpp | 1802 +++++++++++++++++++++--------------------------
+ dcmihandler.hpp |  536 +-------------
+ ipmid-new.cpp   |    5 +-
+ 3 files changed, 788 insertions(+), 1555 deletions(-)
+
+diff --git a/dcmihandler.cpp b/dcmihandler.cpp
+index 2ab02f3..e2addb5 100644
+--- a/dcmihandler.cpp
++++ b/dcmihandler.cpp
+@@ -15,745 +15,703 @@
+ #include <sdbusplus/bus.hpp>
+ #include <variant>
+ #include <xyz/openbmc_project/Common/error.hpp>
++#include <xyz/openbmc_project/Network/EthernetInterface/server.hpp>
+ 
+ using namespace phosphor::logging;
++using sdbusplus::xyz::openbmc_project::Network::server::EthernetInterface;
+ using InternalFailure =
+     sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
+ 
+ void register_netfn_dcmi_functions() __attribute__((constructor));
+ 
+-constexpr auto PCAP_PATH = "/xyz/openbmc_project/control/host0/power_cap";
+-constexpr auto PCAP_INTERFACE = "xyz.openbmc_project.Control.Power.Cap";
+-
+-constexpr auto POWER_CAP_PROP = "PowerCap";
+-constexpr auto POWER_CAP_ENABLE_PROP = "PowerCapEnable";
+-
+-constexpr auto DCMI_PARAMETER_REVISION = 2;
+-constexpr auto DCMI_SPEC_MAJOR_VERSION = 1;
+-constexpr auto DCMI_SPEC_MINOR_VERSION = 5;
+-constexpr auto DCMI_CONFIG_PARAMETER_REVISION = 1;
+-constexpr auto DCMI_RAND_BACK_OFF_MASK = 0x80;
+-constexpr auto DCMI_OPTION_60_43_MASK = 0x02;
+-constexpr auto DCMI_OPTION_12_MASK = 0x01;
+-constexpr auto DCMI_ACTIVATE_DHCP_MASK = 0x01;
+-constexpr auto DCMI_ACTIVATE_DHCP_REPLY = 0x00;
+-constexpr auto DCMI_SET_CONF_PARAM_REQ_PACKET_MAX_SIZE = 0x04;
+-constexpr auto DCMI_SET_CONF_PARAM_REQ_PACKET_MIN_SIZE = 0x03;
+-constexpr auto DHCP_TIMING1 = 0x04;       // 4 sec
+-constexpr auto DHCP_TIMING2_UPPER = 0x00; // 2 min
+-constexpr auto DHCP_TIMING2_LOWER = 0x78;
+-constexpr auto DHCP_TIMING3_UPPER = 0x00; // 64 sec
+-constexpr auto DHCP_TIMING3_LOWER = 0x40;
+-// When DHCP Option 12 is enabled the string "SendHostName=true" will be
+-// added into n/w configuration file and the parameter
+-// SendHostNameEnabled will set to true.
+-constexpr auto DHCP_OPT12_ENABLED = "SendHostNameEnabled";
++constexpr auto pcapPath = "/xyz/openbmc_project/control/host0/power_cap";
++constexpr auto pcapInterface = "xyz.openbmc_project.Control.Power.Cap";
+ 
+-constexpr auto SENSOR_VALUE_INTF = "xyz.openbmc_project.Sensor.Value";
+-constexpr auto SENSOR_VALUE_PROP = "Value";
+-constexpr auto SENSOR_SCALE_PROP = "Scale";
++constexpr auto powerCapProp = "PowerCap";
++constexpr auto powerCapEnableProp = "PowerCapEnable";
+ 
+ using namespace phosphor::logging;
+ 
+ namespace dcmi
+ {
++constexpr auto assetTagMaxOffset = 62;
++constexpr auto assetTagMaxSize = 63;
++constexpr auto maxBytes = 16;
++constexpr size_t maxCtrlIdStrLen = 63;
++
++constexpr uint8_t parameterRevision = 2;
++constexpr uint8_t specMajorVersion = 1;
++constexpr uint8_t specMinorVersion = 5;
++constexpr auto sensorValueIntf = "xyz.openbmc_project.Sensor.Value";
++constexpr auto sensorValueProp = "Value";
++constexpr uint8_t configParameterRevision = 1;
++constexpr auto option12Mask = 0x01;
++constexpr auto activateDhcpReply = 0x00;
++constexpr uint8_t dhcpTiming1 = 0x04;  // 4 sec
++constexpr uint16_t dhcpTiming2 = 0x78; // 120 sec
++constexpr uint16_t dhcpTiming3 = 0x40; // 60 sec
++// When DHCP Option 12 is enabled the string "SendHostName=true" will be
++// added into n/w configuration file and the parameter
++// SendHostNameEnabled will set to true.
++constexpr auto dhcpOpt12Enabled = "SendHostNameEnabled";
++
++enum class DCMIConfigParameters : uint8_t
++{
++    ActivateDHCP = 1,
++    DiscoveryConfig,
++    DHCPTiming1,
++    DHCPTiming2,
++    DHCPTiming3,
++};
+ 
+ // Refer Table 6-14, DCMI Entity ID Extension, DCMI v1.5 spec
+ static const std::map<uint8_t, std::string> entityIdToName{
+     {0x40, "inlet"}, {0x37, "inlet"},     {0x41, "cpu"},
+     {0x03, "cpu"},   {0x42, "baseboard"}, {0x07, "baseboard"}};
+ 
+-bool isDCMIPowerMgmtSupported()
++nlohmann::json parseJSONConfig(const std::string& configFile)
+ {
+-    auto data = parseJSONConfig(gDCMICapabilitiesConfig);
+-
+-    return (gDCMIPowerMgmtSupported == data.value(gDCMIPowerMgmtCapability, 0));
+-}
+-
+-uint32_t getPcap(sdbusplus::bus::bus& bus)
+-{
+-    auto settingService = ipmi::getService(bus, PCAP_INTERFACE, PCAP_PATH);
+-
+-    auto method = bus.new_method_call(settingService.c_str(), PCAP_PATH,
+-                                      "org.freedesktop.DBus.Properties", "Get");
+-
+-    method.append(PCAP_INTERFACE, POWER_CAP_PROP);
+-    auto reply = bus.call(method);
++    std::ifstream jsonFile(configFile);
++    if (!jsonFile.is_open())
++    {
++        log<level::ERR>("Temperature readings JSON file not found");
++        elog<InternalFailure>();
++    }
+ 
+-    if (reply.is_method_error())
++    auto data = nlohmann::json::parse(jsonFile, nullptr, false);
++    if (data.is_discarded())
+     {
+-        log<level::ERR>("Error in getPcap prop");
++        log<level::ERR>("Temperature readings JSON parser failure");
+         elog<InternalFailure>();
+     }
+-    std::variant<uint32_t> pcap;
+-    reply.read(pcap);
+ 
+-    return std::get<uint32_t>(pcap);
++    return data;
+ }
+ 
+-bool getPcapEnabled(sdbusplus::bus::bus& bus)
++bool isDCMIPowerMgmtSupported()
+ {
+-    auto settingService = ipmi::getService(bus, PCAP_INTERFACE, PCAP_PATH);
+-
+-    auto method = bus.new_method_call(settingService.c_str(), PCAP_PATH,
+-                                      "org.freedesktop.DBus.Properties", "Get");
++    static bool parsed = false;
++    static bool supported = false;
++    if (!parsed)
++    {
++        auto data = parseJSONConfig(gDCMICapabilitiesConfig);
+ 
+-    method.append(PCAP_INTERFACE, POWER_CAP_ENABLE_PROP);
+-    auto reply = bus.call(method);
++        supported = (gDCMIPowerMgmtSupported ==
++                     data.value(gDCMIPowerMgmtCapability, 0));
++    }
++    return supported;
++}
+ 
+-    if (reply.is_method_error())
++std::optional<uint32_t> getPcap(ipmi::Context::ptr& ctx)
++{
++    std::string service{};
++    boost::system::error_code ec = ipmi::getService(ctx, pcapInterface,
++                                                    pcapPath, service);
++    if (ec.value())
+     {
+-        log<level::ERR>("Error in getPcapEnabled prop");
++        return std::nullopt;
++    }
++    uint32_t pcap{};
++    ec = ipmi::getDbusProperty(ctx, service, pcapPath, pcapInterface,
++                               powerCapProp, pcap);
++    if (ec.value())
++    {
++        log<level::ERR>("Error in getPcap prop",
++                        entry("ERROR=%s", ec.message().c_str()));
+         elog<InternalFailure>();
++        return std::nullopt;
+     }
+-    std::variant<bool> pcapEnabled;
+-    reply.read(pcapEnabled);
+-
+-    return std::get<bool>(pcapEnabled);
++    return pcap;
+ }
+ 
+-void setPcap(sdbusplus::bus::bus& bus, const uint32_t powerCap)
++std::optional<bool> getPcapEnabled(ipmi::Context::ptr& ctx)
+ {
+-    auto service = ipmi::getService(bus, PCAP_INTERFACE, PCAP_PATH);
+-
+-    auto method = bus.new_method_call(service.c_str(), PCAP_PATH,
+-                                      "org.freedesktop.DBus.Properties", "Set");
+-
+-    method.append(PCAP_INTERFACE, POWER_CAP_PROP);
+-    method.append(std::variant<uint32_t>(powerCap));
+-
+-    auto reply = bus.call(method);
+-
+-    if (reply.is_method_error())
++    std::string service{};
++    boost::system::error_code ec = ipmi::getService(ctx, pcapInterface,
++                                                    pcapPath, service);
++    if (ec.value())
+     {
+-        log<level::ERR>("Error in setPcap property");
++        return std::nullopt;
++    }
++    bool pcapEnabled{};
++    ec = ipmi::getDbusProperty(ctx, service, pcapPath, pcapInterface,
++                               powerCapEnableProp, pcapEnabled);
++    if (ec.value())
++    {
++        log<level::ERR>("Error in getPcap prop");
+         elog<InternalFailure>();
++        return std::nullopt;
+     }
++    return pcapEnabled;
+ }
+ 
+-void setPcapEnable(sdbusplus::bus::bus& bus, bool enabled)
++bool setPcap(ipmi::Context::ptr& ctx, const uint32_t powerCap)
+ {
+-    auto service = ipmi::getService(bus, PCAP_INTERFACE, PCAP_PATH);
+-
+-    auto method = bus.new_method_call(service.c_str(), PCAP_PATH,
+-                                      "org.freedesktop.DBus.Properties", "Set");
+-
+-    method.append(PCAP_INTERFACE, POWER_CAP_ENABLE_PROP);
+-    method.append(std::variant<bool>(enabled));
+-
+-    auto reply = bus.call(method);
++    std::string service{};
++    boost::system::error_code ec = ipmi::getService(ctx, pcapInterface,
++                                                    pcapPath, service);
++    if (ec.value())
++    {
++        return false;
++    }
+ 
+-    if (reply.is_method_error())
++    ec = ipmi::setDbusProperty(ctx, service, pcapPath, pcapInterface,
++                               powerCapProp, powerCap);
++    if (ec.value())
+     {
+-        log<level::ERR>("Error in setPcapEnabled property");
++        log<level::ERR>("Error in setPcap property",
++                        entry("ERROR=%s", ec.message().c_str()));
+         elog<InternalFailure>();
++        return false;
+     }
++    return true;
+ }
+ 
+-void readAssetTagObjectTree(dcmi::assettag::ObjectTree& objectTree)
++bool setPcapEnable(ipmi::Context::ptr& ctx, bool enabled)
+ {
+-    static constexpr auto mapperBusName = "xyz.openbmc_project.ObjectMapper";
+-    static constexpr auto mapperObjPath = "/xyz/openbmc_project/object_mapper";
+-    static constexpr auto mapperIface = "xyz.openbmc_project.ObjectMapper";
+-    static constexpr auto inventoryRoot = "/xyz/openbmc_project/inventory/";
+-
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-    auto depth = 0;
+-
+-    auto mapperCall = bus.new_method_call(mapperBusName, mapperObjPath,
+-                                          mapperIface, "GetSubTree");
+-
+-    mapperCall.append(inventoryRoot);
+-    mapperCall.append(depth);
+-    mapperCall.append(std::vector<std::string>({dcmi::assetTagIntf}));
+-
+-    auto mapperReply = bus.call(mapperCall);
+-    if (mapperReply.is_method_error())
++    std::string service{};
++    boost::system::error_code ec = ipmi::getService(ctx, pcapInterface,
++                                                    pcapPath, service);
++    if (ec.value())
+     {
+-        log<level::ERR>("Error in mapper call");
+-        elog<InternalFailure>();
++        return false;
+     }
+ 
+-    mapperReply.read(objectTree);
+-
+-    if (objectTree.empty())
++    ec = ipmi::setDbusProperty(ctx, service, pcapPath, pcapInterface,
++                               powerCapEnableProp, enabled);
++    if (ec.value())
+     {
+-        log<level::ERR>("AssetTag property is not populated");
++        log<level::ERR>("Error in setPcapEnabled property",
++                        entry("ERROR=%s", ec.message().c_str()));
+         elog<InternalFailure>();
++        return false;
+     }
++    return true;
+ }
+ 
+-std::string readAssetTag()
++std::optional<std::string> readAssetTag(ipmi::Context::ptr& ctx)
+ {
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-    dcmi::assettag::ObjectTree objectTree;
+-
+     // Read the object tree with the inventory root to figure out the object
+     // that has implemented the Asset tag interface.
+-    readAssetTagObjectTree(objectTree);
+-
+-    auto method = bus.new_method_call(
+-        (objectTree.begin()->second.begin()->first).c_str(),
+-        (objectTree.begin()->first).c_str(), dcmi::propIntf, "Get");
+-    method.append(dcmi::assetTagIntf);
+-    method.append(dcmi::assetTagProp);
++    ipmi::DbusObjectInfo objectInfo;
++    boost::system::error_code ec = getDbusObject(
++        ctx, dcmi::assetTagIntf, ipmi::sensor::inventoryRoot, "", objectInfo);
++    if (ec.value())
++    {
++        return std::nullopt;
++    }
+ 
+-    auto reply = bus.call(method);
+-    if (reply.is_method_error())
++    std::string assetTag{};
++    ec = ipmi::getDbusProperty(ctx, objectInfo.second, objectInfo.first,
++                               dcmi::assetTagIntf, dcmi::assetTagProp,
++                               assetTag);
++    if (ec.value())
+     {
+-        log<level::ERR>("Error in reading asset tag");
++        log<level::ERR>("Error in reading asset tag",
++                        entry("ERROR=%s", ec.message().c_str()));
+         elog<InternalFailure>();
++        return std::nullopt;
+     }
+ 
+-    std::variant<std::string> assetTag;
+-    reply.read(assetTag);
+-
+-    return std::get<std::string>(assetTag);
++    return assetTag;
+ }
+ 
+-void writeAssetTag(const std::string& assetTag)
++bool writeAssetTag(ipmi::Context::ptr& ctx, const std::string& assetTag)
+ {
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-    dcmi::assettag::ObjectTree objectTree;
+-
+     // Read the object tree with the inventory root to figure out the object
+     // that has implemented the Asset tag interface.
+-    readAssetTagObjectTree(objectTree);
+-
+-    auto method = bus.new_method_call(
+-        (objectTree.begin()->second.begin()->first).c_str(),
+-        (objectTree.begin()->first).c_str(), dcmi::propIntf, "Set");
+-    method.append(dcmi::assetTagIntf);
+-    method.append(dcmi::assetTagProp);
+-    method.append(std::variant<std::string>(assetTag));
++    ipmi::DbusObjectInfo objectInfo;
++    boost::system::error_code ec = getDbusObject(
++        ctx, dcmi::assetTagIntf, ipmi::sensor::inventoryRoot, "", objectInfo);
++    if (ec.value())
++    {
++        return false;
++    }
+ 
+-    auto reply = bus.call(method);
+-    if (reply.is_method_error())
++    ec = ipmi::setDbusProperty(ctx, objectInfo.second, objectInfo.first,
++                               dcmi::assetTagIntf, dcmi::assetTagProp,
++                               assetTag);
++    if (ec.value())
+     {
+-        log<level::ERR>("Error in writing asset tag");
++        log<level::ERR>("Error in writing asset tag",
++                        entry("ERROR=%s", ec.message().c_str()));
+         elog<InternalFailure>();
++        return false;
+     }
++    return true;
+ }
+ 
+-std::string getHostName(void)
++std::optional<std::string> getHostName(ipmi::Context::ptr& ctx)
+ {
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-
+-    auto service = ipmi::getService(bus, networkConfigIntf, networkConfigObj);
+-    auto value = ipmi::getDbusProperty(bus, service, networkConfigObj,
+-                                       networkConfigIntf, hostNameProp);
+-
+-    return std::get<std::string>(value);
++    std::string service{};
++    boost::system::error_code ec = ipmi::getService(ctx, networkConfigIntf,
++                                                    networkConfigObj, service);
++    if (ec.value())
++    {
++        return std::nullopt;
++    }
++    std::string hostname{};
++    ec = ipmi::getDbusProperty(ctx, service, networkConfigObj,
++                               networkConfigIntf, hostNameProp, hostname);
++    if (ec.value())
++    {
++        log<level::ERR>("Error fetching hostname");
++        elog<InternalFailure>();
++        return std::nullopt;
++    }
++    return hostname;
+ }
+ 
+-bool getDHCPEnabled()
++std::optional<EthernetInterface::DHCPConf>
++    getDHCPEnabled(ipmi::Context::ptr& ctx)
+ {
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-
+     auto ethdevice = ipmi::getChannelName(ethernetDefaultChannelNum);
+-    auto ethernetObj =
+-        ipmi::getDbusObject(bus, ethernetIntf, networkRoot, ethdevice);
+-    auto service = ipmi::getService(bus, ethernetIntf, ethernetObj.first);
+-    auto value = ipmi::getDbusProperty(bus, service, ethernetObj.first,
+-                                       ethernetIntf, "DHCPEnabled");
+-
+-    return std::get<bool>(value);
+-}
+-
+-bool getDHCPOption(std::string prop)
+-{
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-
+-    auto service = ipmi::getService(bus, dhcpIntf, dhcpObj);
+-    auto value = ipmi::getDbusProperty(bus, service, dhcpObj, dhcpIntf, prop);
++    ipmi::DbusObjectInfo ethernetObj{};
++    boost::system::error_code ec = ipmi::getDbusObject(
++        ctx, ethernetIntf, networkRoot, ethdevice, ethernetObj);
++    if (ec.value())
++    {
++        return std::nullopt;
++    }
++    std::string service{};
++    ec = ipmi::getService(ctx, ethernetIntf, ethernetObj.first, service);
++    if (ec.value())
++    {
++        return std::nullopt;
++    }
++    std::string dhcpVal{};
++    ec = ipmi::getDbusProperty(ctx, service, ethernetObj.first, ethernetIntf,
++                               "DHCPEnabled", dhcpVal);
++    if (ec.value())
++    {
++        return std::nullopt;
++    }
+ 
+-    return std::get<bool>(value);
++    return EthernetInterface::convertDHCPConfFromString(dhcpVal);
+ }
+ 
+-void setDHCPOption(std::string prop, bool value)
++std::optional<bool> getDHCPOption(ipmi::Context::ptr& ctx,
++                                  const std::string& prop)
+ {
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
++    std::string service;
++    boost::system::error_code ec = ipmi::getService(ctx, dhcpIntf, dhcpObj,
++                                                    service);
++    if (ec.value())
++    {
++        return std::nullopt;
++    }
++    bool value{};
++    ec = ipmi::getDbusProperty(ctx, service, dhcpObj, dhcpIntf, prop, value);
++    if (ec.value())
++    {
++        return std::nullopt;
++    }
+ 
+-    auto service = ipmi::getService(bus, dhcpIntf, dhcpObj);
+-    ipmi::setDbusProperty(bus, service, dhcpObj, dhcpIntf, prop, value);
++    return value;
+ }
+ 
+-Json parseJSONConfig(const std::string& configFile)
++bool setDHCPOption(ipmi::Context::ptr& ctx, std::string prop, bool value)
+ {
+-    std::ifstream jsonFile(configFile);
+-    if (!jsonFile.is_open())
++    std::string service;
++    boost::system::error_code ec = ipmi::getService(ctx, dhcpIntf, dhcpObj,
++                                                    service);
++    if (!ec.value())
+     {
+-        log<level::ERR>("Temperature readings JSON file not found");
+-        elog<InternalFailure>();
++        ec = ipmi::setDbusProperty(ctx, service, dhcpObj, dhcpIntf, prop,
++                                   value);
+     }
+-
+-    auto data = Json::parse(jsonFile, nullptr, false);
+-    if (data.is_discarded())
+-    {
+-        log<level::ERR>("Temperature readings JSON parser failure");
+-        elog<InternalFailure>();
+-    }
+-
+-    return data;
++    return (!ec.value());
+ }
+ 
+ } // namespace dcmi
+ 
+-ipmi_ret_t getPowerLimit(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                         ipmi_request_t request, ipmi_response_t response,
+-                         ipmi_data_len_t data_len, ipmi_context_t context)
++constexpr uint8_t exceptionPowerOff = 0x01;
++ipmi::RspType<uint16_t, // reserved
++              uint8_t,  // exception actions
++              uint16_t, // power limit requested in watts
++              uint32_t, // correction time in milliseconds
++              uint16_t, // reserved
++              uint16_t  // statistics sampling period in seconds
++              >
++    getPowerLimit(ipmi::Context::ptr ctx, uint16_t reserved)
+ {
+     if (!dcmi::isDCMIPowerMgmtSupported())
+     {
+-        *data_len = 0;
+-        log<level::ERR>("DCMI Power management is unsupported!");
+-        return IPMI_CC_INVALID;
++        return ipmi::responseInvalidCommand();
+     }
+-
+-    std::vector<uint8_t> outPayload(sizeof(dcmi::GetPowerLimitResponse));
+-    auto responseData =
+-        reinterpret_cast<dcmi::GetPowerLimitResponse*>(outPayload.data());
+-
+-    sdbusplus::bus::bus sdbus{ipmid_get_sd_bus_connection()};
+-    uint32_t pcapValue = 0;
+-    bool pcapEnable = false;
+-
+-    try
++    if (reserved)
+     {
+-        pcapValue = dcmi::getPcap(sdbus);
+-        pcapEnable = dcmi::getPcapEnabled(sdbus);
++        return ipmi::responseInvalidFieldRequest();
+     }
+-    catch (const InternalFailure& e)
++
++    std::optional<uint16_t> pcapValue = dcmi::getPcap(ctx);
++    std::optional<bool> pcapEnable = dcmi::getPcapEnabled(ctx);
++    if (!pcapValue || !pcapEnable)
+     {
+-        *data_len = 0;
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseUnspecifiedError();
+     }
+ 
++    constexpr uint16_t reserved1{};
++    constexpr uint16_t reserved2{};
+     /*
+      * Exception action if power limit is exceeded and cannot be controlled
+      * with the correction time limit is hardcoded to Hard Power Off system
+      * and log event to SEL.
+      */
+-    constexpr auto exception = 0x01;
+-    responseData->exceptionAction = exception;
+-
+-    responseData->powerLimit = static_cast<uint16_t>(pcapValue);
+-
++    constexpr uint8_t exception = exceptionPowerOff;
+     /*
+      * Correction time limit and Statistics sampling period is currently not
+      * populated.
+      */
+-
+-    *data_len = outPayload.size();
+-    memcpy(response, outPayload.data(), *data_len);
+-
+-    if (pcapEnable)
++    constexpr uint32_t correctionTime{};
++    constexpr uint16_t statsPeriod{};
++    if (!pcapEnable)
+     {
+-        return IPMI_CC_OK;
+-    }
+-    else
+-    {
+-        return IPMI_DCMI_CC_NO_ACTIVE_POWER_LIMIT;
++        constexpr ipmi::Cc responseNoPowerLimitSet = 0x80;
++        constexpr uint16_t noPcap{};
++        return ipmi::response(responseNoPowerLimitSet, reserved1, exception,
++                              noPcap, correctionTime, reserved2, statsPeriod);
+     }
++    return ipmi::responseSuccess(reserved1, exception, *pcapValue,
++                                 correctionTime, reserved2, statsPeriod);
+ }
+ 
+-ipmi_ret_t setPowerLimit(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                         ipmi_request_t request, ipmi_response_t response,
+-                         ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<> setPowerLimit(ipmi::Context::ptr& ctx, uint16_t reserved1,
++                              uint8_t exceptionAction, uint16_t powerLimit,
++                              uint32_t correctionTime, uint16_t reserved2,
++                              uint16_t statsPeriod)
+ {
+     if (!dcmi::isDCMIPowerMgmtSupported())
+     {
+-        *data_len = 0;
+         log<level::ERR>("DCMI Power management is unsupported!");
+-        return IPMI_CC_INVALID;
++        return ipmi::responseInvalidCommand();
+     }
+ 
+-    auto requestData =
+-        reinterpret_cast<const dcmi::SetPowerLimitRequest*>(request);
+-
+-    sdbusplus::bus::bus sdbus{ipmid_get_sd_bus_connection()};
+-
+-    // Only process the power limit requested in watts.
+-    try
++    // Only process the power limit requested in watts. Return errors
++    // for other fields that are set
++    if (reserved1 || reserved2 || correctionTime || statsPeriod ||
++        exceptionAction != exceptionPowerOff)
+     {
+-        dcmi::setPcap(sdbus, requestData->powerLimit);
++        return ipmi::responseInvalidFieldRequest();
+     }
+-    catch (const InternalFailure& e)
++
++    if (!dcmi::setPcap(ctx, powerLimit))
+     {
+-        *data_len = 0;
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseUnspecifiedError();
+     }
+ 
+-    log<level::INFO>("Set Power Cap",
+-                     entry("POWERCAP=%u", requestData->powerLimit));
++    log<level::INFO>("Set Power Cap", entry("POWERCAP=%u", powerLimit));
+ 
+-    *data_len = 0;
+-    return IPMI_CC_OK;
++    return ipmi::responseSuccess();
+ }
+ 
+-ipmi_ret_t applyPowerLimit(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                           ipmi_request_t request, ipmi_response_t response,
+-                           ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<> applyPowerLimit(ipmi::Context::ptr& ctx, bool enabled,
++                                uint7_t reserved1, uint16_t reserved2)
+ {
+     if (!dcmi::isDCMIPowerMgmtSupported())
+     {
+-        *data_len = 0;
+         log<level::ERR>("DCMI Power management is unsupported!");
+-        return IPMI_CC_INVALID;
++        return ipmi::responseInvalidCommand();
+     }
+-
+-    auto requestData =
+-        reinterpret_cast<const dcmi::ApplyPowerLimitRequest*>(request);
+-
+-    sdbusplus::bus::bus sdbus{ipmid_get_sd_bus_connection()};
+-
+-    try
++    if (reserved1 || reserved2)
+     {
+-        dcmi::setPcapEnable(sdbus,
+-                            static_cast<bool>(requestData->powerLimitAction));
++        return ipmi::responseInvalidFieldRequest();
+     }
+-    catch (const InternalFailure& e)
++
++    if (!dcmi::setPcapEnable(ctx, enabled))
+     {
+-        *data_len = 0;
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseUnspecifiedError();
+     }
+ 
+     log<level::INFO>("Set Power Cap Enable",
+-                     entry("POWERCAPENABLE=%u", requestData->powerLimitAction));
++                     entry("POWERCAPENABLE=%u", static_cast<uint8_t>(enabled)));
+ 
+-    *data_len = 0;
+-    return IPMI_CC_OK;
++    return ipmi::responseSuccess();
+ }
+ 
+-ipmi_ret_t getAssetTag(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                       ipmi_request_t request, ipmi_response_t response,
+-                       ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<uint8_t,          // total tag length
++              std::vector<char> // tag data
++              >
++    getAssetTag(ipmi::Context::ptr& ctx, uint8_t offset, uint8_t count)
+ {
+-    auto requestData =
+-        reinterpret_cast<const dcmi::GetAssetTagRequest*>(request);
+-    std::vector<uint8_t> outPayload(sizeof(dcmi::GetAssetTagResponse));
+-    auto responseData =
+-        reinterpret_cast<dcmi::GetAssetTagResponse*>(outPayload.data());
+-
+-    // Verify offset to read and number of bytes to read are not exceeding the
+-    // range.
+-    if ((requestData->offset > dcmi::assetTagMaxOffset) ||
+-        (requestData->bytes > dcmi::maxBytes) ||
+-        ((requestData->offset + requestData->bytes) > dcmi::assetTagMaxSize))
+-    {
+-        *data_len = 0;
+-        return IPMI_CC_PARM_OUT_OF_RANGE;
+-    }
+-
+-    std::string assetTag;
+-
+-    try
+-    {
+-        assetTag = dcmi::readAssetTag();
+-    }
+-    catch (const InternalFailure& e)
++    // Verify offset to read and number of bytes to read are not exceeding
++    // the range.
++    if ((offset > dcmi::assetTagMaxOffset) || (count > dcmi::maxBytes) ||
++        ((offset + count) > dcmi::assetTagMaxSize))
+     {
+-        *data_len = 0;
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseParmOutOfRange();
+     }
+ 
+-    // Return if the asset tag is not populated.
+-    if (!assetTag.size())
++    std::optional<std::string> assetTagResp = dcmi::readAssetTag(ctx);
++    if (!assetTagResp)
+     {
+-        responseData->tagLength = 0;
+-        memcpy(response, outPayload.data(), outPayload.size());
+-        *data_len = outPayload.size();
+-        return IPMI_CC_OK;
++        return ipmi::responseUnspecifiedError();
+     }
+ 
+-    // If the asset tag is longer than 63 bytes, restrict it to 63 bytes to suit
+-    // Get Asset Tag command.
++    std::string& assetTag = assetTagResp.value();
++    // If the asset tag is longer than 63 bytes, restrict it to 63 bytes to
++    // suit Get Asset Tag command.
+     if (assetTag.size() > dcmi::assetTagMaxSize)
+     {
+         assetTag.resize(dcmi::assetTagMaxSize);
+     }
+ 
+-    // If the requested offset is beyond the asset tag size.
+-    if (requestData->offset >= assetTag.size())
++    if (offset >= assetTag.size())
+     {
+-        *data_len = 0;
+-        return IPMI_CC_PARM_OUT_OF_RANGE;
++        return ipmi::responseParmOutOfRange();
+     }
+ 
+-    auto returnData = assetTag.substr(requestData->offset, requestData->bytes);
+-
+-    responseData->tagLength = assetTag.size();
++    // silently truncate reads beyond the end of assetTag
++    if ((offset + count) >= assetTag.size())
++    {
++        count = assetTag.size() - offset;
++    }
+ 
+-    memcpy(response, outPayload.data(), outPayload.size());
+-    memcpy(static_cast<uint8_t*>(response) + outPayload.size(),
+-           returnData.data(), returnData.size());
+-    *data_len = outPayload.size() + returnData.size();
++    auto totalTagSize = static_cast<uint8_t>(assetTag.size());
++    std::vector<char> data{assetTag.begin() + offset,
++                           assetTag.begin() + offset + count};
+ 
+-    return IPMI_CC_OK;
++    return ipmi::responseSuccess(totalTagSize, data);
+ }
+ 
+-ipmi_ret_t setAssetTag(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                       ipmi_request_t request, ipmi_response_t response,
+-                       ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<uint8_t // new asset tag length
++              >
++    setAssetTag(ipmi::Context::ptr& ctx, uint8_t offset, uint8_t count,
++                const std::vector<char>& data)
+ {
+-    auto requestData =
+-        reinterpret_cast<const dcmi::SetAssetTagRequest*>(request);
+-    std::vector<uint8_t> outPayload(sizeof(dcmi::SetAssetTagResponse));
+-    auto responseData =
+-        reinterpret_cast<dcmi::SetAssetTagResponse*>(outPayload.data());
+-
+-    // Verify offset to read and number of bytes to read are not exceeding the
+-    // range.
+-    if ((requestData->offset > dcmi::assetTagMaxOffset) ||
+-        (requestData->bytes > dcmi::maxBytes) ||
+-        ((requestData->offset + requestData->bytes) > dcmi::assetTagMaxSize))
++    // Verify offset to read and number of bytes to read are not exceeding
++    // the range.
++    if ((offset > dcmi::assetTagMaxOffset) || (count > dcmi::maxBytes) ||
++        ((offset + count) > dcmi::assetTagMaxSize))
+     {
+-        *data_len = 0;
+-        return IPMI_CC_PARM_OUT_OF_RANGE;
++        return ipmi::responseParmOutOfRange();
+     }
+-
+-    std::string assetTag;
+-
+-    try
++    if (data.size() != count)
+     {
+-        assetTag = dcmi::readAssetTag();
++        return ipmi::responseReqDataLenInvalid();
++    }
+ 
+-        if (requestData->offset > assetTag.size())
+-        {
+-            *data_len = 0;
+-            return IPMI_CC_PARM_OUT_OF_RANGE;
+-        }
++    std::optional<std::string> assetTagResp = dcmi::readAssetTag(ctx);
++    if (!assetTagResp)
++    {
++        return ipmi::responseUnspecifiedError();
++    }
+ 
+-        assetTag.replace(requestData->offset,
+-                         assetTag.size() - requestData->offset,
+-                         static_cast<const char*>(request) +
+-                             sizeof(dcmi::SetAssetTagRequest),
+-                         requestData->bytes);
++    std::string& assetTag = assetTagResp.value();
+ 
+-        dcmi::writeAssetTag(assetTag);
++    if (offset > assetTag.size())
++    {
++        return ipmi::responseParmOutOfRange();
++    }
+ 
+-        responseData->tagLength = assetTag.size();
+-        memcpy(response, outPayload.data(), outPayload.size());
+-        *data_len = outPayload.size();
++    // operation is to truncate at offset and append new data
++    assetTag.resize(offset);
++    assetTag.append(data.begin(), data.end());
+ 
+-        return IPMI_CC_OK;
+-    }
+-    catch (const InternalFailure& e)
++    if (!dcmi::writeAssetTag(ctx, assetTag))
+     {
+-        *data_len = 0;
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseUnspecifiedError();
+     }
++
++    auto totalTagSize = static_cast<uint8_t>(assetTag.size());
++    return ipmi::responseSuccess(totalTagSize);
+ }
+ 
+-ipmi_ret_t getMgmntCtrlIdStr(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                             ipmi_request_t request, ipmi_response_t response,
+-                             ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<uint8_t,          // length
++              std::vector<char> // data
++              >
++    getMgmntCtrlIdStr(ipmi::Context::ptr& ctx, uint8_t offset, uint8_t count)
+ {
+-    auto requestData =
+-        reinterpret_cast<const dcmi::GetMgmntCtrlIdStrRequest*>(request);
+-    auto responseData =
+-        reinterpret_cast<dcmi::GetMgmntCtrlIdStrResponse*>(response);
+-    std::string hostName;
+-
+-    *data_len = 0;
++    if (count > dcmi::maxBytes || offset + count > dcmi::maxCtrlIdStrLen)
++    {
++        return ipmi::responseParmOutOfRange();
++    }
+ 
+-    if (requestData->bytes > dcmi::maxBytes ||
+-        requestData->offset + requestData->bytes > dcmi::maxCtrlIdStrLen)
++    std::optional<std::string> hostnameResp = dcmi::getHostName(ctx);
++    if (!hostnameResp)
+     {
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
++        return ipmi::responseUnspecifiedError();
+     }
+ 
+-    try
++    std::string& hostname = hostnameResp.value();
++    // If the id string is longer than 63 bytes, restrict it to 63 bytes to
++    // suit set management ctrl str  command.
++    if (hostname.size() > dcmi::maxCtrlIdStrLen)
+     {
+-        hostName = dcmi::getHostName();
++        hostname.resize(dcmi::maxCtrlIdStrLen);
+     }
+-    catch (const InternalFailure& e)
++
++    if (offset >= hostname.size())
+     {
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseParmOutOfRange();
+     }
+ 
+-    if (requestData->offset > hostName.length())
++    // silently truncate reads beyond the end of hostname
++    if ((offset + count) >= hostname.size())
+     {
+-        return IPMI_CC_PARM_OUT_OF_RANGE;
++        count = hostname.size() - offset;
+     }
+-    auto responseStr = hostName.substr(requestData->offset, requestData->bytes);
+-    auto responseStrLen = std::min(static_cast<std::size_t>(requestData->bytes),
+-                                   responseStr.length() + 1);
+-    responseData->strLen = hostName.length();
+-    std::copy(begin(responseStr), end(responseStr), responseData->data);
+ 
+-    *data_len = sizeof(*responseData) + responseStrLen;
+-    return IPMI_CC_OK;
++    auto nameSize = static_cast<uint8_t>(hostname.size());
++    std::vector<char> data{hostname.begin() + offset,
++                           hostname.begin() + offset + count};
++
++    return ipmi::responseSuccess(nameSize, data);
+ }
+ 
+-ipmi_ret_t setMgmntCtrlIdStr(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                             ipmi_request_t request, ipmi_response_t response,
+-                             ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<uint8_t> setMgmntCtrlIdStr(ipmi::Context::ptr& ctx,
++                                         uint8_t offset, uint8_t count,
++                                         std::vector<char> data)
+ {
+-    static std::array<char, dcmi::maxCtrlIdStrLen + 1> newCtrlIdStr;
+-
+-    auto requestData =
+-        reinterpret_cast<const dcmi::SetMgmntCtrlIdStrRequest*>(request);
+-    auto responseData =
+-        reinterpret_cast<dcmi::SetMgmntCtrlIdStrResponse*>(response);
+-
+-    *data_len = 0;
+-
+-    if (requestData->bytes > dcmi::maxBytes ||
+-        requestData->offset + requestData->bytes > dcmi::maxCtrlIdStrLen + 1 ||
+-        (requestData->offset + requestData->bytes ==
+-             dcmi::maxCtrlIdStrLen + 1 &&
+-         requestData->data[requestData->bytes - 1] != '\0'))
++    if ((offset > dcmi::maxCtrlIdStrLen) || (count > dcmi::maxBytes) ||
++        ((offset + count) > dcmi::maxCtrlIdStrLen))
+     {
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
++        return ipmi::responseParmOutOfRange();
++    }
++    if (data.size() != count)
++    {
++        return ipmi::responseReqDataLenInvalid();
++    }
++    bool terminalWrite{data.back() == '\0'};
++    if (terminalWrite)
++    {
++        // remove the null termination from the data (no need with std::string)
++        data.resize(count - 1);
+     }
+ 
+-    try
++    static std::string hostname{};
++    // read in the current value if not starting at offset 0
++    if (hostname.size() == 0 && offset != 0)
+     {
+-        /* if there is no old value and offset is not 0 */
+-        if (newCtrlIdStr[0] == '\0' && requestData->offset != 0)
++        /* read old ctrlIdStr */
++        std::optional<std::string> hostnameResp = dcmi::getHostName(ctx);
++        if (!hostnameResp)
+         {
+-            /* read old ctrlIdStr */
+-            auto hostName = dcmi::getHostName();
+-            hostName.resize(dcmi::maxCtrlIdStrLen);
+-            std::copy(begin(hostName), end(hostName), begin(newCtrlIdStr));
+-            newCtrlIdStr[hostName.length()] = '\0';
++            return ipmi::responseUnspecifiedError();
+         }
++        hostname = hostnameResp.value();
++        hostname.resize(offset);
++    }
+ 
+-        /* replace part of string and mark byte after the last as \0 */
+-        auto restStrIter =
+-            std::copy_n(requestData->data, requestData->bytes,
+-                        begin(newCtrlIdStr) + requestData->offset);
+-        /* if the last written byte is not 64th - add '\0' */
+-        if (requestData->offset + requestData->bytes <= dcmi::maxCtrlIdStrLen)
+-        {
+-            *restStrIter = '\0';
+-        }
++    // operation is to truncate at offset and append new data
++    hostname.append(data.begin(), data.end());
+ 
+-        /* if input data contains '\0' whole string is sent - update hostname */
+-        auto it = std::find(requestData->data,
+-                            requestData->data + requestData->bytes, '\0');
+-        if (it != requestData->data + requestData->bytes)
++    // do the update if this is the last write
++    if (terminalWrite)
++    {
++        boost::system::error_code ec = ipmi::setDbusProperty(
++            ctx, dcmi::networkServiceName, dcmi::networkConfigObj,
++            dcmi::networkConfigIntf, dcmi::hostNameProp, hostname);
++        hostname.clear();
++        if (ec.value())
+         {
+-            sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-            ipmi::setDbusProperty(bus, dcmi::networkServiceName,
+-                                  dcmi::networkConfigObj,
+-                                  dcmi::networkConfigIntf, dcmi::hostNameProp,
+-                                  std::string(newCtrlIdStr.data()));
++            return ipmi::responseUnspecifiedError();
+         }
+     }
+-    catch (const InternalFailure& e)
+-    {
+-        *data_len = 0;
+-        return IPMI_CC_UNSPECIFIED_ERROR;
+-    }
+ 
+-    responseData->offset = requestData->offset + requestData->bytes;
+-    *data_len = sizeof(*responseData);
+-    return IPMI_CC_OK;
++    auto totalIdSize = static_cast<uint8_t>(offset + count);
++    return ipmi::responseSuccess(totalIdSize);
+ }
+ 
+-// List of the capabilities under each parameter
+-dcmi::DCMICaps dcmiCaps = {
+-    // Supported DCMI Capabilities
+-    {dcmi::DCMICapParameters::SUPPORTED_DCMI_CAPS,
+-     {3,
+-      {{"PowerManagement", 2, 0, 1},
+-       {"OOBSecondaryLan", 3, 2, 1},
+-       {"SerialTMODE", 3, 1, 1},
+-       {"InBandSystemInterfaceChannel", 3, 0, 1}}}},
+-    // Mandatory Platform Attributes
+-    {dcmi::DCMICapParameters::MANDATORY_PLAT_ATTRIBUTES,
+-     {5,
+-      {{"SELAutoRollOver", 1, 15, 1},
+-       {"FlushEntireSELUponRollOver", 1, 14, 1},
+-       {"RecordLevelSELFlushUponRollOver", 1, 13, 1},
+-       {"NumberOfSELEntries", 1, 0, 12},
+-       {"TempMonitoringSamplingFreq", 5, 0, 8}}}},
+-    // Optional Platform Attributes
+-    {dcmi::DCMICapParameters::OPTIONAL_PLAT_ATTRIBUTES,
+-     {2,
+-      {{"PowerMgmtDeviceSlaveAddress", 1, 1, 7},
+-       {"BMCChannelNumber", 2, 4, 4},
+-       {"DeviceRivision", 2, 0, 4}}}},
+-    // Manageability Access Attributes
+-    {dcmi::DCMICapParameters::MANAGEABILITY_ACCESS_ATTRIBUTES,
+-     {3,
+-      {{"MandatoryPrimaryLanOOBSupport", 1, 0, 8},
+-       {"OptionalSecondaryLanOOBSupport", 2, 0, 8},
+-       {"OptionalSerialOOBMTMODECapability", 3, 0, 8}}}}};
+-
+-ipmi_ret_t getDCMICapabilities(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                               ipmi_request_t request, ipmi_response_t response,
+-                               ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<ipmi::message::Payload> getDCMICapabilities(uint8_t parameter)
+ {
+-
+     std::ifstream dcmiCapFile(dcmi::gDCMICapabilitiesConfig);
+     if (!dcmiCapFile.is_open())
+     {
+         log<level::ERR>("DCMI Capabilities file not found");
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseUnspecifiedError();
+     }
+ 
+     auto data = nlohmann::json::parse(dcmiCapFile, nullptr, false);
+     if (data.is_discarded())
+     {
+         log<level::ERR>("DCMI Capabilities JSON parser failure");
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseUnspecifiedError();
+     }
+ 
+-    auto requestData =
+-        reinterpret_cast<const dcmi::GetDCMICapRequest*>(request);
++    constexpr bool reserved1{};
++    constexpr uint5_t reserved5{};
++    constexpr uint7_t reserved7{};
++    constexpr uint8_t reserved8{};
++    constexpr uint16_t reserved16{};
+ 
+-    // get list of capabilities in a parameter
+-    auto caps =
+-        dcmiCaps.find(static_cast<dcmi::DCMICapParameters>(requestData->param));
+-    if (caps == dcmiCaps.end())
+-    {
+-        log<level::ERR>("Invalid input parameter");
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
+-    }
++    ipmi::message::Payload payload;
++    payload.pack(dcmi::specMajorVersion, dcmi::specMinorVersion,
++                 dcmi::parameterRevision);
+ 
+-    auto responseData = reinterpret_cast<dcmi::GetDCMICapResponse*>(response);
++    enum class DCMICapParameters : uint8_t
++    {
++        SupportedDcmiCaps = 0x01,             // Supported DCMI Capabilities
++        MandatoryPlatAttributes = 0x02,       // Mandatory Platform Attributes
++        OptionalPlatAttributes = 0x03,        // Optional Platform Attributes
++        ManageabilityAccessAttributes = 0x04, // Manageability Access Attributes
++    };
+ 
+-    // For each capabilities in a parameter fill the data from
+-    // the json file based on the capability name.
+-    for (auto cap : caps->second.capList)
++    switch (static_cast<DCMICapParameters>(parameter))
+     {
+-        // If the data is beyond first byte boundary, insert in a
+-        // 16bit pattern for example number of SEL entries are represented
+-        // in 12bits.
+-        if ((cap.length + cap.position) > dcmi::gByteBitSize)
++        case DCMICapParameters::SupportedDcmiCaps:
+         {
+-            uint16_t val = data.value(cap.name.c_str(), 0);
+-            // According to DCMI spec v1.5, max number of SEL entries is
+-            // 4096, but bit 12b of DCMI capabilities Mandatory Platform
+-            // Attributes field is reserved and therefore we can use only
+-            // the provided 12 bits with maximum value of 4095.
+-            // We're playing safe here by applying the mask
+-            // to ensure that provided value will fit into 12 bits.
+-            if (cap.length > dcmi::gByteBitSize)
+-            {
+-                val &= dcmi::gMaxSELEntriesMask;
+-            }
+-            val <<= cap.position;
+-            responseData->data[cap.bytePosition - 1] |=
+-                static_cast<uint8_t>(val);
+-            responseData->data[cap.bytePosition] |= val >> dcmi::gByteBitSize;
++            bool powerManagement = data.value("PowerManagement", 0);
++            bool oobSecondaryLan = data.value("OOBSecondaryLan", 0);
++            bool serialTMode = data.value("SerialTMODE", 0);
++            bool inBandSystemInterfaceChannel =
++                data.value("InBandSystemInterfaceChannel", 0);
++            payload.pack(reserved8, powerManagement, reserved7,
++                         inBandSystemInterfaceChannel, serialTMode,
++                         oobSecondaryLan, reserved5);
++            break;
++        }
++            // Mandatory Platform Attributes
++        case DCMICapParameters::MandatoryPlatAttributes:
++        {
++            bool selAutoRollOver = data.value("SELAutoRollOver", 0);
++            bool flushEntireSELUponRollOver =
++                data.value("FlushEntireSELUponRollOver", 0);
++            bool recordLevelSELFlushUponRollOver =
++                data.value("RecordLevelSELFlushUponRollOver", 0);
++            uint12_t numberOfSELEntries = data.value("NumberOfSELEntries",
++                                                     0xcac);
++            uint8_t tempMonitoringSamplingFreq =
++                data.value("TempMonitoringSamplingFreq", 0);
++            payload.pack(numberOfSELEntries, reserved1,
++                         recordLevelSELFlushUponRollOver,
++                         flushEntireSELUponRollOver, selAutoRollOver,
++                         reserved16, tempMonitoringSamplingFreq);
++            break;
++        }
++        // Optional Platform Attributes
++        case DCMICapParameters::OptionalPlatAttributes:
++        {
++            uint7_t powerMgmtDeviceSlaveAddress =
++                data.value("PowerMgmtDeviceSlaveAddress", 0);
++            uint4_t bmcChannelNumber = data.value("BMCChannelNumber", 0);
++            uint4_t deviceRivision = data.value("DeviceRivision", 0);
++            payload.pack(powerMgmtDeviceSlaveAddress, reserved1, deviceRivision,
++                         bmcChannelNumber);
++            break;
+         }
+-        else
++        // Manageability Access Attributes
++        case DCMICapParameters::ManageabilityAccessAttributes:
+         {
+-            responseData->data[cap.bytePosition - 1] |=
+-                data.value(cap.name.c_str(), 0) << cap.position;
++            uint8_t mandatoryPrimaryLanOOBSupport =
++                data.value("MandatoryPrimaryLanOOBSupport", 0xff);
++            uint8_t optionalSecondaryLanOOBSupport =
++                data.value("OptionalSecondaryLanOOBSupport", 0xff);
++            uint8_t optionalSerialOOBMTMODECapability =
++                data.value("OptionalSerialOOBMTMODECapability", 0xff);
++            payload.pack(mandatoryPrimaryLanOOBSupport,
++                         optionalSecondaryLanOOBSupport,
++                         optionalSerialOOBMTMODECapability);
++            break;
++        }
++        default:
++        {
++            log<level::ERR>("Invalid input parameter");
++            return ipmi::responseInvalidFieldRequest();
+         }
+     }
+ 
+-    responseData->major = DCMI_SPEC_MAJOR_VERSION;
+-    responseData->minor = DCMI_SPEC_MINOR_VERSION;
+-    responseData->paramRevision = DCMI_PARAMETER_REVISION;
+-    *data_len = sizeof(*responseData) + caps->second.size;
+-
+-    return IPMI_CC_OK;
++    return ipmi::responseSuccess(payload);
+ }
+ 
+ namespace dcmi
+@@ -761,20 +719,25 @@ namespace dcmi
+ namespace temp_readings
+ {
+ 
+-Temperature readTemp(const std::string& dbusService,
+-                     const std::string& dbusPath)
++std::tuple<bool, bool, uint8_t> readTemp(ipmi::Context::ptr& ctx,
++                                         const std::string& dbusService,
++                                         const std::string& dbusPath)
+ {
+     // Read the temperature value from d-bus object. Need some conversion.
+-    // As per the interface xyz.openbmc_project.Sensor.Value, the temperature
+-    // is an double and in degrees C. It needs to be scaled by using the
+-    // formula Value * 10^Scale. The ipmi spec has the temperature as a uint8_t,
+-    // with a separate single bit for the sign.
+-
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-    auto result = ipmi::getAllDbusProperties(
+-        bus, dbusService, dbusPath, "xyz.openbmc_project.Sensor.Value");
+-    auto temperature =
+-        std::visit(ipmi::VariantToDoubleVisitor(), result.at("Value"));
++    // As per the interface xyz.openbmc_project.Sensor.Value, the
++    // temperature is an double and in degrees C. It needs to be scaled by
++    // using the formula Value * 10^Scale. The ipmi spec has the temperature
++    // as a uint8_t, with a separate single bit for the sign.
++
++    ipmi::PropertyMap result{};
++    boost::system::error_code ec = ipmi::getAllDbusProperties(
++        ctx, dbusService, dbusPath, "xyz.openbmc_project.Sensor.Value", result);
++    if (ec.value())
++    {
++        return std::make_tuple(false, false, 0);
++    }
++    auto temperature = std::visit(ipmi::VariantToDoubleVisitor(),
++                                  result.at("Value"));
+     double absTemp = std::abs(temperature);
+ 
+     auto findFactor = result.find("Scale");
+@@ -786,199 +749,222 @@ Temperature readTemp(const std::string& dbusService,
+     double scale = std::pow(10, factor);
+ 
+     auto tempDegrees = absTemp * scale;
+-    // Max absolute temp as per ipmi spec is 128.
++    // Max absolute temp as per ipmi spec is 127.
++    constexpr auto maxTemp = 127;
+     if (tempDegrees > maxTemp)
+     {
+         tempDegrees = maxTemp;
+     }
+ 
+-    return std::make_tuple(static_cast<uint8_t>(tempDegrees),
+-                           (temperature < 0));
++    return std::make_tuple(true, (temperature < 0),
++                           static_cast<uint8_t>(tempDegrees));
+ }
+ 
+-std::tuple<Response, NumInstances> read(const std::string& type,
+-                                        uint8_t instance)
++std::tuple<std::vector<std::tuple<uint7_t, bool, uint8_t>>, uint8_t>
++    read(ipmi::Context::ptr& ctx, const std::string& type, uint8_t instance,
++         size_t count)
+ {
+-    Response response{};
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-
+-    if (!instance)
+-    {
+-        log<level::ERR>("Expected non-zero instance");
+-        elog<InternalFailure>();
+-    }
++    std::vector<std::tuple<uint7_t, bool, uint8_t>> response{};
+ 
+     auto data = parseJSONConfig(gDCMISensorsConfig);
+-    static const std::vector<Json> empty{};
+-    std::vector<Json> readings = data.value(type, empty);
+-    size_t numInstances = readings.size();
++    static const std::vector<nlohmann::json> empty{};
++    std::vector<nlohmann::json> readings = data.value(type, empty);
+     for (const auto& j : readings)
+     {
++        // Max of 8 response data sets
++        if (response.size() == count)
++        {
++            break;
++        }
++
+         uint8_t instanceNum = j.value("instance", 0);
+-        // Not the instance we're interested in
+-        if (instanceNum != instance)
++        // Not in the instance range we're interested in
++        if (instanceNum < instance)
+         {
+             continue;
+         }
+ 
+         std::string path = j.value("dbus", "");
+-        std::string service;
+-        try
++        std::string service{};
++        boost::system::error_code ec = ipmi::getService(
++            ctx, "xyz.openbmc_project.Sensor.Value", path, service);
++        if (ec.value())
+         {
+-            service =
+-                ipmi::getService(bus, "xyz.openbmc_project.Sensor.Value", path);
++            // not found on dbus
++            continue;
+         }
+-        catch (const std::exception& e)
++
++        const auto& [ok, sign, temp] = readTemp(ctx, service, path);
++        if (ok)
+         {
+-            log<level::DEBUG>(e.what());
+-            return std::make_tuple(response, numInstances);
++            response.emplace_back(uint7_t{temp}, sign, instanceNum);
+         }
++    }
+ 
+-        response.instance = instance;
+-        uint8_t temp{};
+-        bool sign{};
+-        std::tie(temp, sign) = readTemp(service, path);
+-        response.temperature = temp;
+-        response.sign = sign;
++    auto totalInstances =
++        static_cast<uint8_t>(std::min(readings.size(), maxInstances));
++    return std::make_tuple(response, totalInstances);
++}
+ 
+-        // Found the instance we're interested in
+-        break;
++} // namespace temp_readings
++} // namespace dcmi
++
++ipmi::RspType<uint8_t,                // total instances for entity id
++              uint8_t,                // number of instances in this reply
++              std::vector<            // zero or more of the following two bytes
++                  std::tuple<uint7_t, // temperature value
++                             bool,    // sign bit
++                             uint8_t  // entity instance
++                             >>>
++    getTempReadings(ipmi::Context::ptr& ctx, uint8_t sensorType,
++                    uint8_t entityId, uint8_t entityInstance,
++                    uint8_t instanceStart)
++{
++    auto it = dcmi::entityIdToName.find(entityId);
++    if (it == dcmi::entityIdToName.end())
++    {
++        log<level::ERR>("Unknown Entity ID", entry("ENTITY_ID=%d", entityId));
++        return ipmi::responseInvalidFieldRequest();
+     }
+ 
+-    if (numInstances > maxInstances)
++    if (sensorType != dcmi::temperatureSensorType)
+     {
+-        numInstances = maxInstances;
++        log<level::ERR>("Invalid sensor type",
++                        entry("SENSOR_TYPE=%d", sensorType));
++        return ipmi::responseInvalidFieldRequest();
+     }
+-    return std::make_tuple(response, numInstances);
++
++    uint8_t requestedRecords = (entityInstance == 0) ? dcmi::maxRecords : 1;
++
++    // Read requested instances
++    const auto& [temps, totalInstances] = dcmi::temp_readings::read(
++        ctx, it->second, instanceStart, requestedRecords);
++
++    auto numInstances = static_cast<uint8_t>(temps.size());
++
++    return ipmi::responseSuccess(totalInstances, numInstances, temps);
+ }
+ 
+-std::tuple<ResponseList, NumInstances> readAll(const std::string& type,
+-                                               uint8_t instanceStart)
++ipmi::RspType<> setDCMIConfParams(ipmi::Context::ptr& ctx, uint8_t parameter,
++                                  uint8_t setSelector,
++                                  ipmi::message::Payload& payload)
+ {
+-    ResponseList response{};
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-
+-    size_t numInstances = 0;
+-    auto data = parseJSONConfig(gDCMISensorsConfig);
+-    static const std::vector<Json> empty{};
+-    std::vector<Json> readings = data.value(type, empty);
+-    numInstances = readings.size();
+-    for (const auto& j : readings)
++    if (setSelector)
+     {
+-        try
++        return ipmi::responseInvalidFieldRequest();
++    }
++    // Take action based on the Parameter Selector
++    switch (static_cast<dcmi::DCMIConfigParameters>(parameter))
++    {
++        case dcmi::DCMIConfigParameters::ActivateDHCP:
+         {
+-            // Max of 8 response data sets
+-            if (response.size() == maxDataSets)
++            uint7_t reserved{};
++            bool activate{};
++            if (payload.unpack(activate, reserved) || !payload.fullyUnpacked())
+             {
+-                break;
++                return ipmi::responseReqDataLenInvalid();
+             }
+-
+-            uint8_t instanceNum = j.value("instance", 0);
+-            // Not in the instance range we're interested in
+-            if (instanceNum < instanceStart)
++            if (reserved)
+             {
+-                continue;
++                return ipmi::responseInvalidFieldRequest();
+             }
+-
+-            std::string path = j.value("dbus", "");
+-            auto service =
+-                ipmi::getService(bus, "xyz.openbmc_project.Sensor.Value", path);
+-
+-            Response r{};
+-            r.instance = instanceNum;
+-            uint8_t temp{};
+-            bool sign{};
+-            std::tie(temp, sign) = readTemp(service, path);
+-            r.temperature = temp;
+-            r.sign = sign;
+-            response.push_back(r);
++            std::optional<EthernetInterface::DHCPConf> dhcpEnabled =
++                dcmi::getDHCPEnabled(ctx);
++            if (!dhcpEnabled)
++            {
++                return ipmi::responseUnspecifiedError();
++            }
++            if (activate &&
++                (dhcpEnabled.value() != EthernetInterface::DHCPConf::none))
++            {
++                // When these conditions are met we have to trigger DHCP
++                // protocol restart using the latest parameter settings,
++                // but as per n/w manager design, each time when we
++                // update n/w parameters, n/w service is restarted. So
++                // we no need to take any action in this case.
++            }
++            break;
+         }
+-        catch (const std::exception& e)
++        case dcmi::DCMIConfigParameters::DiscoveryConfig:
+         {
+-            log<level::DEBUG>(e.what());
+-            continue;
++            bool option12{};
++            uint6_t reserved1{};
++            bool randBackOff{};
++            if (payload.unpack(option12, reserved1, randBackOff) ||
++                !payload.fullyUnpacked())
++            {
++                return ipmi::responseReqDataLenInvalid();
++            }
++            // Systemd-networkd doesn't support Random Back off
++            if (reserved1 || randBackOff)
++            {
++                return ipmi::responseInvalidFieldRequest();
++            }
++            dcmi::setDHCPOption(ctx, dcmi::dhcpOpt12Enabled, option12);
++            break;
+         }
+-    }
+-
+-    if (numInstances > maxInstances)
+-    {
+-        numInstances = maxInstances;
+-    }
+-    return std::make_tuple(response, numInstances);
++        // Systemd-networkd doesn't allow to configure DHCP timigs
++        case dcmi::DCMIConfigParameters::DHCPTiming1:
++        case dcmi::DCMIConfigParameters::DHCPTiming2:
++        case dcmi::DCMIConfigParameters::DHCPTiming3:
++        default:
++            return ipmi::responseInvalidFieldRequest();
++    }
++    return ipmi::responseSuccess();
+ }
+ 
+-} // namespace temp_readings
+-} // namespace dcmi
+-
+-ipmi_ret_t getTempReadings(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                           ipmi_request_t request, ipmi_response_t response,
+-                           ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<ipmi::message::Payload> getDCMIConfParams(ipmi::Context::ptr& ctx,
++                                                        uint8_t parameter,
++                                                        uint8_t setSelector)
+ {
+-    auto requestData =
+-        reinterpret_cast<const dcmi::GetTempReadingsRequest*>(request);
+-    auto responseData =
+-        reinterpret_cast<dcmi::GetTempReadingsResponseHdr*>(response);
+-
+-    if (*data_len != sizeof(dcmi::GetTempReadingsRequest))
++    if (setSelector)
+     {
+-        log<level::ERR>("Malformed request data",
+-                        entry("DATA_SIZE=%d", *data_len));
+-        return IPMI_CC_REQ_DATA_LEN_INVALID;
++        return ipmi::responseInvalidFieldRequest();
+     }
+-    *data_len = 0;
++    ipmi::message::Payload payload;
++    payload.pack(dcmi::specMajorVersion, dcmi::specMinorVersion,
++                 dcmi::configParameterRevision);
+ 
+-    auto it = dcmi::entityIdToName.find(requestData->entityId);
+-    if (it == dcmi::entityIdToName.end())
++    // Take action based on the Parameter Selector
++    switch (static_cast<dcmi::DCMIConfigParameters>(parameter))
+     {
+-        log<level::ERR>("Unknown Entity ID",
+-                        entry("ENTITY_ID=%d", requestData->entityId));
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
+-    }
+-
+-    if (requestData->sensorType != dcmi::temperatureSensorType)
+-    {
+-        log<level::ERR>("Invalid sensor type",
+-                        entry("SENSOR_TYPE=%d", requestData->sensorType));
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
+-    }
+-
+-    dcmi::temp_readings::ResponseList temps{};
+-    try
+-    {
+-        if (!requestData->entityInstance)
++        case dcmi::DCMIConfigParameters::ActivateDHCP:
++            payload.pack(dcmi::activateDhcpReply);
++            break;
++        case dcmi::DCMIConfigParameters::DiscoveryConfig:
+         {
+-            // Read all instances
+-            std::tie(temps, responseData->numInstances) =
+-                dcmi::temp_readings::readAll(it->second,
+-                                             requestData->instanceStart);
+-        }
+-        else
+-        {
+-            // Read one instance
+-            temps.resize(1);
+-            std::tie(temps[0], responseData->numInstances) =
+-                dcmi::temp_readings::read(it->second,
+-                                          requestData->entityInstance);
++            uint8_t discovery{};
++            std::optional<bool> enabled =
++                dcmi::getDHCPOption(ctx, dcmi::dhcpOpt12Enabled);
++            if (!enabled.has_value())
++            {
++                return ipmi::responseUnspecifiedError();
++            }
++            if (enabled.value())
++            {
++                discovery = dcmi::option12Mask;
++            }
++            payload.pack(discovery);
++            break;
+         }
+-        responseData->numDataSets = temps.size();
+-    }
+-    catch (const InternalFailure& e)
+-    {
+-        return IPMI_CC_UNSPECIFIED_ERROR;
+-    }
+-
+-    size_t payloadSize = temps.size() * sizeof(dcmi::temp_readings::Response);
+-    if (!temps.empty())
+-    {
+-        memcpy(responseData + 1, // copy payload right after the response header
+-               temps.data(), payloadSize);
+-    }
+-    *data_len = sizeof(dcmi::GetTempReadingsResponseHdr) + payloadSize;
+-
+-    return IPMI_CC_OK;
++        // Get below values from Systemd-networkd source code
++        case dcmi::DCMIConfigParameters::DHCPTiming1:
++            payload.pack(dcmi::dhcpTiming1);
++            break;
++        case dcmi::DCMIConfigParameters::DHCPTiming2:
++            payload.pack(dcmi::dhcpTiming2);
++            break;
++        case dcmi::DCMIConfigParameters::DHCPTiming3:
++            payload.pack(dcmi::dhcpTiming3);
++            break;
++        default:
++            return ipmi::responseInvalidFieldRequest();
++    }
++
++    return ipmi::responseSuccess();
+ }
+ 
+-int64_t getPowerReading(sdbusplus::bus::bus& bus)
++static std::optional<uint16_t> readPower(ipmi::Context::ptr& ctx)
+ {
+     std::ifstream sensorFile(POWER_READING_SENSOR);
+     std::string objectPath;
+@@ -986,7 +972,7 @@ int64_t getPowerReading(sdbusplus::bus::bus& bus)
+     {
+         log<level::ERR>("Power reading configuration file not found",
+                         entry("POWER_SENSOR_FILE=%s", POWER_READING_SENSOR));
+-        elog<InternalFailure>();
++        return std::nullopt;
+     }
+ 
+     auto data = nlohmann::json::parse(sensorFile, nullptr, false);
+@@ -994,7 +980,7 @@ int64_t getPowerReading(sdbusplus::bus::bus& bus)
+     {
+         log<level::ERR>("Error in parsing configuration file",
+                         entry("POWER_SENSOR_FILE=%s", POWER_READING_SENSOR));
+-        elog<InternalFailure>();
++        return std::nullopt;
+     }
+ 
+     objectPath = data.value("path", "");
+@@ -1002,215 +988,93 @@ int64_t getPowerReading(sdbusplus::bus::bus& bus)
+     {
+         log<level::ERR>("Power sensor D-Bus object path is empty",
+                         entry("POWER_SENSOR_FILE=%s", POWER_READING_SENSOR));
+-        elog<InternalFailure>();
++        return std::nullopt;
+     }
+ 
+     // Return default value if failed to read from D-Bus object
+-    int64_t power = 0;
+-    try
++    std::string service{};
++    boost::system::error_code ec = ipmi::getService(ctx, dcmi::sensorValueIntf,
++                                                    objectPath, service);
++    if (ec.value())
+     {
+-        auto service = ipmi::getService(bus, SENSOR_VALUE_INTF, objectPath);
+-
+-        // Read the sensor value and scale properties
+-        auto properties = ipmi::getAllDbusProperties(bus, service, objectPath,
+-                                                     SENSOR_VALUE_INTF);
+-        auto value = std::get<int64_t>(properties[SENSOR_VALUE_PROP]);
+-        auto scale = std::get<int64_t>(properties[SENSOR_SCALE_PROP]);
+-
+-        // Power reading needs to be scaled with the Scale value using the
+-        // formula Value * 10^Scale.
+-        power = value * std::pow(10, scale);
++        log<level::ERR>("Failed to fetch service for D-Bus object",
++                        entry("OBJECT_PATH=%s", objectPath.c_str()),
++                        entry("INTERFACE=%s", dcmi::sensorValueIntf));
++        return std::nullopt;
+     }
+-    catch (const std::exception& e)
++
++    // Read the sensor value and scale properties
++    double value{};
++    ec = ipmi::getDbusProperty(ctx, service, objectPath, dcmi::sensorValueIntf,
++                               dcmi::sensorValueProp, value);
++    if (ec.value())
+     {
+-        log<level::INFO>("Failure to read power value from D-Bus object",
+-                         entry("OBJECT_PATH=%s", objectPath.c_str()),
+-                         entry("INTERFACE=%s", SENSOR_VALUE_INTF));
++        log<level::ERR>("Failure to read power value from D-Bus object",
++                        entry("OBJECT_PATH=%s", objectPath.c_str()),
++                        entry("INTERFACE=%s", dcmi::sensorValueIntf));
++        return std::nullopt;
+     }
++    auto power = static_cast<uint16_t>(value);
+     return power;
+ }
+ 
+-ipmi_ret_t setDCMIConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                             ipmi_request_t request, ipmi_response_t response,
+-                             ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<uint16_t, // current power
++              uint16_t, // minimum power
++              uint16_t, // maximum power
++              uint16_t, // average power
++              uint32_t, // timestamp
++              uint32_t, // sample period ms
++              uint6_t,  // reserved
++              bool,     // power measurement active
++              bool      // reserved
++              >
++    getPowerReading(ipmi::Context::ptr& ctx, uint8_t mode, uint8_t attributes,
++                    uint8_t reserved)
+ {
+-    auto requestData =
+-        reinterpret_cast<const dcmi::SetConfParamsRequest*>(request);
+-
+-    if (*data_len < DCMI_SET_CONF_PARAM_REQ_PACKET_MIN_SIZE ||
+-        *data_len > DCMI_SET_CONF_PARAM_REQ_PACKET_MAX_SIZE)
+-    {
+-        log<level::ERR>("Invalid Requested Packet size",
+-                        entry("PACKET SIZE=%d", *data_len));
+-        *data_len = 0;
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
+-    }
+-    *data_len = 0;
+-
+-    try
++    if (!dcmi::isDCMIPowerMgmtSupported())
+     {
+-        // Take action based on the Parameter Selector
+-        switch (
+-            static_cast<dcmi::DCMIConfigParameters>(requestData->paramSelect))
+-        {
+-            case dcmi::DCMIConfigParameters::ActivateDHCP:
+-
+-                if ((requestData->data[0] & DCMI_ACTIVATE_DHCP_MASK) &&
+-                    dcmi::getDHCPEnabled())
+-                {
+-                    // When these conditions are met we have to trigger DHCP
+-                    // protocol restart using the latest parameter settings, but
+-                    // as per n/w manager design, each time when we update n/w
+-                    // parameters, n/w service is restarted. So we no need to
+-                    // take any action in this case.
+-                }
+-                break;
+-
+-            case dcmi::DCMIConfigParameters::DiscoveryConfig:
+-
+-                if (requestData->data[0] & DCMI_OPTION_12_MASK)
+-                {
+-                    dcmi::setDHCPOption(DHCP_OPT12_ENABLED, true);
+-                }
+-                else
+-                {
+-                    dcmi::setDHCPOption(DHCP_OPT12_ENABLED, false);
+-                }
+-
+-                // Systemd-networkd doesn't support Random Back off
+-                if (requestData->data[0] & DCMI_RAND_BACK_OFF_MASK)
+-                {
+-                    return IPMI_CC_INVALID;
+-                }
+-                break;
+-            // Systemd-networkd doesn't allow to configure DHCP timigs
+-            case dcmi::DCMIConfigParameters::DHCPTiming1:
+-            case dcmi::DCMIConfigParameters::DHCPTiming2:
+-            case dcmi::DCMIConfigParameters::DHCPTiming3:
+-            default:
+-                return IPMI_CC_INVALID;
+-        }
++        log<level::ERR>("DCMI Power management is unsupported!");
++        return ipmi::responseInvalidCommand();
+     }
+-    catch (const std::exception& e)
++    if (reserved)
+     {
+-        log<level::ERR>(e.what());
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseInvalidFieldRequest();
+     }
+-    return IPMI_CC_OK;
+-}
+ 
+-ipmi_ret_t getDCMIConfParams(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                             ipmi_request_t request, ipmi_response_t response,
+-                             ipmi_data_len_t data_len, ipmi_context_t context)
+-{
+-
+-    auto requestData =
+-        reinterpret_cast<const dcmi::GetConfParamsRequest*>(request);
+-    auto responseData =
+-        reinterpret_cast<dcmi::GetConfParamsResponse*>(response);
+-
+-    responseData->data[0] = 0x00;
+-
+-    if (*data_len != sizeof(dcmi::GetConfParamsRequest))
++    enum class PowerMode : uint8_t
+     {
+-        log<level::ERR>("Invalid Requested Packet size",
+-                        entry("PACKET SIZE=%d", *data_len));
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
+-    }
+-
+-    *data_len = 0;
++        SystemPowerStatistics = 1,
++        EnhancedSystemPowerStatistics = 2,
++    };
+ 
+-    try
++    if (static_cast<PowerMode>(mode) != PowerMode::SystemPowerStatistics)
+     {
+-        // Take action based on the Parameter Selector
+-        switch (
+-            static_cast<dcmi::DCMIConfigParameters>(requestData->paramSelect))
+-        {
+-            case dcmi::DCMIConfigParameters::ActivateDHCP:
+-                responseData->data[0] = DCMI_ACTIVATE_DHCP_REPLY;
+-                *data_len = sizeof(dcmi::GetConfParamsResponse) + 1;
+-                break;
+-            case dcmi::DCMIConfigParameters::DiscoveryConfig:
+-                if (dcmi::getDHCPOption(DHCP_OPT12_ENABLED))
+-                {
+-                    responseData->data[0] |= DCMI_OPTION_12_MASK;
+-                }
+-                *data_len = sizeof(dcmi::GetConfParamsResponse) + 1;
+-                break;
+-            // Get below values from Systemd-networkd source code
+-            case dcmi::DCMIConfigParameters::DHCPTiming1:
+-                responseData->data[0] = DHCP_TIMING1;
+-                *data_len = sizeof(dcmi::GetConfParamsResponse) + 1;
+-                break;
+-            case dcmi::DCMIConfigParameters::DHCPTiming2:
+-                responseData->data[0] = DHCP_TIMING2_LOWER;
+-                responseData->data[1] = DHCP_TIMING2_UPPER;
+-                *data_len = sizeof(dcmi::GetConfParamsResponse) + 2;
+-                break;
+-            case dcmi::DCMIConfigParameters::DHCPTiming3:
+-                responseData->data[0] = DHCP_TIMING3_LOWER;
+-                responseData->data[1] = DHCP_TIMING3_UPPER;
+-                *data_len = sizeof(dcmi::GetConfParamsResponse) + 2;
+-                break;
+-            default:
+-                *data_len = 0;
+-                return IPMI_CC_INVALID;
+-        }
++        return ipmi::responseInvalidFieldRequest();
+     }
+-    catch (const std::exception& e)
++    if (attributes)
+     {
+-        log<level::ERR>(e.what());
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseInvalidFieldRequest();
+     }
+ 
+-    responseData->major = DCMI_SPEC_MAJOR_VERSION;
+-    responseData->minor = DCMI_SPEC_MINOR_VERSION;
+-    responseData->paramRevision = DCMI_CONFIG_PARAMETER_REVISION;
+-
+-    return IPMI_CC_OK;
+-}
+-
+-ipmi_ret_t getPowerReading(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                           ipmi_request_t request, ipmi_response_t response,
+-                           ipmi_data_len_t data_len, ipmi_context_t context)
+-{
+-    *data_len = 0;
+-    if (!dcmi::isDCMIPowerMgmtSupported())
++    std::optional<uint16_t> powerResp = readPower(ctx);
++    if (!powerResp)
+     {
+-        log<level::ERR>("DCMI Power management is unsupported!");
+-        return IPMI_CC_INVALID;
+-    }
+-
+-    ipmi_ret_t rc = IPMI_CC_OK;
+-    auto responseData =
+-        reinterpret_cast<dcmi::GetPowerReadingResponse*>(response);
+-
+-    sdbusplus::bus::bus bus{ipmid_get_sd_bus_connection()};
+-    int64_t power = 0;
+-    try
+-    {
+-        power = getPowerReading(bus);
+-    }
+-    catch (const InternalFailure& e)
+-    {
+-        log<level::ERR>("Error in reading power sensor value",
+-                        entry("INTERFACE=%s", SENSOR_VALUE_INTF),
+-                        entry("PROPERTY=%s", SENSOR_VALUE_PROP));
+-        return IPMI_CC_UNSPECIFIED_ERROR;
++        return ipmi::responseUnspecifiedError();
+     }
++    auto& power = powerResp.value();
+ 
+     // TODO: openbmc/openbmc#2819
+     // Minimum, Maximum, Average power, TimeFrame, TimeStamp,
+     // PowerReadingState readings need to be populated
+     // after Telemetry changes.
+-    uint16_t totalPower = static_cast<uint16_t>(power);
+-    responseData->currentPower = totalPower;
+-    responseData->minimumPower = totalPower;
+-    responseData->maximumPower = totalPower;
+-    responseData->averagePower = totalPower;
+-
+-    *data_len = sizeof(*responseData);
+-    return rc;
++    constexpr uint32_t samplePeriod = 1;
++    constexpr uint6_t reserved1 = 0;
++    constexpr bool measurementActive = true;
++    constexpr bool reserved2 = false;
++    auto timestamp = static_cast<uint32_t>(time(nullptr));
++    return ipmi::responseSuccess(power, power, power, power, timestamp,
++                                 samplePeriod, reserved1, measurementActive,
++                                 reserved2);
+ }
+ 
+ namespace dcmi
+@@ -1218,237 +1082,139 @@ namespace dcmi
+ namespace sensor_info
+ {
+ 
+-Response createFromJson(const Json& config)
+-{
+-    Response response{};
+-    uint16_t recordId = config.value("record_id", 0);
+-    response.recordIdLsb = recordId & 0xFF;
+-    response.recordIdMsb = (recordId >> 8) & 0xFF;
+-    return response;
+-}
+-
+-std::tuple<Response, NumInstances> read(const std::string& type,
+-                                        uint8_t instance, const Json& config)
++std::tuple<std::vector<uint16_t>, uint8_t> read(const std::string& type,
++                                                uint8_t instance,
++                                                const nlohmann::json& config,
++                                                uint8_t count)
+ {
+-    Response response{};
+-
+-    if (!instance)
+-    {
+-        log<level::ERR>("Expected non-zero instance");
+-        elog<InternalFailure>();
+-    }
++    std::vector<uint16_t> responses{};
+ 
+-    static const std::vector<Json> empty{};
+-    std::vector<Json> readings = config.value(type, empty);
+-    size_t numInstances = readings.size();
++    static const std::vector<nlohmann::json> empty{};
++    std::vector<nlohmann::json> readings = config.value(type, empty);
++    uint8_t totalInstances = std::min(readings.size(), maxInstances);
+     for (const auto& reading : readings)
+     {
+-        uint8_t instanceNum = reading.value("instance", 0);
+-        // Not the instance we're interested in
+-        if (instanceNum != instance)
++        // limit to requested count
++        if (responses.size() == count)
+         {
+-            continue;
++            break;
+         }
+ 
+-        response = createFromJson(reading);
+-
+-        // Found the instance we're interested in
+-        break;
+-    }
+-
+-    if (numInstances > maxInstances)
+-    {
+-        log<level::DEBUG>("Trimming IPMI num instances",
+-                          entry("NUM_INSTANCES=%d", numInstances));
+-        numInstances = maxInstances;
+-    }
+-    return std::make_tuple(response, numInstances);
+-}
+-
+-std::tuple<ResponseList, NumInstances>
+-    readAll(const std::string& type, uint8_t instanceStart, const Json& config)
+-{
+-    ResponseList responses{};
+-
+-    size_t numInstances = 0;
+-    static const std::vector<Json> empty{};
+-    std::vector<Json> readings = config.value(type, empty);
+-    numInstances = readings.size();
+-    for (const auto& reading : readings)
+-    {
+-        try
+-        {
+-            // Max of 8 records
+-            if (responses.size() == maxRecords)
+-            {
+-                break;
+-            }
+-
+-            uint8_t instanceNum = reading.value("instance", 0);
+-            // Not in the instance range we're interested in
+-            if (instanceNum < instanceStart)
+-            {
+-                continue;
+-            }
+-
+-            Response response = createFromJson(reading);
+-            responses.push_back(response);
+-        }
+-        catch (const std::exception& e)
++        uint8_t instanceNum = reading.value("instance", 0);
++        // Not in the instance range we're interested in
++        if (instanceNum < instance)
+         {
+-            log<level::DEBUG>(e.what());
+             continue;
+         }
+-    }
+ 
+-    if (numInstances > maxInstances)
+-    {
+-        log<level::DEBUG>("Trimming IPMI num instances",
+-                          entry("NUM_INSTANCES=%d", numInstances));
+-        numInstances = maxInstances;
++        uint16_t recordId = config.value("record_id", 0);
++        responses.emplace_back(recordId);
+     }
+-    return std::make_tuple(responses, numInstances);
++
++    return std::make_tuple(responses, totalInstances);
+ }
+ 
+ } // namespace sensor_info
+ } // namespace dcmi
+ 
+-ipmi_ret_t getSensorInfo(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+-                         ipmi_request_t request, ipmi_response_t response,
+-                         ipmi_data_len_t data_len, ipmi_context_t context)
++ipmi::RspType<uint8_t,              // total available instances
++              uint8_t,              // number of records in this response
++              std::vector<uint16_t> // records
++              >
++    getSensorInfo(uint8_t sensorType, uint8_t entityId, uint8_t entityInstance,
++                  uint8_t instanceStart)
+ {
+-    auto requestData =
+-        reinterpret_cast<const dcmi::GetSensorInfoRequest*>(request);
+-    auto responseData =
+-        reinterpret_cast<dcmi::GetSensorInfoResponseHdr*>(response);
+-
+-    if (*data_len != sizeof(dcmi::GetSensorInfoRequest))
+-    {
+-        log<level::ERR>("Malformed request data",
+-                        entry("DATA_SIZE=%d", *data_len));
+-        return IPMI_CC_REQ_DATA_LEN_INVALID;
+-    }
+-    *data_len = 0;
+-
+-    auto it = dcmi::entityIdToName.find(requestData->entityId);
++    auto it = dcmi::entityIdToName.find(entityId);
+     if (it == dcmi::entityIdToName.end())
+     {
+-        log<level::ERR>("Unknown Entity ID",
+-                        entry("ENTITY_ID=%d", requestData->entityId));
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
++        log<level::ERR>("Unknown Entity ID", entry("ENTITY_ID=%d", entityId));
++        return ipmi::responseInvalidFieldRequest();
+     }
+ 
+-    if (requestData->sensorType != dcmi::temperatureSensorType)
++    if (sensorType != dcmi::temperatureSensorType)
+     {
+         log<level::ERR>("Invalid sensor type",
+-                        entry("SENSOR_TYPE=%d", requestData->sensorType));
+-        return IPMI_CC_INVALID_FIELD_REQUEST;
++                        entry("SENSOR_TYPE=%d", sensorType));
++        return ipmi::responseInvalidFieldRequest();
+     }
+ 
+-    dcmi::sensor_info::ResponseList sensors{};
+-    static dcmi::Json config{};
+-    static bool parsed = false;
++    nlohmann::json config = dcmi::parseJSONConfig(dcmi::gDCMISensorsConfig);
+ 
+-    try
+-    {
+-        if (!parsed)
+-        {
+-            config = dcmi::parseJSONConfig(dcmi::gDCMISensorsConfig);
+-            parsed = true;
+-        }
+-
+-        if (!requestData->entityInstance)
+-        {
+-            // Read all instances
+-            std::tie(sensors, responseData->numInstances) =
+-                dcmi::sensor_info::readAll(it->second,
+-                                           requestData->instanceStart, config);
+-        }
+-        else
+-        {
+-            // Read one instance
+-            sensors.resize(1);
+-            std::tie(sensors[0], responseData->numInstances) =
+-                dcmi::sensor_info::read(it->second, requestData->entityInstance,
+-                                        config);
+-        }
+-        responseData->numRecords = sensors.size();
+-    }
+-    catch (const InternalFailure& e)
+-    {
+-        return IPMI_CC_UNSPECIFIED_ERROR;
+-    }
++    uint8_t requestedRecords = (entityInstance == 0) ? dcmi::maxRecords : 1;
++    // Read requested instances
++    const auto& [sensors, totalInstances] = dcmi::sensor_info::read(
++        it->second, instanceStart, config, requestedRecords);
++    uint8_t numRecords = sensors.size();
+ 
+-    size_t payloadSize = sensors.size() * sizeof(dcmi::sensor_info::Response);
+-    if (!sensors.empty())
+-    {
+-        memcpy(responseData + 1, // copy payload right after the response header
+-               sensors.data(), payloadSize);
+-    }
+-    *data_len = sizeof(dcmi::GetSensorInfoResponseHdr) + payloadSize;
+-
+-    return IPMI_CC_OK;
++    return ipmi::responseSuccess(totalInstances, numRecords, sensors);
+ }
+ 
+ void register_netfn_dcmi_functions()
+ {
+     // <Get Power Limit>
+-
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_POWER_LIMIT, NULL,
+-                           getPowerLimit, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetPowerLimit, ipmi::Privilege::User,
++                         getPowerLimit);
+ 
+     // <Set Power Limit>
+-
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::SET_POWER_LIMIT, NULL,
+-                           setPowerLimit, PRIVILEGE_OPERATOR);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdSetPowerLimit,
++                         ipmi::Privilege::Operator, setPowerLimit);
+ 
+     // <Activate/Deactivate Power Limit>
+-
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::APPLY_POWER_LIMIT,
+-                           NULL, applyPowerLimit, PRIVILEGE_OPERATOR);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdActDeactivatePwrLimit,
++                         ipmi::Privilege::Operator, applyPowerLimit);
+ 
+     // <Get Asset Tag>
+-
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_ASSET_TAG, NULL,
+-                           getAssetTag, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetAssetTag, ipmi::Privilege::User,
++                         getAssetTag);
+ 
+     // <Set Asset Tag>
+-
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::SET_ASSET_TAG, NULL,
+-                           setAssetTag, PRIVILEGE_OPERATOR);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdSetAssetTag, ipmi::Privilege::Operator,
++                         setAssetTag);
+ 
+     // <Get Management Controller Identifier String>
+-
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_MGMNT_CTRL_ID_STR,
+-                           NULL, getMgmntCtrlIdStr, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetMgmtCntlrIdString,
++                         ipmi::Privilege::User, getMgmntCtrlIdStr);
+ 
+     // <Set Management Controller Identifier String>
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::SET_MGMNT_CTRL_ID_STR,
+-                           NULL, setMgmntCtrlIdStr, PRIVILEGE_ADMIN);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdSetMgmtCntlrIdString,
++                         ipmi::Privilege::Admin, setMgmntCtrlIdStr);
+ 
+     // <Get DCMI capabilities>
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_CAPABILITIES,
+-                           NULL, getDCMICapabilities, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetDcmiCapabilitiesInfo,
++                         ipmi::Privilege::User, getDCMICapabilities);
+ 
+     // <Get Temperature Readings>
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_TEMP_READINGS,
+-                           NULL, getTempReadings, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetTemperatureReadings,
++                         ipmi::Privilege::User, getTempReadings);
+ 
+     // <Get Power Reading>
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_POWER_READING,
+-                           NULL, getPowerReading, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetPowerReading, ipmi::Privilege::User,
++                         getPowerReading);
+ 
+     // <Get Sensor Info>
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_SENSOR_INFO, NULL,
+-                           getSensorInfo, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetDcmiSensorInfo,
++                         ipmi::Privilege::Operator, getSensorInfo);
+ 
+     // <Get DCMI Configuration Parameters>
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::GET_CONF_PARAMS, NULL,
+-                           getDCMIConfParams, PRIVILEGE_USER);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdGetDcmiConfigParameters,
++                         ipmi::Privilege::User, getDCMIConfParams);
+ 
+     // <Set DCMI Configuration Parameters>
+-    ipmi_register_callback(NETFUN_GRPEXT, dcmi::Commands::SET_CONF_PARAMS, NULL,
+-                           setDCMIConfParams, PRIVILEGE_ADMIN);
++    registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                         ipmi::dcmi::cmdSetDcmiConfigParameters,
++                         ipmi::Privilege::Admin, setDCMIConfParams);
+ 
+     return;
+ }
+diff --git a/dcmihandler.hpp b/dcmihandler.hpp
+index 4f35bc6..5adbd73 100644
+--- a/dcmihandler.hpp
++++ b/dcmihandler.hpp
+@@ -10,27 +10,6 @@
+ namespace dcmi
+ {
+ 
+-using NumInstances = size_t;
+-using Json = nlohmann::json;
+-
+-enum Commands
+-{
+-    // Get capability bits
+-    GET_CAPABILITIES = 0x01,
+-    GET_POWER_READING = 0x02,
+-    GET_POWER_LIMIT = 0x03,
+-    SET_POWER_LIMIT = 0x04,
+-    APPLY_POWER_LIMIT = 0x05,
+-    GET_ASSET_TAG = 0x06,
+-    GET_SENSOR_INFO = 0x07,
+-    SET_ASSET_TAG = 0x08,
+-    GET_MGMNT_CTRL_ID_STR = 0x09,
+-    SET_MGMNT_CTRL_ID_STR = 0x0A,
+-    GET_TEMP_READINGS = 0x10,
+-    SET_CONF_PARAMS = 0x12,
+-    GET_CONF_PARAMS = 0x13,
+-};
+-
+ static constexpr auto propIntf = "org.freedesktop.DBus.Properties";
+ static constexpr auto assetTagIntf =
+     "xyz.openbmc_project.Inventory.Decorator.AssetTag";
+@@ -41,7 +20,8 @@ static constexpr auto networkConfigIntf =
+     "xyz.openbmc_project.Network.SystemConfiguration";
+ static constexpr auto hostNameProp = "HostName";
+ static constexpr auto temperatureSensorType = 0x01;
+-static constexpr auto maxInstances = 255;
++static constexpr size_t maxInstances = 255;
++static constexpr uint8_t maxRecords = 8;
+ static constexpr auto gDCMISensorsConfig =
+     "/usr/share/ipmi-providers/dcmi_sensors.json";
+ static constexpr auto ethernetIntf =
+@@ -61,106 +41,6 @@ static constexpr auto gDCMIPowerMgmtSupported = 0x1;
+ static constexpr auto gMaxSELEntriesMask = 0xFFF;
+ static constexpr auto gByteBitSize = 8;
+ 
+-namespace assettag
+-{
+-
+-using ObjectPath = std::string;
+-using Service = std::string;
+-using Interfaces = std::vector<std::string>;
+-using ObjectTree = std::map<ObjectPath, std::map<Service, Interfaces>>;
+-
+-} // namespace assettag
+-
+-namespace temp_readings
+-{
+-static constexpr auto maxDataSets = 8;
+-static constexpr auto maxTemp = 127; // degrees C
+-
+-/** @struct Response
+- *
+- *  DCMI payload for Get Temperature Readings response
+- */
+-struct Response
+-{
+-#if BYTE_ORDER == LITTLE_ENDIAN
+-    uint8_t temperature : 7; //!< Temperature reading in Celsius
+-    uint8_t sign : 1;        //!< Sign bit
+-#endif
+-#if BYTE_ORDER == BIG_ENDIAN
+-    uint8_t sign : 1;        //!< Sign bit
+-    uint8_t temperature : 7; //!< Temperature reading in Celsius
+-#endif
+-    uint8_t instance; //!< Entity instance number
+-} __attribute__((packed));
+-
+-using ResponseList = std::vector<Response>;
+-using Value = uint8_t;
+-using Sign = bool;
+-using Temperature = std::tuple<Value, Sign>;
+-} // namespace temp_readings
+-
+-namespace sensor_info
+-{
+-static constexpr auto maxRecords = 8;
+-
+-/** @struct Response
+- *
+- *  DCMI payload for Get Sensor Info response
+- */
+-struct Response
+-{
+-    uint8_t recordIdLsb; //!< SDR record id LS byte
+-    uint8_t recordIdMsb; //!< SDR record id MS byte
+-} __attribute__((packed));
+-
+-using ResponseList = std::vector<Response>;
+-} // namespace sensor_info
+-
+-static constexpr auto groupExtId = 0xDC;
+-
+-static constexpr auto assetTagMaxOffset = 62;
+-static constexpr auto assetTagMaxSize = 63;
+-static constexpr auto maxBytes = 16;
+-static constexpr size_t maxCtrlIdStrLen = 63;
+-
+-/** @struct GetAssetTagRequest
+- *
+- *  DCMI payload for Get Asset Tag command request.
+- */
+-struct GetAssetTagRequest
+-{
+-    uint8_t offset; //!< Offset to read.
+-    uint8_t bytes;  //!< Number of bytes to read.
+-} __attribute__((packed));
+-
+-/** @struct GetAssetTagResponse
+- *
+- *  DCMI payload for Get Asset Tag command response.
+- */
+-struct GetAssetTagResponse
+-{
+-    uint8_t tagLength; //!< Total asset tag length.
+-} __attribute__((packed));
+-
+-/** @struct SetAssetTagRequest
+- *
+- *  DCMI payload for Set Asset Tag command request.
+- */
+-struct SetAssetTagRequest
+-{
+-    uint8_t offset; //!< Offset to write.
+-    uint8_t bytes;  //!< Number of bytes to write.
+-} __attribute__((packed));
+-
+-/** @struct SetAssetTagResponse
+- *
+- *  DCMI payload for Set Asset Tag command response.
+- */
+-struct SetAssetTagResponse
+-{
+-    uint8_t tagLength; //!< Total asset tag length.
+-} __attribute__((packed));
+-
+ /** @brief Check whether DCMI power management is supported
+  *         in the DCMI Capabilities config file.
+  *
+@@ -168,416 +48,4 @@ struct SetAssetTagResponse
+  */
+ bool isDCMIPowerMgmtSupported();
+ 
+-/** @brief Read the object tree to fetch the object path that implemented the
+- *         Asset tag interface.
+- *
+- *  @param[in,out] objectTree - object tree
+- *
+- *  @return On success return the object tree with the object path that
+- *          implemented the AssetTag interface.
+- */
+-void readAssetTagObjectTree(dcmi::assettag::ObjectTree& objectTree);
+-
+-/** @brief Read the asset tag of the server
+- *
+- *  @return On success return the asset tag.
+- */
+-std::string readAssetTag();
+-
+-/** @brief Write the asset tag to the asset tag DBUS property
+- *
+- *  @param[in] assetTag - Asset Tag to be written to the property.
+- */
+-void writeAssetTag(const std::string& assetTag);
+-
+-/** @brief Read the current power cap value
+- *
+- *  @param[in] bus - dbus connection
+- *
+- *  @return On success return the power cap value.
+- */
+-uint32_t getPcap(sdbusplus::bus::bus& bus);
+-
+-/** @brief Check if the power capping is enabled
+- *
+- *  @param[in] bus - dbus connection
+- *
+- *  @return true if the powerCap is enabled and false if the powercap
+- *          is disabled.
+- */
+-bool getPcapEnabled(sdbusplus::bus::bus& bus);
+-
+-/** @struct GetPowerLimitResponse
+- *
+- *  DCMI payload for Get Power Limit command response.
+- */
+-struct GetPowerLimitResponse
+-{
+-    uint16_t reserved;       //!< Reserved.
+-    uint8_t exceptionAction; //!< Exception action.
+-    uint16_t powerLimit;     //!< Power limit requested in watts.
+-    uint32_t correctionTime; //!< Correction time limit in milliseconds.
+-    uint16_t reserved1;      //!< Reserved.
+-    uint16_t samplingPeriod; //!< Statistics sampling period in seconds.
+-} __attribute__((packed));
+-
+-/** @brief Set the power cap value
+- *
+- *  @param[in] bus - dbus connection
+- *  @param[in] powerCap - power cap value
+- */
+-void setPcap(sdbusplus::bus::bus& bus, const uint32_t powerCap);
+-
+-/** @struct SetPowerLimitRequest
+- *
+- *  DCMI payload for Set Power Limit command request.
+- */
+-struct SetPowerLimitRequest
+-{
+-    uint16_t reserved;       //!< Reserved
+-    uint8_t reserved1;       //!< Reserved
+-    uint8_t exceptionAction; //!< Exception action.
+-    uint16_t powerLimit;     //!< Power limit requested in watts.
+-    uint32_t correctionTime; //!< Correction time limit in milliseconds.
+-    uint16_t reserved2;      //!< Reserved.
+-    uint16_t samplingPeriod; //!< Statistics sampling period in seconds.
+-} __attribute__((packed));
+-
+-/** @brief Enable or disable the power capping
+- *
+- *  @param[in] bus - dbus connection
+- *  @param[in] enabled - enable/disable
+- */
+-void setPcapEnable(sdbusplus::bus::bus& bus, bool enabled);
+-
+-/** @struct ApplyPowerLimitRequest
+- *
+- *  DCMI payload for Activate/Deactivate Power Limit command request.
+- */
+-struct ApplyPowerLimitRequest
+-{
+-    uint8_t powerLimitAction; //!< Power limit activation
+-    uint16_t reserved;        //!< Reserved
+-} __attribute__((packed));
+-
+-/** @struct GetMgmntCtrlIdStrRequest
+- *
+- *  DCMI payload for Get Management Controller Identifier String cmd request.
+- */
+-struct GetMgmntCtrlIdStrRequest
+-{
+-    uint8_t offset; //!< Offset to read.
+-    uint8_t bytes;  //!< Number of bytes to read.
+-} __attribute__((packed));
+-
+-/** @struct GetMgmntCtrlIdStrResponse
+- *
+- *  DCMI payload for Get Management Controller Identifier String cmd response.
+- */
+-struct GetMgmntCtrlIdStrResponse
+-{
+-    uint8_t strLen; //!< ID string length.
+-    char data[];    //!< ID string
+-} __attribute__((packed));
+-
+-/** @struct SetMgmntCtrlIdStrRequest
+- *
+- *  DCMI payload for Set Management Controller Identifier String cmd request.
+- */
+-struct SetMgmntCtrlIdStrRequest
+-{
+-    uint8_t offset; //!< Offset to write.
+-    uint8_t bytes;  //!< Number of bytes to read.
+-    char data[];    //!< ID string
+-} __attribute__((packed));
+-
+-/** @struct GetMgmntCtrlIdStrResponse
+- *
+- *  DCMI payload for Get Management Controller Identifier String cmd response.
+- */
+-struct SetMgmntCtrlIdStrResponse
+-{
+-    uint8_t offset; //!< Last Offset Written.
+-} __attribute__((packed));
+-
+-/** @enum DCMICapParameters
+- *
+- * DCMI Capability parameters
+- */
+-enum class DCMICapParameters
+-{
+-    SUPPORTED_DCMI_CAPS = 0x01,             //!< Supported DCMI Capabilities
+-    MANDATORY_PLAT_ATTRIBUTES = 0x02,       //!< Mandatory Platform Attributes
+-    OPTIONAL_PLAT_ATTRIBUTES = 0x03,        //!< Optional Platform Attributes
+-    MANAGEABILITY_ACCESS_ATTRIBUTES = 0x04, //!< Manageability Access Attributes
+-};
+-
+-/** @struct GetDCMICapRequest
+- *
+- *  DCMI payload for Get capabilities cmd request.
+- */
+-struct GetDCMICapRequest
+-{
+-    uint8_t param; //!< Capability parameter selector.
+-} __attribute__((packed));
+-
+-/** @struct GetDCMICapRequest
+- *
+- *  DCMI payload for Get capabilities cmd response.
+- */
+-struct GetDCMICapResponse
+-{
+-    uint8_t major;         //!< DCMI Specification Conformance - major ver
+-    uint8_t minor;         //!< DCMI Specification Conformance - minor ver
+-    uint8_t paramRevision; //!< Parameter Revision = 02h
+-    uint8_t data[];        //!< Capability array
+-} __attribute__((packed));
+-
+-/** @struct DCMICap
+- *
+- *  DCMI capabilities protocol info.
+- */
+-struct DCMICap
+-{
+-    std::string name;     //!< Name of DCMI capability.
+-    uint8_t bytePosition; //!< Starting byte number from DCMI spec.
+-    uint8_t position;     //!< bit position from the DCMI spec.
+-    uint8_t length;       //!< Length of the value from DCMI spec.
+-};
+-
+-using DCMICapList = std::vector<DCMICap>;
+-
+-/** @struct DCMICapEntry
+- *
+- *  DCMI capabilities list and size for each parameter.
+- */
+-struct DCMICapEntry
+-{
+-    uint8_t size;        //!< Size of capability array in bytes.
+-    DCMICapList capList; //!< List of capabilities for a parameter.
+-};
+-
+-using DCMICaps = std::map<DCMICapParameters, DCMICapEntry>;
+-
+-/** @struct GetTempReadingsRequest
+- *
+- *  DCMI payload for Get Temperature Readings request
+- */
+-struct GetTempReadingsRequest
+-{
+-    uint8_t sensorType;     //!< Type of the sensor
+-    uint8_t entityId;       //!< Entity ID
+-    uint8_t entityInstance; //!< Entity Instance (0 means all instances)
+-    uint8_t instanceStart;  //!< Instance start (used if instance is 0)
+-} __attribute__((packed));
+-
+-/** @struct GetTempReadingsResponse
+- *
+- *  DCMI header for Get Temperature Readings response
+- */
+-struct GetTempReadingsResponseHdr
+-{
+-    uint8_t numInstances; //!< No. of instances for requested id
+-    uint8_t numDataSets;  //!< No. of sets of temperature data
+-} __attribute__((packed));
+-
+-/** @brief Parse out JSON config file.
+- *
+- *  @param[in] configFile - JSON config file name
+- *
+- *  @return A json object
+- */
+-Json parseJSONConfig(const std::string& configFile);
+-
+-namespace temp_readings
+-{
+-/** @brief Read temperature from a d-bus object, scale it as per dcmi
+- *         get temperature reading requirements.
+- *
+- *  @param[in] dbusService - the D-Bus service
+- *  @param[in] dbusPath - the D-Bus path
+- *
+- *  @return A temperature reading
+- */
+-Temperature readTemp(const std::string& dbusService,
+-                     const std::string& dbusPath);
+-
+-/** @brief Read temperatures and fill up DCMI response for the Get
+- *         Temperature Readings command. This looks at a specific
+- *         instance.
+- *
+- *  @param[in] type - one of "inlet", "cpu", "baseboard"
+- *  @param[in] instance - A non-zero Entity instance number
+- *
+- *  @return A tuple, containing a temperature reading and the
+- *          number of instances.
+- */
+-std::tuple<Response, NumInstances> read(const std::string& type,
+-                                        uint8_t instance);
+-
+-/** @brief Read temperatures and fill up DCMI response for the Get
+- *         Temperature Readings command. This looks at a range of
+- *         instances.
+- *
+- *  @param[in] type - one of "inlet", "cpu", "baseboard"
+- *  @param[in] instanceStart - Entity instance start index
+- *
+- *  @return A tuple, containing a list of temperature readings and the
+- *          number of instances.
+- */
+-std::tuple<ResponseList, NumInstances> readAll(const std::string& type,
+-                                               uint8_t instanceStart);
+-} // namespace temp_readings
+-
+-namespace sensor_info
+-{
+-/** @brief Create response from JSON config.
+- *
+- *  @param[in] config - JSON config info about DCMI sensors
+- *
+- *  @return Sensor info response
+- */
+-Response createFromJson(const Json& config);
+-
+-/** @brief Read sensor info and fill up DCMI response for the Get
+- *         Sensor Info command. This looks at a specific
+- *         instance.
+- *
+- *  @param[in] type - one of "inlet", "cpu", "baseboard"
+- *  @param[in] instance - A non-zero Entity instance number
+- *  @param[in] config - JSON config info about DCMI sensors
+- *
+- *  @return A tuple, containing a sensor info response and
+- *          number of instances.
+- */
+-std::tuple<Response, NumInstances> read(const std::string& type,
+-                                        uint8_t instance, const Json& config);
+-
+-/** @brief Read sensor info and fill up DCMI response for the Get
+- *         Sensor Info command. This looks at a range of
+- *         instances.
+- *
+- *  @param[in] type - one of "inlet", "cpu", "baseboard"
+- *  @param[in] instanceStart - Entity instance start index
+- *  @param[in] config - JSON config info about DCMI sensors
+- *
+- *  @return A tuple, containing a list of sensor info responses and the
+- *          number of instances.
+- */
+-std::tuple<ResponseList, NumInstances>
+-    readAll(const std::string& type, uint8_t instanceStart, const Json& config);
+-} // namespace sensor_info
+-
+-/** @brief Read power reading from power reading sensor object
+- *
+- *  @param[in] bus - dbus connection
+- *
+- *  @return total power reading
+- */
+-int64_t getPowerReading(sdbusplus::bus::bus& bus);
+-
+-/** @struct GetPowerReadingRequest
+- *
+- *  DCMI Get Power Reading command request.
+- *  Refer DCMI specification Version 1.1 Section 6.6.1
+- */
+-struct GetPowerReadingRequest
+-{
+-    uint8_t mode;          //!< Mode
+-    uint8_t modeAttribute; //!< Mode Attributes
+-} __attribute__((packed));
+-
+-/** @struct GetPowerReadingResponse
+- *
+- *  DCMI Get Power Reading command response.
+- *  Refer DCMI specification Version 1.1 Section 6.6.1
+- */
+-struct GetPowerReadingResponse
+-{
+-    uint16_t currentPower;     //!< Current power in watts
+-    uint16_t minimumPower;     //!< Minimum power over sampling duration
+-                               //!< in watts
+-    uint16_t maximumPower;     //!< Maximum power over sampling duration
+-                               //!< in watts
+-    uint16_t averagePower;     //!< Average power over sampling duration
+-                               //!< in watts
+-    uint32_t timeStamp;        //!< IPMI specification based time stamp
+-    uint32_t timeFrame;        //!< Statistics reporting time period in milli
+-                               //!< seconds.
+-    uint8_t powerReadingState; //!< Power Reading State
+-} __attribute__((packed));
+-
+-/** @struct GetSensorInfoRequest
+- *
+- *  DCMI payload for Get Sensor Info request
+- */
+-struct GetSensorInfoRequest
+-{
+-    uint8_t sensorType;     //!< Type of the sensor
+-    uint8_t entityId;       //!< Entity ID
+-    uint8_t entityInstance; //!< Entity Instance (0 means all instances)
+-    uint8_t instanceStart;  //!< Instance start (used if instance is 0)
+-} __attribute__((packed));
+-
+-/** @struct GetSensorInfoResponseHdr
+- *
+- *  DCMI header for Get Sensor Info response
+- */
+-struct GetSensorInfoResponseHdr
+-{
+-    uint8_t numInstances; //!< No. of instances for requested id
+-    uint8_t numRecords;   //!< No. of record ids in the response
+-} __attribute__((packed));
+-/**
+- *  @brief Parameters for DCMI Configuration Parameters
+- */
+-enum class DCMIConfigParameters : uint8_t
+-{
+-    ActivateDHCP = 1,
+-    DiscoveryConfig,
+-    DHCPTiming1,
+-    DHCPTiming2,
+-    DHCPTiming3,
+-};
+-
+-/** @struct SetConfParamsRequest
+- *
+- *  DCMI Set DCMI Configuration Parameters Command.
+- *  Refer DCMI specification Version 1.1 Section 6.1.2
+- */
+-struct SetConfParamsRequest
+-{
+-    uint8_t paramSelect; //!< Parameter selector.
+-    uint8_t setSelect;   //!< Set Selector (use 00h for parameters that only
+-                         //!< have one set).
+-    uint8_t data[];      //!< Configuration parameter data.
+-} __attribute__((packed));
+-
+-/** @struct GetConfParamsRequest
+- *
+- *  DCMI Get DCMI Configuration Parameters Command.
+- *  Refer DCMI specification Version 1.1 Section 6.1.3
+- */
+-struct GetConfParamsRequest
+-{
+-    uint8_t paramSelect; //!< Parameter selector.
+-    uint8_t setSelect;   //!< Set Selector. Selects a given set of parameters
+-                         //!< under a given Parameter selector value. 00h if
+-                         //!< parameter doesn't use a Set Selector.
+-} __attribute__((packed));
+-
+-/** @struct GetConfParamsResponse
+- *
+- *  DCMI Get DCMI Configuration Parameters Command response.
+- *  Refer DCMI specification Version 1.1 Section 6.1.3
+- */
+-struct GetConfParamsResponse
+-{
+-    uint8_t major;         //!< DCMI Spec Conformance - major ver = 01h.
+-    uint8_t minor;         //!< DCMI Spec Conformance - minor ver = 05h.
+-    uint8_t paramRevision; //!< Parameter Revision = 01h.
+-    uint8_t data[];        //!< Parameter data.
+-
+-} __attribute__((packed));
+-
+ } // namespace dcmi
+diff --git a/ipmid-new.cpp b/ipmid-new.cpp
+index 7f558cd..d2ae3b3 100644
+--- a/ipmid-new.cpp
++++ b/ipmid-new.cpp
+@@ -23,7 +23,6 @@
+ #include <any>
+ #include <boost/algorithm/string.hpp>
+ #include <boost/asio/io_context.hpp>
+-#include <dcmihandler.hpp>
+ #include <exception>
+ #include <filesystem>
+ #include <forward_list>
+@@ -713,8 +712,8 @@ void ipmi_register_callback(ipmi_netfn_t netFn, ipmi_cmd_t cmd,
+     // all the handlers were part of the DCMI group, so default to that.
+     if (netFn == NETFUN_GRPEXT)
+     {
+-        ipmi::impl::registerGroupHandler(ipmi::prioOpenBmcBase,
+-                                         dcmi::groupExtId, cmd, realPriv, h);
++        ipmi::impl::registerGroupHandler(ipmi::prioOpenBmcBase, ipmi::groupDCMI,
++                                         cmd, realPriv, h);
+     }
+     else
+     {
+-- 
+2.17.1
+
